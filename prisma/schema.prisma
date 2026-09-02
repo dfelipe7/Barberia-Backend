@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum EstadoUsuario {
+  ACTIVO
+  INACTIVO
+}
+
+enum RolUsuario {
+  SUPERADMIN
+  ADMINISTRADOR
+  BARBERO
+}
+
+model Usuario {
+  id         Int           @id @default(autoincrement())
+  keycloakId String        @unique
+  email      String        @unique
+  nombre     String
+  apellido   String
+  rol        RolUsuario
+  estado     EstadoUsuario @default(ACTIVO)
+
+  administrador Administrador?
+  barbero       Barbero?
+}
+
+model Administrador {
+  id        Int     @id @default(autoincrement())
+  usuarioId Int     @unique
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+}
+
+model Barbero {
+  id                Int           @id @default(autoincrement())
+  usuarioId         Int           @unique
+  telefono          String
+  porcentajeComision Decimal       @db.Decimal(5, 2)
+  estado            EstadoUsuario @default(ACTIVO)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+}
+
+model Cliente {
+  id       Int    @id @default(autoincrement())
+  nombre   String
+  apellido String
+  telefono String
+}
