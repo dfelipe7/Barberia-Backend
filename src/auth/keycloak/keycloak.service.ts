@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
@@ -61,30 +61,39 @@ async crearUsuario(
   const token =
     await this.obtenerTokenAdministrativo();
 
-  const response = await axios.post(
-    `${url}/admin/realms/${realm}/users`,
-    {
-      username: email,
-      email,
-      firstName: nombre,
-      lastName: apellido,
-      enabled: true,
-      emailVerified: false,
-      credentials: [
-        {
-          type: 'password',
-          value: password,
-          temporary: false,
-        },
-      ],
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+  const response = await axios
+    .post(
+      `${url}/admin/realms/${realm}/users`,
+      {
+        username: email,
+        email,
+        firstName: nombre,
+        lastName: apellido,
+        enabled: true,
+        emailVerified: false,
+        credentials: [
+          {
+            type: 'password',
+            value: password,
+            temporary: false,
+          },
+        ],
       },
-    },
-  );
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      },
+    )
+    .catch((error) => {
+      if (error.response?.status === 409) {
+        throw new ConflictException(
+          `Ya existe un usuario con el correo: ${email}`,
+        );
+      }
+      throw error;
+    });
 
   const location =
     response.headers.location;
@@ -119,19 +128,45 @@ async asignarRol(
     },
   );
 
-  await axios.post(
-    `${url}/admin/realms/${realm}/users/${keycloakUserId}/role-mappings/realm`,
-    [
-      roleResponse.data,
-    ],
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+    await axios.post(
+      `${url}/admin/realms/${realm}/users/${keycloakUserId}/role-mappings/realm`,
+      [roleResponse.data],
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       },
-    },
-  );
-}
+    );
+  }
+
+  async quitarRol(
+    keycloakUserId: string,
+    roleName: string,
+  ): Promise<void> {
+    const { url, realm } = this.obtenerConfiguracion();
+    const token = await this.obtenerTokenAdministrativo();
+
+    const roleResponse = await axios.get(
+      `${url}/admin/realms/${realm}/roles/${roleName}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+
+    await axios.delete(
+      `${url}/admin/realms/${realm}/users/${keycloakUserId}/role-mappings/realm`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        data: [roleResponse.data],
+      },
+    );
+  }
 
 
 async obtenerUsuariosPorRol(
