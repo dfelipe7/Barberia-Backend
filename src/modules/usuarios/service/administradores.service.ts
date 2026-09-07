@@ -12,6 +12,11 @@ export class AdministradoresService {
     private readonly keycloakService: KeycloakService,
   ) {}
 
+  /**
+   * Registra a un nuevo administrador/gerente en el sistema.
+   * Crea el usuario en Keycloak con el rol ADMINISTRADOR y genera su perfil en MySQL.
+   * Exclusivo para el SUPERADMIN.
+   */
   async crearAdministrador(dto: CrearAdministradorDto) {
     const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorEmail(dto.email);
     if (usuarioExistente) {
@@ -49,6 +54,10 @@ export class AdministradoresService {
     }
   }
 
+  /**
+   * Obtiene la lista completa de todos los administradores del sistema.
+   * Exclusivo para la tabla de gestión del SUPERADMIN.
+   */
   async obtenerAdministradores() {
     const administradores = await this.administradoresRepository.obtenerAdministradores();
 

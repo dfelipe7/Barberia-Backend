@@ -48,6 +48,15 @@ export class UsuariosController {
     return this.barberosService.configurarBarberoPorId(Number(id), dto);
   }
 
+  @Get('me')
+  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @ApiOperation({ summary: 'Obtiene el perfil del usuario autenticado actual' })
+  async obtenerMiPerfil(
+    @Req() request: any,
+  ) {
+    return this.usuariosService.obtenerMiPerfil(request.user);
+  }
+
   @Get(':id')
   @UseGuards(KeycloakAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')

@@ -19,6 +19,10 @@ export class BarberosService {
     private readonly authorizationService: UsuariosAuthorizationService,
   ) {}
 
+  /**
+   * Crea un nuevo empleado barbero desde cero.
+   * Lo registra en Keycloak con el rol BARBERO y crea su perfil en MySQL.
+   */
   async crearBarbero(dto: CrearBarberoDto) {
     const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorEmail(dto.email);
     if (usuarioExistente) {
@@ -58,6 +62,10 @@ export class BarberosService {
     }
   }
 
+  /**
+   * Configura el perfil de barbero para el usuario que hace la petición (Auto-asignación).
+   * Requiere que el usuario ya exista y no tenga un perfil de barbero previo.
+   */
   async configurarBarbero(keycloakId: string, dto: ConfigurarBarberoDto) {
     const usuario = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(keycloakId);
 
@@ -76,6 +84,10 @@ export class BarberosService {
     });
   }
 
+  /**
+   * Configura el perfil de barbero para un usuario específico (Por ID).
+   * Restringido a administradores.
+   */
   async configurarBarberoPorId(usuarioId: number, dto: ConfigurarBarberoDto) {
     const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
@@ -98,6 +110,9 @@ export class BarberosService {
     });
   }
 
+  /**
+   * Actualiza el porcentaje de comisión que gana un barbero por sus servicios.
+   */
   async actualizarComision(usuarioId: number, dto: ActualizarComisionDto, usuarioAutenticado: any) {
     const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
@@ -120,6 +135,10 @@ export class BarberosService {
     return this.barberosRepository.actualizarComision(usuarioId, dto.porcentajeComision);
   }
 
+  /**
+   * Obtiene la lista de barberos para el catálogo público.
+   * Filtra barberos inactivos y oculta datos sensibles (comisión, email).
+   */
   async obtenerBarberosCatalogo(): Promise<BarberoCatalogoDto[]> {
     const barberos = await this.barberosRepository.obtenerBarberosCatalogo();
 
@@ -131,6 +150,10 @@ export class BarberosService {
     }));
   }
 
+  /**
+   * Obtiene la lista completa de barberos para la gestión interna.
+   * Incluye datos sensibles como la comisión y el correo.
+   */
   async obtenerBarberosGestion() {
     const barberos = await this.barberosRepository.obtenerBarberosGestion();
 
@@ -145,6 +168,11 @@ export class BarberosService {
     }));
   }
 
+  /**
+   * Cambia el estado del perfil de barbero (ACTIVO/INACTIVO).
+   * Si se inactiva, se le quita el rol BARBERO en Keycloak para ocultarlo del catálogo,
+   * pero su cuenta global sigue funcionando.
+   */
   async cambiarEstadoBarbero(usuarioId: number, dto: CambiarEstadoUsuarioDto, usuarioAutenticado: any) {
     const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
@@ -162,7 +190,7 @@ export class BarberosService {
       throw new ConflictException('El usuario autenticado no existe en la base de datos');
     }
 
-    this.authorizationService.verificarPermisosCambioEstado(usuarioActual, usuario);
+    this.authorizationService.verificarPermisosCambioEstadoBarbero(usuarioActual, usuario);
 
     const nuevoEstado = dto.estado;
     const activo = nuevoEstado === EstadoUsuario.ACTIVO;

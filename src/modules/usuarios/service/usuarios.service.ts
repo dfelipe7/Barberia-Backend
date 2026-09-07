@@ -18,6 +18,10 @@ export class UsuariosService {
     private readonly authorizationService: UsuariosAuthorizationService,
   ) {}
 
+  /**
+   * Sincroniza al usuario SUPERADMIN inicial desde Keycloak a la base de datos local.
+   * Se usa típicamente una vez al configurar el sistema por primera vez.
+   */
   async sincronizarSuperadmin() {
     const superadmins = await this.keycloakService.obtenerUsuariosPorRol('SUPERADMIN');
 
@@ -54,6 +58,23 @@ export class UsuariosService {
     };
   }
 
+  /**
+   * Obtiene el perfil del usuario autenticado en base a su ID de Keycloak.
+   */
+  async obtenerMiPerfil(usuarioAutenticado: any) {
+    const usuarioActual = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(usuarioAutenticado.sub);
+
+    if (!usuarioActual) {
+      throw new ConflictException('El usuario autenticado no existe en la base de datos');
+    }
+
+    return usuarioActual;
+  }
+
+  /**
+   * Obtiene los datos de un usuario específico por su ID numérico.
+   * Valida que el usuario que realiza la petición tenga permisos para verlo.
+   */
   async obtenerUsuarioPorId(usuarioId: number, usuarioAutenticado: any) {
     const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
@@ -72,6 +93,10 @@ export class UsuariosService {
     return usuario;
   }
 
+  /**
+   * Actualiza el nombre, apellido y correo de un usuario.
+   * Refleja los cambios tanto en Keycloak como en la base de datos local.
+   */
   async actualizarUsuario(usuarioId: number, dto: ActualizarUsuarioDto, usuarioAutenticado: any) {
     const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
@@ -100,6 +125,10 @@ export class UsuariosService {
     });
   }
 
+  /**
+   * Cambia el estado de la cuenta global del usuario (ACTIVO/INACTIVO).
+   * Al inactivar, bloquea el acceso en Keycloak, impidiendo el inicio de sesión.
+   */
   async cambiarEstadoUsuario(usuarioId: number, dto: CambiarEstadoUsuarioDto, usuarioAutenticado: any) {
     const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
@@ -113,7 +142,7 @@ export class UsuariosService {
       throw new ConflictException('El usuario autenticado no existe en la base de datos');
     }
 
-    this.authorizationService.verificarPermisosCambioEstado(usuarioActual, usuario);
+    this.authorizationService.verificarPermisosCambioEstadoCuenta(usuarioActual, usuario);
 
     const nuevoEstado = dto.estado;
     const activo = nuevoEstado === EstadoUsuario.ACTIVO;
