@@ -23,4 +23,13 @@ export class ActualizarUsuarioDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @ApiProperty({ example: '1234567890', description: 'Teléfono del barbero', required: false })
+  @IsOptional()
+  @IsString()
+  telefono?: string;
+
+  @ApiProperty({ example: 40, description: 'Porcentaje de comisión del barbero', required: false })
+  @IsOptional()
+  porcentajeComision?: number;
 }

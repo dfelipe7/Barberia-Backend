@@ -40,6 +40,21 @@ export class BarberosRepository {
     });
   }
 
+  async actualizarPerfilBarbero(
+    usuarioId: number,
+    data: {
+      telefono?: string;
+      porcentajeComision?: number;
+    },
+  ) {
+    return this.prisma.barbero.update({
+      where: {
+        usuarioId,
+      },
+      data,
+    });
+  }
+
   async obtenerBarberosCatalogo() {
     return this.prisma.barbero.findMany({
       where: {

@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 
 import { KeycloakService } from '../../../auth/keycloak/keycloak.service';
+import { BarberosRepository } from '../repository/barberos.repository';
 import { ActualizarUsuarioDto } from '../dto/actualizar-usuario.dto';
 import { CambiarEstadoUsuarioDto } from '../dto/cambiar-estado-usuario.dto';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
@@ -14,6 +15,7 @@ import { UsuariosAuthorizationService } from './usuarios-authorization.service';
 export class UsuariosService {
   constructor(
     private readonly usuariosRepository: UsuariosRepository,
+    private readonly barberosRepository: BarberosRepository,
     private readonly keycloakService: KeycloakService,
     private readonly authorizationService: UsuariosAuthorizationService,
   ) {}
@@ -29,33 +31,34 @@ export class UsuariosService {
       throw new ConflictException('No existe ningún SUPERADMIN en Keycloak');
     }
 
-    if (superadmins.length > 1) {
-      throw new ConflictException('Existe más de un SUPERADMIN en Keycloak');
+    const resultados: any[] = [];
+
+    for (const superadmin of superadmins) {
+      const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(superadmin.id);
+
+      if (usuarioExistente) {
+        resultados.push({
+          mensaje: `El SUPERADMIN ${superadmin.email} ya existe en la base de datos`,
+          usuario: usuarioExistente,
+        });
+        continue;
+      }
+
+      const usuario = await this.usuariosRepository.crearUsuario({
+        keycloakId: superadmin.id,
+        email: superadmin.email,
+        nombre: superadmin.firstName ?? '',
+        apellido: superadmin.lastName ?? '',
+        rol: 'SUPERADMIN',
+      });
+
+      resultados.push({
+        mensaje: `SUPERADMIN ${superadmin.email} sincronizado correctamente`,
+        usuario,
+      });
     }
 
-    const superadmin = superadmins[0];
-
-    const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(superadmin.id);
-
-    if (usuarioExistente) {
-      return {
-        mensaje: 'El SUPERADMIN ya existe en la base de datos',
-        usuario: usuarioExistente,
-      };
-    }
-
-    const usuario = await this.usuariosRepository.crearUsuario({
-      keycloakId: superadmin.id,
-      email: superadmin.email,
-      nombre: superadmin.firstName ?? '',
-      apellido: superadmin.lastName ?? '',
-      rol: 'SUPERADMIN',
-    });
-
-    return {
-      mensaje: 'SUPERADMIN sincronizado correctamente',
-      usuario,
-    };
+    return resultados;
   }
 
   /**
@@ -96,6 +99,7 @@ export class UsuariosService {
   /**
    * Actualiza el nombre, apellido y correo de un usuario.
    * Refleja los cambios tanto en Keycloak como en la base de datos local.
+   * Si el usuario es un barbero y se envían datos extra, actualiza el perfil de barbero.
    */
   async actualizarUsuario(usuarioId: number, dto: ActualizarUsuarioDto, usuarioAutenticado: any) {
     const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
@@ -118,11 +122,20 @@ export class UsuariosService {
       apellido: dto.apellido,
     });
 
-    return this.usuariosRepository.actualizarUsuario(usuarioId, {
+    const usuarioActualizado = await this.usuariosRepository.actualizarUsuario(usuarioId, {
       email: dto.email,
       nombre: dto.nombre,
       apellido: dto.apellido,
     });
+
+    if (usuario.barbero && (dto.telefono || dto.porcentajeComision !== undefined)) {
+      await this.barberosRepository.actualizarPerfilBarbero(usuarioId, {
+        telefono: dto.telefono,
+        porcentajeComision: dto.porcentajeComision,
+      });
+    }
+
+    return usuarioActualizado;
   }
 
   /**

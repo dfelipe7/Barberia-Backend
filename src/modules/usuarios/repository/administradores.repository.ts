@@ -16,7 +16,11 @@ export class AdministradoresRepository {
   async obtenerAdministradores() {
     return this.prisma.administrador.findMany({
       include: {
-        usuario: true,
+        usuario: {
+          include: {
+            barbero: true,
+          },
+        },
       },
     });
   }

@@ -61,12 +61,14 @@ export class AdministradoresService {
   async obtenerAdministradores() {
     const administradores = await this.administradoresRepository.obtenerAdministradores();
 
-    return administradores.map((administrador) => ({
+    return administradores.map((administrador: any) => ({
       id: administrador.usuario.id,
       nombre: administrador.usuario.nombre,
       apellido: administrador.usuario.apellido,
       email: administrador.usuario.email,
       estado: administrador.usuario.estado,
+      esBarbero: administrador.usuario.barbero !== null,
+      estadoBarbero: administrador.usuario.barbero?.estado,
     }));
   }
 }

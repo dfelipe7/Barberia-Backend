@@ -61,6 +61,9 @@ export class KeycloakAuthGuard implements CanActivate {
           'KEYCLOAK_URL',
         );
 
+      const issuerUrl =
+        this.configService.get<string>('KEYCLOAK_ISSUER') || keycloakUrl;
+
       const realm =
         this.configService.getOrThrow<string>(
           'KEYCLOAK_REALM',
@@ -70,7 +73,7 @@ export class KeycloakAuthGuard implements CanActivate {
         token,
         this.jwks,
         {
-          issuer: `${keycloakUrl}/realms/${realm}`,
+          issuer: `${issuerUrl}/realms/${realm}`,
         },
       );
 

@@ -30,36 +30,30 @@ export class BootstrapService implements OnModuleInit {
       );
     }
 
-    if (superadmins.length > 1) {
-      throw new ConflictException(
-        'Existe más de un SUPERADMIN en Keycloak',
-      );
-    }
+    for (const superadmin of superadmins) {
+      const usuarioExistente =
+        await this.usuariosRepository.obtenerUsuarioPorKeycloakId(
+          superadmin.id,
+        );
 
-    const superadmin = superadmins[0];
+      if (usuarioExistente) {
+        console.log(
+          `SUPERADMIN ${superadmin.email} ya existe en la base de datos`,
+        );
+        continue;
+      }
 
-    const usuarioExistente =
-      await this.usuariosRepository.obtenerUsuarioPorKeycloakId(
-        superadmin.id,
-      );
+      await this.usuariosRepository.crearUsuario({
+        keycloakId: superadmin.id,
+        email: superadmin.email,
+        nombre: superadmin.firstName ?? '',
+        apellido: superadmin.lastName ?? '',
+        rol: 'SUPERADMIN',
+      });
 
-    if (usuarioExistente) {
       console.log(
-        'SUPERADMIN ya existe en la base de datos',
+        `SUPERADMIN ${superadmin.email} sincronizado correctamente en la base de datos`,
       );
-      return;
     }
-
-    await this.usuariosRepository.crearUsuario({
-      keycloakId: superadmin.id,
-      email: superadmin.email,
-      nombre: superadmin.firstName ?? '',
-      apellido: superadmin.lastName ?? '',
-      rol: 'SUPERADMIN',
-    });
-
-    console.log(
-      'SUPERADMIN sincronizado correctamente en la base de datos',
-    );
   }
 }
