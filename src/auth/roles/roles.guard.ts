@@ -7,6 +7,13 @@ import {
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from './roles.decorator';
 
+/**
+ * Cadenero VIP (RolesGuard)
+ * 
+ * Este guardia actúa DESPUÉS de que el KeycloakAuthGuard validó el token.
+ * Su trabajo es leer qué roles pide la ruta (usando el decorador @Roles) y
+ * compararlos contra los roles que el usuario trae dentro de su token JWT.
+ */
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(

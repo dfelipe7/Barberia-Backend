@@ -83,4 +83,18 @@ export class UsuariosRepository {
       },
     });
   }
+
+  async actualizarRol(
+    usuarioId: number,
+    rol: 'SUPERADMIN' | 'ADMINISTRADOR' | 'BARBERO',
+  ) {
+    return this.prisma.usuario.update({
+      where: {
+        id: usuarioId,
+      },
+      data: {
+        rol,
+      },
+    });
+  }
 }

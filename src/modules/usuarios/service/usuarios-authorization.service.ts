@@ -58,9 +58,21 @@ export class UsuariosAuthorizationService {
       }
 
       const esSuPropioPerfil = usuarioActual.id === usuarioObjetivo.id;
-      const esBarbero = usuarioObjetivo.barbero !== null;
+      if (esSuPropioPerfil) {
+        return;
+      }
 
-      if (!esSuPropioPerfil && !esBarbero) {
+      // Un administrador nunca puede editar a otro administrador
+      const esOtroAdmin =
+        usuarioObjetivo.rol === 'ADMINISTRADOR' ||
+        usuarioObjetivo.administrador !== null;
+
+      if (esOtroAdmin) {
+        throw new ForbiddenException('Un administrador no puede editar el perfil de otro administrador');
+      }
+
+      const esBarbero = usuarioObjetivo.barbero !== null;
+      if (!esBarbero) {
         throw new ForbiddenException('No tienes permisos para editar este usuario');
       }
       return;
@@ -85,7 +97,7 @@ export class UsuariosAuthorizationService {
    * REGLAS DE SEGURIDAD:
    * - NADIE puede desactivar su propia cuenta global (medida anti-bloqueo accidental).
    * - SUPERADMIN: Puede desactivar la cuenta de cualquier otra persona.
-   * - ADMINISTRADOR: Solo puede desactivar la cuenta de los Barberos. 
+   * - ADMINISTRADOR: Solo puede desactivar la cuenta de los Barberos puros. 
    *   ¡NUNCA puede desactivar a un SUPERADMIN ni a otros Administradores!
    */
   verificarPermisosCambioEstadoCuenta(usuarioActual: any, usuarioObjetivo: any) {
@@ -102,8 +114,16 @@ export class UsuariosAuthorizationService {
         throw new ForbiddenException('Un administrador no puede cambiar el estado de un superadmin');
       }
 
-      const esBarbero = usuarioObjetivo.barbero !== null;
+      // Un administrador nunca puede bloquear a otro administrador (aunque también sea barbero)
+      const esOtroAdmin =
+        usuarioObjetivo.rol === 'ADMINISTRADOR' ||
+        usuarioObjetivo.administrador !== null;
 
+      if (esOtroAdmin) {
+        throw new ForbiddenException('Un administrador no puede cambiar el estado de otro administrador');
+      }
+
+      const esBarbero = usuarioObjetivo.barbero !== null;
       if (!esBarbero) {
         throw new ForbiddenException('Solo puedes cambiar el estado de los barberos');
       }
@@ -119,8 +139,8 @@ export class UsuariosAuthorizationService {
    * 
    * REGLAS DE SEGURIDAD:
    * - SUPERADMIN: Puede desactivar el perfil de barbero de cualquiera (incluido él mismo si es barbero).
-   * - ADMINISTRADOR: Puede desactivar el perfil de barbero de cualquier barbero (incluido él mismo), 
-   *   pero NO puede tocar el perfil de barbero de un SUPERADMIN.
+   * - ADMINISTRADOR: Puede desactivar el perfil de barbero de cualquier barbero puro o el suyo propio.
+   *   ¡NUNCA puede tocar el perfil de barbero de un SUPERADMIN ni de otro Administrador!
    * - BARBERO: No puede cambiar el estado por sí solo (requiere gestión de un superior).
    */
   verificarPermisosCambioEstadoBarbero(usuarioActual: any, usuarioObjetivo: any) {
@@ -132,7 +152,16 @@ export class UsuariosAuthorizationService {
       if (usuarioObjetivo.rol === 'SUPERADMIN') {
         throw new ForbiddenException('Un administrador no puede cambiar el estado del perfil de barbero de un superadmin');
       }
-      // Un administrador puede cambiar el estado de cualquier barbero (incluido él mismo si es barbero)
+
+      const esSuPropioPerfil = usuarioActual.id === usuarioObjetivo.id;
+      const esOtroAdmin =
+        usuarioObjetivo.rol === 'ADMINISTRADOR' ||
+        usuarioObjetivo.administrador !== null;
+
+      if (!esSuPropioPerfil && esOtroAdmin) {
+        throw new ForbiddenException('Un administrador no puede cambiar el perfil de barbero de otro administrador');
+      }
+
       return;
     }
 

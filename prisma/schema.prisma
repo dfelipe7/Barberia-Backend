@@ -32,8 +32,9 @@ model Usuario {
 }
 
 model Administrador {
-  id        Int     @id @default(autoincrement())
-  usuarioId Int     @unique
+  id        Int           @id @default(autoincrement())
+  usuarioId Int           @unique
+  estado    EstadoUsuario @default(ACTIVO)
 
   usuario Usuario @relation(fields: [usuarioId], references: [id])
 }

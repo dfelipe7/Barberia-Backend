@@ -31,8 +31,6 @@ export class BarberosController {
   }
 
   @Get()
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
-  @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
   @ApiOperation({ summary: 'Obtiene la lista pública/catálogo de barberos' })
   async obtenerBarberosCatalogo() {
     return this.barberosService.obtenerBarberosCatalogo();

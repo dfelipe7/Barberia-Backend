@@ -3,6 +3,10 @@ import {
   IsOptional,
   IsString,
   MinLength,
+  IsNumber,
+  Min,
+  Max,
+  IsBoolean,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -31,5 +35,18 @@ export class ActualizarUsuarioDto {
 
   @ApiProperty({ example: 40, description: 'Porcentaje de comisión del barbero', required: false })
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
   porcentajeComision?: number;
+
+  @ApiProperty({ example: true, description: 'Indica si el usuario tiene rol de Administrador', required: false })
+  @IsOptional()
+  @IsBoolean()
+  esAdministrador?: boolean;
+
+  @ApiProperty({ example: true, description: 'Indica si el usuario tiene rol de Barbero', required: false })
+  @IsOptional()
+  @IsBoolean()
+  esBarbero?: boolean;
 }

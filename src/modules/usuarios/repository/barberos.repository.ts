@@ -59,6 +59,9 @@ export class BarberosRepository {
     return this.prisma.barbero.findMany({
       where: {
         estado: 'ACTIVO',
+        usuario: {
+          estado: 'ACTIVO',
+        },
       },
       include: {
         usuario: {
@@ -75,7 +78,11 @@ export class BarberosRepository {
   async obtenerBarberosGestion() {
     return this.prisma.barbero.findMany({
       include: {
-        usuario: true,
+        usuario: {
+          include: {
+            administrador: true,
+          },
+        },
       },
     });
   }

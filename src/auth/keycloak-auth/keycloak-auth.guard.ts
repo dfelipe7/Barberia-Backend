@@ -7,6 +7,16 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
+/**
+ * Detector de Billetes Falsos (KeycloakAuthGuard)
+ * 
+ * Este es el escudo principal de la API. Intercepta todas las peticiones
+ * HTTP que llegan con un "Authorization: Bearer <token>".
+ * 
+ * Se conecta con Keycloak para descargar su "Llave Pública" (JWKS) y utiliza
+ * pura matemática criptográfica para verificar que el token no haya sido manipulado,
+ * que no haya expirado, y que haya sido firmado auténticamente por nuestro servidor.
+ */
 @Injectable()
 export class KeycloakAuthGuard implements CanActivate {
   private readonly jwks;

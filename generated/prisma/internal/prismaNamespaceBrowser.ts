@@ -88,7 +88,8 @@ export type UsuarioScalarFieldEnum = (typeof UsuarioScalarFieldEnum)[keyof typeo
 
 export const AdministradorScalarFieldEnum = {
   id: 'id',
-  usuarioId: 'usuarioId'
+  usuarioId: 'usuarioId',
+  estado: 'estado'
 } as const
 
 export type AdministradorScalarFieldEnum = (typeof AdministradorScalarFieldEnum)[keyof typeof AdministradorScalarFieldEnum]

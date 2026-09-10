@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Patch, Body, UseGuards, Param, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
@@ -26,5 +26,16 @@ export class AdministradoresController {
   @ApiOperation({ summary: 'Obtiene la lista de todos los administradores' })
   async obtenerAdministradores() {
     return this.administradoresService.obtenerAdministradores();
+  }
+
+  @Patch(':id/estado')
+  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @Roles('SUPERADMIN')
+  @ApiOperation({ summary: 'Cambia el estado (ACTIVO/INACTIVO) del rol de Administrador de un usuario' })
+  async cambiarEstadoAdministrador(
+    @Param('id', ParseIntPipe) usuarioId: number,
+    @Body('estado') estado: string
+  ) {
+    return this.administradoresService.cambiarEstadoAdministrador(usuarioId, estado);
   }
 }

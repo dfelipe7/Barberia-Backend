@@ -74,8 +74,20 @@ export class BarberosService {
     }
 
     if (usuario.barbero) {
-      throw new ConflictException('El usuario ya está configurado como barbero');
+      if ((usuario.barbero as any).estado === 'ACTIVO') {
+        throw new ConflictException('El usuario ya está configurado como barbero');
+      } else {
+        // Reactivar si existía inactivo
+        await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
+        await this.barberosRepository.actualizarEstadoBarbero(usuario.id, EstadoUsuario.ACTIVO);
+        return this.barberosRepository.actualizarPerfilBarbero(usuario.id, {
+          telefono: dto.telefono,
+          porcentajeComision: dto.porcentajeComision,
+        });
+      }
     }
+
+    await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
 
     return this.barberosRepository.crearPerfilBarbero({
       usuarioId: usuario.id,
@@ -96,12 +108,25 @@ export class BarberosService {
     }
 
     if (usuario.barbero) {
-      throw new ConflictException('El usuario ya está configurado como barbero');
+      if ((usuario.barbero as any).estado === 'ACTIVO') {
+        throw new ConflictException('El usuario ya está configurado como barbero');
+      } else {
+        // Reactivar
+        await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
+        await this.barberosRepository.actualizarEstadoBarbero(usuario.id, EstadoUsuario.ACTIVO);
+        
+        return this.barberosRepository.actualizarPerfilBarbero(usuario.id, {
+          telefono: dto.telefono,
+          porcentajeComision: dto.porcentajeComision,
+        });
+      }
     }
 
-    if (!usuario.administrador) {
-      throw new ConflictException('El usuario no es un administrador');
+    if (!usuario.administrador && usuario.rol !== 'SUPERADMIN') {
+      throw new ConflictException('El usuario no es un administrador ni superadmin');
     }
+
+    await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
 
     return this.barberosRepository.crearPerfilBarbero({
       usuarioId: usuario.id,
@@ -165,6 +190,9 @@ export class BarberosService {
       telefono: barbero.telefono,
       porcentajeComision: Number(barbero.porcentajeComision),
       estado: barbero.estado,
+      esAdministrador: barbero.usuario.administrador && (barbero.usuario.administrador as any).estado === 'ACTIVO',
+      estadoAdmin: barbero.usuario.administrador ? (barbero.usuario.administrador as any).estado : undefined,
+      estadoGlobal: barbero.usuario.estado,
     }));
   }
 
@@ -199,6 +227,13 @@ export class BarberosService {
       await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
     } else {
       await this.keycloakService.quitarRol(usuario.keycloakId, 'BARBERO');
+
+      const esAdminActivo = usuario.administrador?.estado === EstadoUsuario.ACTIVO || usuario.rol === 'ADMINISTRADOR';
+      const esSuperAdmin = usuario.rol === 'SUPERADMIN';
+      if (!esSuperAdmin && !esAdminActivo) {
+        await this.keycloakService.cambiarEstadoUsuario(usuario.keycloakId, false);
+        await this.usuariosRepository.actualizarEstadoUsuario(usuarioId, EstadoUsuario.INACTIVO);
+      }
     }
 
     return this.barberosRepository.actualizarEstadoBarbero(usuarioId, nuevoEstado);
