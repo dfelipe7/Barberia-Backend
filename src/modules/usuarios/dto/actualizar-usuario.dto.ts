@@ -49,4 +49,9 @@ export class ActualizarUsuarioDto {
   @IsOptional()
   @IsBoolean()
   esBarbero?: boolean;
+
+  @ApiProperty({ example: '/uploads/barberos/barbero-1.jpg', description: 'URL de la foto de perfil del barbero', required: false })
+  @IsOptional()
+  @IsString()
+  fotoUrl?: string;
 }

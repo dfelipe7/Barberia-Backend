@@ -43,6 +43,7 @@ export type BarberoMinAggregateOutputType = {
   usuarioId: number | null
   telefono: string | null
   porcentajeComision: runtime.Decimal | null
+  fotoUrl: string | null
   estado: $Enums.EstadoUsuario | null
 }
 
@@ -51,6 +52,7 @@ export type BarberoMaxAggregateOutputType = {
   usuarioId: number | null
   telefono: string | null
   porcentajeComision: runtime.Decimal | null
+  fotoUrl: string | null
   estado: $Enums.EstadoUsuario | null
 }
 
@@ -59,6 +61,7 @@ export type BarberoCountAggregateOutputType = {
   usuarioId: number
   telefono: number
   porcentajeComision: number
+  fotoUrl: number
   estado: number
   _all: number
 }
@@ -81,6 +84,7 @@ export type BarberoMinAggregateInputType = {
   usuarioId?: true
   telefono?: true
   porcentajeComision?: true
+  fotoUrl?: true
   estado?: true
 }
 
@@ -89,6 +93,7 @@ export type BarberoMaxAggregateInputType = {
   usuarioId?: true
   telefono?: true
   porcentajeComision?: true
+  fotoUrl?: true
   estado?: true
 }
 
@@ -97,6 +102,7 @@ export type BarberoCountAggregateInputType = {
   usuarioId?: true
   telefono?: true
   porcentajeComision?: true
+  fotoUrl?: true
   estado?: true
   _all?: true
 }
@@ -192,6 +198,7 @@ export type BarberoGroupByOutputType = {
   usuarioId: number
   telefono: string
   porcentajeComision: runtime.Decimal
+  fotoUrl: string | null
   estado: $Enums.EstadoUsuario
   _count: BarberoCountAggregateOutputType | null
   _avg: BarberoAvgAggregateOutputType | null
@@ -223,6 +230,7 @@ export type BarberoWhereInput = {
   usuarioId?: Prisma.IntFilter<"Barbero"> | number
   telefono?: Prisma.StringFilter<"Barbero"> | string
   porcentajeComision?: Prisma.DecimalFilter<"Barbero"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: Prisma.StringNullableFilter<"Barbero"> | string | null
   estado?: Prisma.EnumEstadoUsuarioFilter<"Barbero"> | $Enums.EstadoUsuario
   usuario?: Prisma.XOR<Prisma.UsuarioScalarRelationFilter, Prisma.UsuarioWhereInput>
 }
@@ -232,6 +240,7 @@ export type BarberoOrderByWithRelationInput = {
   usuarioId?: Prisma.SortOrder
   telefono?: Prisma.SortOrder
   porcentajeComision?: Prisma.SortOrder
+  fotoUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   estado?: Prisma.SortOrder
   usuario?: Prisma.UsuarioOrderByWithRelationInput
   _relevance?: Prisma.BarberoOrderByRelevanceInput
@@ -245,6 +254,7 @@ export type BarberoWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.BarberoWhereInput | Prisma.BarberoWhereInput[]
   telefono?: Prisma.StringFilter<"Barbero"> | string
   porcentajeComision?: Prisma.DecimalFilter<"Barbero"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: Prisma.StringNullableFilter<"Barbero"> | string | null
   estado?: Prisma.EnumEstadoUsuarioFilter<"Barbero"> | $Enums.EstadoUsuario
   usuario?: Prisma.XOR<Prisma.UsuarioScalarRelationFilter, Prisma.UsuarioWhereInput>
 }, "id" | "usuarioId">
@@ -254,6 +264,7 @@ export type BarberoOrderByWithAggregationInput = {
   usuarioId?: Prisma.SortOrder
   telefono?: Prisma.SortOrder
   porcentajeComision?: Prisma.SortOrder
+  fotoUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   estado?: Prisma.SortOrder
   _count?: Prisma.BarberoCountOrderByAggregateInput
   _avg?: Prisma.BarberoAvgOrderByAggregateInput
@@ -270,12 +281,14 @@ export type BarberoScalarWhereWithAggregatesInput = {
   usuarioId?: Prisma.IntWithAggregatesFilter<"Barbero"> | number
   telefono?: Prisma.StringWithAggregatesFilter<"Barbero"> | string
   porcentajeComision?: Prisma.DecimalWithAggregatesFilter<"Barbero"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: Prisma.StringNullableWithAggregatesFilter<"Barbero"> | string | null
   estado?: Prisma.EnumEstadoUsuarioWithAggregatesFilter<"Barbero"> | $Enums.EstadoUsuario
 }
 
 export type BarberoCreateInput = {
   telefono: string
   porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: string | null
   estado?: $Enums.EstadoUsuario
   usuario: Prisma.UsuarioCreateNestedOneWithoutBarberoInput
 }
@@ -285,12 +298,14 @@ export type BarberoUncheckedCreateInput = {
   usuarioId: number
   telefono: string
   porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: string | null
   estado?: $Enums.EstadoUsuario
 }
 
 export type BarberoUpdateInput = {
   telefono?: Prisma.StringFieldUpdateOperationsInput | string
   porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
   usuario?: Prisma.UsuarioUpdateOneRequiredWithoutBarberoNestedInput
 }
@@ -300,6 +315,7 @@ export type BarberoUncheckedUpdateInput = {
   usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
   telefono?: Prisma.StringFieldUpdateOperationsInput | string
   porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
 }
 
@@ -308,12 +324,14 @@ export type BarberoCreateManyInput = {
   usuarioId: number
   telefono: string
   porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: string | null
   estado?: $Enums.EstadoUsuario
 }
 
 export type BarberoUpdateManyMutationInput = {
   telefono?: Prisma.StringFieldUpdateOperationsInput | string
   porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
 }
 
@@ -322,6 +340,7 @@ export type BarberoUncheckedUpdateManyInput = {
   usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
   telefono?: Prisma.StringFieldUpdateOperationsInput | string
   porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
 }
 
@@ -341,6 +360,7 @@ export type BarberoCountOrderByAggregateInput = {
   usuarioId?: Prisma.SortOrder
   telefono?: Prisma.SortOrder
   porcentajeComision?: Prisma.SortOrder
+  fotoUrl?: Prisma.SortOrder
   estado?: Prisma.SortOrder
 }
 
@@ -355,6 +375,7 @@ export type BarberoMaxOrderByAggregateInput = {
   usuarioId?: Prisma.SortOrder
   telefono?: Prisma.SortOrder
   porcentajeComision?: Prisma.SortOrder
+  fotoUrl?: Prisma.SortOrder
   estado?: Prisma.SortOrder
 }
 
@@ -363,6 +384,7 @@ export type BarberoMinOrderByAggregateInput = {
   usuarioId?: Prisma.SortOrder
   telefono?: Prisma.SortOrder
   porcentajeComision?: Prisma.SortOrder
+  fotoUrl?: Prisma.SortOrder
   estado?: Prisma.SortOrder
 }
 
@@ -412,9 +434,14 @@ export type DecimalFieldUpdateOperationsInput = {
   divide?: runtime.Decimal | runtime.DecimalJsLike | number | string
 }
 
+export type NullableStringFieldUpdateOperationsInput = {
+  set?: string | null
+}
+
 export type BarberoCreateWithoutUsuarioInput = {
   telefono: string
   porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: string | null
   estado?: $Enums.EstadoUsuario
 }
 
@@ -422,6 +449,7 @@ export type BarberoUncheckedCreateWithoutUsuarioInput = {
   id?: number
   telefono: string
   porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: string | null
   estado?: $Enums.EstadoUsuario
 }
 
@@ -444,6 +472,7 @@ export type BarberoUpdateToOneWithWhereWithoutUsuarioInput = {
 export type BarberoUpdateWithoutUsuarioInput = {
   telefono?: Prisma.StringFieldUpdateOperationsInput | string
   porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
 }
 
@@ -451,6 +480,7 @@ export type BarberoUncheckedUpdateWithoutUsuarioInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   telefono?: Prisma.StringFieldUpdateOperationsInput | string
   porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
 }
 
@@ -461,6 +491,7 @@ export type BarberoSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   usuarioId?: boolean
   telefono?: boolean
   porcentajeComision?: boolean
+  fotoUrl?: boolean
   estado?: boolean
   usuario?: boolean | Prisma.UsuarioDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["barbero"]>
@@ -472,10 +503,11 @@ export type BarberoSelectScalar = {
   usuarioId?: boolean
   telefono?: boolean
   porcentajeComision?: boolean
+  fotoUrl?: boolean
   estado?: boolean
 }
 
-export type BarberoOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "usuarioId" | "telefono" | "porcentajeComision" | "estado", ExtArgs["result"]["barbero"]>
+export type BarberoOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "usuarioId" | "telefono" | "porcentajeComision" | "fotoUrl" | "estado", ExtArgs["result"]["barbero"]>
 export type BarberoInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   usuario?: boolean | Prisma.UsuarioDefaultArgs<ExtArgs>
 }
@@ -490,6 +522,7 @@ export type $BarberoPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     usuarioId: number
     telefono: string
     porcentajeComision: runtime.Decimal
+    fotoUrl: string | null
     estado: $Enums.EstadoUsuario
   }, ExtArgs["result"]["barbero"]>
   composites: {}
@@ -865,6 +898,7 @@ export interface BarberoFieldRefs {
   readonly usuarioId: Prisma.FieldRef<"Barbero", 'Int'>
   readonly telefono: Prisma.FieldRef<"Barbero", 'String'>
   readonly porcentajeComision: Prisma.FieldRef<"Barbero", 'Decimal'>
+  readonly fotoUrl: Prisma.FieldRef<"Barbero", 'String'>
   readonly estado: Prisma.FieldRef<"Barbero", 'EstadoUsuario'>
 }
     

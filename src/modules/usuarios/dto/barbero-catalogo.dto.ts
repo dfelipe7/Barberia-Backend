@@ -3,4 +3,5 @@ export class BarberoCatalogoDto {
   nombre: string;
   apellido: string;
   telefono: string;
+  fotoUrl?: string | null;
 }

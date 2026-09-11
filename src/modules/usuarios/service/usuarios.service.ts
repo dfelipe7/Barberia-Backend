@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   Inject,
   forwardRef,
@@ -145,6 +146,11 @@ export class UsuariosService {
     if (dto.esAdministrador !== undefined && usuario.rol !== 'SUPERADMIN') {
       const estadoAdminActual = usuario.administrador?.estado === 'ACTIVO';
       if (dto.esAdministrador !== estadoAdminActual) {
+        if (usuarioActual.rol !== 'SUPERADMIN') {
+          throw new ForbiddenException(
+            'Solo el Superadministrador puede otorgar o revocar el rol de Administrador',
+          );
+        }
         if (usuarioActual.id === usuario.id && !dto.esAdministrador) {
           throw new ConflictException('No puedes remover tu propio rol de Administrador');
         }
@@ -159,6 +165,11 @@ export class UsuariosService {
     if (dto.esBarbero !== undefined) {
       const estadoBarberoActual = usuario.barbero?.estado === 'ACTIVO';
       if (dto.esBarbero !== estadoBarberoActual) {
+        if (usuarioActual.rol === 'BARBERO') {
+          throw new ForbiddenException('Un barbero no puede modificar ni revocar su propio rol de Barbero');
+        }
+        this.authorizationService.verificarPermisosCambioEstadoBarbero(usuarioActual, usuario);
+
         if (dto.esBarbero) {
           await this.barberosService.configurarBarberoPorId(usuarioId, {
             telefono: dto.telefono || usuario.barbero?.telefono || '',
@@ -177,20 +188,28 @@ export class UsuariosService {
         }
       } else if (
         usuario.barbero &&
-        (dto.telefono || dto.porcentajeComision !== undefined)
+        (dto.telefono || dto.porcentajeComision !== undefined || dto.fotoUrl !== undefined)
       ) {
+        if (dto.porcentajeComision !== undefined) {
+          this.authorizationService.verificarPermisosComision(usuarioActual);
+        }
         await this.barberosRepository.actualizarPerfilBarbero(usuarioId, {
           telefono: dto.telefono,
           porcentajeComision: dto.porcentajeComision,
+          fotoUrl: dto.fotoUrl,
         });
       }
     } else if (
       usuario.barbero &&
-      (dto.telefono || dto.porcentajeComision !== undefined)
+      (dto.telefono || dto.porcentajeComision !== undefined || dto.fotoUrl !== undefined)
     ) {
+      if (dto.porcentajeComision !== undefined) {
+        this.authorizationService.verificarPermisosComision(usuarioActual);
+      }
       await this.barberosRepository.actualizarPerfilBarbero(usuarioId, {
         telefono: dto.telefono,
         porcentajeComision: dto.porcentajeComision,
+        fotoUrl: dto.fotoUrl,
       });
     }
 

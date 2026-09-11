@@ -10,6 +10,7 @@ export class BarberosRepository {
     usuarioId: number;
     telefono: string;
     porcentajeComision: number;
+    fotoUrl?: string;
   }) {
     return this.prisma.barbero.create({
       data,
@@ -20,6 +21,7 @@ export class BarberosRepository {
     usuarioId: number;
     telefono: string;
     porcentajeComision: number;
+    fotoUrl?: string;
   }) {
     return this.prisma.barbero.create({
       data,
@@ -45,6 +47,7 @@ export class BarberosRepository {
     data: {
       telefono?: string;
       porcentajeComision?: number;
+      fotoUrl?: string | null;
     },
   ) {
     return this.prisma.barbero.update({
@@ -52,6 +55,14 @@ export class BarberosRepository {
         usuarioId,
       },
       data,
+    });
+  }
+
+  async obtenerBarberoPorUsuarioId(usuarioId: number) {
+    return this.prisma.barbero.findUnique({
+      where: {
+        usuarioId,
+      },
     });
   }
 

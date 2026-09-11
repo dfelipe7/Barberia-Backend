@@ -4,6 +4,7 @@ import { Roles } from '../../../auth/roles/roles.decorator';
 import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { CrearAdministradorDto } from '../dto/crear-administrador.dto';
+import { CambiarEstadoUsuarioDto } from '../dto/cambiar-estado-usuario.dto';
 import { AdministradoresService } from '../service/administradores.service';
 
 @ApiTags('Administradores')
@@ -34,8 +35,8 @@ export class AdministradoresController {
   @ApiOperation({ summary: 'Cambia el estado (ACTIVO/INACTIVO) del rol de Administrador de un usuario' })
   async cambiarEstadoAdministrador(
     @Param('id', ParseIntPipe) usuarioId: number,
-    @Body('estado') estado: string
+    @Body() dto: CambiarEstadoUsuarioDto,
   ) {
-    return this.administradoresService.cambiarEstadoAdministrador(usuarioId, estado);
+    return this.administradoresService.cambiarEstadoAdministrador(usuarioId, dto.estado);
   }
 }

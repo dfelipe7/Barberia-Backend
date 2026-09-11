@@ -2,15 +2,24 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import * as express from 'express';
+import { join } from 'path';
 
 import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Servir archivos estáticos subidos (/uploads)
+  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+
   // OWASP A05: Cabeceras de Seguridad
   // Helmet configura automáticamente cabeceras HTTP que previenen XSS, Clickjacking, y ocultan información del servidor.
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
   // OWASP A05: Cross-Origin Resource Sharing (CORS)
   // Restringe qué dominios pueden hacer peticiones a nuestra API. Solo permitimos a nuestro Frontend autorizado.

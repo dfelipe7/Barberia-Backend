@@ -44,6 +44,7 @@ model Barbero {
   usuarioId         Int           @unique
   telefono          String
   porcentajeComision Decimal       @db.Decimal(5, 2)
+  fotoUrl           String?       @db.VarChar(500)
   estado            EstadoUsuario @default(ACTIVO)
 
   usuario Usuario @relation(fields: [usuarioId], references: [id])

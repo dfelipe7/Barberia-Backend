@@ -62,10 +62,11 @@ export class UsuariosAuthorizationService {
         return;
       }
 
-      // Un administrador nunca puede editar a otro administrador
+      // Un administrador nunca puede editar a otro administrador activo
       const esOtroAdmin =
         usuarioObjetivo.rol === 'ADMINISTRADOR' ||
-        usuarioObjetivo.administrador !== null;
+        (usuarioObjetivo.administrador !== null &&
+          usuarioObjetivo.administrador.estado === 'ACTIVO');
 
       if (esOtroAdmin) {
         throw new ForbiddenException('Un administrador no puede editar el perfil de otro administrador');
@@ -114,10 +115,11 @@ export class UsuariosAuthorizationService {
         throw new ForbiddenException('Un administrador no puede cambiar el estado de un superadmin');
       }
 
-      // Un administrador nunca puede bloquear a otro administrador (aunque también sea barbero)
+      // Un administrador nunca puede bloquear a otro administrador activo (aunque también sea barbero)
       const esOtroAdmin =
         usuarioObjetivo.rol === 'ADMINISTRADOR' ||
-        usuarioObjetivo.administrador !== null;
+        (usuarioObjetivo.administrador !== null &&
+          usuarioObjetivo.administrador.estado === 'ACTIVO');
 
       if (esOtroAdmin) {
         throw new ForbiddenException('Un administrador no puede cambiar el estado de otro administrador');
@@ -156,7 +158,8 @@ export class UsuariosAuthorizationService {
       const esSuPropioPerfil = usuarioActual.id === usuarioObjetivo.id;
       const esOtroAdmin =
         usuarioObjetivo.rol === 'ADMINISTRADOR' ||
-        usuarioObjetivo.administrador !== null;
+        (usuarioObjetivo.administrador !== null &&
+          usuarioObjetivo.administrador.estado === 'ACTIVO');
 
       if (!esSuPropioPerfil && esOtroAdmin) {
         throw new ForbiddenException('Un administrador no puede cambiar el perfil de barbero de otro administrador');

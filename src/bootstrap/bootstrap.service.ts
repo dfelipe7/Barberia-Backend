@@ -25,9 +25,31 @@ export class BootstrapService implements OnModuleInit {
     private readonly usuariosRepository: UsuariosRepository,
   ) {}
 
-  // Este método se dispara automáticamente al iniciar NestJS
   async onModuleInit() {
-    await this.sincronizarSuperadmin();
+    await this.esperarYSincronizarSuperadmin();
+  }
+
+  /**
+   * Reintenta la conexión con Keycloak periódicamente.
+   * Esto previene que el backend se caiga si Keycloak tarda 20-30 segundos en 
+   * inicializar su base de datos e importar el realm durante el primer docker compose up.
+   */
+  private async esperarYSincronizarSuperadmin(intentos = 20, esperaMs = 3000) {
+    for (let i = 1; i <= intentos; i++) {
+      try {
+        console.log(`[Bootstrap] Conectando con Keycloak para sincronizar SUPERADMIN (Intento ${i}/${intentos})...`);
+        await this.sincronizarSuperadmin();
+        console.log(`[Bootstrap] Sincronización con Keycloak completada exitosamente.`);
+        return;
+      } catch (error: any) {
+        if (i === intentos) {
+          console.error('[Bootstrap] Error definitivo conectando con Keycloak tras varios intentos:', error?.message || error);
+          throw error;
+        }
+        console.warn(`[Bootstrap] Keycloak aún no está listo (${error?.message || 'iniciando'}). Reintentando en ${esperaMs / 1000}s...`);
+        await new Promise((resolve) => setTimeout(resolve, esperaMs));
+      }
+    }
   }
 
   /**

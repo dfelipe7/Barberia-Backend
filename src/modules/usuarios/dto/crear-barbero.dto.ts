@@ -6,6 +6,7 @@ import {
   Min,
   Max,
   MinLength,
+  IsOptional,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -41,4 +42,9 @@ export class CrearBarberoDto {
   @Min(0)
   @Max(100)
   porcentajeComision: number;
+
+  @ApiProperty({ example: '/uploads/barberos/barbero-1.jpg', description: 'URL de la foto de perfil del barbero', required: false })
+  @IsOptional()
+  @IsString()
+  fotoUrl?: string;
 }

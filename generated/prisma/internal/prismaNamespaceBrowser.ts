@@ -100,6 +100,7 @@ export const BarberoScalarFieldEnum = {
   usuarioId: 'usuarioId',
   telefono: 'telefono',
   porcentajeComision: 'porcentajeComision',
+  fotoUrl: 'fotoUrl',
   estado: 'estado'
 } as const
 
@@ -134,8 +135,17 @@ export const UsuarioOrderByRelevanceFieldEnum = {
 export type UsuarioOrderByRelevanceFieldEnum = (typeof UsuarioOrderByRelevanceFieldEnum)[keyof typeof UsuarioOrderByRelevanceFieldEnum]
 
 
+export const NullsOrder = {
+  first: 'first',
+  last: 'last'
+} as const
+
+export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
+
+
 export const BarberoOrderByRelevanceFieldEnum = {
-  telefono: 'telefono'
+  telefono: 'telefono',
+  fotoUrl: 'fotoUrl'
 } as const
 
 export type BarberoOrderByRelevanceFieldEnum = (typeof BarberoOrderByRelevanceFieldEnum)[keyof typeof BarberoOrderByRelevanceFieldEnum]

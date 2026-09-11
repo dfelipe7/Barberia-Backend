@@ -1,4 +1,6 @@
 import { Injectable, ConflictException } from '@nestjs/common';
+import * as fs from 'fs';
+import { join } from 'path';
 import { KeycloakService } from '../../../auth/keycloak/keycloak.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
 import { BarberosRepository } from '../repository/barberos.repository';
@@ -50,6 +52,7 @@ export class BarberosService {
         usuarioId: usuario.id,
         telefono: dto.telefono,
         porcentajeComision: dto.porcentajeComision,
+        fotoUrl: dto.fotoUrl,
       });
 
       return {
@@ -172,6 +175,7 @@ export class BarberosService {
       nombre: barbero.usuario.nombre,
       apellido: barbero.usuario.apellido,
       telefono: barbero.telefono,
+      fotoUrl: barbero.fotoUrl,
     }));
   }
 
@@ -190,10 +194,96 @@ export class BarberosService {
       telefono: barbero.telefono,
       porcentajeComision: Number(barbero.porcentajeComision),
       estado: barbero.estado,
+      fotoUrl: barbero.fotoUrl,
       esAdministrador: barbero.usuario.administrador && (barbero.usuario.administrador as any).estado === 'ACTIVO',
       estadoAdmin: barbero.usuario.administrador ? (barbero.usuario.administrador as any).estado : undefined,
       estadoGlobal: barbero.usuario.estado,
     }));
+  }
+
+  /**
+   * Sube y actualiza la foto de perfil de un barbero.
+   * Si ya tenía una foto previa en /uploads, la elimina para evitar acumular archivos huérfanos.
+   */
+  async subirFotoBarbero(usuarioId: number, archivo: Express.Multer.File, usuarioAutenticado?: any) {
+    if (!archivo) {
+      throw new ConflictException('No se ha proporcionado ningún archivo de imagen');
+    }
+
+    const barbero = await this.barberosRepository.obtenerBarberoPorUsuarioId(usuarioId);
+    if (!barbero) {
+      try {
+        fs.unlinkSync(archivo.path);
+      } catch {}
+      throw new ConflictException('El usuario no cuenta con un perfil de barbero registrado');
+    }
+
+    if (usuarioAutenticado) {
+      const usuarioObjetivo = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+      const usuarioActual = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(usuarioAutenticado.sub);
+      if (usuarioActual && usuarioObjetivo) {
+        try {
+          this.authorizationService.verificarPermisosEdicion(usuarioActual, usuarioObjetivo);
+        } catch (error) {
+          try {
+            fs.unlinkSync(archivo.path);
+          } catch {}
+          throw error;
+        }
+      }
+    }
+
+    // Si ya tenía una foto previa en /uploads, la eliminamos del disco
+    if (barbero.fotoUrl && barbero.fotoUrl.startsWith('/uploads/')) {
+      const rutaAnterior = join(process.cwd(), barbero.fotoUrl);
+      if (fs.existsSync(rutaAnterior)) {
+        try {
+          fs.unlinkSync(rutaAnterior);
+        } catch (e) {
+          console.warn('No se pudo eliminar la foto anterior:', e);
+        }
+      }
+    }
+
+    const nuevaFotoUrl = `/uploads/barberos/${archivo.filename}`;
+    await this.barberosRepository.actualizarPerfilBarbero(usuarioId, {
+      fotoUrl: nuevaFotoUrl,
+    });
+
+    return {
+      mensaje: 'Foto de perfil actualizada correctamente',
+      fotoUrl: nuevaFotoUrl,
+    };
+  }
+
+  /**
+   * Elimina la foto de perfil del barbero y borra el archivo físico.
+   */
+  async eliminarFotoBarbero(usuarioId: number) {
+    const barbero = await this.barberosRepository.obtenerBarberoPorUsuarioId(usuarioId);
+    if (!barbero) {
+      throw new ConflictException('El usuario no cuenta con un perfil de barbero');
+    }
+
+    if (barbero.fotoUrl && barbero.fotoUrl.startsWith('/uploads/')) {
+      const ruta = join(process.cwd(), barbero.fotoUrl);
+      if (fs.existsSync(ruta)) {
+        try {
+          fs.unlinkSync(ruta);
+        } catch (e) {
+          console.warn('No se pudo eliminar el archivo físico de la foto:', e);
+        }
+      }
+    }
+
+    await this.barberosRepository.actualizarPerfilBarbero(usuarioId, {
+      fotoUrl: null,
+    });
+
+    return {
+      mensaje: 'Foto de perfil eliminada correctamente',
+      fotoUrl: null,
+    };
   }
 
   /**

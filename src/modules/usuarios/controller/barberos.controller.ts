@@ -1,4 +1,21 @@
-import { Controller, Post, Get, Patch, Body, Param, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Req,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
+import * as fs from 'fs';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
@@ -7,12 +24,44 @@ import { CrearBarberoDto } from '../dto/crear-barbero.dto';
 import { ActualizarComisionDto } from '../dto/actualizar-comision.dto';
 import { CambiarEstadoUsuarioDto } from '../dto/cambiar-estado-usuario.dto';
 import { BarberosService } from '../service/barberos.service';
+import { UsuariosRepository } from '../repository/usuarios.repository';
+
+const uploadsDir = join(process.cwd(), 'uploads', 'barberos');
+
+const multerStorage = diskStorage({
+  destination: (req, file, cb) => {
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    cb(null, uploadsDir);
+  },
+  filename: (req: any, file, cb) => {
+    const randomSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = extname(file.originalname).toLowerCase();
+    cb(null, `barbero-${randomSuffix}${ext}`);
+  },
+});
+
+const imageFileFilter = (req: any, file: any, cb: any) => {
+  if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
+    return cb(
+      new BadRequestException(
+        'Solo se permiten imágenes en formato JPG, JPEG, PNG o WEBP',
+      ),
+      false,
+    );
+  }
+  cb(null, true);
+};
 
 @ApiTags('Barberos')
 @ApiBearerAuth()
 @Controller('usuarios/barberos')
 export class BarberosController {
-  constructor(private readonly barberosService: BarberosService) {}
+  constructor(
+    private readonly barberosService: BarberosService,
+    private readonly usuariosRepository: UsuariosRepository,
+  ) {}
 
   @Post()
   @UseGuards(KeycloakAuthGuard, RolesGuard)
@@ -58,5 +107,68 @@ export class BarberosController {
     @Req() request: any,
   ) {
     return this.barberosService.cambiarEstadoBarbero(Number(id), dto, request.user);
+  }
+
+  @Post('foto')
+  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
+  @UseInterceptors(
+    FileInterceptor('foto', {
+      storage: multerStorage,
+      fileFilter: imageFileFilter,
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  @ApiOperation({ summary: 'Sube la foto de perfil del barbero autenticado' })
+  async subirMiFoto(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() request: any,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Debe seleccionar un archivo de imagen');
+    }
+    const usuario = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(
+      request.user.sub,
+    );
+    if (!usuario) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+    return this.barberosService.subirFotoBarbero(usuario.id, file);
+  }
+
+  @Delete('foto')
+  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
+  @ApiOperation({ summary: 'Elimina la foto de perfil del barbero autenticado' })
+  async eliminarMiFoto(@Req() request: any) {
+    const usuario = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(
+      request.user.sub,
+    );
+    if (!usuario) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+    return this.barberosService.eliminarFotoBarbero(usuario.id);
+  }
+
+  @Post(':id/foto')
+  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
+  @UseInterceptors(
+    FileInterceptor('foto', {
+      storage: multerStorage,
+      fileFilter: imageFileFilter,
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  @ApiOperation({ summary: 'Sube la foto de perfil de un barbero específico (Admin)' })
+  async subirFotoBarberoPorId(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() request: any,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Debe seleccionar un archivo de imagen');
+    }
+    return this.barberosService.subirFotoBarbero(Number(id), file, request.user);
   }
 }
