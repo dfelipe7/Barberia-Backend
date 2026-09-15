@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsuariosModule } from './modules/usuarios/usuarios.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { BootstrapService } from './bootstrap/bootstrap.service';
+import { ServiciosModule } from './modules/servicios/servicios.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { BootstrapService } from './bootstrap/bootstrap.service';
     }]),
     AuthModule,
     UsuariosModule,
+    ServiciosModule,
     PrismaModule,
   ],
   providers: [

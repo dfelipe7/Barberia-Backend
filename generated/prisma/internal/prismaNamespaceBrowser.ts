@@ -54,7 +54,9 @@ export const ModelName = {
   Usuario: 'Usuario',
   Administrador: 'Administrador',
   Barbero: 'Barbero',
-  Cliente: 'Cliente'
+  Cliente: 'Cliente',
+  Servicio: 'Servicio',
+  BarberoServicio: 'BarberoServicio'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -117,6 +119,30 @@ export const ClienteScalarFieldEnum = {
 export type ClienteScalarFieldEnum = (typeof ClienteScalarFieldEnum)[keyof typeof ClienteScalarFieldEnum]
 
 
+export const ServicioScalarFieldEnum = {
+  id: 'id',
+  nombre: 'nombre',
+  descripcion: 'descripcion',
+  precio: 'precio',
+  duracionMinutos: 'duracionMinutos',
+  fotoUrl: 'fotoUrl',
+  estado: 'estado',
+  creadoEn: 'creadoEn',
+  actualizadoEn: 'actualizadoEn'
+} as const
+
+export type ServicioScalarFieldEnum = (typeof ServicioScalarFieldEnum)[keyof typeof ServicioScalarFieldEnum]
+
+
+export const BarberoServicioScalarFieldEnum = {
+  barberoId: 'barberoId',
+  servicioId: 'servicioId',
+  creadoEn: 'creadoEn'
+} as const
+
+export type BarberoServicioScalarFieldEnum = (typeof BarberoServicioScalarFieldEnum)[keyof typeof BarberoServicioScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -158,4 +184,13 @@ export const ClienteOrderByRelevanceFieldEnum = {
 } as const
 
 export type ClienteOrderByRelevanceFieldEnum = (typeof ClienteOrderByRelevanceFieldEnum)[keyof typeof ClienteOrderByRelevanceFieldEnum]
+
+
+export const ServicioOrderByRelevanceFieldEnum = {
+  nombre: 'nombre',
+  descripcion: 'descripcion',
+  fotoUrl: 'fotoUrl'
+} as const
+
+export type ServicioOrderByRelevanceFieldEnum = (typeof ServicioOrderByRelevanceFieldEnum)[keyof typeof ServicioOrderByRelevanceFieldEnum]
 

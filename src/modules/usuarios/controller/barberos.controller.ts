@@ -13,9 +13,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import * as fs from 'fs';
+import { crearMulterOptions } from '../../../common/config/multer.config';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
@@ -25,34 +23,6 @@ import { ActualizarComisionDto } from '../dto/actualizar-comision.dto';
 import { CambiarEstadoUsuarioDto } from '../dto/cambiar-estado-usuario.dto';
 import { BarberosService } from '../service/barberos.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
-
-const uploadsDir = join(process.cwd(), 'uploads', 'barberos');
-
-const multerStorage = diskStorage({
-  destination: (req, file, cb) => {
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-    cb(null, uploadsDir);
-  },
-  filename: (req: any, file, cb) => {
-    const randomSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = extname(file.originalname).toLowerCase();
-    cb(null, `barbero-${randomSuffix}${ext}`);
-  },
-});
-
-const imageFileFilter = (req: any, file: any, cb: any) => {
-  if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
-    return cb(
-      new BadRequestException(
-        'Solo se permiten imágenes en formato JPG, JPEG, PNG o WEBP',
-      ),
-      false,
-    );
-  }
-  cb(null, true);
-};
 
 @ApiTags('Barberos')
 @ApiBearerAuth()
@@ -112,13 +82,7 @@ export class BarberosController {
   @Post('foto')
   @UseGuards(KeycloakAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
-  @UseInterceptors(
-    FileInterceptor('foto', {
-      storage: multerStorage,
-      fileFilter: imageFileFilter,
-      limits: { fileSize: 5 * 1024 * 1024 },
-    }),
-  )
+  @UseInterceptors(FileInterceptor('foto', crearMulterOptions('barberos')))
   @ApiOperation({ summary: 'Sube la foto de perfil del barbero autenticado' })
   async subirMiFoto(
     @UploadedFile() file: Express.Multer.File,
@@ -153,13 +117,7 @@ export class BarberosController {
   @Post(':id/foto')
   @UseGuards(KeycloakAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
-  @UseInterceptors(
-    FileInterceptor('foto', {
-      storage: multerStorage,
-      fileFilter: imageFileFilter,
-      limits: { fileSize: 5 * 1024 * 1024 },
-    }),
-  )
+  @UseInterceptors(FileInterceptor('foto', crearMulterOptions('barberos')))
   @ApiOperation({ summary: 'Sube la foto de perfil de un barbero específico (Admin)' })
   async subirFotoBarberoPorId(
     @Param('id') id: string,

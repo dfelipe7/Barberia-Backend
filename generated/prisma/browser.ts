@@ -37,3 +37,13 @@ export type Barbero = Prisma.BarberoModel
  * 
  */
 export type Cliente = Prisma.ClienteModel
+/**
+ * Model Servicio
+ * 
+ */
+export type Servicio = Prisma.ServicioModel
+/**
+ * Model BarberoServicio
+ * 
+ */
+export type BarberoServicio = Prisma.BarberoServicioModel

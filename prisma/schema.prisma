@@ -47,7 +47,8 @@ model Barbero {
   fotoUrl           String?       @db.VarChar(500)
   estado            EstadoUsuario @default(ACTIVO)
 
-  usuario Usuario @relation(fields: [usuarioId], references: [id])
+  usuario   Usuario         @relation(fields: [usuarioId], references: [id])
+  servicios BarberoServicio[] // <--- Conexión con la tabla intermedia
 }
 
 model Cliente {
@@ -55,4 +56,32 @@ model Cliente {
   nombre   String
   apellido String
   telefono String
+}
+
+enum EstadoServicio {
+  ACTIVO
+  INACTIVO
+}
+
+model Servicio {
+  id              Int            @id @default(autoincrement())
+  nombre          String         @unique @db.VarChar(100)
+  descripcion     String?        @db.Text
+  precio          Decimal        @db.Decimal(10, 2)
+  duracionMinutos Int            // Fundamental para calcular los bloques de las citas (ej. 30, 45, 60 min)
+  fotoUrl         String?        @db.VarChar(500) // Para el catálogo visual de clientes
+  estado          EstadoServicio @default(ACTIVO)
+  creadoEn        DateTime       @default(now())
+  actualizadoEn   DateTime       @updatedAt
+  barberos        BarberoServicio[] // <--- Conexión con la tabla intermedia
+}
+
+// Tabla intermedia explícita para la relación muchos a muchos
+model BarberoServicio {
+  barberoId   Int
+  servicioId  Int
+  creadoEn    DateTime @default(now())
+  barbero     Barbero  @relation(fields: [barberoId], references: [id], onDelete: Cascade)
+  servicio    Servicio @relation(fields: [servicioId], references: [id], onDelete: Cascade)
+  @@id([barberoId, servicioId]) // Llave primaria compuesta
 }

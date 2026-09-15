@@ -24,3 +24,11 @@ export const RolUsuario = {
 } as const
 
 export type RolUsuario = (typeof RolUsuario)[keyof typeof RolUsuario]
+
+
+export const EstadoServicio = {
+  ACTIVO: 'ACTIVO',
+  INACTIVO: 'INACTIVO'
+} as const
+
+export type EstadoServicio = (typeof EstadoServicio)[keyof typeof EstadoServicio]
