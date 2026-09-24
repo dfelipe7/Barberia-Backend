@@ -191,7 +191,7 @@ export class UsuariosService {
         (dto.telefono || dto.porcentajeComision !== undefined || dto.fotoUrl !== undefined)
       ) {
         if (dto.porcentajeComision !== undefined) {
-          this.authorizationService.verificarPermisosComision(usuarioActual);
+          this.authorizationService.verificarPermisosComision(usuarioActual, usuario);
         }
         await this.barberosRepository.actualizarPerfilBarbero(usuarioId, {
           telefono: dto.telefono,
@@ -204,7 +204,7 @@ export class UsuariosService {
       (dto.telefono || dto.porcentajeComision !== undefined || dto.fotoUrl !== undefined)
     ) {
       if (dto.porcentajeComision !== undefined) {
-        this.authorizationService.verificarPermisosComision(usuarioActual);
+        this.authorizationService.verificarPermisosComision(usuarioActual, usuario);
       }
       await this.barberosRepository.actualizarPerfilBarbero(usuarioId, {
         telefono: dto.telefono,

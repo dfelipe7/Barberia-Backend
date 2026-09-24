@@ -45,6 +45,8 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
+    "@swc/core": "^1.16.2",
+    "@swc/jest": "^0.2.39",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/multer": "^2.2.0",
@@ -81,6 +83,12 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^@nestjs/config$": "<rootDir>/../test/__mocks__/@nestjs-config.js",
+      "^jose$": "<rootDir>/../test/__mocks__/jose.js",
+      "generated/prisma/client$": "<rootDir>/../test/__mocks__/prisma.js",
+      "^@prisma/adapter-mariadb$": "<rootDir>/../test/__mocks__/prisma.js"
+    }
   }
 }

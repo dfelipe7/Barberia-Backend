@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Delete, Patch, Body, UseGuards, Param, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiOkResponse, ApiBadRequestResponse, ApiForbiddenResponse } from '@nestjs/swagger';
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
@@ -17,6 +17,8 @@ export class AdministradoresController {
   @UseGuards(KeycloakAuthGuard, RolesGuard)
   @Roles('SUPERADMIN')
   @ApiOperation({ summary: 'Crea un nuevo usuario administrador' })
+  @ApiOkResponse({ description: 'Administrador creado exitosamente.' })
+  @ApiBadRequestResponse({ description: 'El correo ya está en uso o los datos son inválidos.' })
   async crearAdministrador(@Body() dto: CrearAdministradorDto) {
     return this.administradoresService.crearAdministrador(dto);
   }
@@ -25,6 +27,7 @@ export class AdministradoresController {
   @UseGuards(KeycloakAuthGuard, RolesGuard)
   @Roles('SUPERADMIN')
   @ApiOperation({ summary: 'Obtiene la lista de todos los administradores' })
+  @ApiOkResponse({ description: 'Lista de administradores obtenida.', schema: { example: [{ id: 1, usuario: { nombre: 'Super', email: 'admin@test.com' }, estado: 'ACTIVO' }] } })
   async obtenerAdministradores() {
     return this.administradoresService.obtenerAdministradores();
   }
@@ -33,6 +36,8 @@ export class AdministradoresController {
   @UseGuards(KeycloakAuthGuard, RolesGuard)
   @Roles('SUPERADMIN')
   @ApiOperation({ summary: 'Cambia el estado (ACTIVO/INACTIVO) del rol de Administrador de un usuario' })
+  @ApiOkResponse({ description: 'Estado del administrador actualizado exitosamente.' })
+  @ApiForbiddenResponse({ description: 'No puedes cambiar el estado del rol administrador si no eres Superadmin.' })
   async cambiarEstadoAdministrador(
     @Param('id', ParseIntPipe) usuarioId: number,
     @Body() dto: CambiarEstadoUsuarioDto,

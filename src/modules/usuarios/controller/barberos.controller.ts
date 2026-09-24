@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { crearMulterOptions } from '../../../common/config/multer.config';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiOkResponse, ApiBadRequestResponse, ApiForbiddenResponse } from '@nestjs/swagger';
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
@@ -37,6 +37,8 @@ export class BarberosController {
   @UseGuards(KeycloakAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @ApiOperation({ summary: 'Crea un nuevo usuario barbero' })
+  @ApiOkResponse({ description: 'Barbero creado exitosamente.' })
+  @ApiBadRequestResponse({ description: 'El correo ya está en uso o los datos son inválidos.' })
   async crearBarbero(@Body() dto: CrearBarberoDto) {
     return this.barberosService.crearBarbero(dto);
   }
@@ -45,12 +47,14 @@ export class BarberosController {
   @UseGuards(KeycloakAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @ApiOperation({ summary: 'Obtiene la lista de barberos para la vista de gestión' })
+  @ApiOkResponse({ description: 'Lista de barberos obtenida.', schema: { example: [{ id: 1, nombre: 'Felipe', apellido: 'Gómez', email: 'felipe@test.com', telefono: '300123', porcentajeComision: 50, estado: 'ACTIVO', esAdministrador: true, esSuperAdmin: false, estadoGlobal: 'ACTIVO' }] } })
   async obtenerBarberosGestion() {
     return this.barberosService.obtenerBarberosGestion();
   }
 
   @Get()
   @ApiOperation({ summary: 'Obtiene la lista pública/catálogo de barberos' })
+  @ApiOkResponse({ description: 'Catálogo público (sin datos sensibles como comisión o email).', schema: { example: [{ id: 1, nombre: 'Felipe', apellido: 'Gómez', telefono: '300123' }] } })
   async obtenerBarberosCatalogo() {
     return this.barberosService.obtenerBarberosCatalogo();
   }
@@ -59,6 +63,8 @@ export class BarberosController {
   @UseGuards(KeycloakAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @ApiOperation({ summary: 'Actualiza el porcentaje de comisión de un barbero' })
+  @ApiOkResponse({ description: 'Comisión actualizada exitosamente.' })
+  @ApiForbiddenResponse({ description: 'No tienes permiso para actualizar la comisión de este usuario (ej. a un Superadmin).' })
   async actualizarComision(
     @Param('id') id: string,
     @Body() dto: ActualizarComisionDto,
@@ -71,6 +77,8 @@ export class BarberosController {
   @UseGuards(KeycloakAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @ApiOperation({ summary: 'Cambia el estado (activo/inactivo) de un barbero' })
+  @ApiOkResponse({ description: 'Rol de barbero activado o desactivado exitosamente.' })
+  @ApiForbiddenResponse({ description: 'No tienes permiso para desactivar el rol de este usuario.' })
   async cambiarEstadoBarbero(
     @Param('id') id: string,
     @Body() dto: CambiarEstadoUsuarioDto,

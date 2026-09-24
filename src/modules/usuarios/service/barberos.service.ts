@@ -157,9 +157,7 @@ export class BarberosService {
     if (!usuarioActual) {
       throw new ConflictException('El usuario autenticado no existe en la base de datos');
     }
-
-    this.authorizationService.verificarPermisosComision(usuarioActual);
-
+    this.authorizationService.verificarPermisosComision(usuarioActual, usuario);
     return this.barberosRepository.actualizarComision(usuarioId, dto.porcentajeComision);
   }
 
@@ -196,6 +194,7 @@ export class BarberosService {
       estado: barbero.estado,
       fotoUrl: barbero.fotoUrl,
       esAdministrador: barbero.usuario.administrador && (barbero.usuario.administrador as any).estado === 'ACTIVO',
+      esSuperAdmin: barbero.usuario.rol === 'SUPERADMIN',
       estadoAdmin: barbero.usuario.administrador ? (barbero.usuario.administrador as any).estado : undefined,
       estadoGlobal: barbero.usuario.estado,
     }));

@@ -178,12 +178,16 @@ export class UsuariosAuthorizationService {
    * - SUPERADMIN y ADMINISTRADOR: Son los únicos autorizados para tocar datos financieros (comisiones).
    * - BARBERO: Tiene estrictamente prohibido modificar su propia comisión o la de otros.
    */
-  verificarPermisosComision(usuarioActual: any) {
+  verificarPermisosComision(usuarioActual: any, usuarioObjetivo: any) {
     if (
       usuarioActual.rol !== 'SUPERADMIN' &&
       usuarioActual.rol !== 'ADMINISTRADOR'
     ) {
       throw new ForbiddenException('No tienes permisos para modificar la comisión');
+    }
+
+    if (usuarioActual.rol === 'ADMINISTRADOR' && usuarioObjetivo.rol === 'SUPERADMIN') {
+      throw new ForbiddenException('Un administrador no puede modificar la comisión de un superadmin');
     }
   }
 }

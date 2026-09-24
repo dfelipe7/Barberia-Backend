@@ -43,17 +43,15 @@ async function bootstrap() {
   );
 
   // OWASP A05: Ocultar documentación en Producción
-  // Swagger expone todos nuestros endpoints. Solo lo habilitamos en desarrollo.
-  if (process.env.NODE_ENV !== 'production') {
-    const config = new DocumentBuilder()
-      .setTitle('Barbería API')
-      .setDescription('La API del sistema de gestión de Barbería VIP')
-      .setVersion('1.0')
-      .addBearerAuth()
-      .build();
-    const documentFactory = () => SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api/docs', app, documentFactory);
-  }
+  // Swagger expone todos nuestros endpoints. En este caso lo habilitamos siempre para facilitar pruebas.
+  const config = new DocumentBuilder()
+    .setTitle('Barbería API')
+    .setDescription('La API del sistema de gestión de Barbería VIP')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const documentFactory = () => SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, documentFactory);
 
   await app.listen(process.env.PORT ?? 3000);
 }
