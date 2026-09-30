@@ -3,11 +3,19 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { EstadoServicio, EstadoUsuario } from '../../../../generated/prisma/enums';
 
 /**
- * Fragmento reutilizable para incluir los barberos asignados al servicio,
+ * Fragmento reutilizable para incluir únicamente los barberos ACTIVOS asignados al servicio,
  * junto con los datos personales de su usuario (nombre, apellido, email).
  */
 const INCLUDE_BARBEROS = {
     barberos: {
+        where: {
+            barbero: {
+                estado: EstadoUsuario.ACTIVO,
+                usuario: {
+                    estado: EstadoUsuario.ACTIVO,
+                },
+            },
+        },
         include: {
             barbero: {
                 include: {
@@ -32,17 +40,20 @@ export class ServiciosRepository {
     ) { }
 
     /**
-     * Consulta los barberos que existen y se encuentran en estado ACTIVO.
+     * Consulta los barberos que existen y se encuentran en estado ACTIVO (tanto el rol como la cuenta global).
      * Utilizado para validar que no se asocien barberos inactivos o inexistentes a un servicio.
      */
     async obtenerBarberosActivosPorIds(ids: number[]) {
         return this.prisma.barbero.findMany({
             where: {
-                id: { in: ids },
+                usuarioId: { in: ids },
                 estado: EstadoUsuario.ACTIVO,
+                usuario: {
+                    estado: EstadoUsuario.ACTIVO,
+                },
             },
             select: {
-                id: true,
+                usuarioId: true,
             },
         });
     }
@@ -67,14 +78,23 @@ export class ServiciosRepository {
     }
 
     /**
-     * Catálogo público: Lista únicamente los servicios que están ACTIVOS.
+     * Catálogo público: Lista únicamente los servicios que están ACTIVOS con opción de filtro por nombre.
      * Ordenados alfabéticamente para facilitar la selección al cliente en la reserva.
      */
-    async listarServiciosCatalogo() {
+    async listarServiciosCatalogo(filtro?: { nombre?: string }) {
+        const whereCondition: any = {
+            estado: EstadoServicio.ACTIVO,
+        };
+
+        if (filtro?.nombre) {
+            whereCondition.OR = [
+                { nombre: { contains: filtro.nombre } },
+                { descripcion: { contains: filtro.nombre } },
+            ];
+        }
+
         return this.prisma.servicio.findMany({
-            where: {
-                estado: EstadoServicio.ACTIVO,
-            },
+            where: whereCondition,
             include: INCLUDE_BARBEROS,
             orderBy: {
                 nombre: 'asc',
@@ -83,11 +103,25 @@ export class ServiciosRepository {
     }
 
     /**
-     * Vista de gestión administrativa: Lista TODOS los servicios (activos e inactivos).
+     * Vista de gestión administrativa: Lista TODOS los servicios (activos e inactivos) con soporte de filtros.
      * Permite al Superadmin y Administrador ver el catálogo completo para editar o reactivar.
      */
-    async listarServiciosGestion() {
+    async listarServiciosGestion(filtro?: { nombre?: string; estado?: EstadoServicio }) {
+        const whereCondition: any = {};
+
+        if (filtro?.estado) {
+            whereCondition.estado = filtro.estado;
+        }
+
+        if (filtro?.nombre) {
+            whereCondition.OR = [
+                { nombre: { contains: filtro.nombre } },
+                { descripcion: { contains: filtro.nombre } },
+            ];
+        }
+
         return this.prisma.servicio.findMany({
+            where: whereCondition,
             include: INCLUDE_BARBEROS,
             orderBy: {
                 id: 'desc',
@@ -105,7 +139,9 @@ export class ServiciosRepository {
                 estado: EstadoServicio.ACTIVO,
                 barberos: {
                     some: {
-                        barberoId,
+                        barbero: {
+                            usuarioId: barberoId,
+                        },
                     },
                 },
             },
@@ -118,7 +154,7 @@ export class ServiciosRepository {
 
     /**
      * Crea un nuevo servicio y, si se especificaron barberos,
-     * los vincula de forma atómica en la tabla intermedia BarberoServicio.
+     * los vincula de forma atómica en la tabla intermedia BarberoServicio usando el usuarioId.
      */
     async crearServicio(data: {
         nombre: string;
@@ -137,8 +173,8 @@ export class ServiciosRepository {
                 fotoUrl: data.fotoUrl,
                 barberos: data.barberoIds && data.barberoIds.length > 0
                     ? {
-                        create: data.barberoIds.map((barberoId) => ({
-                            barbero: { connect: { id: barberoId } },
+                        create: data.barberoIds.map((usuarioId) => ({
+                            barbero: { connect: { usuarioId } },
                         })),
                     }
                     : undefined,
@@ -150,7 +186,7 @@ export class ServiciosRepository {
     /**
      * Actualiza los datos de un servicio. Si se provee la lista de barberoIds,
      * sincroniza las asignaciones en la tabla intermedia eliminando las anteriores
-     * e insertando las nuevas en una sola transacción segura.
+     * e insertando las nuevas en una sola transacción segura usando usuarioId.
      */
     async actualizarServicio(
         id: number,
@@ -174,8 +210,8 @@ export class ServiciosRepository {
                 barberos: data.barberoIds !== undefined
                     ? {
                         deleteMany: {},
-                        create: data.barberoIds.map((barberoId) => ({
-                            barbero: { connect: { id: barberoId } },
+                        create: data.barberoIds.map((usuarioId) => ({
+                            barbero: { connect: { usuarioId } },
                         })),
                     }
                     : undefined,

@@ -2,7 +2,7 @@ import {
   IsEnum,
 } from 'class-validator';
 
-import { EstadoUsuario } from '../../../../generated/prisma/enums';
+import { EstadoUsuario } from '../../../../../generated/prisma/enums';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CambiarEstadoUsuarioDto {

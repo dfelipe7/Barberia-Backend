@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   Req,
   UseGuards,
   UseInterceptors,
@@ -18,9 +19,12 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiOkResponse, ApiBadRequestRespo
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
-import { CrearBarberoDto } from '../dto/crear-barbero.dto';
-import { ActualizarComisionDto } from '../dto/actualizar-comision.dto';
-import { CambiarEstadoUsuarioDto } from '../dto/cambiar-estado-usuario.dto';
+import { CrearBarberoDto } from '../dto/dto-peticion/crear-barbero.dto';
+import { ActualizarComisionDto } from '../dto/dto-peticion/actualizar-comision.dto';
+import { CambiarEstadoUsuarioDto } from '../dto/dto-peticion/cambiar-estado-usuario.dto';
+import { FiltroBarberosDto } from '../dto/dto-peticion/filtro-barberos.dto';
+import { BarberoGestionDto } from '../dto/dto-respuesta/barbero-gestion.dto';
+import { BarberoCatalogoDto } from '../dto/dto-respuesta/barbero-catalogo.dto';
 import { BarberosService } from '../service/barberos.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
 
@@ -46,17 +50,17 @@ export class BarberosController {
   @Get('gestion')
   @UseGuards(KeycloakAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
-  @ApiOperation({ summary: 'Obtiene la lista de barberos para la vista de gestión' })
-  @ApiOkResponse({ description: 'Lista de barberos obtenida.', schema: { example: [{ id: 1, nombre: 'Felipe', apellido: 'Gómez', email: 'felipe@test.com', telefono: '300123', porcentajeComision: 50, estado: 'ACTIVO', esAdministrador: true, esSuperAdmin: false, estadoGlobal: 'ACTIVO' }] } })
-  async obtenerBarberosGestion() {
-    return this.barberosService.obtenerBarberosGestion();
+  @ApiOperation({ summary: 'Obtiene la lista de barberos para la vista de gestión con filtros' })
+  @ApiOkResponse({ description: 'Lista de barberos obtenida.', type: BarberoGestionDto, isArray: true })
+  async obtenerBarberosGestion(@Query() filtro: FiltroBarberosDto) {
+    return this.barberosService.obtenerBarberosGestion(filtro);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Obtiene la lista pública/catálogo de barberos' })
-  @ApiOkResponse({ description: 'Catálogo público (sin datos sensibles como comisión o email).', schema: { example: [{ id: 1, nombre: 'Felipe', apellido: 'Gómez', telefono: '300123' }] } })
-  async obtenerBarberosCatalogo() {
-    return this.barberosService.obtenerBarberosCatalogo();
+  @ApiOperation({ summary: 'Obtiene la lista pública/catálogo de barberos con filtros' })
+  @ApiOkResponse({ description: 'Catálogo público (sin datos sensibles como comisión o email).', type: BarberoCatalogoDto, isArray: true })
+  async obtenerBarberosCatalogo(@Query() filtro: FiltroBarberosDto) {
+    return this.barberosService.obtenerBarberosCatalogo(filtro);
   }
 
   @Patch(':id/comision')

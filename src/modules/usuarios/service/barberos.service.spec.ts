@@ -5,6 +5,7 @@ import { UsuariosRepository } from '../repository/usuarios.repository';
 import { BarberosRepository } from '../repository/barberos.repository';
 import { UsuariosAuthorizationService } from './usuarios-authorization.service';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
+import { FiltroBarberosDto } from '../dto/dto-peticion/filtro-barberos.dto';
 
 describe('BarberosService', () => {
   let service: BarberosService;
@@ -114,6 +115,77 @@ describe('BarberosService', () => {
       expect(usuariosRepository.crearUsuario).toHaveBeenCalled();
       expect(barberosRepository.crearBarberoNuevo).toHaveBeenCalled();
       expect(result.mensaje).toContain('creado correctamente');
+    });
+  });
+
+  describe('obtenerBarberosCatalogo', () => {
+    it('Debe retornar barberos en formato catálogo aplicando filtros si se especifican', async () => {
+      const mockBarberosPrisma = [
+        {
+          id: 1,
+          telefono: '3001234567',
+          fotoUrl: '/uploads/foto.jpg',
+          usuario: { nombre: 'Juan', apellido: 'Perez' },
+        },
+      ];
+      barberosRepository.obtenerBarberosCatalogo = jest.fn().mockResolvedValue(mockBarberosPrisma as any);
+
+      const filtro: FiltroBarberosDto = { nombre: 'Juan' };
+      const resultado = await service.obtenerBarberosCatalogo(filtro);
+
+      expect(barberosRepository.obtenerBarberosCatalogo).toHaveBeenCalledWith(filtro);
+      expect(resultado).toHaveLength(1);
+      expect(resultado[0]).toEqual({
+        id: 1,
+        nombre: 'Juan',
+        apellido: 'Perez',
+        telefono: '3001234567',
+        fotoUrl: '/uploads/foto.jpg',
+      });
+    });
+  });
+
+  describe('obtenerBarberosGestion', () => {
+    it('Debe retornar la lista completa de barberos para gestión mapeando estados global y de rol', async () => {
+      const mockBarberosPrisma = [
+        {
+          id: 1,
+          telefono: '3001234567',
+          porcentajeComision: 40,
+          estado: 'ACTIVO',
+          fotoUrl: '/uploads/foto.jpg',
+          usuario: {
+            id: 10,
+            nombre: 'Carlos',
+            apellido: 'Gomez',
+            email: 'carlos@barberia.com',
+            rol: 'BARBERO',
+            estado: 'ACTIVO',
+            administrador: { estado: 'INACTIVO' },
+          },
+        },
+      ];
+      barberosRepository.obtenerBarberosGestion = jest.fn().mockResolvedValue(mockBarberosPrisma as any);
+
+      const filtro: FiltroBarberosDto = { nombre: 'Carlos', estado: EstadoUsuario.ACTIVO };
+      const resultado = await service.obtenerBarberosGestion(filtro);
+
+      expect(barberosRepository.obtenerBarberosGestion).toHaveBeenCalledWith(filtro);
+      expect(resultado).toHaveLength(1);
+      expect(resultado[0]).toEqual({
+        id: 10,
+        nombre: 'Carlos',
+        apellido: 'Gomez',
+        email: 'carlos@barberia.com',
+        telefono: '3001234567',
+        porcentajeComision: 40,
+        estado: 'ACTIVO',
+        fotoUrl: '/uploads/foto.jpg',
+        esAdministrador: false,
+        esSuperAdmin: false,
+        estadoAdmin: 'INACTIVO',
+        estadoGlobal: 'ACTIVO',
+      });
     });
   });
 });

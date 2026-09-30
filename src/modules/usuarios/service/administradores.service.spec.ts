@@ -4,6 +4,8 @@ import { UsuariosRepository } from '../repository/usuarios.repository';
 import { AdministradoresRepository } from '../repository/administradores.repository';
 import { KeycloakService } from '../../../auth/keycloak/keycloak.service';
 import { ConflictException } from '@nestjs/common';
+import { FiltroAdministradoresDto } from '../dto/dto-peticion/filtro-administradores.dto';
+import { EstadoUsuario } from '../../../../generated/prisma/enums';
 
 describe('AdministradoresService', () => {
   let service: AdministradoresService;
@@ -123,6 +125,43 @@ describe('AdministradoresService', () => {
       expect(keycloakService.asignarRol).toHaveBeenCalledWith('key-1', 'ADMINISTRADOR');
       expect(usuariosRepository.actualizarRol).toHaveBeenCalledWith(1, 'ADMINISTRADOR');
       expect(administradoresRepository.crearAdministrador).toHaveBeenCalledWith({ usuarioId: 1 });
+    });
+  });
+
+  describe('obtenerAdministradores', () => {
+    it('debe obtener la lista de administradores aplicando el filtro de búsqueda y estado', async () => {
+      const mockAdminsPrisma = [
+        {
+          id: 1,
+          estado: 'ACTIVO',
+          usuario: {
+            id: 100,
+            nombre: 'Admin',
+            apellido: 'Sistema',
+            email: 'admin@barberia.com',
+            rol: 'ADMINISTRADOR',
+            estado: 'ACTIVO',
+            barbero: null,
+          },
+        },
+      ];
+      administradoresRepository.obtenerAdministradores.mockResolvedValue(mockAdminsPrisma as any);
+
+      const filtro: FiltroAdministradoresDto = { nombre: 'Admin', estado: EstadoUsuario.ACTIVO };
+      const resultado = await service.obtenerAdministradores(filtro);
+
+      expect(administradoresRepository.obtenerAdministradores).toHaveBeenCalledWith(filtro);
+      expect(resultado).toHaveLength(1);
+      expect(resultado[0]).toEqual({
+        id: 100,
+        nombre: 'Admin',
+        apellido: 'Sistema',
+        email: 'admin@barberia.com',
+        estado: 'ACTIVO',
+        estadoAdmin: 'ACTIVO',
+        esBarbero: false,
+        estadoBarbero: undefined,
+      });
     });
   });
 });

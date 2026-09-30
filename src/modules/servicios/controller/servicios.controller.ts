@@ -6,6 +6,7 @@ import {
     Delete,
     Body,
     Param,
+    Query,
     UseGuards,
     UseInterceptors,
     UploadedFile,
@@ -25,9 +26,11 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { crearMulterOptions } from '../../../common/config/multer.config';
 import { ServiciosService } from '../service/servicios.service';
-import { CrearServicioDto } from '../dto/crear-servicio.dto';
-import { ActualizarServicioDto } from '../dto/actualizar-servicio.dto';
-import { CambiarEstadoServicioDto } from '../dto/cambiar-estado-servicio.dto';
+import { CrearServicioDto } from '../dto/dto-peticion/crear-servicio.dto';
+import { ActualizarServicioDto } from '../dto/dto-peticion/actualizar-servicio.dto';
+import { CambiarEstadoServicioDto } from '../dto/dto-peticion/cambiar-estado-servicio.dto';
+import { FiltroServiciosDto } from '../dto/dto-peticion/filtro-servicios.dto';
+import { ServicioResponseDto } from '../dto/dto-respuesta/servicio-response.dto';
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
@@ -51,7 +54,7 @@ export class ServiciosController {
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Crear un nuevo servicio con asignación opcional de barberos activos' })
     @ApiBody({ type: CrearServicioDto })
-    @ApiResponse({ status: 201, description: 'Servicio creado correctamente' })
+    @ApiResponse({ status: 201, description: 'Servicio creado correctamente', type: ServicioResponseDto })
     @ApiResponse({ status: 400, description: 'Datos inválidos o barberos inactivos/inexistentes' })
     @ApiResponse({ status: 409, description: 'Ya existe un servicio con este nombre' })
     @ApiResponse({ status: 401, description: 'No autenticado' })
@@ -63,19 +66,19 @@ export class ServiciosController {
 
     /**
      * GET /servicios/gestion
-     * Vista de gestión administrativa: Retorna TODOS los servicios (activos e inactivos).
+     * Vista de gestión administrativa: Retorna TODOS los servicios (activos e inactivos) con soporte de filtros.
      * Acceso restringido: SUPERADMIN y ADMINISTRADOR.
      */
     @Get('gestion')
     @UseGuards(KeycloakAuthGuard, RolesGuard)
     @Roles('SUPERADMIN', 'ADMINISTRADOR')
     @ApiBearerAuth()
-    @ApiOperation({ summary: 'Obtiene todos los servicios para la vista de gestión del panel administrativo' })
-    @ApiResponse({ status: 200, description: 'Lista completa de servicios para administración' })
+    @ApiOperation({ summary: 'Obtiene todos los servicios para la vista de gestión del panel administrativo con filtros' })
+    @ApiResponse({ status: 200, description: 'Lista completa de servicios para administración', type: ServicioResponseDto, isArray: true })
     @ApiResponse({ status: 401, description: 'No autenticado' })
     @ApiResponse({ status: 403, description: 'No autorizado' })
-    async obtenerServiciosGestion() {
-        return this.serviciosService.obtenerServiciosGestion();
+    async obtenerServiciosGestion(@Query() filtro: FiltroServiciosDto) {
+        return this.serviciosService.obtenerServiciosGestion(filtro);
     }
 
     /**
@@ -86,22 +89,22 @@ export class ServiciosController {
     @Get('barbero/:barberoId')
     @ApiOperation({ summary: 'Obtiene los servicios activos que realiza un barbero específico' })
     @ApiParam({ name: 'barberoId', description: 'ID numérico del barbero', type: Number })
-    @ApiResponse({ status: 200, description: 'Servicios activos del barbero' })
+    @ApiResponse({ status: 200, description: 'Servicios activos del barbero', type: ServicioResponseDto, isArray: true })
     async obtenerServiciosPorBarbero(@Param('barberoId') barberoId: string) {
         return this.serviciosService.obtenerServiciosPorBarbero(Number(barberoId));
     }
 
     /**
      * GET /servicios
-     * Catálogo público: Retorna únicamente los servicios ACTIVOS.
+     * Catálogo público: Retorna únicamente los servicios ACTIVOS con opción de filtro por nombre.
      * Endpoint PÚBLICO: No requiere autenticación para que clientes y visitantes
      * puedan consultar el catálogo e iniciar su reserva sin restricciones.
      */
     @Get()
-    @ApiOperation({ summary: 'Obtiene el catálogo público de servicios activos para clientes y reservas' })
-    @ApiResponse({ status: 200, description: 'Catálogo de servicios activos disponibles' })
-    async obtenerServiciosCatalogo() {
-        return this.serviciosService.obtenerServiciosCatalogo();
+    @ApiOperation({ summary: 'Obtiene el catálogo público de servicios activos para clientes y reservas con soporte de búsqueda' })
+    @ApiResponse({ status: 200, description: 'Catálogo de servicios activos disponibles', type: ServicioResponseDto, isArray: true })
+    async obtenerServiciosCatalogo(@Query() filtro: FiltroServiciosDto) {
+        return this.serviciosService.obtenerServiciosCatalogo(filtro);
     }
 
     /**
@@ -115,7 +118,7 @@ export class ServiciosController {
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Obtener un servicio específico por su ID' })
     @ApiParam({ name: 'id', description: 'ID numérico del servicio', type: Number })
-    @ApiResponse({ status: 200, description: 'Servicio encontrado' })
+    @ApiResponse({ status: 200, description: 'Servicio encontrado', type: ServicioResponseDto })
     @ApiResponse({ status: 404, description: 'Servicio no encontrado' })
     async obtenerServicioPorId(@Param('id') id: string) {
         return this.serviciosService.obtenerServicioPorId(Number(id));

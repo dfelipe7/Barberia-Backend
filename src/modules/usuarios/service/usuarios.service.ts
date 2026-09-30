@@ -8,8 +8,9 @@ import {
 
 import { KeycloakService } from '../../../auth/keycloak/keycloak.service';
 import { BarberosRepository } from '../repository/barberos.repository';
-import { ActualizarUsuarioDto } from '../dto/actualizar-usuario.dto';
-import { CambiarEstadoUsuarioDto } from '../dto/cambiar-estado-usuario.dto';
+import { ActualizarUsuarioDto } from '../dto/dto-peticion/actualizar-usuario.dto';
+import { CambiarEstadoUsuarioDto } from '../dto/dto-peticion/cambiar-estado-usuario.dto';
+import { UsuarioPerfilDto } from '../dto/dto-respuesta/usuario-perfil.dto';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
 import { UsuariosRepository } from '../repository/usuarios.repository';
 import { UsuariosAuthorizationService } from './usuarios-authorization.service';
@@ -75,21 +76,21 @@ export class UsuariosService {
   /**
    * Obtiene el perfil del usuario autenticado en base a su ID de Keycloak.
    */
-  async obtenerMiPerfil(usuarioAutenticado: any) {
+  async obtenerMiPerfil(usuarioAutenticado: any): Promise<UsuarioPerfilDto> {
     const usuarioActual = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(usuarioAutenticado.sub);
 
     if (!usuarioActual) {
       throw new ConflictException('El usuario autenticado no existe en la base de datos');
     }
 
-    return usuarioActual;
+    return this.mapearUsuarioPerfil(usuarioActual);
   }
 
   /**
    * Obtiene los datos de un usuario específico por su ID numérico.
    * Valida que el usuario que realiza la petición tenga permisos para verlo.
    */
-  async obtenerUsuarioPorId(usuarioId: number, usuarioAutenticado: any) {
+  async obtenerUsuarioPorId(usuarioId: number, usuarioAutenticado: any): Promise<UsuarioPerfilDto> {
     const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
     if (!usuario) {
@@ -104,7 +105,7 @@ export class UsuariosService {
 
     this.authorizationService.verificarPermisosConsulta(usuarioActual, usuario);
 
-    return usuario;
+    return this.mapearUsuarioPerfil(usuario);
   }
 
   /**
@@ -244,5 +245,35 @@ export class UsuariosService {
     await this.keycloakService.cambiarEstadoUsuario(usuario.keycloakId, activo);
 
     return this.usuariosRepository.actualizarEstadoUsuario(usuarioId, nuevoEstado);
+  }
+
+  /**
+   * Transforma el objeto de usuario proveniente de Prisma al DTO UsuarioPerfilDto.
+   * Garantiza la conversión del Decimal de porcentajeComision a number para TypeScript y Swagger.
+   */
+  private mapearUsuarioPerfil(usuario: any): UsuarioPerfilDto {
+    return {
+      id: usuario.id,
+      email: usuario.email,
+      nombre: usuario.nombre,
+      apellido: usuario.apellido,
+      rol: usuario.rol,
+      estado: usuario.estado,
+      administrador: usuario.administrador
+        ? {
+            id: usuario.administrador.id,
+            estado: usuario.administrador.estado,
+          }
+        : null,
+      barbero: usuario.barbero
+        ? {
+            id: usuario.barbero.id,
+            telefono: usuario.barbero.telefono,
+            porcentajeComision: Number(usuario.barbero.porcentajeComision),
+            fotoUrl: usuario.barbero.fotoUrl,
+            estado: usuario.barbero.estado,
+          }
+        : null,
+    };
   }
 }

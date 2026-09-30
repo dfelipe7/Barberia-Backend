@@ -116,7 +116,16 @@ describe('UsuariosService', () => {
 
   describe('obtenerMiPerfil', () => {
     it('debe devolver el usuario si existe', async () => {
-      const mockUser = { id: 1, nombre: 'Test' };
+      const mockUser = {
+        id: 1,
+        nombre: 'Test',
+        apellido: 'User',
+        email: 'test@barberia.com',
+        rol: 'SUPERADMIN',
+        estado: 'ACTIVO',
+        administrador: null,
+        barbero: null,
+      };
       usuariosRepository.obtenerUsuarioPorKeycloakId.mockResolvedValue(mockUser as any);
 
       const result = await service.obtenerMiPerfil({ sub: '123' });

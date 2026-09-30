@@ -66,14 +66,23 @@ export class BarberosRepository {
     });
   }
 
-  async obtenerBarberosCatalogo() {
-    return this.prisma.barbero.findMany({
-      where: {
-        estado: 'ACTIVO',
-        usuario: {
-          estado: 'ACTIVO',
-        },
+  async obtenerBarberosCatalogo(filtro?: { nombre?: string }) {
+    const whereCondition: any = {
+      estado: EstadoUsuario.ACTIVO,
+      usuario: {
+        estado: EstadoUsuario.ACTIVO,
       },
+    };
+
+    if (filtro?.nombre) {
+      whereCondition.usuario.OR = [
+        { nombre: { contains: filtro.nombre } },
+        { apellido: { contains: filtro.nombre } },
+      ];
+    }
+
+    return this.prisma.barbero.findMany({
+      where: whereCondition,
       include: {
         usuario: {
           select: {
@@ -86,8 +95,36 @@ export class BarberosRepository {
     });
   }
 
-  async obtenerBarberosGestion() {
+  async obtenerBarberosGestion(filtro?: { nombre?: string; estado?: EstadoUsuario }) {
+    const whereCondition: any = {};
+
+    if (filtro?.estado) {
+      if (filtro.estado === EstadoUsuario.ACTIVO) {
+        whereCondition.estado = EstadoUsuario.ACTIVO;
+        whereCondition.usuario = {
+          estado: EstadoUsuario.ACTIVO,
+        };
+      } else {
+        whereCondition.OR = [
+          { estado: EstadoUsuario.INACTIVO },
+          { usuario: { estado: EstadoUsuario.INACTIVO } },
+        ];
+      }
+    }
+
+    if (filtro?.nombre) {
+      whereCondition.usuario = {
+        ...(whereCondition.usuario || {}),
+        OR: [
+          { nombre: { contains: filtro.nombre } },
+          { apellido: { contains: filtro.nombre } },
+          { email: { contains: filtro.nombre } },
+        ],
+      };
+    }
+
     return this.prisma.barbero.findMany({
+      where: whereCondition,
       include: {
         usuario: {
           include: {

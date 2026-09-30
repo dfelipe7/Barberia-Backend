@@ -3,10 +3,11 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiOkResponse, ApiBadRequestRespo
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
-import { ActualizarUsuarioDto } from '../dto/actualizar-usuario.dto';
-import { CambiarEstadoUsuarioDto } from '../dto/cambiar-estado-usuario.dto';
+import { ActualizarUsuarioDto } from '../dto/dto-peticion/actualizar-usuario.dto';
+import { CambiarEstadoUsuarioDto } from '../dto/dto-peticion/cambiar-estado-usuario.dto';
+import { ConfigurarBarberoDto } from '../dto/dto-peticion/configurar-barbero.dto';
+import { UsuarioPerfilDto } from '../dto/dto-respuesta/usuario-perfil.dto';
 import { UsuariosService } from '../service/usuarios.service';
-import { ConfigurarBarberoDto } from '../dto/configurar-barbero.dto';
 import { BarberosService } from '../service/barberos.service';
 
 @ApiTags('Usuarios')
@@ -57,7 +58,7 @@ export class UsuariosController {
   @Get('me')
   @UseGuards(KeycloakAuthGuard, RolesGuard)
   @ApiOperation({ summary: 'Obtiene el perfil del usuario autenticado actual' })
-  @ApiOkResponse({ description: 'Datos del perfil actual.', schema: { example: { id: 1, email: 'user@test.com', nombre: 'Juan' } } })
+  @ApiOkResponse({ description: 'Datos del perfil actual.', type: UsuarioPerfilDto })
   async obtenerMiPerfil(
     @Req() request: any,
   ) {
@@ -68,7 +69,7 @@ export class UsuariosController {
   @UseGuards(KeycloakAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
   @ApiOperation({ summary: 'Obtiene los datos de un usuario por su ID' })
-  @ApiOkResponse({ description: 'Datos del usuario encontrado.', schema: { example: { id: 2, email: 'barbero@test.com', nombre: 'Carlos' } } })
+  @ApiOkResponse({ description: 'Datos del usuario encontrado.', type: UsuarioPerfilDto })
   @ApiForbiddenResponse({ description: 'No tienes permiso para ver a este usuario.' })
   async obtenerUsuarioPorId(
     @Param('id') id: string,

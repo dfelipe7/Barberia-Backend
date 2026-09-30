@@ -6,9 +6,11 @@ import {
 } from '@nestjs/common';
 import * as fs from 'fs';
 import { join } from 'path';
-import { CrearServicioDto } from '../dto/crear-servicio.dto';
-import { ActualizarServicioDto } from '../dto/actualizar-servicio.dto';
-import { CambiarEstadoServicioDto } from '../dto/cambiar-estado-servicio.dto';
+import { CrearServicioDto } from '../dto/dto-peticion/crear-servicio.dto';
+import { ActualizarServicioDto } from '../dto/dto-peticion/actualizar-servicio.dto';
+import { CambiarEstadoServicioDto } from '../dto/dto-peticion/cambiar-estado-servicio.dto';
+import { FiltroServiciosDto } from '../dto/dto-peticion/filtro-servicios.dto';
+import { ServicioResponseDto } from '../dto/dto-respuesta/servicio-response.dto';
 import { ServiciosRepository } from '../repository/servicios.repository';
 
 @Injectable()
@@ -38,38 +40,41 @@ export class ServiciosService {
     }
 
     /**
-     * Catálogo público: Retorna únicamente los servicios con estado ACTIVO.
+     * Catálogo público: Retorna únicamente los servicios con estado ACTIVO con soporte de búsqueda.
      * Es consumido por los clientes para el flujo de reservas y vista pública.
      */
-    async obtenerServiciosCatalogo() {
-        return this.serviciosRepository.listarServiciosCatalogo();
+    async obtenerServiciosCatalogo(filtro?: FiltroServiciosDto): Promise<ServicioResponseDto[]> {
+        const servicios = await this.serviciosRepository.listarServiciosCatalogo(filtro);
+        return servicios.map((s) => this.mapearServicio(s));
     }
 
     /**
-     * Panel administrativo: Retorna todos los servicios (activos e inactivos).
+     * Panel administrativo: Retorna todos los servicios (activos e inactivos) con soporte de filtros.
      * Exclusivo para Superadmin y Administradores en la gestión del catálogo.
      */
-    async obtenerServiciosGestion() {
-        return this.serviciosRepository.listarServiciosGestion();
+    async obtenerServiciosGestion(filtro?: FiltroServiciosDto): Promise<ServicioResponseDto[]> {
+        const servicios = await this.serviciosRepository.listarServiciosGestion(filtro);
+        return servicios.map((s) => this.mapearServicio(s));
     }
 
     /**
      * Consulta inversa: Retorna los servicios activos que realiza un barbero específico.
      */
-    async obtenerServiciosPorBarbero(barberoId: number) {
-        return this.serviciosRepository.listarServiciosPorBarbero(barberoId);
+    async obtenerServiciosPorBarbero(barberoId: number): Promise<ServicioResponseDto[]> {
+        const servicios = await this.serviciosRepository.listarServiciosPorBarbero(barberoId);
+        return servicios.map((s) => this.mapearServicio(s));
     }
 
     /**
      * Obtiene el detalle de un servicio por su identificador único.
      * Arroja 404 si el servicio no existe en la base de datos.
      */
-    async obtenerServicioPorId(id: number) {
+    async obtenerServicioPorId(id: number): Promise<ServicioResponseDto> {
         const servicio = await this.serviciosRepository.obtenerServicioPorId(id);
         if (!servicio) {
             throw new NotFoundException(`El servicio con ID ${id} no existe`);
         }
-        return servicio;
+        return this.mapearServicio(servicio);
     }
 
     /**
@@ -187,6 +192,28 @@ export class ServiciosService {
         return {
             mensaje: 'Foto del servicio eliminada correctamente',
             fotoUrl: null,
+        };
+    }
+
+    /**
+     * Transforma la estructura anidada de Prisma a un formato limpio para el Frontend.
+     * Aplana: BarberoServicio[] → Barbero → Usuario → { id, nombre, apellido, fotoUrl }
+     */
+    private mapearServicio(servicio: any): ServicioResponseDto {
+        return {
+            id: servicio.id,
+            nombre: servicio.nombre,
+            descripcion: servicio.descripcion,
+            precio: Number(servicio.precio),
+            duracionMinutos: servicio.duracionMinutos,
+            fotoUrl: servicio.fotoUrl,
+            estado: servicio.estado,
+            barberos: (servicio.barberos || []).map((bs: any) => ({
+                id: bs.barbero.usuario.id,
+                nombre: bs.barbero.usuario.nombre,
+                apellido: bs.barbero.usuario.apellido,
+                fotoUrl: bs.barbero.fotoUrl,
+            })),
         };
     }
 }

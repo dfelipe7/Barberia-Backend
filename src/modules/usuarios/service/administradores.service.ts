@@ -2,7 +2,9 @@ import { Injectable, ConflictException } from '@nestjs/common';
 import { KeycloakService } from '../../../auth/keycloak/keycloak.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
 import { AdministradoresRepository } from '../repository/administradores.repository';
-import { CrearAdministradorDto } from '../dto/crear-administrador.dto';
+import { CrearAdministradorDto } from '../dto/dto-peticion/crear-administrador.dto';
+import { FiltroAdministradoresDto } from '../dto/dto-peticion/filtro-administradores.dto';
+import { AdministradorResponseDto } from '../dto/dto-respuesta/administrador-response.dto';
 
 @Injectable()
 export class AdministradoresService {
@@ -55,11 +57,11 @@ export class AdministradoresService {
   }
 
   /**
-   * Obtiene la lista completa de todos los administradores del sistema.
+   * Obtiene la lista completa de todos los administradores del sistema con soporte de filtros.
    * Exclusivo para la tabla de gestión del SUPERADMIN.
    */
-  async obtenerAdministradores() {
-    const administradores = await this.administradoresRepository.obtenerAdministradores();
+  async obtenerAdministradores(filtro?: FiltroAdministradoresDto): Promise<AdministradorResponseDto[]> {
+    const administradores = await this.administradoresRepository.obtenerAdministradores(filtro);
 
     return administradores.map((administrador: any) => ({
       id: administrador.usuario.id,

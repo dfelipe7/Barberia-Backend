@@ -13,15 +13,40 @@ export class AdministradoresRepository {
     });
   }
 
-  async obtenerAdministradores() {
-    return this.prisma.administrador.findMany({
-      where: {
-        usuario: {
-          rol: {
-            not: 'SUPERADMIN',
-          },
+  async obtenerAdministradores(filtro?: { nombre?: string; estado?: 'ACTIVO' | 'INACTIVO' }) {
+    const whereCondition: any = {
+      usuario: {
+        rol: {
+          not: 'SUPERADMIN',
         },
       },
+    };
+
+    if (filtro?.estado) {
+      if (filtro.estado === 'ACTIVO') {
+        whereCondition.estado = 'ACTIVO';
+        whereCondition.usuario.estado = 'ACTIVO';
+      } else {
+        whereCondition.OR = [
+          { estado: 'INACTIVO' },
+          { usuario: { estado: 'INACTIVO' } },
+        ];
+      }
+    }
+
+    if (filtro?.nombre) {
+      whereCondition.usuario = {
+        ...(whereCondition.usuario || {}),
+        OR: [
+          { nombre: { contains: filtro.nombre } },
+          { apellido: { contains: filtro.nombre } },
+          { email: { contains: filtro.nombre } },
+        ],
+      };
+    }
+
+    return this.prisma.administrador.findMany({
+      where: whereCondition,
       include: {
         usuario: {
           include: {

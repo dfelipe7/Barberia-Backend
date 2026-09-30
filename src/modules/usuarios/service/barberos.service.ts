@@ -5,11 +5,13 @@ import { KeycloakService } from '../../../auth/keycloak/keycloak.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
 import { BarberosRepository } from '../repository/barberos.repository';
 import { UsuariosAuthorizationService } from './usuarios-authorization.service';
-import { CrearBarberoDto } from '../dto/crear-barbero.dto';
-import { ConfigurarBarberoDto } from '../dto/configurar-barbero.dto';
-import { ActualizarComisionDto } from '../dto/actualizar-comision.dto';
-import { BarberoCatalogoDto } from '../dto/barbero-catalogo.dto';
-import { CambiarEstadoUsuarioDto } from '../dto/cambiar-estado-usuario.dto';
+import { CrearBarberoDto } from '../dto/dto-peticion/crear-barbero.dto';
+import { ConfigurarBarberoDto } from '../dto/dto-peticion/configurar-barbero.dto';
+import { ActualizarComisionDto } from '../dto/dto-peticion/actualizar-comision.dto';
+import { CambiarEstadoUsuarioDto } from '../dto/dto-peticion/cambiar-estado-usuario.dto';
+import { FiltroBarberosDto } from '../dto/dto-peticion/filtro-barberos.dto';
+import { BarberoCatalogoDto } from '../dto/dto-respuesta/barbero-catalogo.dto';
+import { BarberoGestionDto } from '../dto/dto-respuesta/barbero-gestion.dto';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
 
 @Injectable()
@@ -165,8 +167,8 @@ export class BarberosService {
    * Obtiene la lista de barberos para el catálogo público.
    * Filtra barberos inactivos y oculta datos sensibles (comisión, email).
    */
-  async obtenerBarberosCatalogo(): Promise<BarberoCatalogoDto[]> {
-    const barberos = await this.barberosRepository.obtenerBarberosCatalogo();
+  async obtenerBarberosCatalogo(filtro?: FiltroBarberosDto): Promise<BarberoCatalogoDto[]> {
+    const barberos = await this.barberosRepository.obtenerBarberosCatalogo(filtro);
 
     return barberos.map((barbero) => ({
       id: barbero.id,
@@ -181,8 +183,8 @@ export class BarberosService {
    * Obtiene la lista completa de barberos para la gestión interna.
    * Incluye datos sensibles como la comisión y el correo.
    */
-  async obtenerBarberosGestion() {
-    const barberos = await this.barberosRepository.obtenerBarberosGestion();
+  async obtenerBarberosGestion(filtro?: FiltroBarberosDto): Promise<BarberoGestionDto[]> {
+    const barberos = await this.barberosRepository.obtenerBarberosGestion(filtro);
 
     return barberos.map((barbero) => ({
       id: barbero.usuario.id,
@@ -193,7 +195,7 @@ export class BarberosService {
       porcentajeComision: Number(barbero.porcentajeComision),
       estado: barbero.estado,
       fotoUrl: barbero.fotoUrl,
-      esAdministrador: barbero.usuario.administrador && (barbero.usuario.administrador as any).estado === 'ACTIVO',
+      esAdministrador: Boolean(barbero.usuario.administrador && (barbero.usuario.administrador as any).estado === 'ACTIVO'),
       esSuperAdmin: barbero.usuario.rol === 'SUPERADMIN',
       estadoAdmin: barbero.usuario.administrador ? (barbero.usuario.administrador as any).estado : undefined,
       estadoGlobal: barbero.usuario.estado,

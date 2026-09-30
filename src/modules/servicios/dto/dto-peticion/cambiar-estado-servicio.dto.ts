@@ -1,6 +1,6 @@
 import { IsEnum, IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { EstadoServicio } from '../../../../generated/prisma/enums';
+import { EstadoServicio } from '../../../../../generated/prisma/enums';
 
 /**
  * DTO para alternar el estado (activo/inactivo) de un servicio.
