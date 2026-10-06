@@ -80,9 +80,16 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!**/*.spec.(t|j)s",
+      "!**/*.module.(t|j)s",
+      "!**/main.(t|j)s",
+      "!**/dto/**",
+      "!**/generated/**",
+      "!**/node_modules/**"
     ],
     "coverageDirectory": "../coverage",
+    "coverageReporters": ["text", "lcov"],
     "testEnvironment": "node",
     "moduleNameMapper": {
       "^@nestjs/config$": "<rootDir>/../test/__mocks__/@nestjs-config.js",

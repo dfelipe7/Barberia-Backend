@@ -97,7 +97,7 @@ describe('UsuariosController', () => {
       const req = { user: { sub: 'kc-uuid' } };
       const dto: any = { nombre: 'Carlos' };
       mockUsuariosService.actualizarUsuario.mockResolvedValue({ id: 3, nombre: 'Carlos' });
-      const result = await controller.actualizarUsuario('3', dto, req);
+      const result: any = await controller.actualizarUsuario('3', dto, req);
       expect(mockUsuariosService.actualizarUsuario).toHaveBeenCalledWith(3, dto, req.user);
       expect(result.nombre).toBe('Carlos');
     });
