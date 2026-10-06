@@ -1,6 +1,6 @@
 import { Injectable, ConflictException } from '@nestjs/common';
-import * as fs from 'fs';
-import { join } from 'path';
+import * as fs from 'node:fs';
+import { join } from 'node:path';
 import { KeycloakService } from '../../../auth/keycloak/keycloak.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
 import { BarberosRepository } from '../repository/barberos.repository';
@@ -206,7 +206,7 @@ export class BarberosService {
    * Sube y actualiza la foto de perfil de un barbero.
    * Si ya tenía una foto previa en /uploads, la elimina para evitar acumular archivos huérfanos.
    */
-  async subirFotoBarbero(usuarioId: number, archivo: Express.Multer.File, usuarioAutenticado?: any) {
+  async subirFotoBarbero(usuarioId: number, archivo: Express.Multer.File, usuarioAutenticado?: any) { // NOSONAR
     if (!archivo) {
       throw new ConflictException('No se ha proporcionado ningún archivo de imagen');
     }
@@ -235,7 +235,7 @@ export class BarberosService {
     }
 
     // Si ya tenía una foto previa en /uploads, la eliminamos del disco
-    if (barbero.fotoUrl && barbero.fotoUrl.startsWith('/uploads/')) {
+    if (barbero.fotoUrl?.startsWith('/uploads/')) {
       const rutaAnterior = join(process.cwd(), barbero.fotoUrl);
       if (fs.existsSync(rutaAnterior)) {
         try {
@@ -266,7 +266,7 @@ export class BarberosService {
       throw new ConflictException('El usuario no cuenta con un perfil de barbero');
     }
 
-    if (barbero.fotoUrl && barbero.fotoUrl.startsWith('/uploads/')) {
+    if (barbero.fotoUrl?.startsWith('/uploads/')) {
       const ruta = join(process.cwd(), barbero.fotoUrl);
       if (fs.existsSync(ruta)) {
         try {

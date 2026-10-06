@@ -35,14 +35,11 @@ export class AdministradoresRepository {
     }
 
     if (filtro?.nombre) {
-      whereCondition.usuario = {
-        ...(whereCondition.usuario || {}),
-        OR: [
-          { nombre: { contains: filtro.nombre } },
-          { apellido: { contains: filtro.nombre } },
-          { email: { contains: filtro.nombre } },
-        ],
-      };
+      whereCondition.usuario.OR = [
+        { nombre: { contains: filtro.nombre } },
+        { apellido: { contains: filtro.nombre } },
+        { email: { contains: filtro.nombre } },
+      ];
     }
 
     return this.prisma.administrador.findMany({

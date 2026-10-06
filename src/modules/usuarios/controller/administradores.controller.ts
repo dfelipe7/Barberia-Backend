@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Patch, Body, Query, UseGuards, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Query, UseGuards, Param, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiOkResponse, ApiBadRequestResponse, ApiForbiddenResponse } from '@nestjs/swagger';
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';

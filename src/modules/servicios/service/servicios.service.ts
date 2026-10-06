@@ -4,8 +4,8 @@ import {
     NotFoundException,
     BadRequestException,
 } from '@nestjs/common';
-import * as fs from 'fs';
-import { join } from 'path';
+import * as fs from 'node:fs';
+import { join } from 'node:path';
 import { CrearServicioDto } from '../dto/dto-peticion/crear-servicio.dto';
 import { ActualizarServicioDto } from '../dto/dto-peticion/actualizar-servicio.dto';
 import { CambiarEstadoServicioDto } from '../dto/dto-peticion/cambiar-estado-servicio.dto';
@@ -145,7 +145,7 @@ export class ServiciosService {
     async subirFotoServicio(id: number, archivo: Express.Multer.File) {
         const servicio = await this.obtenerServicioPorId(id);
 
-        if (servicio.fotoUrl && servicio.fotoUrl.startsWith('/uploads/servicios/')) {
+        if (servicio.fotoUrl?.startsWith('/uploads/servicios/')) {
             const rutaAnterior = join(process.cwd(), servicio.fotoUrl);
             if (fs.existsSync(rutaAnterior)) {
                 try {
@@ -174,7 +174,7 @@ export class ServiciosService {
     async eliminarFotoServicio(id: number) {
         const servicio = await this.obtenerServicioPorId(id);
 
-        if (servicio.fotoUrl && servicio.fotoUrl.startsWith('/uploads/servicios/')) {
+        if (servicio.fotoUrl?.startsWith('/uploads/servicios/')) {
             const ruta = join(process.cwd(), servicio.fotoUrl);
             if (fs.existsSync(ruta)) {
                 try {

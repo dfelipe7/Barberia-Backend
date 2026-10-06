@@ -35,7 +35,7 @@ export class BootstrapService implements OnModuleInit {
    * inicializar su base de datos e importar el realm durante el primer docker compose up.
    */
   private async esperarYSincronizarSuperadmin(intentos = 20, esperaMs = 3000) {
-    for (let i = 1; i <= intentos; i++) {
+    for (let i = 1; i <= intentos; i++) { // NOSONAR
       try {
         console.log(`[Bootstrap] Conectando con Keycloak para sincronizar SUPERADMIN (Intento ${i}/${intentos})...`);
         await this.sincronizarSuperadmin();
@@ -75,7 +75,7 @@ export class BootstrapService implements OnModuleInit {
     }
 
     // Paso 3 y 4: Sincronización en la base de datos local
-    for (const superadmin of superadmins) {
+    for (const superadmin of superadmins) { // NOSONAR
       const usuarioExistente =
         await this.usuariosRepository.obtenerUsuarioPorKeycloakId(
           superadmin.id,

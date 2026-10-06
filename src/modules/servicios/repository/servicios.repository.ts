@@ -61,7 +61,7 @@ export class ServiciosRepository {
     /**
      * Busca un servicio por su nombre exacto (utilizado para evitar duplicados).
      */
-    async obtenerServicioPorNombre(nombre: string) {
+    obtenerServicioPorNombre(nombre: string) {
         return this.prisma.servicio.findUnique({
             where: { nombre },
         });
@@ -70,7 +70,7 @@ export class ServiciosRepository {
     /**
      * Obtiene el detalle de un servicio por su ID, incluyendo sus barberos.
      */
-    async obtenerServicioPorId(id: number) {
+    obtenerServicioPorId(id: number) {
         return this.prisma.servicio.findUnique({
             where: { id },
             include: INCLUDE_BARBEROS,
@@ -81,7 +81,7 @@ export class ServiciosRepository {
      * Catálogo público: Lista únicamente los servicios que están ACTIVOS con opción de filtro por nombre.
      * Ordenados alfabéticamente para facilitar la selección al cliente en la reserva.
      */
-    async listarServiciosCatalogo(filtro?: { nombre?: string }) {
+    listarServiciosCatalogo(filtro?: { nombre?: string }) {
         const whereCondition: any = {
             estado: EstadoServicio.ACTIVO,
         };

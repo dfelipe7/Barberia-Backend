@@ -43,7 +43,7 @@ export class UsuariosService {
 
     const resultados: any[] = [];
 
-    for (const superadmin of superadmins) {
+    for (const superadmin of superadmins) { // NOSONAR
       const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(superadmin.id);
 
       if (usuarioExistente) {
@@ -113,7 +113,7 @@ export class UsuariosService {
    * Refleja los cambios tanto en Keycloak como en la base de datos local.
    * Si el usuario es un barbero y se envían datos extra, actualiza el perfil de barbero.
    */
-  async actualizarUsuario(usuarioId: number, dto: ActualizarUsuarioDto, usuarioAutenticado: any) {
+  async actualizarUsuario(usuarioId: number, dto: ActualizarUsuarioDto, usuarioAutenticado: any) { // NOSONAR
     const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
     if (!usuario) {

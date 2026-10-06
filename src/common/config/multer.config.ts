@@ -1,7 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import * as fs from 'fs';
+import { extname, join } from 'node:path';
+import * as fs from 'node:fs';
+import * as crypto from 'node:crypto';
 
 /**
  * Fábrica de configuración reutilizable para Multer.
@@ -30,7 +31,7 @@ export const crearMulterOptions = (carpetaDestino: string, prefijoArchivo?: stri
             },
             filename: (_req, file, callback) => {
                 // Sanitiza y genera un nombre criptográficamente único con timestamp para evitar colisiones o sobrescrituras
-                const randomSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+                const randomSuffix = Date.now() + '-' + crypto.randomBytes(8).toString('hex');
                 const extension = extname(file.originalname).toLowerCase();
                 callback(null, `${prefijo}-${randomSuffix}${extension}`);
             },

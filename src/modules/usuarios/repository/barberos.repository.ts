@@ -23,9 +23,7 @@ export class BarberosRepository {
     porcentajeComision: number;
     fotoUrl?: string;
   }) {
-    return this.prisma.barbero.create({
-      data,
-    });
+    return this.crearBarberoNuevo(data);
   }
 
   async actualizarComision(
@@ -113,14 +111,12 @@ export class BarberosRepository {
     }
 
     if (filtro?.nombre) {
-      whereCondition.usuario = {
-        ...(whereCondition.usuario || {}),
-        OR: [
-          { nombre: { contains: filtro.nombre } },
-          { apellido: { contains: filtro.nombre } },
-          { email: { contains: filtro.nombre } },
-        ],
-      };
+      if (!whereCondition.usuario) whereCondition.usuario = {};
+      whereCondition.usuario.OR = [
+        { nombre: { contains: filtro.nombre } },
+        { apellido: { contains: filtro.nombre } },
+        { email: { contains: filtro.nombre } },
+      ];
     }
 
     return this.prisma.barbero.findMany({

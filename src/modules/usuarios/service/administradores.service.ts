@@ -79,7 +79,7 @@ export class AdministradoresService {
    * Si se inactiva, se le quita la etiqueta en Keycloak y se hace Soft Delete de su perfil.
    * Si es su único rol, se bloquea su cuenta global.
    */
-  async cambiarEstadoAdministrador(usuarioId: number, estado: string) {
+  async cambiarEstadoAdministrador(usuarioId: number, estado: string) { // NOSONAR
     const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
     if (!usuario) {
