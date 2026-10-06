@@ -52,23 +52,60 @@ describe('BootstrapService', () => {
       });
     });
 
+    it('should use empty string when superadmin has no firstName/lastName', async () => {
+      mockKeycloakService.obtenerUsuariosPorRol.mockResolvedValue([
+        { id: '456', email: 'noname@test.com', firstName: undefined, lastName: undefined },
+      ]);
+      mockUsuariosRepository.obtenerUsuarioPorKeycloakId.mockResolvedValue(null);
+      mockUsuariosRepository.crearUsuario.mockResolvedValue({});
+
+      await service.onModuleInit();
+
+      expect(mockUsuariosRepository.crearUsuario).toHaveBeenCalledWith({
+        keycloakId: '456',
+        email: 'noname@test.com',
+        nombre: '',
+        apellido: '',
+        rol: 'SUPERADMIN',
+      });
+    });
+
+    it('should skip already-existing superadmin and still complete without error', async () => {
+      mockKeycloakService.obtenerUsuariosPorRol.mockResolvedValue([
+        { id: '123', email: 'test@test.com', firstName: 'Admin', lastName: 'Test' },
+      ]);
+      // Already exists in DB
+      mockUsuariosRepository.obtenerUsuarioPorKeycloakId.mockResolvedValue({ id: 1 });
+
+      await expect(service.onModuleInit()).resolves.not.toThrow();
+      expect(mockUsuariosRepository.crearUsuario).not.toHaveBeenCalled();
+    });
+
     it('should retry if keycloak is not ready', async () => {
       mockKeycloakService.obtenerUsuariosPorRol
         .mockRejectedValueOnce(new Error('Network error'))
         .mockResolvedValueOnce([
           { id: '123', email: 'test@test.com', firstName: 'Admin', lastName: 'Test' },
         ]);
-      
-      mockUsuariosRepository.obtenerUsuarioPorKeycloakId.mockResolvedValue(true); // Already exists
+
+      mockUsuariosRepository.obtenerUsuarioPorKeycloakId.mockResolvedValue(true);
 
       await expect((service as any).esperarYSincronizarSuperadmin(3, 10)).resolves.not.toThrow();
       expect(mockKeycloakService.obtenerUsuariosPorRol).toHaveBeenCalledTimes(2);
     });
 
-    it('should throw error if keycloak is permanently down', async () => {
-      mockKeycloakService.obtenerUsuariosPorRol.mockRejectedValue(new Error('Network error'));
-      await expect((service as any).esperarYSincronizarSuperadmin(2, 10)).rejects.toThrow('Network error');
-      expect(mockKeycloakService.obtenerUsuariosPorRol).toHaveBeenCalledTimes(2);
+    it('should log error and throw when all retries are exhausted', async () => {
+      const error = new Error('Connection refused');
+      mockKeycloakService.obtenerUsuariosPorRol.mockRejectedValue(error);
+
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect((service as any).esperarYSincronizarSuperadmin(2, 10)).rejects.toThrow('Connection refused');
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[Bootstrap] Error definitivo conectando con Keycloak tras varios intentos:',
+        'Connection refused',
+      );
+      consoleSpy.mockRestore();
     });
 
     it('should throw ConflictException if no superadmin exists in keycloak', async () => {
