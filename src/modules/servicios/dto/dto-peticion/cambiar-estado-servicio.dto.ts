@@ -10,7 +10,7 @@ export class CambiarEstadoServicioDto {
     @ApiProperty({
         description: 'Nuevo estado para el servicio',
         enum: EstadoServicio,
-        example: EstadoServicio.INACTIVO,
+        example: 'INACTIVO',
     })
     @IsEnum(EstadoServicio, {
         message: 'El estado debe ser ACTIVO o INACTIVO',
