@@ -6,7 +6,7 @@ import { KeycloakService } from '../../../auth/keycloak/keycloak.service';
 import { ConflictException } from '@nestjs/common';
 import { FiltroAdministradoresDto } from '../dto/dto-peticion/filtro-administradores.dto';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
-
+import { PrismaService } from '../../../prisma/prisma.service';
 describe('AdministradoresService', () => {
   let service: AdministradoresService;
   let usuariosRepository: jest.Mocked<UsuariosRepository>;
@@ -34,11 +34,13 @@ describe('AdministradoresService', () => {
       asignarRol: jest.fn(),
       quitarRol: jest.fn(),
       cambiarEstadoUsuario: jest.fn(),
+      eliminarUsuario: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdministradoresService,
+        { provide: PrismaService, useValue: { $transaction: jest.fn(async (cb) => cb({})) } },
         { provide: UsuariosRepository, useValue: mockUsuariosRepository },
         { provide: AdministradoresRepository, useValue: mockAdministradoresRepository },
         { provide: KeycloakService, useValue: mockKeycloakService },

@@ -6,7 +6,7 @@ import { UsuariosRepository } from '../repository/usuarios.repository';
 import { BarberosRepository } from '../repository/barberos.repository';
 import { UsuariosAuthorizationService } from './usuarios-authorization.service';
 import { FiltroBarberosDto } from '../dto/dto-peticion/filtro-barberos.dto';
-
+import { PrismaService } from '../../../prisma/prisma.service';
 jest.mock('../../../../generated/prisma/enums', () => ({
   EstadoUsuario: { ACTIVO: 'ACTIVO', INACTIVO: 'INACTIVO' },
 }));
@@ -25,6 +25,7 @@ describe('BarberosService', () => {
   let usuariosRepository: any;
   let barberosRepository: any;
   let authorizationService: any;
+  let prismaService: any;
 
   beforeEach(async () => {
     const mockKeycloakService = {
@@ -32,6 +33,7 @@ describe('BarberosService', () => {
       asignarRol: jest.fn(),
       quitarRol: jest.fn(),
       cambiarEstadoUsuario: jest.fn(),
+      eliminarUsuario: jest.fn(),
     };
 
     const mockUsuariosRepository = {
@@ -62,6 +64,13 @@ describe('BarberosService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BarberosService,
+        { provide: PrismaService, useValue: { $transaction: jest.fn(async (cb) => {
+          const tx = {
+            usuario: { create: jest.fn().mockResolvedValue({ id: 1 }) },
+            barbero: { create: jest.fn().mockResolvedValue({ id: 1 }) },
+          };
+          return cb(tx);
+        }) } },
         { provide: KeycloakService, useValue: mockKeycloakService },
         { provide: UsuariosRepository, useValue: mockUsuariosRepository },
         { provide: BarberosRepository, useValue: mockBarberosRepository },
@@ -74,6 +83,7 @@ describe('BarberosService', () => {
     usuariosRepository = module.get(UsuariosRepository);
     barberosRepository = module.get(BarberosRepository);
     authorizationService = module.get(UsuariosAuthorizationService);
+    prismaService = module.get(PrismaService);
     jest.clearAllMocks();
   });
 
@@ -101,7 +111,7 @@ describe('BarberosService', () => {
     it('debe lanzar ConflictException si falla el guardado en DB', async () => {
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue(null);
       keycloakService.crearUsuario.mockResolvedValue('kc-id');
-      usuariosRepository.crearUsuario.mockRejectedValue(new Error('DB error'));
+      jest.spyOn(prismaService, '$transaction').mockRejectedValueOnce(new Error('DB error'));
 
       await expect(service.crearBarbero({ email: 'b@b.com', password: '1', nombre: 'a', apellido: 'b' } as any)).rejects.toThrow(ConflictException);
     });
