@@ -347,4 +347,22 @@ export class KeycloakService {
       },
     );
   }
-}
+
+  /**
+   * Elimina un usuario de Keycloak. Útil para transacciones compensatorias.
+   */
+  async eliminarUsuario(keycloakUserId: string) {
+    const token = await this.obtenerTokenAdministrativo();
+    const url = this.configService.get<string>('KEYCLOAK_URL');
+    const realm = this.configService.get<string>('KEYCLOAK_REALM');
+
+    await axios.delete(
+      `${url}/admin/realms/${realm}/users/${keycloakUserId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+  }
+}

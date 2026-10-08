@@ -1,17 +1,21 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, Logger } from '@nestjs/common';
 import { KeycloakService } from '../../../auth/keycloak/keycloak.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
 import { AdministradoresRepository } from '../repository/administradores.repository';
 import { CrearAdministradorDto } from '../dto/dto-peticion/crear-administrador.dto';
 import { FiltroAdministradoresDto } from '../dto/dto-peticion/filtro-administradores.dto';
 import { AdministradorResponseDto } from '../dto/dto-respuesta/administrador-response.dto';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 @Injectable()
 export class AdministradoresService {
+  private readonly logger = new Logger(AdministradoresService.name);
+
   constructor(
     private readonly administradoresRepository: AdministradoresRepository,
     private readonly usuariosRepository: UsuariosRepository,
     private readonly keycloakService: KeycloakService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -34,25 +38,36 @@ export class AdministradoresService {
     await this.keycloakService.asignarRol(keycloakId, 'ADMINISTRADOR');
 
     try {
-      const usuario = await this.usuariosRepository.crearUsuario({
-        keycloakId,
-        email: dto.email,
-        nombre: dto.nombre,
-        apellido: dto.apellido ?? '',
-        rol: 'ADMINISTRADOR',
+      const administrador = await this.prisma.$transaction(async (tx) => {
+        const usuario = await tx.usuario.create({
+          data: {
+            keycloakId,
+            email: dto.email,
+            nombre: dto.nombre,
+            apellido: dto.apellido ?? '',
+            rol: 'ADMINISTRADOR',
+          },
+        });
+
+        return tx.administrador.create({
+          data: {
+            usuarioId: usuario.id,
+          },
+        });
       });
 
-      const administrador = await this.administradoresRepository.crearAdministrador({
-        usuarioId: usuario.id,
-      });
+      // OWASP A09: Registro de transacciones de alto valor
+      this.logger.log(`AUDIT: Nuevo Administrador creado en el sistema. Email: ${dto.email}, KeycloakID: ${keycloakId}`);
 
       return {
         mensaje: 'Administrador creado correctamente',
         administrador,
       };
     } catch (error) {
-      console.error('Error guardando administrador en la base de datos:', error);
-      throw new ConflictException('El administrador no pudo registrarse en la base de datos');
+      console.error('Error guardando administrador en la base de datos (Rollback ejecutado):', error);
+      // Compensación manual: Borramos el usuario de Keycloak para evitar inconsistencias (Falla Cerrada)
+      await this.keycloakService.eliminarUsuario(keycloakId);
+      throw new ConflictException('El administrador no pudo registrarse. Se han revertido los cambios en el sistema.');
     }
   }
 

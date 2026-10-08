@@ -4,11 +4,15 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import * as express from 'express';
 import { join } from 'node:path';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Usar Winston como el Logger principal de NestJS
+  app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
   // Servir archivos estáticos subidos (/uploads)
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));

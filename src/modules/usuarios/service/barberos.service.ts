@@ -13,6 +13,7 @@ import { FiltroBarberosDto } from '../dto/dto-peticion/filtro-barberos.dto';
 import { BarberoCatalogoDto } from '../dto/dto-respuesta/barbero-catalogo.dto';
 import { BarberoGestionDto } from '../dto/dto-respuesta/barbero-gestion.dto';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 @Injectable()
 export class BarberosService {
@@ -21,6 +22,7 @@ export class BarberosService {
     private readonly usuariosRepository: UsuariosRepository,
     private readonly keycloakService: KeycloakService,
     private readonly authorizationService: UsuariosAuthorizationService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -42,19 +44,25 @@ export class BarberosService {
     await this.keycloakService.asignarRol(keycloakId, 'BARBERO');
 
     try {
-      const usuario = await this.usuariosRepository.crearUsuario({
-        keycloakId,
-        email: dto.email,
-        nombre: dto.nombre,
-        apellido: dto.apellido,
-        rol: 'BARBERO',
-      });
+      const barbero = await this.prisma.$transaction(async (tx) => {
+        const usuario = await tx.usuario.create({
+          data: {
+            keycloakId,
+            email: dto.email,
+            nombre: dto.nombre,
+            apellido: dto.apellido,
+            rol: 'BARBERO',
+          },
+        });
 
-      const barbero = await this.barberosRepository.crearBarberoNuevo({
-        usuarioId: usuario.id,
-        telefono: dto.telefono,
-        porcentajeComision: dto.porcentajeComision,
-        fotoUrl: dto.fotoUrl,
+        return tx.barbero.create({
+          data: {
+            usuarioId: usuario.id,
+            telefono: dto.telefono,
+            porcentajeComision: dto.porcentajeComision,
+            fotoUrl: dto.fotoUrl,
+          },
+        });
       });
 
       return {
@@ -62,8 +70,10 @@ export class BarberosService {
         barbero,
       };
     } catch (error) {
-      console.error('Error guardando barbero en la base de datos:', error);
-      throw new ConflictException('El barbero no pudo registrarse en la base de datos');
+      console.error('Error guardando barbero en la base de datos (Rollback ejecutado):', error);
+      // Compensación manual: Borramos el usuario de Keycloak para evitar inconsistencias (Falla Cerrada)
+      await this.keycloakService.eliminarUsuario(keycloakId);
+      throw new ConflictException('El barbero no pudo registrarse. Se han revertido los cambios en el sistema.');
     }
   }
 

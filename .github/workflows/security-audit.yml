@@ -1,0 +1,29 @@
+name: Security Audit Pipeline
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+  schedule:
+    - cron: '0 0 * * 1' # Ejecutar cada lunes
+
+jobs:
+  npm-audit:
+    name: OWASP A03 Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias exactas
+        run: npm ci
+
+      - name: Escaneo de Seguridad (Falla si hay Críticos o Altos)
+        run: npm audit --audit-level=high

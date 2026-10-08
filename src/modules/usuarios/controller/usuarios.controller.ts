@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, Param, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param, Req, UseGuards, InternalServerErrorException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiOkResponse, ApiBadRequestResponse, ApiForbiddenResponse } from '@nestjs/swagger';
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
@@ -18,6 +18,11 @@ export class UsuariosController {
     private readonly usuariosService: UsuariosService,
     private readonly barberosService: BarberosService,
   ) {}
+  @Get('simular-error-grave')
+  @ApiOperation({ summary: 'Simula un error 500 para probar el sistema de alertas por correo (A09)' })
+  simularError() {
+    throw new InternalServerErrorException('¡Simulación de explosión del servidor (Error 500)!');
+  }
 
   @Post('me/barbero')
   @UseGuards(KeycloakAuthGuard, RolesGuard)
