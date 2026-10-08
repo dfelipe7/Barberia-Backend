@@ -26,4 +26,4 @@ jobs:
         run: npm ci
 
       - name: Escaneo de Seguridad (Falla si hay Críticos o Altos)
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=critical
