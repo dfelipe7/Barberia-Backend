@@ -27,7 +27,7 @@ import { AllExceptionsFilter } from './logger/all-exceptions.filter';
     MailerModule.forRoot({
       transport: {
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587', 10),
+        port: Number.parseInt(process.env.SMTP_PORT || '587', 10),
         secure: process.env.SMTP_SECURE === 'true', // true para 465, false para otros
         auth: {
           user: process.env.SMTP_USER || 'tu-correo@gmail.com',
