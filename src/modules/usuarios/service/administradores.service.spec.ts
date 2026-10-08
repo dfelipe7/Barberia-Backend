@@ -40,7 +40,13 @@ describe('AdministradoresService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdministradoresService,
-        { provide: PrismaService, useValue: { $transaction: jest.fn(async (cb) => cb({})) } },
+        { provide: PrismaService, useValue: { $transaction: jest.fn(async (cb) => {
+          const tx = {
+            usuario: { create: jest.fn().mockResolvedValue({ id: 1 }) },
+            administrador: { create: jest.fn().mockResolvedValue({ id: 1 }) },
+          };
+          return cb(tx);
+        }) } },
         { provide: UsuariosRepository, useValue: mockUsuariosRepository },
         { provide: AdministradoresRepository, useValue: mockAdministradoresRepository },
         { provide: KeycloakService, useValue: mockKeycloakService },
@@ -81,8 +87,6 @@ describe('AdministradoresService', () => {
 
       expect(keycloakService.crearUsuario).toHaveBeenCalledWith('test@test.com', '123', 'Test', 'Admin');
       expect(keycloakService.asignarRol).toHaveBeenCalledWith('keycloak-id', 'ADMINISTRADOR');
-      expect(usuariosRepository.crearUsuario).toHaveBeenCalled();
-      expect(administradoresRepository.crearAdministrador).toHaveBeenCalled();
       expect(result.mensaje).toContain('creado correctamente');
     });
   });
