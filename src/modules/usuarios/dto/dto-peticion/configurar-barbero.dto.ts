@@ -12,7 +12,7 @@ export class ConfigurarBarberoDto {
   @ApiProperty({ example: '+573001234567', description: 'Teléfono de contacto' })
   @IsString()
   @IsNotEmpty()
-  @Matches(/^\+?[0-9]{7,15}$/, { message: 'El teléfono solo debe contener números (mínimo 7) y opcionalmente un signo + al inicio' })
+  @Matches(/^\+?\d{7,15}$/, { message: 'El teléfono solo debe contener números (mínimo 7) y opcionalmente un signo + al inicio' })
   telefono: string;
 
   @ApiProperty({ example: 50, description: 'Porcentaje de comisión', minimum: 0, maximum: 100 })

@@ -38,7 +38,7 @@ export class ActualizarUsuarioDto {
   @ApiProperty({ example: '1234567890', description: 'Teléfono del barbero', required: false })
   @IsOptional()
   @IsString()
-  @Matches(/^\+?[0-9]{7,15}$/, { message: 'El teléfono solo debe contener números (mínimo 7) y opcionalmente un signo + al inicio' })
+  @Matches(/^\+?\d{7,15}$/, { message: 'El teléfono solo debe contener números (mínimo 7) y opcionalmente un signo + al inicio' })
   telefono?: string;
 
   @ApiProperty({ example: 40, description: 'Porcentaje de comisión del barbero', required: false })

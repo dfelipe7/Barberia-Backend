@@ -120,7 +120,7 @@ export class ServiciosRepository {
             ];
         }
 
-        return this.prisma.servicio.findMany({
+        return await this.prisma.servicio.findMany({
             where: whereCondition,
             include: INCLUDE_BARBEROS,
             orderBy: {
@@ -134,7 +134,7 @@ export class ServiciosRepository {
      * Utilizado cuando el cliente escoge primero a su barbero favorito.
      */
     async listarServiciosPorBarbero(barberoId: number) {
-        return this.prisma.servicio.findMany({
+        return await this.prisma.servicio.findMany({
             where: {
                 estado: EstadoServicio.ACTIVO,
                 barberos: {
@@ -164,7 +164,7 @@ export class ServiciosRepository {
         fotoUrl?: string;
         barberoIds?: number[];
     }) {
-        return this.prisma.servicio.create({
+        return await this.prisma.servicio.create({
             data: {
                 nombre: data.nombre,
                 descripcion: data.descripcion,
@@ -199,7 +199,7 @@ export class ServiciosRepository {
             barberoIds?: number[];
         },
     ) {
-        return this.prisma.servicio.update({
+        return await this.prisma.servicio.update({
             where: { id },
             data: {
                 nombre: data.nombre,
@@ -224,7 +224,7 @@ export class ServiciosRepository {
      * Cambia el estado (ACTIVO / INACTIVO) de un servicio (borrado lógico).
      */
     async cambiarEstado(id: number, estado: EstadoServicio) {
-        return this.prisma.servicio.update({
+        return await this.prisma.servicio.update({
             where: { id },
             data: { estado },
             include: INCLUDE_BARBEROS,

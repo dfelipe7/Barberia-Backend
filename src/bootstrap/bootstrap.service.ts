@@ -75,30 +75,25 @@ export class BootstrapService implements OnModuleInit {
     }
 
     // Paso 3 y 4: Sincronización en la base de datos local
-    for (const superadmin of superadmins) { // NOSONAR
-      const usuarioExistente =
-        await this.usuariosRepository.obtenerUsuarioPorKeycloakId(
-          superadmin.id,
-        );
+    await Promise.all(
+      superadmins.map(async (superadmin) => {
+        const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(superadmin.id);
 
-      if (usuarioExistente) {
-        console.log(
-          `SUPERADMIN ${superadmin.email} ya existe en la base de datos (No se requiere acción)`,
-        );
-        continue;
-      }
+        if (usuarioExistente) {
+          console.log(`SUPERADMIN ${superadmin.email} ya existe en la base de datos (No se requiere acción)`);
+          return;
+        }
 
-      await this.usuariosRepository.crearUsuario({
-        keycloakId: superadmin.id,
-        email: superadmin.email,
-        nombre: superadmin.firstName ?? '',
-        apellido: superadmin.lastName ?? '',
-        rol: 'SUPERADMIN',
-      });
+        await this.usuariosRepository.crearUsuario({
+          keycloakId: superadmin.id,
+          email: superadmin.email,
+          nombre: superadmin.firstName ?? '',
+          apellido: superadmin.lastName ?? '',
+          rol: 'SUPERADMIN',
+        });
 
-      console.log(
-        `SUPERADMIN ${superadmin.email} creado y sincronizado correctamente por primera vez`,
-      );
-    }
+        console.log(`SUPERADMIN ${superadmin.email} creado y sincronizado correctamente por primera vez`);
+      })
+    );
   }
 }

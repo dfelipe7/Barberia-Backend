@@ -43,32 +43,34 @@ export class UsuariosService {
 
     const resultados: any[] = [];
 
-    for (const superadmin of superadmins) { // NOSONAR
-      const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(superadmin.id);
+    await Promise.all(
+      superadmins.map(async (superadmin) => {
+        const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(superadmin.id);
 
-      if (usuarioExistente) {
-        await this.keycloakService.cambiarEstadoUsuario(superadmin.id, true);
-        await this.usuariosRepository.actualizarEstadoUsuario(usuarioExistente.id, EstadoUsuario.ACTIVO);
-        resultados.push({
-          mensaje: `El SUPERADMIN ${superadmin.email} ya existe en la base de datos y su estado fue verificado como ACTIVO`,
-          usuario: usuarioExistente,
+        if (usuarioExistente) {
+          await this.keycloakService.cambiarEstadoUsuario(superadmin.id, true);
+          await this.usuariosRepository.actualizarEstadoUsuario(usuarioExistente.id, EstadoUsuario.ACTIVO);
+          resultados.push({
+            mensaje: `El SUPERADMIN ${superadmin.email} ya existe en la base de datos y su estado fue verificado como ACTIVO`,
+            usuario: usuarioExistente,
+          });
+          return;
+        }
+
+        const usuario = await this.usuariosRepository.crearUsuario({
+          keycloakId: superadmin.id,
+          email: superadmin.email,
+          nombre: superadmin.firstName ?? '',
+          apellido: superadmin.lastName ?? '',
+          rol: 'SUPERADMIN',
         });
-        continue;
-      }
 
-      const usuario = await this.usuariosRepository.crearUsuario({
-        keycloakId: superadmin.id,
-        email: superadmin.email,
-        nombre: superadmin.firstName ?? '',
-        apellido: superadmin.lastName ?? '',
-        rol: 'SUPERADMIN',
-      });
-
-      resultados.push({
-        mensaje: `SUPERADMIN ${superadmin.email} sincronizado correctamente`,
-        usuario,
-      });
-    }
+        resultados.push({
+          mensaje: `SUPERADMIN ${superadmin.email} sincronizado correctamente`,
+          usuario,
+        });
+      })
+    );
 
     return resultados;
   }
