@@ -11,7 +11,7 @@ describe('AllExceptionsFilter', () => {
 
   beforeEach(async () => {
     alertsServiceMock = {
-      sendSecurityAlert: jest.fn(),
+      sendSecurityAlert: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
