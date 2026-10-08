@@ -49,14 +49,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // OWASP A09: Evitar fatiga de alertas. Solo enviar correo si es intento de violación de roles (403).
       // Los 401 (sesión expirada) se guardan en el log físico pero no envían correo.
       if (status === HttpStatus.FORBIDDEN) {
-        this.alertsService.sendSecurityAlert(status, logContext);
+        this.alertsService.sendSecurityAlert(status, logContext).catch((err) => {
+          this.logger.error('Error enviando alerta de seguridad', err);
+        });
       }
     } 
     // Si es un error 500 o fallos de DB, lo registramos como Error Crítico
     else if (status >= 500) {
       this.logger.error(`Critical Error [${status}]: Fallo en el servidor`, exception instanceof Error ? exception.stack : '', logContext);
       // Disparar correo de alerta para caídas del servidor
-      this.alertsService.sendSecurityAlert(status, logContext);
+      this.alertsService.sendSecurityAlert(status, logContext).catch((err) => {
+        this.logger.error('Error enviando alerta de seguridad', err);
+      });
     } 
     // Errores de validación o conflicto (400, 409) son menos graves pero los logueamos
     else {
