@@ -94,4 +94,38 @@ describe('AllExceptionsFilter', () => {
     expect((filter as any).logger.error).toHaveBeenCalled();
     expect(alertsServiceMock.sendSecurityAlert).toHaveBeenCalled();
   });
+
+  it('debe registrar error si el envío de alerta falla (promesa rechazada)', async () => {
+    alertsServiceMock.sendSecurityAlert.mockRejectedValue(new Error('Fallo simulado'));
+    const exception = new HttpException('Forbidden', HttpStatus.FORBIDDEN);
+    
+    const mockResponse = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const mockRequest = { url: '/test', method: 'GET', ip: '127.0.0.1' };
+    const mockArgumentsHost = {
+      switchToHttp: () => ({ getResponse: () => mockResponse, getRequest: () => mockRequest }),
+    };
+
+    filter.catch(exception, mockArgumentsHost as any);
+    
+    // Esperar a que la promesa del catch se resuelva
+    await new Promise(resolve => setTimeout(resolve, 0));
+    
+    expect((filter as any).logger.error).toHaveBeenCalledWith('Error enviando alerta de seguridad', expect.any(Error));
+  });
+
+  it('debe manejar errores de validación (ej. 400) sin enviar alertas', () => {
+    const exception = new HttpException('Bad Request', HttpStatus.BAD_REQUEST);
+    
+    const mockResponse = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const mockRequest = { url: '/test', method: 'GET', ip: '127.0.0.1' };
+    const mockArgumentsHost = {
+      switchToHttp: () => ({ getResponse: () => mockResponse, getRequest: () => mockRequest }),
+    };
+
+    filter.catch(exception, mockArgumentsHost as any);
+
+    expect(mockResponse.status).toHaveBeenCalledWith(400);
+    expect((filter as any).logger.log).toHaveBeenCalledWith(expect.stringContaining('Client Error [400]'));
+    expect(alertsServiceMock.sendSecurityAlert).not.toHaveBeenCalled();
+  });
 });

@@ -19,6 +19,10 @@ describe('AlertsService', () => {
     }).compile();
 
     service = module.get<AlertsService>(AlertsService);
+    (service as any).logger = {
+      error: jest.fn(),
+      log: jest.fn(),
+    };
   });
 
   it('debe estar definido', () => {
@@ -37,7 +41,13 @@ describe('AlertsService', () => {
 
   it('no debe explotar si enviar correo falla (manejo de excepciones interno)', async () => {
     mailerService.sendMail.mockRejectedValue(new Error('SMTP Error'));
-    // Como el servicio tiene un try/catch interno, no debería relanzar el error
     await expect(service.sendSecurityAlert(500, {})).resolves.not.toThrow();
+    expect((service as any).logger.error).toHaveBeenCalled();
+  });
+
+  it('debe manejar errores que no son instancia de Error', async () => {
+    mailerService.sendMail.mockRejectedValue('String Error');
+    await expect(service.sendSecurityAlert(500, {})).resolves.not.toThrow();
+    expect((service as any).logger.error).toHaveBeenCalled();
   });
 });
