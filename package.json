@@ -78,7 +78,7 @@
     "mariadb": "^3.5.4",
     "mysql2": "^3.24.5",
     "deepmerge-ts": "^8.0.2",
-    "sprintf-js": "^1.1.3",
+    "argparse@<2": "^2.0.1",
     "uri-js": "npm:uri-js-replace@^1.0.1"
   },
   "jest": {

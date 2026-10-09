@@ -2,25 +2,33 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { KeycloakAuthGuard } from './keycloak-auth.guard';
 import { ConfigService } from '@nestjs/config';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import * as jose from 'jose';
+
+const mockJwtVerify = jest.fn();
 
 jest.mock('jose', () => ({
   createRemoteJWKSet: jest.fn().mockReturnValue({}),
-  jwtVerify: jest.fn(),
+  jwtVerify: (...args: unknown[]): unknown => mockJwtVerify(...args),
 }));
+
+const jwtVerifyMock = mockJwtVerify;
+
+interface MockRequest {
+  headers: Record<string, string>;
+  user?: unknown;
+}
 
 describe('KeycloakAuthGuard', () => {
   let guard: KeycloakAuthGuard;
-  let configServiceMock: any;
+  let configServiceMock: Pick<ConfigService, 'getOrThrow' | 'get'>;
 
   beforeEach(async () => {
     configServiceMock = {
-      getOrThrow: jest.fn((key: string) => {
+      getOrThrow: jest.fn((key: string): string => {
         if (key === 'KEYCLOAK_URL') return 'http://localhost:8080';
         if (key === 'KEYCLOAK_REALM') return 'barberia';
         return '';
       }),
-      get: jest.fn((key: string) => {
+      get: jest.fn((key: string): string | null => {
         if (key === 'KEYCLOAK_ISSUER') return 'http://localhost:8080';
         return null;
       }),
@@ -51,7 +59,9 @@ describe('KeycloakAuthGuard', () => {
       }),
     } as ExecutionContext;
 
-    await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(mockContext)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('debe lanzar UnauthorizedException si el tipo de token no es Bearer', async () => {
@@ -61,13 +71,17 @@ describe('KeycloakAuthGuard', () => {
       }),
     } as ExecutionContext;
 
-    await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(mockContext)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('debe validar el token exitosamente', async () => {
-    (jose.jwtVerify as jest.Mock).mockResolvedValue({ payload: { sub: 'user-id' } });
+    jwtVerifyMock.mockResolvedValue({ payload: { sub: 'user-id' } });
 
-    const mockRequest = { headers: { authorization: 'Bearer valid_token' } } as any;
+    const mockRequest: MockRequest = {
+      headers: { authorization: 'Bearer valid_token' },
+    };
     const mockContext = {
       switchToHttp: () => ({
         getRequest: () => mockRequest,
@@ -80,14 +94,18 @@ describe('KeycloakAuthGuard', () => {
   });
 
   it('debe lanzar UnauthorizedException si el token es inválido', async () => {
-    (jose.jwtVerify as jest.Mock).mockRejectedValue(new Error('Invalid token'));
+    jwtVerifyMock.mockRejectedValue(new Error('Invalid token'));
 
     const mockContext = {
       switchToHttp: () => ({
-        getRequest: () => ({ headers: { authorization: 'Bearer invalid_token' } }),
+        getRequest: () => ({
+          headers: { authorization: 'Bearer invalid_token' },
+        }),
       }),
     } as ExecutionContext;
 
-    await expect(guard.canActivate(mockContext)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(mockContext)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 });
