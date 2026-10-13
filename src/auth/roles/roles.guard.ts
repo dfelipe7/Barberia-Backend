@@ -40,8 +40,8 @@ export class RolesGuard implements CanActivate {
 
     const user = request.user;
 
-    const userRoles =
-      user?.realm_access?.roles ?? [];
+    const userRoles: string[] =
+      user?.realm_access?.roles ?? (user?.rol ? [user.rol] : (user?.roles ?? []));
 
     const tieneRol = roles.some(
       (rol) => userRoles.includes(rol),

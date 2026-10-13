@@ -19,11 +19,11 @@ export class CrearBarberoDto {
   @MaxLength(255, { message: 'El correo no puede tener más de 255 caracteres' })
   email: string;
 
-  @ApiProperty({ example: 'password123', description: 'Contraseña de acceso', minLength: 8 })
+  @ApiProperty({ example: 'password123', description: 'Contraseña opcional (si se usa Keycloak)', minLength: 8, required: false })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MinLength(8)
-  password: string;
+  password?: string;
 
   @ApiProperty({ example: 'Pedro', description: 'Nombre del barbero' })
   @IsString()

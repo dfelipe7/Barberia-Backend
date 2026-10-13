@@ -29,6 +29,8 @@ describe('KeycloakAuthGuard', () => {
         return '';
       }),
       get: jest.fn((key: string): string | null => {
+        if (key === 'KEYCLOAK_URL') return 'http://localhost:8080';
+        if (key === 'KEYCLOAK_REALM') return 'barberia';
         if (key === 'KEYCLOAK_ISSUER') return 'http://localhost:8080';
         return null;
       }),

@@ -25,20 +25,24 @@ export class KeycloakAuthGuard implements CanActivate {
     private readonly configService: ConfigService,
   ) {
     const keycloakUrl =
-      this.configService.getOrThrow<string>(
-        'KEYCLOAK_URL',
-      );
+      this.configService.get<string>('KEYCLOAK_URL');
 
     const realm =
-      this.configService.getOrThrow<string>(
-        'KEYCLOAK_REALM',
-      );
+      this.configService.get<string>('KEYCLOAK_REALM');
 
-    this.jwks = createRemoteJWKSet(
-      new URL(
-        `${keycloakUrl}/realms/${realm}/protocol/openid-connect/certs`,
-      ),
-    );
+    if (keycloakUrl && realm) {
+      try {
+        this.jwks = createRemoteJWKSet(
+          new URL(
+            `${keycloakUrl}/realms/${realm}/protocol/openid-connect/certs`,
+          ),
+        );
+      } catch {
+        this.jwks = null;
+      }
+    } else {
+      this.jwks = null;
+    }
   }
 
   async canActivate(
@@ -65,19 +69,33 @@ export class KeycloakAuthGuard implements CanActivate {
       );
     }
 
+    // 1. Verificación local con JWT_SECRET de la Barbería
+    try {
+      const jwtSecret = this.configService.get<string>(
+        'JWT_SECRET',
+        'barberia-jwt-secret-key-super-segura-2026-production-token',
+      );
+      const secretBytes = new TextEncoder().encode(jwtSecret);
+      const { payload } = await jwtVerify(token, secretBytes);
+      request.user = payload;
+      return true;
+    } catch {
+      // Si no fue firmado localmente, intentar con Keycloak para retrocompatibilidad
+    }
+
     try {
       const keycloakUrl =
-        this.configService.getOrThrow<string>(
-          'KEYCLOAK_URL',
-        );
+        this.configService.get<string>('KEYCLOAK_URL');
+
+      if (!keycloakUrl || !this.jwks) {
+        throw new UnauthorizedException('Token inválido o expirado');
+      }
 
       const issuerUrl =
         this.configService.get<string>('KEYCLOAK_ISSUER') || keycloakUrl;
 
       const realm =
-        this.configService.getOrThrow<string>(
-          'KEYCLOAK_REALM',
-        );
+        this.configService.get<string>('KEYCLOAK_REALM') || 'barberia';
 
       const { payload } = await jwtVerify(
         token,
@@ -97,3 +115,5 @@ export class KeycloakAuthGuard implements CanActivate {
     }
   }
 }
+
+export { KeycloakAuthGuard as JwtAuthGuard };

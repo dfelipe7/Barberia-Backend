@@ -28,14 +28,20 @@ export class AdministradoresService {
     if (usuarioExistente) {
       throw new ConflictException('Ya existe un usuario en el sistema con este correo electrónico.');
     }
-    const keycloakId = await this.keycloakService.crearUsuario(
-      dto.email,
-      dto.password,
-      dto.nombre,
-      dto.apellido,
-    );
-
-    await this.keycloakService.asignarRol(keycloakId, 'ADMINISTRADOR');
+    let keycloakId: string | null = null;
+    if (dto.password) {
+      try {
+        keycloakId = await this.keycloakService.crearUsuario(
+          dto.email,
+          dto.password,
+          dto.nombre,
+          dto.apellido,
+        );
+        await this.keycloakService.asignarRol(keycloakId, 'ADMINISTRADOR');
+      } catch (err: any) {
+        this.logger.warn(`No se pudo crear en Keycloak (creando en MySQL): ${err?.message}`);
+      }
+    }
 
     try {
       const administrador = await this.prisma.$transaction(async (tx) => {
@@ -66,7 +72,9 @@ export class AdministradoresService {
     } catch (error) {
       console.error('Error guardando administrador en la base de datos (Rollback ejecutado):', error);
       // Compensación manual: Borramos el usuario de Keycloak para evitar inconsistencias (Falla Cerrada)
-      await this.keycloakService.eliminarUsuario(keycloakId);
+      if (keycloakId) {
+        await this.keycloakService.eliminarUsuario(keycloakId);
+      }
       throw new ConflictException('El administrador no pudo registrarse. Se han revertido los cambios en el sistema.');
     }
   }
@@ -112,7 +120,9 @@ export class AdministradoresService {
         throw new ConflictException('Este usuario ya tiene privilegios de Administrador');
       }
 
-      await this.keycloakService.asignarRol(usuario.keycloakId, 'ADMINISTRADOR');
+      if (usuario.keycloakId) {
+        await this.keycloakService.asignarRol(usuario.keycloakId, 'ADMINISTRADOR');
+      }
 
       try {
         if (usuario.rol === 'BARBERO') {
@@ -143,7 +153,9 @@ export class AdministradoresService {
         throw new ConflictException('Este usuario no tiene privilegios de Administrador');
       }
 
-      await this.keycloakService.quitarRol(usuario.keycloakId, 'ADMINISTRADOR');
+      if (usuario.keycloakId) {
+        await this.keycloakService.quitarRol(usuario.keycloakId, 'ADMINISTRADOR');
+      }
 
       try {
         if (usuario.barbero) {
@@ -154,7 +166,9 @@ export class AdministradoresService {
 
         const esBarberoActivo = usuario.barbero?.estado === 'ACTIVO';
         if (!esBarberoActivo) {
-          await this.keycloakService.cambiarEstadoUsuario(usuario.keycloakId, false);
+          if (usuario.keycloakId) {
+            await this.keycloakService.cambiarEstadoUsuario(usuario.keycloakId, false);
+          }
           await this.usuariosRepository.actualizarEstadoUsuario(usuario.id, 'INACTIVO');
         }
 
