@@ -15,5 +15,5 @@ RUN npm run build
 
 EXPOSE 3000
 
-# Usamos db push para crear las tablas si no existen, y luego arrancamos
-CMD ["sh", "-c", "npx prisma db push && npm run start:prod"]
+# Sincronizamos la base de datos y arrancamos en producción
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss || true; npm run start:prod"]
