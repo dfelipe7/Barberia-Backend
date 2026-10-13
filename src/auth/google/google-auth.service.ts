@@ -66,6 +66,15 @@ export class GoogleAuthService {
       throw new ForbiddenException('Tu cuenta ha sido desactivada por un administrador.');
     }
 
+    const esSuperAdmin = usuario.rol === 'SUPERADMIN';
+    const esAdminActivo = usuario.administrador?.estado === 'ACTIVO';
+    const esBarberoActivo = usuario.barbero?.estado === 'ACTIVO';
+
+    if (!esSuperAdmin && !esAdminActivo && !esBarberoActivo) {
+      this.logger.warn(`Acceso denegado: ${email} no tiene roles activos.`);
+      throw new ForbiddenException('Tu cuenta no tiene ningún rol activo asignado.');
+    }
+
     // Vincular googleId si es la primera vez que inicia sesión con Google
     if (!usuario.googleId && payload.sub) {
       await this.prisma.usuario.update({

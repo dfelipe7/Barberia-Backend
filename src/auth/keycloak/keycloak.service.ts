@@ -1,30 +1,28 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
 /**
  * Servicio de Comunicación con Keycloak
  * 
- * A diferencia del Guard (que solo lee tokens de clientes), este servicio
- * se encarga de hablar de "Backend a Backend" con el servidor de Keycloak
- * usando las credenciales secretas (KEYCLOAK_CLIENT_SECRET).
- * 
- * Funciona como un administrador robot: puede crear usuarios, asignarles roles,
- * buscar usuarios y suspenderlos directamente en la base de datos de Keycloak.
+ * Permite integración opcional con Keycloak si KEYCLOAK_URL está configurado.
+ * Si KEYCLOAK_URL no está presente (por ejemplo, en despliegues con Google OAuth + JWT),
+ * el servicio opera en modo desacoplado / seguro sin lanzar errores de red ni bloquear operaciones locales.
  */
 @Injectable()
 export class KeycloakService {
+  private readonly logger = new Logger(KeycloakService.name);
+
   constructor(
     private readonly configService: ConfigService,
   ) {}
 
   /**
    * Obtiene la configuración base de Keycloak desde las variables de entorno.
-   * Centraliza la lectura del archivo .env para no repetir código.
    */
   private obtenerConfiguracion() {
     return {
-      url: this.configService.get<string>('KEYCLOAK_URL', 'http://localhost:8080'),
+      url: this.configService.get<string>('KEYCLOAK_URL', ''),
       realm: this.configService.get<string>('KEYCLOAK_REALM', 'barberia'),
       clientId: this.configService.get<string>(
         'KEYCLOAK_CLIENT_ID',
@@ -38,11 +36,22 @@ export class KeycloakService {
   }
 
   /**
+   * Indica si Keycloak está configurado y habilitado en las variables de entorno.
+   */
+  isConfigured(): boolean {
+    const { url } = this.obtenerConfiguracion();
+    return Boolean(url && url.trim().length > 0 && url !== 'disabled');
+  }
+
+  /**
    * Autenticación "Backend a Backend".
    * Pide un Token especial de administrador (Client Credentials Grant) a Keycloak.
-   * Con este token, nuestro servidor tiene permisos para crear usuarios o asignar roles.
    */
   async obtenerTokenAdministrativo(): Promise<string> {
+    if (!this.isConfigured()) {
+      return '';
+    }
+
     const {
       url,
       realm,
@@ -50,28 +59,31 @@ export class KeycloakService {
       clientSecret,
     } = this.obtenerConfiguracion();
 
-    const response = await axios.post(
-      `${url}/realms/${realm}/protocol/openid-connect/token`,
-      new URLSearchParams({
-        grant_type: 'client_credentials',
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+    try {
+      const response = await axios.post(
+        `${url}/realms/${realm}/protocol/openid-connect/token`,
+        new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id: clientId,
+          client_secret: clientSecret,
+        }),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          timeout: 3000,
         },
-      },
-    );
+      );
 
-    return response.data.access_token;
+      return response.data.access_token;
+    } catch (error: any) {
+      this.logger.warn(`No se pudo obtener token administrativo de Keycloak: ${error?.message}`);
+      return '';
+    }
   }
-
 
   /**
    * Crea un nuevo usuario directamente en la base de datos de Keycloak.
-   * Le asigna una contraseña inicial.
-   * @returns El ID único universal (UUID) que Keycloak le asignó al usuario recién creado.
    */
   async crearUsuario(
     email: string,
@@ -79,160 +91,174 @@ export class KeycloakService {
     nombre: string,
     apellido?: string,
   ): Promise<string> {
+    if (!this.isConfigured()) {
+      return 'local-' + Date.now();
+    }
+
     const {
       url,
       realm,
     } = this.obtenerConfiguracion();
 
-  const token =
-    await this.obtenerTokenAdministrativo();
+    const token = await this.obtenerTokenAdministrativo();
+    if (!token) {
+      return 'local-' + Date.now();
+    }
 
-  const response = await axios
-    .post(
-      `${url}/admin/realms/${realm}/users`,
-      {
-        username: email,
-        email,
-        firstName: nombre,
-        lastName: apellido,
-        enabled: true,
-        emailVerified: false,
-        credentials: [
-          {
-            type: 'password',
-            value: password,
-            temporary: true,
-          },
-        ],
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+    try {
+      const response = await axios.post(
+        `${url}/admin/realms/${realm}/users`,
+        {
+          username: email,
+          email,
+          firstName: nombre,
+          lastName: apellido,
+          enabled: true,
+          emailVerified: false,
+          credentials: [
+            {
+              type: 'password',
+              value: password,
+              temporary: true,
+            },
+          ],
         },
-      },
-    )
-    .catch((error) => {
-      if (error.response?.status === 409) {
-        throw new ConflictException(
-          `Ya existe un usuario con el correo: ${email}`,
-        );
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 3000,
+        },
+      );
+
+      const location = response.headers.location;
+      if (!location) {
+        return 'local-' + Date.now();
       }
-      throw error;
-    });
 
-  const location =
-    response.headers.location;
-
-  if (!location) {
-    throw new Error(
-      'Keycloak no devolvió el identificador del usuario',
-    );
+      return location.split('/').pop()!;
+    } catch (error: any) {
+      if (error.response?.status === 409) {
+        throw new ConflictException(`Ya existe un usuario con el correo: ${email}`);
+      }
+      this.logger.warn(`Error al crear usuario en Keycloak: ${error?.message}`);
+      return 'local-' + Date.now();
+    }
   }
 
-  return location.split('/').pop()!;
-}
-
   /**
-   * Le asigna un Rol de nivel de Reino (Realm Role) a un usuario específico en Keycloak.
-   * Ejemplo: Asignar el rol 'BARBERO' al usuario 'abcd-1234'.
+   * Le asigna un Rol de nivel de Reino a un usuario específico en Keycloak.
    */
   async asignarRol(
     keycloakUserId: string,
     roleName: string,
   ): Promise<void> {
-    const {
-      url,
-      realm,
-    } = this.obtenerConfiguracion();
+    if (!this.isConfigured()) return;
 
-  const token =
-    await this.obtenerTokenAdministrativo();
+    const { url, realm } = this.obtenerConfiguracion();
+    const token = await this.obtenerTokenAdministrativo();
+    if (!token) return;
 
-  const roleResponse = await axios.get(
-    `${url}/admin/realms/${realm}/roles/${roleName}`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-  );
-
-    await axios.post(
-      `${url}/admin/realms/${realm}/users/${keycloakUserId}/role-mappings/realm`,
-      [roleResponse.data],
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+    try {
+      const roleResponse = await axios.get(
+        `${url}/admin/realms/${realm}/roles/${roleName}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          timeout: 3000,
         },
-      },
-    );
+      );
+
+      await axios.post(
+        `${url}/admin/realms/${realm}/users/${keycloakUserId}/role-mappings/realm`,
+        [roleResponse.data],
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 3000,
+        },
+      );
+    } catch (error: any) {
+      this.logger.warn(`Error asignando rol ${roleName} en Keycloak: ${error?.message}`);
+    }
   }
 
   /**
-   * Le quita (revoca) un Rol específico a un usuario en Keycloak.
-   * Útil cuando se suspende a un barbero pero no se quiere borrar su cuenta completa.
+   * Le quita un Rol específico a un usuario en Keycloak.
    */
   async quitarRol(
     keycloakUserId: string,
     roleName: string,
   ): Promise<void> {
+    if (!this.isConfigured()) return;
+
     const { url, realm } = this.obtenerConfiguracion();
     const token = await this.obtenerTokenAdministrativo();
+    if (!token) return;
 
-    const roleResponse = await axios.get(
-      `${url}/admin/realms/${realm}/roles/${roleName}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
+    try {
+      const roleResponse = await axios.get(
+        `${url}/admin/realms/${realm}/roles/${roleName}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          timeout: 3000,
         },
-      },
-    );
+      );
 
-    await axios.delete(
-      `${url}/admin/realms/${realm}/users/${keycloakUserId}/role-mappings/realm`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+      await axios.delete(
+        `${url}/admin/realms/${realm}/users/${keycloakUserId}/role-mappings/realm`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          data: [roleResponse.data],
+          timeout: 3000,
         },
-        data: [roleResponse.data],
-      },
-    );
+      );
+    } catch (error: any) {
+      this.logger.warn(`Error quitando rol ${roleName} en Keycloak: ${error?.message}`);
+    }
   }
-
 
   /**
    * Busca en Keycloak a todos los usuarios que tengan un rol específico.
-   * Usado principalmente por el BootstrapService para encontrar al SUPERADMIN al arrancar el servidor.
    */
   async obtenerUsuariosPorRol(
     roleName: string,
   ): Promise<any[]> {
-    const {
-      url,
-      realm,
-    } = this.obtenerConfiguracion();
+    if (!this.isConfigured()) return [];
 
-  const token =
-    await this.obtenerTokenAdministrativo();
+    const { url, realm } = this.obtenerConfiguracion();
+    const token = await this.obtenerTokenAdministrativo();
+    if (!token) return [];
 
-  const response = await axios.get(
-    `${url}/admin/realms/${realm}/roles/${roleName}/users`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-  );
+    try {
+      const response = await axios.get(
+        `${url}/admin/realms/${realm}/roles/${roleName}/users`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          timeout: 3000,
+        },
+      );
 
-  return response.data;
-}
+      return response.data;
+    } catch (error: any) {
+      this.logger.warn(`Error obteniendo usuarios con rol ${roleName} en Keycloak: ${error?.message}`);
+      return [];
+    }
+  }
 
   /**
-   * Actualiza el perfil de un usuario (Email, Nombre, Apellido) en Keycloak.
-   * Mantiene sincronizados los datos personales entre nuestro MySQL y Keycloak.
+   * Actualiza el perfil de un usuario en Keycloak.
    */
   async actualizarUsuario(
     keycloakUserId: string,
@@ -242,72 +268,78 @@ export class KeycloakService {
       apellido?: string;
     },
   ): Promise<void> {
-    const {
-      url,
-      realm,
-    } = this.obtenerConfiguracion();
+    if (!this.isConfigured()) return;
 
-  const token =
-    await this.obtenerTokenAdministrativo();
+    const { url, realm } = this.obtenerConfiguracion();
+    const token = await this.obtenerTokenAdministrativo();
+    if (!token) return;
 
-  await axios.put(
-    `${url}/admin/realms/${realm}/users/${keycloakUserId}`,
-    {
-      ...(data.email !== undefined && {
-        email: data.email,
-        username: data.email,
-      }),
-      ...(data.nombre !== undefined && {
-        firstName: data.nombre,
-      }),
-      ...(data.apellido !== undefined && {
-        lastName: data.apellido,
-      }),
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    },
-  );
-}
+    try {
+      await axios.put(
+        `${url}/admin/realms/${realm}/users/${keycloakUserId}`,
+        {
+          ...(data.email !== undefined && {
+            email: data.email,
+            username: data.email,
+          }),
+          ...(data.nombre !== undefined && {
+            firstName: data.nombre,
+          }),
+          ...(data.apellido !== undefined && {
+            lastName: data.apellido,
+          }),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 3000,
+        },
+      );
+    } catch (error: any) {
+      this.logger.warn(`Error actualizando usuario en Keycloak: ${error?.message}`);
+    }
+  }
 
   /**
-   * Cambia el estado global de una cuenta en Keycloak (Enabled = true/false).
-   * Si se pone en false, el usuario no podrá iniciar sesión en lo absoluto, sin importar sus roles.
+   * Cambia el estado global de una cuenta en Keycloak.
    */
   async cambiarEstadoUsuario(
     keycloakUserId: string,
     activo: boolean,
   ): Promise<void> {
-    const {
-      url,
-      realm,
-    } = this.obtenerConfiguracion();
+    if (!this.isConfigured()) return;
 
-  const token =
-    await this.obtenerTokenAdministrativo();
+    const { url, realm } = this.obtenerConfiguracion();
+    const token = await this.obtenerTokenAdministrativo();
+    if (!token) return;
 
-  await axios.put(
-    `${url}/admin/realms/${realm}/users/${keycloakUserId}`,
-    {
-      enabled: activo,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    },
-  );
-}
+    try {
+      await axios.put(
+        `${url}/admin/realms/${realm}/users/${keycloakUserId}`,
+        {
+          enabled: activo,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 3000,
+        },
+      );
+    } catch (error: any) {
+      this.logger.warn(`Error cambiando estado en Keycloak: ${error?.message}`);
+    }
+  }
 
   /**
-   * Verifica la contraseña actual de un usuario intentando un login real en Keycloak.
-   * Usa el flujo "Resource Owner Password Credentials Grant".
+   * Verifica la contraseña de un usuario en Keycloak.
    */
   async verificarContrasena(email: string, contrasena: string): Promise<boolean> {
+    if (!this.isConfigured()) return false;
+
     const { url, realm, clientId, clientSecret } = this.obtenerConfiguracion();
     try {
       await axios.post(
@@ -319,7 +351,10 @@ export class KeycloakService {
           username: email,
           password: contrasena,
         }),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          timeout: 3000,
+        },
       );
       return true;
     } catch {
@@ -328,43 +363,59 @@ export class KeycloakService {
   }
 
   /**
-   * Cambia la contraseña de un usuario en Keycloak usando el token administrativo.
+   * Cambia la contraseña de un usuario en Keycloak.
    */
   async cambiarContrasena(keycloakUserId: string, nuevaContrasena: string): Promise<void> {
+    if (!this.isConfigured()) return;
+
     const { url, realm } = this.obtenerConfiguracion();
     const token = await this.obtenerTokenAdministrativo();
+    if (!token) return;
 
-    await axios.put(
-      `${url}/admin/realms/${realm}/users/${keycloakUserId}/reset-password`,
-      {
-        type: 'password',
-        value: nuevaContrasena,
-        temporary: false,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+    try {
+      await axios.put(
+        `${url}/admin/realms/${realm}/users/${keycloakUserId}/reset-password`,
+        {
+          type: 'password',
+          value: nuevaContrasena,
+          temporary: false,
         },
-      },
-    );
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 3000,
+        },
+      );
+    } catch (error: any) {
+      this.logger.warn(`Error cambiando contraseña en Keycloak: ${error?.message}`);
+    }
   }
 
   /**
-   * Elimina un usuario de Keycloak. Útil para transacciones compensatorias.
+   * Elimina un usuario de Keycloak.
    */
   async eliminarUsuario(keycloakUserId: string) {
-    const token = await this.obtenerTokenAdministrativo();
-    const url = this.configService.get<string>('KEYCLOAK_URL');
-    const realm = this.configService.get<string>('KEYCLOAK_REALM');
+    if (!this.isConfigured()) return;
 
-    await axios.delete(
-      `${url}/admin/realms/${realm}/users/${keycloakUserId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
+    const token = await this.obtenerTokenAdministrativo();
+    if (!token) return;
+
+    const { url, realm } = this.obtenerConfiguracion();
+
+    try {
+      await axios.delete(
+        `${url}/admin/realms/${realm}/users/${keycloakUserId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          timeout: 3000,
         },
-      },
-    );
+      );
+    } catch (error: any) {
+      this.logger.warn(`Error eliminando usuario de Keycloak: ${error?.message}`);
+    }
   }
-}
+}

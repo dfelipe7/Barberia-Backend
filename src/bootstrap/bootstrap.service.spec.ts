@@ -5,6 +5,7 @@ import { UsuariosRepository } from '../modules/usuarios/repository/usuarios.repo
 import { ConflictException } from '@nestjs/common';
 
 const mockKeycloakService = {
+  isConfigured: jest.fn().mockReturnValue(true),
   obtenerUsuariosPorRol: jest.fn(),
 };
 

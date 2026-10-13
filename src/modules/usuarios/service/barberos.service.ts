@@ -83,7 +83,11 @@ export class BarberosService {
       console.error('Error guardando barbero en la base de datos (Rollback ejecutado):', error);
       // Compensación manual: Borramos el usuario de Keycloak si se llegó a crear
       if (keycloakId) {
-        await this.keycloakService.eliminarUsuario(keycloakId);
+        try {
+          await this.keycloakService.eliminarUsuario(keycloakId);
+        } catch (err: any) {
+          this.logger.warn(`No se pudo eliminar en Keycloak en rollback: ${err?.message}`);
+        }
       }
       throw new ConflictException('El barbero no pudo registrarse. Se han revertido los cambios en el sistema.');
     }
@@ -125,7 +129,11 @@ export class BarberosService {
       } else {
         // Reactivar si existía inactivo
         if (usuario.keycloakId) {
-          await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
+          try {
+            await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
+          } catch (error: any) {
+            this.logger.warn(`No se pudo asignar rol en Keycloak (posiblemente offline): ${error?.message}`);
+          }
         }
         await this.barberosRepository.actualizarEstadoBarbero(usuario.id, EstadoUsuario.ACTIVO);
         return this.barberosRepository.actualizarPerfilBarbero(usuario.id, {
@@ -136,7 +144,11 @@ export class BarberosService {
     }
 
     if (usuario.keycloakId) {
-      await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
+      try {
+        await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
+      } catch (error: any) {
+        this.logger.warn(`No se pudo asignar rol en Keycloak (posiblemente offline): ${error?.message}`);
+      }
     }
 
     return this.barberosRepository.crearPerfilBarbero({
@@ -163,7 +175,11 @@ export class BarberosService {
       } else {
         // Reactivar
         if (usuario.keycloakId) {
-          await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
+          try {
+            await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
+          } catch (error: any) {
+            this.logger.warn(`No se pudo asignar rol en Keycloak (posiblemente offline): ${error?.message}`);
+          }
         }
         await this.barberosRepository.actualizarEstadoBarbero(usuario.id, EstadoUsuario.ACTIVO);
         
@@ -179,7 +195,11 @@ export class BarberosService {
     }
 
     if (usuario.keycloakId) {
-      await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
+      try {
+        await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
+      } catch (error: any) {
+        this.logger.warn(`No se pudo asignar rol en Keycloak (posiblemente offline): ${error?.message}`);
+      }
     }
 
     return this.barberosRepository.crearPerfilBarbero({
@@ -365,18 +385,30 @@ export class BarberosService {
 
     if (activo) {
       if (usuario.keycloakId) {
-        await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
+        try {
+          await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
+        } catch (error: any) {
+          this.logger.warn(`No se pudo asignar rol en Keycloak (posiblemente offline): ${error?.message}`);
+        }
       }
     } else {
       if (usuario.keycloakId) {
-        await this.keycloakService.quitarRol(usuario.keycloakId, 'BARBERO');
+        try {
+          await this.keycloakService.quitarRol(usuario.keycloakId, 'BARBERO');
+        } catch (error: any) {
+          this.logger.warn(`No se pudo quitar rol en Keycloak (posiblemente offline): ${error?.message}`);
+        }
       }
 
       const esAdminActivo = usuario.administrador?.estado === EstadoUsuario.ACTIVO || usuario.rol === 'ADMINISTRADOR';
       const esSuperAdmin = usuario.rol === 'SUPERADMIN';
       if (!esSuperAdmin && !esAdminActivo) {
         if (usuario.keycloakId) {
-          await this.keycloakService.cambiarEstadoUsuario(usuario.keycloakId, false);
+          try {
+            await this.keycloakService.cambiarEstadoUsuario(usuario.keycloakId, false);
+          } catch (error: any) {
+            this.logger.warn(`No se pudo cambiar estado en Keycloak (posiblemente offline): ${error?.message}`);
+          }
         }
         await this.usuariosRepository.actualizarEstadoUsuario(usuarioId, EstadoUsuario.INACTIVO);
       }

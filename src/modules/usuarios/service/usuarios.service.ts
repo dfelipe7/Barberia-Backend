@@ -4,6 +4,7 @@ import {
   Injectable,
   Inject,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
 
 import { KeycloakService } from '../../../auth/keycloak/keycloak.service';
@@ -19,6 +20,8 @@ import { BarberosService } from './barberos.service';
 
 @Injectable()
 export class UsuariosService {
+  private readonly logger = new Logger(UsuariosService.name);
+
   constructor(
     private readonly usuariosRepository: UsuariosRepository,
     private readonly barberosRepository: BarberosRepository,
@@ -149,11 +152,15 @@ export class UsuariosService {
     // 1. Actualizar datos personales en Keycloak y MySQL (si se enviaron)
     if (dto.email || dto.nombre || dto.apellido) {
       if (usuario.keycloakId) {
-        await this.keycloakService.actualizarUsuario(usuario.keycloakId, {
-          email: dto.email,
-          nombre: dto.nombre,
-          apellido: dto.apellido,
-        });
+        try {
+          await this.keycloakService.actualizarUsuario(usuario.keycloakId, {
+            email: dto.email,
+            nombre: dto.nombre,
+            apellido: dto.apellido,
+          });
+        } catch (error: any) {
+          this.logger.warn(`No se pudo actualizar usuario en Keycloak (posiblemente offline): ${error?.message}`);
+        }
       }
 
       await this.usuariosRepository.actualizarUsuario(usuarioId, {
@@ -263,7 +270,11 @@ export class UsuariosService {
     const activo = nuevoEstado === EstadoUsuario.ACTIVO;
 
     if (usuario.keycloakId) {
-      await this.keycloakService.cambiarEstadoUsuario(usuario.keycloakId, activo);
+      try {
+        await this.keycloakService.cambiarEstadoUsuario(usuario.keycloakId, activo);
+      } catch (error: any) {
+        this.logger.warn(`No se pudo cambiar estado en Keycloak (posiblemente offline): ${error?.message}`);
+      }
     }
 
     return this.usuariosRepository.actualizarEstadoUsuario(usuarioId, nuevoEstado);
