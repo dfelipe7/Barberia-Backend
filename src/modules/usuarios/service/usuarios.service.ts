@@ -75,11 +75,27 @@ export class UsuariosService {
     return resultados;
   }
 
+  private async buscarUsuarioAutenticado(usuarioAutenticado: any) {
+    if (usuarioAutenticado?.email) {
+      const u = await this.usuariosRepository.obtenerUsuarioPorEmail(usuarioAutenticado.email);
+      if (u) return u;
+    }
+    if (usuarioAutenticado?.id) {
+      const u = await this.usuariosRepository.obtenerUsuarioPorId(Number(usuarioAutenticado.id));
+      if (u) return u;
+    }
+    if (usuarioAutenticado?.sub) {
+      const u = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(usuarioAutenticado.sub);
+      if (u) return u;
+    }
+    return null;
+  }
+
   /**
-   * Obtiene el perfil del usuario autenticado en base a su ID de Keycloak.
+   * Obtiene el perfil del usuario autenticado en base a su token.
    */
   async obtenerMiPerfil(usuarioAutenticado: any): Promise<UsuarioPerfilDto> {
-    const usuarioActual = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(usuarioAutenticado.sub);
+    const usuarioActual = await this.buscarUsuarioAutenticado(usuarioAutenticado);
 
     if (!usuarioActual) {
       throw new ConflictException('El usuario autenticado no existe en la base de datos');
@@ -99,7 +115,7 @@ export class UsuariosService {
       throw new ConflictException('El usuario no existe');
     }
 
-    const usuarioActual = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(usuarioAutenticado.sub);
+    const usuarioActual = await this.buscarUsuarioAutenticado(usuarioAutenticado);
 
     if (!usuarioActual) {
       throw new ConflictException('El usuario autenticado no existe en la base de datos');
@@ -122,7 +138,7 @@ export class UsuariosService {
       throw new ConflictException('El usuario no existe');
     }
 
-    const usuarioActual = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(usuarioAutenticado.sub);
+    const usuarioActual = await this.buscarUsuarioAutenticado(usuarioAutenticado);
 
     if (!usuarioActual) {
       throw new ConflictException('El usuario autenticado no existe en la base de datos');
@@ -132,11 +148,13 @@ export class UsuariosService {
 
     // 1. Actualizar datos personales en Keycloak y MySQL (si se enviaron)
     if (dto.email || dto.nombre || dto.apellido) {
-      await this.keycloakService.actualizarUsuario(usuario.keycloakId, {
-        email: dto.email,
-        nombre: dto.nombre,
-        apellido: dto.apellido,
-      });
+      if (usuario.keycloakId) {
+        await this.keycloakService.actualizarUsuario(usuario.keycloakId, {
+          email: dto.email,
+          nombre: dto.nombre,
+          apellido: dto.apellido,
+        });
+      }
 
       await this.usuariosRepository.actualizarUsuario(usuarioId, {
         email: dto.email,
@@ -233,7 +251,7 @@ export class UsuariosService {
       throw new ConflictException('El usuario no existe');
     }
 
-    const usuarioActual = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(usuarioAutenticado.sub);
+    const usuarioActual = await this.buscarUsuarioAutenticado(usuarioAutenticado);
 
     if (!usuarioActual) {
       throw new ConflictException('El usuario autenticado no existe en la base de datos');
@@ -244,7 +262,9 @@ export class UsuariosService {
     const nuevoEstado = dto.estado;
     const activo = nuevoEstado === EstadoUsuario.ACTIVO;
 
-    await this.keycloakService.cambiarEstadoUsuario(usuario.keycloakId, activo);
+    if (usuario.keycloakId) {
+      await this.keycloakService.cambiarEstadoUsuario(usuario.keycloakId, activo);
+    }
 
     return this.usuariosRepository.actualizarEstadoUsuario(usuarioId, nuevoEstado);
   }

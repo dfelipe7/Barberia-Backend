@@ -24,13 +24,15 @@ export class KeycloakService {
    */
   private obtenerConfiguracion() {
     return {
-      url: this.configService.getOrThrow<string>('KEYCLOAK_URL'),
-      realm: this.configService.getOrThrow<string>('KEYCLOAK_REALM'),
-      clientId: this.configService.getOrThrow<string>(
+      url: this.configService.get<string>('KEYCLOAK_URL', 'http://localhost:8080'),
+      realm: this.configService.get<string>('KEYCLOAK_REALM', 'barberia'),
+      clientId: this.configService.get<string>(
         'KEYCLOAK_CLIENT_ID',
+        'barberia-backend',
       ),
-      clientSecret: this.configService.getOrThrow<string>(
+      clientSecret: this.configService.get<string>(
         'KEYCLOAK_CLIENT_SECRET',
+        '',
       ),
     };
   }

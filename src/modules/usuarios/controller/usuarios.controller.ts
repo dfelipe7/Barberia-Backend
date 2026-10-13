@@ -34,7 +34,7 @@ export class UsuariosController {
     @Req() request: any,
     @Body() dto: ConfigurarBarberoDto,
   ) {
-    return this.barberosService.configurarBarbero(request.user.sub, dto);
+    return this.barberosService.configurarBarbero(request.user.email || request.user.sub, dto);
   }
 
   @Post('sincronizar-superadmin')

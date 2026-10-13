@@ -10,6 +10,9 @@ const mockKeycloakService = {
 
 const mockUsuariosRepository = {
   obtenerUsuarioPorKeycloakId: jest.fn(),
+  obtenerUsuarioPorEmail: jest.fn(),
+  actualizarRol: jest.fn(),
+  actualizarEstadoUsuario: jest.fn(),
   crearUsuario: jest.fn(),
 };
 
@@ -111,6 +114,56 @@ describe('BootstrapService', () => {
     it('should throw ConflictException if no superadmin exists in keycloak', async () => {
       mockKeycloakService.obtenerUsuariosPorRol.mockResolvedValue([]);
       await expect((service as any).sincronizarSuperadmin()).rejects.toThrow(ConflictException);
+    });
+
+    it('should fallback to asegurarSuperadminsFundadores when Keycloak is unavailable', async () => {
+      mockKeycloakService.obtenerUsuariosPorRol.mockRejectedValue(new Error('Connection refused'));
+      mockUsuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue(null);
+      mockUsuariosRepository.crearUsuario.mockResolvedValue({});
+
+      await expect(service.onModuleInit()).resolves.not.toThrow();
+
+      expect(mockUsuariosRepository.crearUsuario).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'armeroduvan8@gmail.com',
+          rol: 'SUPERADMIN',
+        }),
+      );
+      expect(mockUsuariosRepository.crearUsuario).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'csbalcazar@unicauca.edu.co',
+          rol: 'SUPERADMIN',
+        }),
+      );
+      expect(mockUsuariosRepository.crearUsuario).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'javieraceron@unicauca.edu.co',
+          rol: 'SUPERADMIN',
+        }),
+      );
+      expect(mockUsuariosRepository.crearUsuario).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'rromero@unicauca.edu.co',
+          rol: 'SUPERADMIN',
+        }),
+      );
+    });
+
+    it('should preserve existing user data and not overwrite roles/state when user exists (Option A)', async () => {
+      mockKeycloakService.obtenerUsuariosPorRol.mockRejectedValue(new Error('Connection refused'));
+      mockUsuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({
+        id: 1,
+        email: 'armeroduvan8@gmail.com',
+        nombre: 'Felipe',
+        rol: 'BARBERO',
+        estado: 'INACTIVO',
+      });
+
+      await expect(service.onModuleInit()).resolves.not.toThrow();
+
+      expect(mockUsuariosRepository.crearUsuario).not.toHaveBeenCalled();
+      expect(mockUsuariosRepository.actualizarRol).not.toHaveBeenCalled();
+      expect(mockUsuariosRepository.actualizarEstadoUsuario).not.toHaveBeenCalled();
     });
   });
 });

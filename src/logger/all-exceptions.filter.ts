@@ -26,10 +26,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const message =
+    const rawResponse =
       exception instanceof HttpException
         ? exception.getResponse()
         : 'Internal server error';
+
+    const message =
+      typeof rawResponse === 'object' && rawResponse !== null && 'message' in rawResponse
+        ? (rawResponse as any).message
+        : rawResponse;
 
     const logContext = {
       timestamp: new Date().toISOString(),

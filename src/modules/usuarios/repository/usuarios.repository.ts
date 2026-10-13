@@ -7,7 +7,7 @@ export class UsuariosRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async crearUsuario(data: {
-    keycloakId: string;
+    keycloakId?: string;
     email: string;
     nombre: string;
     apellido: string;

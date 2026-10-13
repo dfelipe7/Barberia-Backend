@@ -26,15 +26,68 @@ export class BootstrapService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.esperarYSincronizarSuperadmin();
+    try {
+      await this.esperarYSincronizarSuperadmin(1, 100);
+    } catch (error: any) {
+      console.warn('[Bootstrap] Keycloak no está disponible o no se está utilizando. Asegurando superadministradores fundadores en la base de datos MySQL...');
+      await this.asegurarSuperadminsFundadores();
+    }
+  }
+
+  /**
+   * Asegura que los 4 superadministradores fundadores existan en MySQL
+   * al momento de arrancar la aplicación.
+   */
+  async asegurarSuperadminsFundadores() {
+    const superadmins = [
+      {
+        email: 'armeroduvan8@gmail.com',
+        nombre: 'Felipe',
+        apellido: 'Armero',
+      },
+      {
+        email: 'csbalcazar@unicauca.edu.co',
+        nombre: 'Santiago',
+        apellido: 'Balcazar',
+      },
+      {
+        email: 'javieraceron@unicauca.edu.co',
+        nombre: 'Javier Alexis',
+        apellido: 'Anacona',
+      },
+      {
+        email: 'rromero@unicauca.edu.co',
+        nombre: 'Rubeiro',
+        apellido: 'Romero',
+      },
+    ];
+
+    for (const admin of superadmins) {
+      try {
+        const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorEmail(admin.email);
+        if (usuarioExistente) {
+          // Opción A: Conservar los cambios realizados desde la app (rol, estado, nombre)
+          console.log(`[Bootstrap] Usuario fundador verificado: ${usuarioExistente.nombre} (${admin.email}) - Rol actual: ${usuarioExistente.rol}, Estado: ${usuarioExistente.estado} (Cambios conservados)`);
+        } else {
+          // Si no existe, se crea por primera vez como SUPERADMIN y ACTIVO
+          await this.usuariosRepository.crearUsuario({
+            email: admin.email,
+            nombre: admin.nombre,
+            apellido: admin.apellido,
+            rol: 'SUPERADMIN',
+          });
+          console.log(`[Bootstrap] Superadmin creado por primera vez: ${admin.nombre} (${admin.email})`);
+        }
+      } catch (err: any) {
+        console.error(`[Bootstrap] Error asegurando superadmin ${admin.email}:`, err?.message || err);
+      }
+    }
   }
 
   /**
    * Reintenta la conexión con Keycloak periódicamente.
-   * Esto previene que el backend se caiga si Keycloak tarda 20-30 segundos en 
-   * inicializar su base de datos e importar el realm durante el primer docker compose up.
    */
-  private async esperarYSincronizarSuperadmin(intentos = 20, esperaMs = 3000) {
+  private async esperarYSincronizarSuperadmin(intentos = 1, esperaMs = 100) {
     for (let i = 1; i <= intentos; i++) { // NOSONAR
       try {
         console.log(`[Bootstrap] Conectando con Keycloak para sincronizar SUPERADMIN (Intento ${i}/${intentos})...`);
