@@ -26,12 +26,15 @@ export class BootstrapService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    try {
-      await this.esperarYSincronizarSuperadmin(1, 100);
-    } catch (error: any) {
-      console.warn('[Bootstrap] Keycloak no está disponible o no se está utilizando. Asegurando superadministradores fundadores en la base de datos MySQL...');
-      await this.asegurarSuperadminsFundadores();
+    if (this.keycloakService.isConfigured()) {
+      try {
+        await this.esperarYSincronizarSuperadmin(1, 100);
+        return;
+      } catch (error: any) {
+        console.warn('[Bootstrap] Keycloak no está disponible o no se está utilizando. Asegurando superadministradores fundadores en la base de datos MySQL...');
+      }
     }
+    await this.asegurarSuperadminsFundadores();
   }
 
   /**
