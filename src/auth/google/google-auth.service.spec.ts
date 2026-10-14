@@ -52,6 +52,16 @@ describe('GoogleAuthService', () => {
     );
   });
 
+  it('debe lanzar UnauthorizedException si el payload de Google no contiene email', async () => {
+    jest.spyOn((service as any).oauthClient, 'verifyIdToken').mockResolvedValue({
+      getPayload: () => ({ sub: '123' }),
+    } as any);
+
+    await expect(service.loginConGoogle('token-sin-email')).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
+
   it('debe lanzar UnauthorizedException si el usuario no existe en la base de datos', async () => {
     jest.spyOn((service as any).oauthClient, 'verifyIdToken').mockResolvedValue({
       getPayload: () => ({ email: 'desconocido@gmail.com', sub: '123' }),
@@ -83,7 +93,52 @@ describe('GoogleAuthService', () => {
     );
   });
 
-  it('debe retornar accessToken y usuario si el login es exitoso', async () => {
+  it('debe lanzar ForbiddenException si el usuario no tiene roles activos', async () => {
+    jest.spyOn((service as any).oauthClient, 'verifyIdToken').mockResolvedValue({
+      getPayload: () => ({ email: 'sinrol@gmail.com', sub: '123' }),
+    } as any);
+
+    prisma.usuario.findUnique.mockResolvedValue({
+      id: 3,
+      email: 'sinrol@gmail.com',
+      estado: 'ACTIVO',
+      rol: 'CLIENTE',
+      nombre: 'Sin',
+      apellido: 'Rol',
+      administrador: null,
+      barbero: null,
+    } as any);
+
+    await expect(service.loginConGoogle('valid-token')).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it('debe permitir login a un administrador activo sin foto de Google pero con foto propia de barbero', async () => {
+    jest.spyOn((service as any).oauthClient, 'verifyIdToken').mockResolvedValue({
+      getPayload: () => ({ email: 'admin@gmail.com', sub: '12345' }),
+    } as any);
+
+    prisma.usuario.findUnique.mockResolvedValue({
+      id: 4,
+      email: 'admin@gmail.com',
+      estado: 'ACTIVO',
+      rol: 'ADMINISTRADOR',
+      nombre: 'Admin',
+      apellido: 'Local',
+      googleId: '12345',
+      administrador: { estado: 'ACTIVO' },
+      barbero: { fotoUrl: '/uploads/foto.jpg', estado: 'INACTIVO' },
+    } as any);
+
+    const result = await service.loginConGoogle('valid-token');
+
+    expect(result.usuario.fotoUrl).toBe('/uploads/foto.jpg');
+    // Como ya tenía googleId no vuelve a hacer update
+    expect(prisma.usuario.update).not.toHaveBeenCalled();
+  });
+
+  it('debe retornar accessToken y usuario si el login es exitoso para superadmin', async () => {
     jest.spyOn((service as any).oauthClient, 'verifyIdToken').mockResolvedValue({
       getPayload: () => ({
         email: 'admin@gmail.com',

@@ -41,7 +41,7 @@ export class GoogleAuthService {
       throw new UnauthorizedException('El token de autenticación de Google es inválido o ha expirado.');
     }
 
-    if (!payload || !payload.email) {
+    if (!payload?.email) {
       throw new UnauthorizedException('No se pudo obtener el correo de la cuenta de Google.');
     }
 

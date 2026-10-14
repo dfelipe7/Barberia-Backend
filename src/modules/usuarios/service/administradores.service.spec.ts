@@ -11,6 +11,7 @@ describe('AdministradoresService', () => {
   let service: AdministradoresService;
   let usuariosRepository: jest.Mocked<UsuariosRepository>;
   let administradoresRepository: jest.Mocked<AdministradoresRepository>;
+  let prismaMock: any;
 
   beforeEach(async () => {
     const mockUsuariosRepository = {
@@ -28,20 +29,22 @@ describe('AdministradoresService', () => {
       actualizarEstadoAdministrador: jest.fn(),
     };
 
+    prismaMock = {
+      $transaction: jest.fn(async (cb) => {
+        const tx = {
+          usuario: { create: jest.fn().mockResolvedValue({ id: 1 }) },
+          administrador: { create: jest.fn().mockResolvedValue({ id: 1 }) },
+        };
+        return cb(tx);
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdministradoresService,
         {
           provide: PrismaService,
-          useValue: {
-            $transaction: jest.fn(async (cb) => {
-              const tx = {
-                usuario: { create: jest.fn().mockResolvedValue({ id: 1 }) },
-                administrador: { create: jest.fn().mockResolvedValue({ id: 1 }) },
-              };
-              return cb(tx);
-            }),
-          },
+          useValue: prismaMock,
         },
         { provide: UsuariosRepository, useValue: mockUsuariosRepository },
         { provide: AdministradoresRepository, useValue: mockAdministradoresRepository },
@@ -77,12 +80,99 @@ describe('AdministradoresService', () => {
       expect(result.mensaje).toContain('creado correctamente');
       expect(result.administrador).toBeDefined();
     });
+
+    it('debe lanzar ConflictException si la transacción falla', async () => {
+      usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue(null);
+      prismaMock.$transaction.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.crearAdministrador({
+          email: 'test@test.com',
+          nombre: 'Test',
+          apellido: 'Admin',
+        }),
+      ).rejects.toThrow('El administrador no pudo registrarse. Intente nuevamente.');
+    });
   });
 
   describe('cambiarEstadoAdministrador', () => {
+    it('debe lanzar error si el usuario no existe', async () => {
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue(null);
+      await expect(service.cambiarEstadoAdministrador(999, 'ACTIVO')).rejects.toThrow('El usuario no existe');
+    });
+
     it('no debe permitir alterar a un SUPERADMIN', async () => {
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, rol: 'SUPERADMIN' } as any);
       await expect(service.cambiarEstadoAdministrador(1, 'INACTIVO')).rejects.toThrow(ConflictException);
+    });
+
+    it('debe rechazar activación si ya es administrador activo', async () => {
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        rol: 'ADMINISTRADOR',
+        administrador: { estado: 'ACTIVO' },
+      } as any);
+
+      await expect(service.cambiarEstadoAdministrador(1, 'ACTIVO')).rejects.toThrow(
+        'Este usuario ya tiene privilegios de Administrador',
+      );
+    });
+
+    it('debe reactivar a un administrador existente', async () => {
+      const mockUser = {
+        id: 1,
+        rol: 'BARBERO',
+        administrador: { estado: 'INACTIVO' },
+      };
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue(mockUser as any);
+      administradoresRepository.obtenerAdministradorPorUsuarioId.mockResolvedValue({ id: 10 } as any);
+      administradoresRepository.actualizarEstadoAdministrador.mockResolvedValue({ id: 10, estado: 'ACTIVO' } as any);
+
+      const res = await service.cambiarEstadoAdministrador(1, 'ACTIVO');
+      expect(res.mensaje).toContain('promovido a Administrador exitosamente');
+      expect(administradoresRepository.actualizarEstadoAdministrador).toHaveBeenCalledWith(1, 'ACTIVO');
+    });
+
+    it('debe lanzar error si la activación falla en el repository', async () => {
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        rol: 'BARBERO',
+        administrador: null,
+      } as any);
+      administradoresRepository.obtenerAdministradorPorUsuarioId.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.cambiarEstadoAdministrador(1, 'ACTIVO')).rejects.toThrow(
+        'No se pudo promover al usuario en la base de datos local',
+      );
+    });
+
+    it('debe rechazar inactivación si el usuario no tiene perfil de administrador', async () => {
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        rol: 'CLIENTE',
+        administrador: null,
+      } as any);
+
+      await expect(service.cambiarEstadoAdministrador(1, 'INACTIVO')).rejects.toThrow(
+        'Este usuario no tiene privilegios de Administrador',
+      );
+    });
+
+    it('debe restaurar rol a BARBERO si el usuario degradado también es barbero', async () => {
+      const mockUser = {
+        id: 1,
+        rol: 'ADMINISTRADOR',
+        administrador: { estado: 'ACTIVO' },
+        barbero: { estado: 'ACTIVO' },
+      };
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue(mockUser as any);
+      administradoresRepository.actualizarEstadoAdministrador.mockResolvedValue({} as any);
+
+      await service.cambiarEstadoAdministrador(1, 'INACTIVO');
+
+      expect(usuariosRepository.actualizarRol).toHaveBeenCalledWith(1, 'BARBERO');
+      expect(administradoresRepository.actualizarEstadoAdministrador).toHaveBeenCalledWith(1, 'INACTIVO');
+      expect(usuariosRepository.actualizarEstadoUsuario).not.toHaveBeenCalled();
     });
 
     it('debe bloquear la cuenta global si se inactiva y no es barbero activo', async () => {
@@ -90,7 +180,7 @@ describe('AdministradoresService', () => {
         id: 1,
         rol: 'ADMINISTRADOR',
         administrador: { estado: 'ACTIVO' },
-        barbero: null, // No es barbero
+        barbero: null,
       };
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValue(mockUser as any);
       administradoresRepository.actualizarEstadoAdministrador.mockResolvedValue({} as any);
@@ -99,6 +189,19 @@ describe('AdministradoresService', () => {
 
       expect(administradoresRepository.actualizarEstadoAdministrador).toHaveBeenCalledWith(1, 'INACTIVO');
       expect(usuariosRepository.actualizarEstadoUsuario).toHaveBeenCalledWith(1, 'INACTIVO');
+    });
+
+    it('debe lanzar error si la inactivación falla en el repository', async () => {
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        rol: 'ADMINISTRADOR',
+        administrador: { estado: 'ACTIVO' },
+      } as any);
+      administradoresRepository.actualizarEstadoAdministrador.mockRejectedValue(new Error('DB error'));
+
+      await expect(service.cambiarEstadoAdministrador(1, 'INACTIVO')).rejects.toThrow(
+        'No se pudo degradar al usuario en la base de datos local',
+      );
     });
 
     it('debe activar un administrador correctamente si no lo era', async () => {
@@ -155,4 +258,3 @@ describe('AdministradoresService', () => {
     });
   });
 });
-

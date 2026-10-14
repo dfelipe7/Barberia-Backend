@@ -72,13 +72,13 @@ export class BarberosService {
       if (u) return u;
     }
     const idNum = Number(usuarioAutenticado?.id || usuarioAutenticado?.sub);
-    if (!isNaN(idNum) && idNum > 0) {
+    if (!Number.isNaN(idNum) && idNum > 0) {
       const u = await this.usuariosRepository.obtenerUsuarioPorId(idNum);
       if (u) return u;
     }
     if (usuarioAutenticado?.sub) {
       const subId = Number(usuarioAutenticado.sub);
-      if (!isNaN(subId) && subId > 0) {
+      if (!Number.isNaN(subId) && subId > 0) {
         const u = await this.usuariosRepository.obtenerUsuarioPorId(subId);
         if (u) return u;
       }
@@ -93,7 +93,7 @@ export class BarberosService {
   async configurarBarbero(identificador: string, dto: ConfigurarBarberoDto) {
     const idNum = Number(identificador);
     const usuario =
-      (!isNaN(idNum) && idNum > 0 ? await this.usuariosRepository.obtenerUsuarioPorId(idNum) : null) ??
+      (!Number.isNaN(idNum) && idNum > 0 ? await this.usuariosRepository.obtenerUsuarioPorId(idNum) : null) ??
       (await this.usuariosRepository.obtenerUsuarioPorEmail(identificador));
 
     if (!usuario) {

@@ -53,7 +53,7 @@ export class UsuariosService {
     }
     if (usuarioAutenticado?.sub) {
       const subId = Number(usuarioAutenticado.sub);
-      if (!isNaN(subId) && subId > 0) {
+      if (!Number.isNaN(subId) && subId > 0) {
         const u = await this.usuariosRepository.obtenerUsuarioPorId(subId);
         if (u) return u;
       }

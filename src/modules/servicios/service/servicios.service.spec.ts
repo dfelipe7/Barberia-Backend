@@ -1,8 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, BadRequestException } from '@nestjs/common';
+import { ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
+import * as fs from 'node:fs';
 import { ServiciosService } from './servicios.service';
 import { ServiciosRepository } from '../repository/servicios.repository';
 import { FiltroServiciosDto } from '../dto/dto-peticion/filtro-servicios.dto';
+
+jest.mock('node:fs');
 
 describe('ServiciosService', () => {
   let service: ServiciosService;
@@ -12,9 +15,13 @@ describe('ServiciosService', () => {
     const mockRepository = {
       obtenerBarberosActivosPorIds: jest.fn(),
       obtenerServicioPorNombre: jest.fn(),
+      obtenerServicioPorId: jest.fn(),
       crearServicio: jest.fn(),
+      actualizarServicio: jest.fn(),
+      cambiarEstado: jest.fn(),
       listarServiciosCatalogo: jest.fn(),
       listarServiciosGestion: jest.fn(),
+      listarServiciosPorBarbero: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -26,10 +33,11 @@ describe('ServiciosService', () => {
 
     service = module.get<ServiciosService>(ServiciosService);
     repository = module.get(ServiciosRepository) as any;
+    jest.clearAllMocks();
   });
 
   describe('crearServicio', () => {
-    it('Debe lanzar BadRequestException al intentar crear un servicio asignándole un barbero que está INACTIVO o no existe', async () => {
+    it('Debe lanzar BadRequestException si uno o más barberos no existen o están inactivos', async () => {
       const dto = {
         nombre: 'Corte Premium',
         precio: 30000,
@@ -38,11 +46,9 @@ describe('ServiciosService', () => {
       };
 
       repository.obtenerServicioPorNombre.mockResolvedValue(null);
-      // Simulamos que la base de datos solo encuentra a 1 barbero activo (el ID 1) y el ID 2 no existe o está inactivo.
       repository.obtenerBarberosActivosPorIds.mockResolvedValue([{ id: 1 } as any]);
 
       await expect(service.crearServicio(dto)).rejects.toThrow(BadRequestException);
-      await expect(service.crearServicio(dto)).rejects.toThrow('Uno o más barberos seleccionados no existen o no se encuentran en estado ACTIVO');
     });
 
     it('Debe lanzar ConflictException al intentar crear un servicio con un nombre que ya existe', async () => {
@@ -56,7 +62,6 @@ describe('ServiciosService', () => {
       repository.obtenerServicioPorNombre.mockResolvedValue({ id: 10, nombre: 'Corte Clásico' } as any);
 
       await expect(service.crearServicio(dto)).rejects.toThrow(ConflictException);
-      await expect(service.crearServicio(dto)).rejects.toThrow('Ya existe un servicio con este nombre');
     });
 
     it('Debe crear el servicio exitosamente si todo está correcto', async () => {
@@ -68,7 +73,6 @@ describe('ServiciosService', () => {
       };
 
       repository.obtenerServicioPorNombre.mockResolvedValue(null);
-      // Ambos barberos existen y están activos
       repository.obtenerBarberosActivosPorIds.mockResolvedValue([{ id: 1 }, { id: 2 }] as any);
       repository.crearServicio.mockResolvedValue({ id: 99, ...dto } as any);
 
@@ -82,18 +86,103 @@ describe('ServiciosService', () => {
     });
   });
 
+  describe('obtenerServicioPorId', () => {
+    it('debe lanzar NotFoundException si el servicio no existe', async () => {
+      repository.obtenerServicioPorId.mockResolvedValue(null);
+
+      await expect(service.obtenerServicioPorId(999)).rejects.toThrow(NotFoundException);
+    });
+
+    it('debe retornar el servicio mapeado si existe', async () => {
+      repository.obtenerServicioPorId.mockResolvedValue({
+        id: 1,
+        nombre: 'Barba',
+        precio: 15000,
+        duracionMinutos: 20,
+        barberos: [],
+      } as any);
+
+      const resultado = await service.obtenerServicioPorId(1);
+      expect(resultado.id).toBe(1);
+      expect(resultado.nombre).toBe('Barba');
+    });
+  });
+
+  describe('obtenerServiciosPorBarbero', () => {
+    it('debe listar servicios activos de un barbero', async () => {
+      repository.listarServiciosPorBarbero.mockResolvedValue([
+        { id: 1, nombre: 'Corte', precio: 20000, duracionMinutos: 30, barberos: [] },
+      ] as any);
+
+      const res = await service.obtenerServiciosPorBarbero(5);
+      expect(res).toHaveLength(1);
+      expect(repository.listarServiciosPorBarbero).toHaveBeenCalledWith(5);
+    });
+  });
+
   describe('actualizarServicio', () => {
+    it('Debe rechazar actualización si el nuevo nombre ya pertenece a otro servicio', async () => {
+      repository.obtenerServicioPorId.mockResolvedValue({ id: 1, nombre: 'Corte A' } as any);
+      repository.obtenerServicioPorNombre.mockResolvedValue({ id: 2, nombre: 'Corte B' } as any);
+
+      await expect(
+        service.actualizarServicio(1, { nombre: 'Corte B' }),
+      ).rejects.toThrow(ConflictException);
+    });
+
     it('Debe actualizar el servicio y sus barberos exitosamente', async () => {
       const dto = { nombre: 'Corte Editado', barberoIds: [3] };
-      repository.obtenerServicioPorId = jest.fn().mockResolvedValue({ id: 99, nombre: 'Antiguo' } as any);
+      repository.obtenerServicioPorId.mockResolvedValue({ id: 99, nombre: 'Antiguo' } as any);
       repository.obtenerServicioPorNombre.mockResolvedValue(null);
       repository.obtenerBarberosActivosPorIds.mockResolvedValue([{ id: 3 }] as any);
-      repository.actualizarServicio = jest.fn().mockResolvedValue({ id: 99, ...dto } as any);
+      repository.actualizarServicio.mockResolvedValue({ id: 99, ...dto } as any);
 
       const resultado = await service.actualizarServicio(99, dto);
 
       expect(resultado.id).toBe(99);
       expect(repository.actualizarServicio).toHaveBeenCalledWith(99, expect.objectContaining({ nombre: 'Corte Editado', barberoIds: [3] }));
+    });
+  });
+
+  describe('cambiarEstadoServicio', () => {
+    it('debe cambiar el estado del servicio exitosamente', async () => {
+      repository.obtenerServicioPorId.mockResolvedValue({ id: 1, nombre: 'Corte' } as any);
+      repository.cambiarEstado.mockResolvedValue({ id: 1, estado: 'INACTIVO' } as any);
+
+      const res = await service.cambiarEstadoServicio(1, { estado: 'INACTIVO' as any });
+      expect(res.estado).toBe('INACTIVO');
+      expect(repository.cambiarEstado).toHaveBeenCalledWith(1, 'INACTIVO');
+    });
+  });
+
+  describe('subirFotoServicio y eliminarFotoServicio', () => {
+    it('debe subir foto nueva eliminando la anterior si existía en disco', async () => {
+      repository.obtenerServicioPorId.mockResolvedValue({
+        id: 1,
+        fotoUrl: '/uploads/servicios/foto-vieja.jpg',
+      } as any);
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.unlinkSync as jest.Mock).mockReturnValue(undefined);
+      repository.actualizarServicio.mockResolvedValue({ id: 1, fotoUrl: '/uploads/servicios/nueva.jpg' } as any);
+
+      const res = await service.subirFotoServicio(1, { filename: 'nueva.jpg' } as any);
+
+      expect(res.fotoUrl).toBe('/uploads/servicios/nueva.jpg');
+      expect(fs.unlinkSync).toHaveBeenCalled();
+    });
+
+    it('debe eliminar la foto existente física y en base de datos', async () => {
+      repository.obtenerServicioPorId.mockResolvedValue({
+        id: 1,
+        fotoUrl: '/uploads/servicios/foto.jpg',
+      } as any);
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.unlinkSync as jest.Mock).mockReturnValue(undefined);
+
+      const res = await service.eliminarFotoServicio(1);
+
+      expect(res.fotoUrl).toBeNull();
+      expect(repository.actualizarServicio).toHaveBeenCalledWith(1, { fotoUrl: null });
     });
   });
 

@@ -54,25 +54,27 @@ export class BootstrapService implements OnModuleInit {
       },
     ];
 
-    for (const admin of superadmins) {
-      try {
-        const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorEmail(admin.email);
-        if (usuarioExistente) {
-          // Conservar los cambios realizados desde la app (rol, estado, nombre)
-          this.logger.log(`Usuario fundador verificado: ${usuarioExistente.nombre} (${admin.email}) - Rol actual: ${usuarioExistente.rol}, Estado: ${usuarioExistente.estado}`);
-        } else {
-          // Si no existe, se crea por primera vez como SUPERADMIN y ACTIVO
-          await this.usuariosRepository.crearUsuario({
-            email: admin.email,
-            nombre: admin.nombre,
-            apellido: admin.apellido,
-            rol: 'SUPERADMIN',
-          });
-          this.logger.log(`Superadmin fundador creado: ${admin.nombre} (${admin.email})`);
+    await Promise.all(
+      superadmins.map(async (admin) => {
+        try {
+          const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorEmail(admin.email);
+          if (usuarioExistente) {
+            // Conservar los cambios realizados desde la app (rol, estado, nombre)
+            this.logger.log(`Usuario fundador verificado: ${usuarioExistente.nombre} (${admin.email}) - Rol actual: ${usuarioExistente.rol}, Estado: ${usuarioExistente.estado}`);
+          } else {
+            // Si no existe, se crea por primera vez como SUPERADMIN y ACTIVO
+            await this.usuariosRepository.crearUsuario({
+              email: admin.email,
+              nombre: admin.nombre,
+              apellido: admin.apellido,
+              rol: 'SUPERADMIN',
+            });
+            this.logger.log(`Superadmin fundador creado: ${admin.nombre} (${admin.email})`);
+          }
+        } catch (err: any) {
+          this.logger.error(`Error asegurando superadmin ${admin.email}: ${err?.message || err}`);
         }
-      } catch (err: any) {
-        this.logger.error(`Error asegurando superadmin ${admin.email}: ${err?.message || err}`);
-      }
-    }
+      }),
+    );
   }
 }
