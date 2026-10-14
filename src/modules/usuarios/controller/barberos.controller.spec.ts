@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BarberosController } from './barberos.controller';
 import { BarberosService } from '../service/barberos.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
-import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { BadRequestException } from '@nestjs/common';
 
@@ -17,7 +17,9 @@ const mockBarberosService = {
 };
 
 const mockUsuariosRepository = {
-  obtenerUsuarioPorKeycloakId: jest.fn(),
+  obtenerUsuarioPorGoogleId: jest.fn(),
+  obtenerUsuarioPorId: jest.fn(),
+  obtenerUsuarioPorEmail: jest.fn(),
 };
 
 describe('BarberosController', () => {
@@ -31,7 +33,7 @@ describe('BarberosController', () => {
         { provide: UsuariosRepository, useValue: mockUsuariosRepository },
       ],
     })
-      .overrideGuard(KeycloakAuthGuard).useValue({ canActivate: () => true })
+      .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
       .compile();
 
@@ -45,7 +47,7 @@ describe('BarberosController', () => {
 
   describe('crearBarbero', () => {
     it('should call barberosService.crearBarbero', async () => {
-      const dto: any = { email: 'b@b.com', nombre: 'Juan', apellido: 'P', password: '123', telefono: '300', porcentajeComision: 50 };
+      const dto: any = { email: 'b@b.com', nombre: 'Juan', apellido: 'P', telefono: '300', porcentajeComision: 50 };
       mockBarberosService.crearBarbero.mockResolvedValue({ mensaje: 'Barbero creado correctamente' });
       const result = await controller.crearBarbero(dto);
       expect(result.mensaje).toContain('creado');
@@ -95,14 +97,14 @@ describe('BarberosController', () => {
     });
 
     it('should throw BadRequestException if user not found', async () => {
-      mockUsuariosRepository.obtenerUsuarioPorKeycloakId.mockResolvedValue(null);
-      await expect(controller.subirMiFoto({ filename: 'a.jpg' } as any, { user: { sub: 'x' } })).rejects.toThrow(BadRequestException);
+      mockUsuariosRepository.obtenerUsuarioPorId.mockResolvedValue(null);
+      await expect(controller.subirMiFoto({ filename: 'a.jpg' } as any, { user: { id: 5 } })).rejects.toThrow(BadRequestException);
     });
 
     it('should call subirFotoBarbero when file and user are valid', async () => {
-      mockUsuariosRepository.obtenerUsuarioPorKeycloakId.mockResolvedValue({ id: 5 });
+      mockUsuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 5 });
       mockBarberosService.subirFotoBarbero.mockResolvedValue({ fotoUrl: '/uploads/foto.jpg' });
-      const result = await controller.subirMiFoto({ filename: 'a.jpg' } as any, { user: { sub: 'x' } });
+      const result = await controller.subirMiFoto({ filename: 'a.jpg' } as any, { user: { id: 5 } });
       expect(mockBarberosService.subirFotoBarbero).toHaveBeenCalledWith(5, { filename: 'a.jpg' });
       expect(result.fotoUrl).toBe('/uploads/foto.jpg');
     });
@@ -110,14 +112,14 @@ describe('BarberosController', () => {
 
   describe('eliminarMiFoto', () => {
     it('should throw BadRequestException if user not found', async () => {
-      mockUsuariosRepository.obtenerUsuarioPorKeycloakId.mockResolvedValue(null);
-      await expect(controller.eliminarMiFoto({ user: { sub: 'x' } })).rejects.toThrow(BadRequestException);
+      mockUsuariosRepository.obtenerUsuarioPorId.mockResolvedValue(null);
+      await expect(controller.eliminarMiFoto({ user: { id: 5 } })).rejects.toThrow(BadRequestException);
     });
 
     it('should call eliminarFotoBarbero when user is valid', async () => {
-      mockUsuariosRepository.obtenerUsuarioPorKeycloakId.mockResolvedValue({ id: 5 });
+      mockUsuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 5 });
       mockBarberosService.eliminarFotoBarbero.mockResolvedValue({ mensaje: 'Eliminada' });
-      const result = await controller.eliminarMiFoto({ user: { sub: 'x' } });
+      const result = await controller.eliminarMiFoto({ user: { id: 5 } });
       expect(mockBarberosService.eliminarFotoBarbero).toHaveBeenCalledWith(5);
       expect(result.mensaje).toBe('Eliminada');
     });

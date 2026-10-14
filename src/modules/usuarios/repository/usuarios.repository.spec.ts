@@ -34,7 +34,7 @@ describe('UsuariosRepository', () => {
 
   describe('crearUsuario', () => {
     it('should create a user', async () => {
-      const data = { keycloakId: 'kc-1', email: 'a@a.com', nombre: 'Juan', apellido: 'P', rol: 'BARBERO' as const };
+      const data = { googleId: 'g-1', email: 'a@a.com', nombre: 'Juan', apellido: 'P', rol: 'BARBERO' as const };
       mockPrisma.usuario.create.mockResolvedValue({ id: 1, ...data });
       const result = await repository.crearUsuario(data);
       expect(mockPrisma.usuario.create).toHaveBeenCalledWith({ data });
@@ -54,15 +54,15 @@ describe('UsuariosRepository', () => {
     });
   });
 
-  describe('obtenerUsuarioPorKeycloakId', () => {
-    it('should find a user by keycloakId', async () => {
-      mockPrisma.usuario.findUnique.mockResolvedValue({ id: 2, keycloakId: 'kc-1' });
-      const result = await repository.obtenerUsuarioPorKeycloakId('kc-1');
+  describe('obtenerUsuarioPorGoogleId', () => {
+    it('should find a user by googleId', async () => {
+      mockPrisma.usuario.findUnique.mockResolvedValue({ id: 2, googleId: 'g-1' });
+      const result = await repository.obtenerUsuarioPorGoogleId('g-1');
       expect(mockPrisma.usuario.findUnique).toHaveBeenCalledWith({
-        where: { keycloakId: 'kc-1' },
+        where: { googleId: 'g-1' },
         include: { administrador: true, barbero: true },
       });
-      expect(result.keycloakId).toBe('kc-1');
+      expect(result.googleId).toBe('g-1');
     });
   });
 

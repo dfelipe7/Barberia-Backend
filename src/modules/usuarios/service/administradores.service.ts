@@ -1,5 +1,4 @@
 import { Injectable, ConflictException, Logger } from '@nestjs/common';
-import { KeycloakService } from '../../../auth/keycloak/keycloak.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
 import { AdministradoresRepository } from '../repository/administradores.repository';
 import { CrearAdministradorDto } from '../dto/dto-peticion/crear-administrador.dto';
@@ -14,13 +13,12 @@ export class AdministradoresService {
   constructor(
     private readonly administradoresRepository: AdministradoresRepository,
     private readonly usuariosRepository: UsuariosRepository,
-    private readonly keycloakService: KeycloakService,
     private readonly prisma: PrismaService,
   ) {}
 
   /**
    * Registra a un nuevo administrador/gerente en el sistema.
-   * Crea el usuario en Keycloak con el rol ADMINISTRADOR y genera su perfil en MySQL.
+   * Crea el usuario en MySQL con rol ADMINISTRADOR y genera su perfil en MySQL.
    * Exclusivo para el SUPERADMIN.
    */
   async crearAdministrador(dto: CrearAdministradorDto) {
@@ -28,26 +26,11 @@ export class AdministradoresService {
     if (usuarioExistente) {
       throw new ConflictException('Ya existe un usuario en el sistema con este correo electrónico.');
     }
-    let keycloakId: string | null = null;
-    if (dto.password) {
-      try {
-        keycloakId = await this.keycloakService.crearUsuario(
-          dto.email,
-          dto.password,
-          dto.nombre,
-          dto.apellido,
-        );
-        await this.keycloakService.asignarRol(keycloakId, 'ADMINISTRADOR');
-      } catch (err: any) {
-        this.logger.warn(`No se pudo crear en Keycloak (creando en MySQL): ${err?.message}`);
-      }
-    }
 
     try {
       const administrador = await this.prisma.$transaction(async (tx) => {
         const usuario = await tx.usuario.create({
           data: {
-            keycloakId,
             email: dto.email,
             nombre: dto.nombre,
             apellido: dto.apellido ?? '',
@@ -63,23 +46,15 @@ export class AdministradoresService {
       });
 
       // OWASP A09: Registro de transacciones de alto valor
-      this.logger.log(`AUDIT: Nuevo Administrador creado en el sistema. Email: ${dto.email}, KeycloakID: ${keycloakId}`);
+      this.logger.log(`AUDIT: Nuevo Administrador creado en el sistema. Email: ${dto.email}`);
 
       return {
         mensaje: 'Administrador creado correctamente',
         administrador,
       };
     } catch (error) {
-      console.error('Error guardando administrador en la base de datos (Rollback ejecutado):', error);
-      // Compensación manual: Borramos el usuario de Keycloak para evitar inconsistencias (Falla Cerrada)
-      if (keycloakId) {
-        try {
-          await this.keycloakService.eliminarUsuario(keycloakId);
-        } catch (err: any) {
-          this.logger.warn(`No se pudo eliminar en Keycloak en compensación: ${err?.message}`);
-        }
-      }
-      throw new ConflictException('El administrador no pudo registrarse. Se han revertido los cambios en el sistema.');
+      this.logger.error('Error guardando administrador en la base de datos:', error);
+      throw new ConflictException('El administrador no pudo registrarse. Intente nuevamente.');
     }
   }
 
@@ -101,9 +76,10 @@ export class AdministradoresService {
       estadoBarbero: administrador.usuario.barbero?.estado,
     }));
   }
+
   /**
    * Cambia el estado del rol de ADMINISTRADOR (ACTIVO/INACTIVO) para un usuario.
-   * Si se inactiva, se le quita la etiqueta en Keycloak y se hace Soft Delete de su perfil.
+   * Si se inactiva, se hace Soft Delete de su perfil.
    * Si es su único rol, se bloquea su cuenta global.
    */
   async cambiarEstadoAdministrador(usuarioId: number, estado: string) { // NOSONAR
@@ -122,14 +98,6 @@ export class AdministradoresService {
     if (activo) {
       if (usuario.administrador && (usuario.administrador as any).estado === 'ACTIVO') {
         throw new ConflictException('Este usuario ya tiene privilegios de Administrador');
-      }
-
-      if (usuario.keycloakId) {
-        try {
-          await this.keycloakService.asignarRol(usuario.keycloakId, 'ADMINISTRADOR');
-        } catch (error: any) {
-          this.logger.warn(`No se pudo asignar rol en Keycloak (posiblemente offline): ${error?.message}`);
-        }
       }
 
       try {
@@ -153,20 +121,12 @@ export class AdministradoresService {
           administrador,
         };
       } catch (error) {
-        console.error('Error promoviendo al administrador en la base de datos:', error);
+        this.logger.error('Error promoviendo al administrador en la base de datos:', error);
         throw new ConflictException('No se pudo promover al usuario en la base de datos local');
       }
     } else {
       if (!usuario.administrador) {
         throw new ConflictException('Este usuario no tiene privilegios de Administrador');
-      }
-
-      if (usuario.keycloakId) {
-        try {
-          await this.keycloakService.quitarRol(usuario.keycloakId, 'ADMINISTRADOR');
-        } catch (error: any) {
-          this.logger.warn(`No se pudo quitar rol en Keycloak (posiblemente offline): ${error?.message}`);
-        }
       }
 
       try {
@@ -178,13 +138,6 @@ export class AdministradoresService {
 
         const esBarberoActivo = usuario.barbero?.estado === 'ACTIVO';
         if (!esBarberoActivo) {
-          if (usuario.keycloakId) {
-            try {
-              await this.keycloakService.cambiarEstadoUsuario(usuario.keycloakId, false);
-            } catch (error: any) {
-              this.logger.warn(`No se pudo cambiar estado en Keycloak (posiblemente offline): ${error?.message}`);
-            }
-          }
           await this.usuariosRepository.actualizarEstadoUsuario(usuario.id, 'INACTIVO');
         }
 
@@ -192,9 +145,10 @@ export class AdministradoresService {
           mensaje: 'Se han revocado los privilegios de Administrador exitosamente',
         };
       } catch (error) {
-        console.error('Error degradando al administrador en la base de datos:', error);
+        this.logger.error('Error degradando al administrador en la base de datos:', error);
         throw new ConflictException('No se pudo degradar al usuario en la base de datos local');
       }
     }
   }
 }
+

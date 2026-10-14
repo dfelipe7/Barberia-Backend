@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 /**
  * Representa un barbero asignado a un servicio dentro de la respuesta del catálogo.
  * Solo incluye los datos necesarios para que el Frontend muestre al barbero
- * sin exponer información sensible (email, comisión, keycloakId, etc.).
+ * sin exponer información sensible (email, comisión, etc.).
  */
 export class BarberoEnServicioDto {
     @ApiProperty({ example: 3, description: 'ID del usuario (barbero)' })

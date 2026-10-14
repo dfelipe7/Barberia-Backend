@@ -8,9 +8,9 @@ import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from './roles.decorator';
 
 /**
- * Cadenero VIP (RolesGuard)
+ * Guard de Autorización Basado en Roles (RolesGuard)
  * 
- * Este guardia actúa DESPUÉS de que el KeycloakAuthGuard validó el token.
+ * Este guardia actúa DESPUÉS de que el JwtAuthGuard validó el token.
  * Su trabajo es leer qué roles pide la ruta (usando el decorador @Roles) y
  * compararlos contra los roles que el usuario trae dentro de su token JWT.
  */
@@ -41,7 +41,7 @@ export class RolesGuard implements CanActivate {
     const user = request.user;
 
     const userRoles: string[] =
-      user?.realm_access?.roles ?? (user?.rol ? [user.rol] : (user?.roles ?? []));
+      user?.rol ? [user.rol] : (user?.roles ?? user?.realm_access?.roles ?? []);
 
     const tieneRol = roles.some(
       (rol) => userRoles.includes(rol),

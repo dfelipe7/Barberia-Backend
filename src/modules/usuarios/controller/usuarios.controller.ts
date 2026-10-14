@@ -1,7 +1,7 @@
 import { Controller, Post, Get, Patch, Body, Param, Req, UseGuards, InternalServerErrorException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiOkResponse, ApiBadRequestResponse, ApiForbiddenResponse } from '@nestjs/swagger';
 import { Roles } from '../../../auth/roles/roles.decorator';
-import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { ActualizarUsuarioDto } from '../dto/dto-peticion/actualizar-usuario.dto';
 import { CambiarEstadoUsuarioDto } from '../dto/dto-peticion/cambiar-estado-usuario.dto';
@@ -25,7 +25,7 @@ export class UsuariosController {
   }
 
   @Post('me/barbero')
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
   @ApiOperation({ summary: 'Configura el perfil del usuario actual como barbero' })
   @ApiOkResponse({ description: 'Perfil de barbero configurado con éxito.' })
@@ -38,7 +38,7 @@ export class UsuariosController {
   }
 
   @Post('sincronizar-superadmin')
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN')
   @ApiOperation({ summary: 'Sincroniza el usuario superadmin en la base de datos' })
   @ApiOkResponse({ description: 'Sincronización exitosa.' })
@@ -48,7 +48,7 @@ export class UsuariosController {
   }
 
   @Post(':id/barbero')
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN')
   @ApiOperation({ summary: 'Configura el perfil de un usuario existente como barbero' })
   @ApiOkResponse({ description: 'Perfil de barbero configurado con éxito.' })
@@ -61,7 +61,7 @@ export class UsuariosController {
   }
 
   @Get('me')
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: 'Obtiene el perfil del usuario autenticado actual' })
   @ApiOkResponse({ description: 'Datos del perfil actual.', type: UsuarioPerfilDto })
   async obtenerMiPerfil(
@@ -71,7 +71,7 @@ export class UsuariosController {
   }
 
   @Get(':id')
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
   @ApiOperation({ summary: 'Obtiene los datos de un usuario por su ID' })
   @ApiOkResponse({ description: 'Datos del usuario encontrado.', type: UsuarioPerfilDto })
@@ -84,7 +84,7 @@ export class UsuariosController {
   }
 
   @Patch(':id')
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
   @ApiOperation({ summary: 'Actualiza los datos de un usuario' })
   @ApiOkResponse({ description: 'Usuario actualizado exitosamente.' })
@@ -99,7 +99,7 @@ export class UsuariosController {
   }
 
   @Patch(':id/estado')
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @ApiOperation({ summary: 'Cambia el estado (activo/inactivo) de un usuario' })
   @ApiOkResponse({ description: 'Estado global del usuario cambiado exitosamente.' })

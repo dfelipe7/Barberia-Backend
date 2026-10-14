@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UsuariosController } from './usuarios.controller';
 import { UsuariosService } from '../service/usuarios.service';
 import { BarberosService } from '../service/barberos.service';
-import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 
 const mockUsuariosService = {
@@ -29,7 +29,7 @@ describe('UsuariosController', () => {
         { provide: BarberosService, useValue: mockBarberosService },
       ],
     })
-      .overrideGuard(KeycloakAuthGuard).useValue({ canActivate: () => true })
+      .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
       .compile();
 
@@ -42,12 +42,12 @@ describe('UsuariosController', () => {
   });
 
   describe('configurarMiPerfilComoBarbero', () => {
-    it('should call configurarBarbero with keycloak sub', async () => {
-      const req = { user: { sub: 'kc-uuid' } };
+    it('should call configurarBarbero with user sub', async () => {
+      const req = { user: { sub: '1' } };
       const dto: any = { telefono: '300', porcentajeComision: 50 };
       mockBarberosService.configurarBarbero.mockResolvedValue({ id: 1 });
       const result = await controller.configurarMiPerfilComoBarbero(req, dto);
-      expect(mockBarberosService.configurarBarbero).toHaveBeenCalledWith('kc-uuid', dto);
+      expect(mockBarberosService.configurarBarbero).toHaveBeenCalledWith('1', dto);
       expect(result).toEqual({ id: 1 });
     });
   });

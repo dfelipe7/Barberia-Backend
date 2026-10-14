@@ -1,7 +1,6 @@
 import { Injectable, ConflictException, Logger } from '@nestjs/common';
 import * as fs from 'node:fs';
 import { join } from 'node:path';
-import { KeycloakService } from '../../../auth/keycloak/keycloak.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
 import { BarberosRepository } from '../repository/barberos.repository';
 import { UsuariosAuthorizationService } from './usuarios-authorization.service';
@@ -22,7 +21,6 @@ export class BarberosService {
   constructor(
     private readonly barberosRepository: BarberosRepository,
     private readonly usuariosRepository: UsuariosRepository,
-    private readonly keycloakService: KeycloakService,
     private readonly authorizationService: UsuariosAuthorizationService,
     private readonly prisma: PrismaService,
   ) {}
@@ -30,7 +28,6 @@ export class BarberosService {
   /**
    * Crea un nuevo empleado barbero desde cero.
    * Crea el usuario en MySQL con rol BARBERO y su perfil asociado.
-   * Si se provee contraseña y Keycloak está activo, también sincroniza en Keycloak.
    */
   async crearBarbero(dto: CrearBarberoDto) {
     const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorEmail(dto.email);
@@ -38,26 +35,10 @@ export class BarberosService {
       throw new ConflictException('Ya existe un usuario en el sistema con este correo electrónico.');
     }
 
-    let keycloakId: string | null = null;
-    if (dto.password) {
-      try {
-        keycloakId = await this.keycloakService.crearUsuario(
-          dto.email,
-          dto.password,
-          dto.nombre,
-          dto.apellido,
-        );
-        await this.keycloakService.asignarRol(keycloakId, 'BARBERO');
-      } catch (err: any) {
-        this.logger.warn(`No se pudo crear en Keycloak (creando en MySQL): ${err?.message}`);
-      }
-    }
-
     try {
       const barbero = await this.prisma.$transaction(async (tx) => {
         const usuario = await tx.usuario.create({
           data: {
-            keycloakId,
             email: dto.email,
             nombre: dto.nombre,
             apellido: dto.apellido,
@@ -80,16 +61,8 @@ export class BarberosService {
         barbero,
       };
     } catch (error) {
-      console.error('Error guardando barbero en la base de datos (Rollback ejecutado):', error);
-      // Compensación manual: Borramos el usuario de Keycloak si se llegó a crear
-      if (keycloakId) {
-        try {
-          await this.keycloakService.eliminarUsuario(keycloakId);
-        } catch (err: any) {
-          this.logger.warn(`No se pudo eliminar en Keycloak en rollback: ${err?.message}`);
-        }
-      }
-      throw new ConflictException('El barbero no pudo registrarse. Se han revertido los cambios en el sistema.');
+      this.logger.error('Error guardando barbero en la base de datos:', error);
+      throw new ConflictException('El barbero no pudo registrarse. Intente nuevamente.');
     }
   }
 
@@ -98,13 +71,17 @@ export class BarberosService {
       const u = await this.usuariosRepository.obtenerUsuarioPorEmail(usuarioAutenticado.email);
       if (u) return u;
     }
-    if (usuarioAutenticado?.id) {
-      const u = await this.usuariosRepository.obtenerUsuarioPorId(Number(usuarioAutenticado.id));
+    const idNum = Number(usuarioAutenticado?.id || usuarioAutenticado?.sub);
+    if (!isNaN(idNum) && idNum > 0) {
+      const u = await this.usuariosRepository.obtenerUsuarioPorId(idNum);
       if (u) return u;
     }
     if (usuarioAutenticado?.sub) {
-      const u = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(usuarioAutenticado.sub);
-      if (u) return u;
+      const subId = Number(usuarioAutenticado.sub);
+      if (!isNaN(subId) && subId > 0) {
+        const u = await this.usuariosRepository.obtenerUsuarioPorId(subId);
+        if (u) return u;
+      }
     }
     return null;
   }
@@ -114,10 +91,10 @@ export class BarberosService {
    * Requiere que el usuario ya exista y no tenga un perfil de barbero previo.
    */
   async configurarBarbero(identificador: string, dto: ConfigurarBarberoDto) {
+    const idNum = Number(identificador);
     const usuario =
-      (await this.usuariosRepository.obtenerUsuarioPorEmail(identificador)) ??
-      (await this.usuariosRepository.obtenerUsuarioPorId(Number(identificador) || 0)) ??
-      (await this.usuariosRepository.obtenerUsuarioPorKeycloakId(identificador));
+      (!isNaN(idNum) && idNum > 0 ? await this.usuariosRepository.obtenerUsuarioPorId(idNum) : null) ??
+      (await this.usuariosRepository.obtenerUsuarioPorEmail(identificador));
 
     if (!usuario) {
       throw new ConflictException('El usuario no existe');
@@ -127,27 +104,11 @@ export class BarberosService {
       if ((usuario.barbero as any).estado === 'ACTIVO') {
         throw new ConflictException('El usuario ya está configurado como barbero');
       } else {
-        // Reactivar si existía inactivo
-        if (usuario.keycloakId) {
-          try {
-            await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
-          } catch (error: any) {
-            this.logger.warn(`No se pudo asignar rol en Keycloak (posiblemente offline): ${error?.message}`);
-          }
-        }
         await this.barberosRepository.actualizarEstadoBarbero(usuario.id, EstadoUsuario.ACTIVO);
         return this.barberosRepository.actualizarPerfilBarbero(usuario.id, {
           telefono: dto.telefono,
           porcentajeComision: dto.porcentajeComision,
         });
-      }
-    }
-
-    if (usuario.keycloakId) {
-      try {
-        await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
-      } catch (error: any) {
-        this.logger.warn(`No se pudo asignar rol en Keycloak (posiblemente offline): ${error?.message}`);
       }
     }
 
@@ -173,14 +134,6 @@ export class BarberosService {
       if ((usuario.barbero as any).estado === 'ACTIVO') {
         throw new ConflictException('El usuario ya está configurado como barbero');
       } else {
-        // Reactivar
-        if (usuario.keycloakId) {
-          try {
-            await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
-          } catch (error: any) {
-            this.logger.warn(`No se pudo asignar rol en Keycloak (posiblemente offline): ${error?.message}`);
-          }
-        }
         await this.barberosRepository.actualizarEstadoBarbero(usuario.id, EstadoUsuario.ACTIVO);
         
         return this.barberosRepository.actualizarPerfilBarbero(usuario.id, {
@@ -192,14 +145,6 @@ export class BarberosService {
 
     if (!usuario.administrador && usuario.rol !== 'SUPERADMIN') {
       throw new ConflictException('El usuario no es un administrador ni superadmin');
-    }
-
-    if (usuario.keycloakId) {
-      try {
-        await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
-      } catch (error: any) {
-        this.logger.warn(`No se pudo asignar rol en Keycloak (posiblemente offline): ${error?.message}`);
-      }
     }
 
     return this.barberosRepository.crearPerfilBarbero({
@@ -358,8 +303,8 @@ export class BarberosService {
 
   /**
    * Cambia el estado del perfil de barbero (ACTIVO/INACTIVO).
-   * Si se inactiva, se le quita el rol BARBERO en Keycloak para ocultarlo del catálogo,
-   * pero su cuenta global sigue funcionando.
+   * Si se inactiva, se oculta del catálogo público,
+   * pero su cuenta global sigue funcionando si tiene otros roles.
    */
   async cambiarEstadoBarbero(usuarioId: number, dto: CambiarEstadoUsuarioDto, usuarioAutenticado: any) {
     const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
@@ -383,33 +328,10 @@ export class BarberosService {
     const nuevoEstado = dto.estado;
     const activo = nuevoEstado === EstadoUsuario.ACTIVO;
 
-    if (activo) {
-      if (usuario.keycloakId) {
-        try {
-          await this.keycloakService.asignarRol(usuario.keycloakId, 'BARBERO');
-        } catch (error: any) {
-          this.logger.warn(`No se pudo asignar rol en Keycloak (posiblemente offline): ${error?.message}`);
-        }
-      }
-    } else {
-      if (usuario.keycloakId) {
-        try {
-          await this.keycloakService.quitarRol(usuario.keycloakId, 'BARBERO');
-        } catch (error: any) {
-          this.logger.warn(`No se pudo quitar rol en Keycloak (posiblemente offline): ${error?.message}`);
-        }
-      }
-
+    if (!activo) {
       const esAdminActivo = usuario.administrador?.estado === EstadoUsuario.ACTIVO || usuario.rol === 'ADMINISTRADOR';
       const esSuperAdmin = usuario.rol === 'SUPERADMIN';
       if (!esSuperAdmin && !esAdminActivo) {
-        if (usuario.keycloakId) {
-          try {
-            await this.keycloakService.cambiarEstadoUsuario(usuario.keycloakId, false);
-          } catch (error: any) {
-            this.logger.warn(`No se pudo cambiar estado en Keycloak (posiblemente offline): ${error?.message}`);
-          }
-        }
         await this.usuariosRepository.actualizarEstadoUsuario(usuarioId, EstadoUsuario.INACTIVO);
       }
     }
@@ -417,3 +339,4 @@ export class BarberosService {
     return this.barberosRepository.actualizarEstadoBarbero(usuarioId, nuevoEstado);
   }
 }
+

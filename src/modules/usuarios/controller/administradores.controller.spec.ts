@@ -3,7 +3,7 @@ import { AdministradoresController } from './administradores.controller';
 import { AdministradoresService } from '../service/administradores.service';
 import { CrearAdministradorDto } from '../dto/dto-peticion/crear-administrador.dto';
 import { CambiarEstadoUsuarioDto } from '../dto/dto-peticion/cambiar-estado-usuario.dto';
-import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 
 const mockAdministradoresService = {
@@ -26,7 +26,7 @@ describe('AdministradoresController', () => {
         },
       ],
     })
-    .overrideGuard(KeycloakAuthGuard)
+    .overrideGuard(JwtAuthGuard)
     .useValue({ canActivate: jest.fn(() => true) })
     .overrideGuard(RolesGuard)
     .useValue({ canActivate: jest.fn(() => true) })
@@ -43,7 +43,7 @@ describe('AdministradoresController', () => {
 
   describe('crearAdministrador', () => {
     it('should create an administrator', async () => {
-      const dto: CrearAdministradorDto = { email: 'test@test.com', nombre: 'Test', apellido: 'User', password: '123' };
+      const dto: CrearAdministradorDto = { email: 'test@test.com', nombre: 'Test', apellido: 'User' };
       const expectedResult = { mensaje: 'Administrador creado correctamente' };
       mockAdministradoresService.crearAdministrador.mockResolvedValue(expectedResult);
 

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ServiciosController } from './servicios.controller';
 import { ServiciosService } from '../service/servicios.service';
-import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 
 jest.mock('../../../../generated/prisma/enums', () => ({
@@ -36,7 +36,7 @@ describe('ServiciosController', () => {
                 { provide: ServiciosService, useValue: serviciosServiceMock },
             ],
         })
-        .overrideGuard(KeycloakAuthGuard).useValue({ canActivate: () => true })
+        .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
         .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
         .compile();
 

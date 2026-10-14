@@ -20,7 +20,6 @@ enum RolUsuario {
 
 model Usuario {
   id         Int           @id @default(autoincrement())
-  keycloakId String?       @unique
   googleId   String?       @unique
   email      String        @unique
   nombre     String

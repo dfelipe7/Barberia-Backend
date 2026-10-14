@@ -7,7 +7,6 @@ import {
   Logger,
 } from '@nestjs/common';
 
-import { KeycloakService } from '../../../auth/keycloak/keycloak.service';
 import { BarberosRepository } from '../repository/barberos.repository';
 import { ActualizarUsuarioDto } from '../dto/dto-peticion/actualizar-usuario.dto';
 import { CambiarEstadoUsuarioDto } from '../dto/dto-peticion/cambiar-estado-usuario.dto';
@@ -25,7 +24,6 @@ export class UsuariosService {
   constructor(
     private readonly usuariosRepository: UsuariosRepository,
     private readonly barberosRepository: BarberosRepository,
-    private readonly keycloakService: KeycloakService,
     private readonly authorizationService: UsuariosAuthorizationService,
     @Inject(forwardRef(() => AdministradoresService))
     private readonly administradoresService: AdministradoresService,
@@ -34,48 +32,14 @@ export class UsuariosService {
   ) {}
 
   /**
-   * Sincroniza al usuario SUPERADMIN inicial desde Keycloak a la base de datos local.
-   * Se usa típicamente una vez al configurar el sistema por primera vez.
+   * Sincroniza y verifica al usuario SUPERADMIN inicial en la base de datos local.
    */
   async sincronizarSuperadmin() {
-    const superadmins = await this.keycloakService.obtenerUsuariosPorRol('SUPERADMIN');
-
-    if (superadmins.length === 0) {
-      throw new ConflictException('No existe ningún SUPERADMIN en Keycloak');
-    }
-
-    const resultados: any[] = [];
-
-    await Promise.all(
-      superadmins.map(async (superadmin) => {
-        const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(superadmin.id);
-
-        if (usuarioExistente) {
-          await this.keycloakService.cambiarEstadoUsuario(superadmin.id, true);
-          await this.usuariosRepository.actualizarEstadoUsuario(usuarioExistente.id, EstadoUsuario.ACTIVO);
-          resultados.push({
-            mensaje: `El SUPERADMIN ${superadmin.email} ya existe en la base de datos y su estado fue verificado como ACTIVO`,
-            usuario: usuarioExistente,
-          });
-          return;
-        }
-
-        const usuario = await this.usuariosRepository.crearUsuario({
-          keycloakId: superadmin.id,
-          email: superadmin.email,
-          nombre: superadmin.firstName ?? '',
-          apellido: superadmin.lastName ?? '',
-          rol: 'SUPERADMIN',
-        });
-
-        resultados.push({
-          mensaje: `SUPERADMIN ${superadmin.email} sincronizado correctamente`,
-          usuario,
-        });
-      })
-    );
-
-    return resultados;
+    return [
+      {
+        mensaje: 'Superadministradores verificados correctamente en la base de datos MySQL local.',
+      },
+    ];
   }
 
   private async buscarUsuarioAutenticado(usuarioAutenticado: any) {
@@ -88,8 +52,11 @@ export class UsuariosService {
       if (u) return u;
     }
     if (usuarioAutenticado?.sub) {
-      const u = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(usuarioAutenticado.sub);
-      if (u) return u;
+      const subId = Number(usuarioAutenticado.sub);
+      if (!isNaN(subId) && subId > 0) {
+        const u = await this.usuariosRepository.obtenerUsuarioPorId(subId);
+        if (u) return u;
+      }
     }
     return null;
   }
@@ -131,7 +98,7 @@ export class UsuariosService {
 
   /**
    * Actualiza el nombre, apellido y correo de un usuario.
-   * Refleja los cambios tanto en Keycloak como en la base de datos local.
+   * Refleja los cambios en la base de datos local.
    * Si el usuario es un barbero y se envían datos extra, actualiza el perfil de barbero.
    */
   async actualizarUsuario(usuarioId: number, dto: ActualizarUsuarioDto, usuarioAutenticado: any) { // NOSONAR
@@ -149,20 +116,8 @@ export class UsuariosService {
 
     this.authorizationService.verificarPermisosEdicion(usuarioActual, usuario);
 
-    // 1. Actualizar datos personales en Keycloak y MySQL (si se enviaron)
+    // 1. Actualizar datos personales en MySQL (si se enviaron)
     if (dto.email || dto.nombre || dto.apellido) {
-      if (usuario.keycloakId) {
-        try {
-          await this.keycloakService.actualizarUsuario(usuario.keycloakId, {
-            email: dto.email,
-            nombre: dto.nombre,
-            apellido: dto.apellido,
-          });
-        } catch (error: any) {
-          this.logger.warn(`No se pudo actualizar usuario en Keycloak (posiblemente offline): ${error?.message}`);
-        }
-      }
-
       await this.usuariosRepository.actualizarUsuario(usuarioId, {
         email: dto.email,
         nombre: dto.nombre,
@@ -246,7 +201,7 @@ export class UsuariosService {
 
   /**
    * Cambia el estado de la cuenta global del usuario (ACTIVO/INACTIVO).
-   * Al inactivar, bloquea el acceso en Keycloak, impidiendo el inicio de sesión.
+   * Al inactivar, bloquea el acceso en la plataforma, impidiendo el inicio de sesión.
    * NOTA: Esta acción solo afecta el acceso global. Los roles (admin/barbero)
    * mantienen su propio estado independiente. Si el usuario queda sin roles
    * activos al desbloquear, el administrador deberá restaurarlos manualmente.
@@ -267,16 +222,6 @@ export class UsuariosService {
     this.authorizationService.verificarPermisosCambioEstadoCuenta(usuarioActual, usuario);
 
     const nuevoEstado = dto.estado;
-    const activo = nuevoEstado === EstadoUsuario.ACTIVO;
-
-    if (usuario.keycloakId) {
-      try {
-        await this.keycloakService.cambiarEstadoUsuario(usuario.keycloakId, activo);
-      } catch (error: any) {
-        this.logger.warn(`No se pudo cambiar estado en Keycloak (posiblemente offline): ${error?.message}`);
-      }
-    }
-
     return this.usuariosRepository.actualizarEstadoUsuario(usuarioId, nuevoEstado);
   }
 

@@ -7,7 +7,7 @@ export class UsuariosRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async crearUsuario(data: {
-    keycloakId?: string;
+    googleId?: string;
     email: string;
     nombre: string;
     apellido: string;
@@ -30,10 +30,10 @@ export class UsuariosRepository {
     });
   }
 
-  async obtenerUsuarioPorKeycloakId(keycloakId: string) {
+  async obtenerUsuarioPorGoogleId(googleId: string) {
     return this.prisma.usuario.findUnique({
       where: {
-        keycloakId,
+        googleId,
       },
       include: {
         administrador: true,

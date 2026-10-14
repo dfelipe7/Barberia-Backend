@@ -32,7 +32,7 @@ import { CambiarEstadoServicioDto } from '../dto/dto-peticion/cambiar-estado-ser
 import { FiltroServiciosDto } from '../dto/dto-peticion/filtro-servicios.dto';
 import { ServicioResponseDto } from '../dto/dto-respuesta/servicio-response.dto';
 import { Roles } from '../../../auth/roles/roles.decorator';
-import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 
 @ApiTags('servicios')
@@ -49,7 +49,7 @@ export class ServiciosController {
      * Acceso restringido: SUPERADMIN y ADMINISTRADOR.
      */
     @Post()
-    @UseGuards(KeycloakAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('SUPERADMIN', 'ADMINISTRADOR')
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Crear un nuevo servicio con asignación opcional de barberos activos' })
@@ -70,7 +70,7 @@ export class ServiciosController {
      * Acceso restringido: SUPERADMIN y ADMINISTRADOR.
      */
     @Get('gestion')
-    @UseGuards(KeycloakAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('SUPERADMIN', 'ADMINISTRADOR')
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Obtiene todos los servicios para la vista de gestión del panel administrativo con filtros' })
@@ -113,7 +113,7 @@ export class ServiciosController {
      * Disponible para roles autenticados: SUPERADMIN, ADMINISTRADOR y BARBERO.
      */
     @Get(':id')
-    @UseGuards(KeycloakAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Obtener un servicio específico por su ID' })
@@ -130,7 +130,7 @@ export class ServiciosController {
      * Acceso restringido: SUPERADMIN y ADMINISTRADOR.
      */
     @Patch(':id/estado')
-    @UseGuards(KeycloakAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('SUPERADMIN', 'ADMINISTRADOR')
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Cambia el estado (activo/inactivo) de un servicio (Soft Delete)' })
@@ -153,7 +153,7 @@ export class ServiciosController {
      * Acceso restringido: SUPERADMIN y ADMINISTRADOR.
      */
     @Patch(':id')
-    @UseGuards(KeycloakAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('SUPERADMIN', 'ADMINISTRADOR')
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Actualizar los datos o asignaciones de un servicio existente' })
@@ -177,7 +177,7 @@ export class ServiciosController {
      * Acceso restringido: SUPERADMIN y ADMINISTRADOR.
      */
     @Post(':id/foto')
-    @UseGuards(KeycloakAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('SUPERADMIN', 'ADMINISTRADOR')
     @ApiBearerAuth()
     @UseInterceptors(FileInterceptor('foto', crearMulterOptions('servicios')))
@@ -214,7 +214,7 @@ export class ServiciosController {
      * Acceso restringido: SUPERADMIN y ADMINISTRADOR.
      */
     @Delete(':id/foto')
-    @UseGuards(KeycloakAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('SUPERADMIN', 'ADMINISTRADOR')
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Elimina la foto de un servicio' })

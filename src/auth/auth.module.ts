@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
-import { KeycloakService } from './keycloak/keycloak.service';
 import { GoogleAuthService } from './google/google-auth.service';
 import { AuthController } from './auth.controller';
 import { RolesGuard } from './roles/roles.guard';
-import { KeycloakAuthGuard } from './keycloak-auth/keycloak-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -24,17 +23,15 @@ import { KeycloakAuthGuard } from './keycloak-auth/keycloak-auth.guard';
     }),
   ],
   providers: [
-    KeycloakService,
     GoogleAuthService,
     RolesGuard,
-    KeycloakAuthGuard,
+    JwtAuthGuard,
   ],
   controllers: [AuthController],
   exports: [
-    KeycloakService,
     GoogleAuthService,
     RolesGuard,
-    KeycloakAuthGuard,
+    JwtAuthGuard,
     JwtModule,
   ],
 })

@@ -42,7 +42,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       method: request.method,
       ip: request.ip,
       body: request.body, // Opcional, con cuidado en prod
-      user: request.user?.sub, // Si hay usuario de Keycloak
+      user: request.user?.email || request.user?.sub, // Usuario autenticado
       message,
     };
 

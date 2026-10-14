@@ -17,7 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { crearMulterOptions } from '../../../common/config/multer.config';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiOkResponse, ApiBadRequestResponse, ApiForbiddenResponse } from '@nestjs/swagger';
 import { Roles } from '../../../auth/roles/roles.decorator';
-import { KeycloakAuthGuard } from '../../../auth/keycloak-auth/keycloak-auth.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { CrearBarberoDto } from '../dto/dto-peticion/crear-barbero.dto';
 import { ActualizarComisionDto } from '../dto/dto-peticion/actualizar-comision.dto';
@@ -38,7 +38,7 @@ export class BarberosController {
   ) {}
 
   @Post()
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @ApiOperation({ summary: 'Crea un nuevo usuario barbero' })
   @ApiOkResponse({ description: 'Barbero creado exitosamente.' })
@@ -48,7 +48,7 @@ export class BarberosController {
   }
 
   @Get('gestion')
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @ApiOperation({ summary: 'Obtiene la lista de barberos para la vista de gestión con filtros' })
   @ApiOkResponse({ description: 'Lista de barberos obtenida.', type: BarberoGestionDto, isArray: true })
@@ -64,7 +64,7 @@ export class BarberosController {
   }
 
   @Patch(':id/comision')
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @ApiOperation({ summary: 'Actualiza el porcentaje de comisión de un barbero' })
   @ApiOkResponse({ description: 'Comisión actualizada exitosamente.' })
@@ -78,7 +78,7 @@ export class BarberosController {
   }
 
   @Patch(':id/estado')
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @ApiOperation({ summary: 'Cambia el estado (activo/inactivo) de un barbero' })
   @ApiOkResponse({ description: 'Rol de barbero activado o desactivado exitosamente.' })
@@ -92,7 +92,7 @@ export class BarberosController {
   }
 
   @Post('foto')
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
   @UseInterceptors(FileInterceptor('foto', crearMulterOptions('barberos')))
   @ApiOperation({ summary: 'Sube la foto de perfil del barbero autenticado' })
@@ -103,9 +103,11 @@ export class BarberosController {
     if (!file) {
       throw new BadRequestException('Debe seleccionar un archivo de imagen');
     }
-    const usuario = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(
-      request.user.sub,
-    );
+    const usuarioId = request.user?.id ? Number(request.user.id) : null;
+    const usuario = usuarioId
+      ? await this.usuariosRepository.obtenerUsuarioPorId(usuarioId)
+      : await this.usuariosRepository.obtenerUsuarioPorEmail(request.user?.email);
+
     if (!usuario) {
       throw new BadRequestException('Usuario no encontrado');
     }
@@ -113,13 +115,15 @@ export class BarberosController {
   }
 
   @Delete('foto')
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
   @ApiOperation({ summary: 'Elimina la foto de perfil del barbero autenticado' })
   async eliminarMiFoto(@Req() request: any) {
-    const usuario = await this.usuariosRepository.obtenerUsuarioPorKeycloakId(
-      request.user.sub,
-    );
+    const usuarioId = request.user?.id ? Number(request.user.id) : null;
+    const usuario = usuarioId
+      ? await this.usuariosRepository.obtenerUsuarioPorId(usuarioId)
+      : await this.usuariosRepository.obtenerUsuarioPorEmail(request.user?.email);
+
     if (!usuario) {
       throw new BadRequestException('Usuario no encontrado');
     }
@@ -127,7 +131,7 @@ export class BarberosController {
   }
 
   @Post(':id/foto')
-  @UseGuards(KeycloakAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @UseInterceptors(FileInterceptor('foto', crearMulterOptions('barberos')))
   @ApiOperation({ summary: 'Sube la foto de perfil de un barbero específico (Admin)' })
@@ -142,3 +146,4 @@ export class BarberosController {
     return this.barberosService.subirFotoBarbero(Number(id), file, request.user);
   }
 }
+

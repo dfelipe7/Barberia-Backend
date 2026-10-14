@@ -2,16 +2,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AdministradoresService } from './administradores.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
 import { AdministradoresRepository } from '../repository/administradores.repository';
-import { KeycloakService } from '../../../auth/keycloak/keycloak.service';
 import { ConflictException } from '@nestjs/common';
 import { FiltroAdministradoresDto } from '../dto/dto-peticion/filtro-administradores.dto';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
 import { PrismaService } from '../../../prisma/prisma.service';
+
 describe('AdministradoresService', () => {
   let service: AdministradoresService;
   let usuariosRepository: jest.Mocked<UsuariosRepository>;
   let administradoresRepository: jest.Mocked<AdministradoresRepository>;
-  let keycloakService: jest.Mocked<KeycloakService>;
 
   beforeEach(async () => {
     const mockUsuariosRepository = {
@@ -29,34 +28,29 @@ describe('AdministradoresService', () => {
       actualizarEstadoAdministrador: jest.fn(),
     };
 
-    const mockKeycloakService = {
-      crearUsuario: jest.fn(),
-      asignarRol: jest.fn(),
-      quitarRol: jest.fn(),
-      cambiarEstadoUsuario: jest.fn(),
-      eliminarUsuario: jest.fn(),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdministradoresService,
-        { provide: PrismaService, useValue: { $transaction: jest.fn(async (cb) => {
-          const tx = {
-            usuario: { create: jest.fn().mockResolvedValue({ id: 1 }) },
-            administrador: { create: jest.fn().mockResolvedValue({ id: 1 }) },
-          };
-          return cb(tx);
-        }) } },
+        {
+          provide: PrismaService,
+          useValue: {
+            $transaction: jest.fn(async (cb) => {
+              const tx = {
+                usuario: { create: jest.fn().mockResolvedValue({ id: 1 }) },
+                administrador: { create: jest.fn().mockResolvedValue({ id: 1 }) },
+              };
+              return cb(tx);
+            }),
+          },
+        },
         { provide: UsuariosRepository, useValue: mockUsuariosRepository },
         { provide: AdministradoresRepository, useValue: mockAdministradoresRepository },
-        { provide: KeycloakService, useValue: mockKeycloakService },
       ],
     }).compile();
 
     service = module.get<AdministradoresService>(AdministradoresService);
     usuariosRepository = module.get(UsuariosRepository);
     administradoresRepository = module.get(AdministradoresRepository);
-    keycloakService = module.get(KeycloakService);
   });
 
   describe('crearAdministrador', () => {
@@ -65,29 +59,23 @@ describe('AdministradoresService', () => {
       await expect(
         service.crearAdministrador({
           email: 'test@test.com',
-          password: '123',
           nombre: 'Test',
           apellido: 'Admin',
         }),
       ).rejects.toThrow(ConflictException);
     });
 
-    it('debe crear el usuario en Keycloak y MySQL', async () => {
+    it('debe crear el usuario y perfil en MySQL exitosamente', async () => {
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue(null);
-      keycloakService.crearUsuario.mockResolvedValue('keycloak-id');
-      usuariosRepository.crearUsuario.mockResolvedValue({ id: 1 } as any);
-      administradoresRepository.crearAdministrador.mockResolvedValue({ id: 1 } as any);
 
       const result = await service.crearAdministrador({
         email: 'test@test.com',
-        password: '123',
         nombre: 'Test',
         apellido: 'Admin',
       });
 
-      expect(keycloakService.crearUsuario).toHaveBeenCalledWith('test@test.com', '123', 'Test', 'Admin');
-      expect(keycloakService.asignarRol).toHaveBeenCalledWith('keycloak-id', 'ADMINISTRADOR');
       expect(result.mensaje).toContain('creado correctamente');
+      expect(result.administrador).toBeDefined();
     });
   });
 
@@ -100,7 +88,6 @@ describe('AdministradoresService', () => {
     it('debe bloquear la cuenta global si se inactiva y no es barbero activo', async () => {
       const mockUser = {
         id: 1,
-        keycloakId: 'key-1',
         rol: 'ADMINISTRADOR',
         administrador: { estado: 'ACTIVO' },
         barbero: null, // No es barbero
@@ -110,15 +97,13 @@ describe('AdministradoresService', () => {
 
       await service.cambiarEstadoAdministrador(1, 'INACTIVO');
 
-      expect(keycloakService.quitarRol).toHaveBeenCalledWith('key-1', 'ADMINISTRADOR');
-      expect(keycloakService.cambiarEstadoUsuario).toHaveBeenCalledWith('key-1', false); // Bloquea acceso global
+      expect(administradoresRepository.actualizarEstadoAdministrador).toHaveBeenCalledWith(1, 'INACTIVO');
       expect(usuariosRepository.actualizarEstadoUsuario).toHaveBeenCalledWith(1, 'INACTIVO');
     });
 
     it('debe activar un administrador correctamente si no lo era', async () => {
       const mockUser = {
         id: 1,
-        keycloakId: 'key-1',
         rol: 'BARBERO',
         administrador: null,
       };
@@ -128,7 +113,6 @@ describe('AdministradoresService', () => {
 
       await service.cambiarEstadoAdministrador(1, 'ACTIVO');
 
-      expect(keycloakService.asignarRol).toHaveBeenCalledWith('key-1', 'ADMINISTRADOR');
       expect(usuariosRepository.actualizarRol).toHaveBeenCalledWith(1, 'ADMINISTRADOR');
       expect(administradoresRepository.crearAdministrador).toHaveBeenCalledWith({ usuarioId: 1 });
     });
@@ -171,3 +155,4 @@ describe('AdministradoresService', () => {
     });
   });
 });
+

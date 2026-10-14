@@ -13,12 +13,6 @@ export class CrearAdministradorDto {
   @IsNotEmpty()
   email: string;
 
-  @ApiProperty({ example: 'password123', description: 'Contraseña de acceso (opcional si se autentica con Google)', minLength: 8, required: false })
-  @IsOptional()
-  @IsString()
-  @MinLength(8)
-  password?: string;
-
   @ApiProperty({ example: 'Juan', description: 'Nombre del administrador' })
   @IsString()
   @IsNotEmpty()
