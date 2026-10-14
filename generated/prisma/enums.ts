@@ -32,3 +32,35 @@ export const EstadoServicio = {
 } as const
 
 export type EstadoServicio = (typeof EstadoServicio)[keyof typeof EstadoServicio]
+
+
+export const WeekDay = {
+  MONDAY: 'MONDAY',
+  TUESDAY: 'TUESDAY',
+  WEDNESDAY: 'WEDNESDAY',
+  THURSDAY: 'THURSDAY',
+  FRIDAY: 'FRIDAY',
+  SATURDAY: 'SATURDAY',
+  SUNDAY: 'SUNDAY'
+} as const
+
+export type WeekDay = (typeof WeekDay)[keyof typeof WeekDay]
+
+
+export const ScheduleBlockStatus = {
+  ACTIVE: 'ACTIVE',
+  REACTIVATED: 'REACTIVATED',
+  CANCELLED: 'CANCELLED'
+} as const
+
+export type ScheduleBlockStatus = (typeof ScheduleBlockStatus)[keyof typeof ScheduleBlockStatus]
+
+
+export const ScheduleBlockReason = {
+  PERSONAL: 'PERSONAL',
+  MEDICAL: 'MEDICAL',
+  VACATION: 'VACATION',
+  OTHER: 'OTHER'
+} as const
+
+export type ScheduleBlockReason = (typeof ScheduleBlockReason)[keyof typeof ScheduleBlockReason]

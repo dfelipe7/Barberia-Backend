@@ -69,3 +69,26 @@ export type Servicio = Prisma.ServicioModel
  * 
  */
 export type BarberoServicio = Prisma.BarberoServicioModel
+/**
+ * Model BarberWeeklySlot
+ * Cada registro representa una franja de 60 minutos del horario semanal.
+ * La unicidad (barbero, día, hora inicial) ya actúa como índice para consultas
+ * por barbero/semana; no se agrega un índice redundante sobre el prefijo.
+ */
+export type BarberWeeklySlot = Prisma.BarberWeeklySlotModel
+/**
+ * Model BarberScheduleBlock
+ * Periodos de no disponibilidad y bloqueos temporales (HE08-HU-03/HU-05/HU-06).
+ * `date` es fecha de calendario (@db.Date): ver nota de zona horaria más abajo.
+ * `reactivatedBy` guarda el identificador del usuario responsable sin imponer
+ * integridad referencial (decisión alineada con la spec §7.4).
+ */
+export type BarberScheduleBlock = Prisma.BarberScheduleBlockModel
+/**
+ * Model GeneralClosure
+ * Cierre general (HE-08 solo lo consulta; su CRUD no pertenece a este alcance).
+ * `allDay = true` cubre el día completo; con `false`, startTime/endTime son
+ * obligatorios. Esa consistencia condicional se valida en DTO/servicio, no en
+ * Prisma (no es una restricción portable).
+ */
+export type GeneralClosure = Prisma.GeneralClosureModel

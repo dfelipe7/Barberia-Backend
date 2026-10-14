@@ -56,7 +56,10 @@ export const ModelName = {
   Barbero: 'Barbero',
   Cliente: 'Cliente',
   Servicio: 'Servicio',
-  BarberoServicio: 'BarberoServicio'
+  BarberoServicio: 'BarberoServicio',
+  BarberWeeklySlot: 'BarberWeeklySlot',
+  BarberScheduleBlock: 'BarberScheduleBlock',
+  GeneralClosure: 'GeneralClosure'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -143,6 +146,53 @@ export const BarberoServicioScalarFieldEnum = {
 export type BarberoServicioScalarFieldEnum = (typeof BarberoServicioScalarFieldEnum)[keyof typeof BarberoServicioScalarFieldEnum]
 
 
+export const BarberWeeklySlotScalarFieldEnum = {
+  id: 'id',
+  barberoId: 'barberoId',
+  dayOfWeek: 'dayOfWeek',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  active: 'active',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type BarberWeeklySlotScalarFieldEnum = (typeof BarberWeeklySlotScalarFieldEnum)[keyof typeof BarberWeeklySlotScalarFieldEnum]
+
+
+export const BarberScheduleBlockScalarFieldEnum = {
+  id: 'id',
+  barberoId: 'barberoId',
+  date: 'date',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  reason: 'reason',
+  notes: 'notes',
+  status: 'status',
+  reactivatedAt: 'reactivatedAt',
+  reactivatedBy: 'reactivatedBy',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type BarberScheduleBlockScalarFieldEnum = (typeof BarberScheduleBlockScalarFieldEnum)[keyof typeof BarberScheduleBlockScalarFieldEnum]
+
+
+export const GeneralClosureScalarFieldEnum = {
+  id: 'id',
+  date: 'date',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  allDay: 'allDay',
+  reason: 'reason',
+  active: 'active',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type GeneralClosureScalarFieldEnum = (typeof GeneralClosureScalarFieldEnum)[keyof typeof GeneralClosureScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -193,4 +243,30 @@ export const ServicioOrderByRelevanceFieldEnum = {
 } as const
 
 export type ServicioOrderByRelevanceFieldEnum = (typeof ServicioOrderByRelevanceFieldEnum)[keyof typeof ServicioOrderByRelevanceFieldEnum]
+
+
+export const BarberWeeklySlotOrderByRelevanceFieldEnum = {
+  startTime: 'startTime',
+  endTime: 'endTime'
+} as const
+
+export type BarberWeeklySlotOrderByRelevanceFieldEnum = (typeof BarberWeeklySlotOrderByRelevanceFieldEnum)[keyof typeof BarberWeeklySlotOrderByRelevanceFieldEnum]
+
+
+export const BarberScheduleBlockOrderByRelevanceFieldEnum = {
+  startTime: 'startTime',
+  endTime: 'endTime',
+  notes: 'notes'
+} as const
+
+export type BarberScheduleBlockOrderByRelevanceFieldEnum = (typeof BarberScheduleBlockOrderByRelevanceFieldEnum)[keyof typeof BarberScheduleBlockOrderByRelevanceFieldEnum]
+
+
+export const GeneralClosureOrderByRelevanceFieldEnum = {
+  startTime: 'startTime',
+  endTime: 'endTime',
+  reason: 'reason'
+} as const
+
+export type GeneralClosureOrderByRelevanceFieldEnum = (typeof GeneralClosureOrderByRelevanceFieldEnum)[keyof typeof GeneralClosureOrderByRelevanceFieldEnum]
 
