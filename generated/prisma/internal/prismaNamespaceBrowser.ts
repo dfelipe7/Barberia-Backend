@@ -59,7 +59,8 @@ export const ModelName = {
   BarberoServicio: 'BarberoServicio',
   BarberWeeklySlot: 'BarberWeeklySlot',
   BarberScheduleBlock: 'BarberScheduleBlock',
-  GeneralClosure: 'GeneralClosure'
+  GeneralClosure: 'GeneralClosure',
+  Reservation: 'Reservation'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -193,6 +194,22 @@ export const GeneralClosureScalarFieldEnum = {
 export type GeneralClosureScalarFieldEnum = (typeof GeneralClosureScalarFieldEnum)[keyof typeof GeneralClosureScalarFieldEnum]
 
 
+export const ReservationScalarFieldEnum = {
+  id: 'id',
+  barberoId: 'barberoId',
+  date: 'date',
+  dayOfWeek: 'dayOfWeek',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  slotActivo: 'slotActivo'
+} as const
+
+export type ReservationScalarFieldEnum = (typeof ReservationScalarFieldEnum)[keyof typeof ReservationScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -269,4 +286,12 @@ export const GeneralClosureOrderByRelevanceFieldEnum = {
 } as const
 
 export type GeneralClosureOrderByRelevanceFieldEnum = (typeof GeneralClosureOrderByRelevanceFieldEnum)[keyof typeof GeneralClosureOrderByRelevanceFieldEnum]
+
+
+export const ReservationOrderByRelevanceFieldEnum = {
+  startTime: 'startTime',
+  endTime: 'endTime'
+} as const
+
+export type ReservationOrderByRelevanceFieldEnum = (typeof ReservationOrderByRelevanceFieldEnum)[keyof typeof ReservationOrderByRelevanceFieldEnum]
 

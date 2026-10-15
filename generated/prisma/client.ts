@@ -92,3 +92,22 @@ export type BarberScheduleBlock = Prisma.BarberScheduleBlockModel
  * Prisma (no es una restricción portable).
  */
 export type GeneralClosure = Prisma.GeneralClosureModel
+/**
+ * Model Reservation
+ * Una fila por reserva. Sin borrado físico: se cambia de estado, igual que
+ * `BarberScheduleBlock`, para conservar historial y permitir re-reservar la
+ * misma franja tras cancelar.
+ * 
+ * Alcance aprobado (delta mínimo): solo los campos necesarios para que HE-08
+ * detecte ocupación de franja. `clienteId`, `servicioId`, `precioReservado`,
+ * descuento e idempotencia quedan fuera hasta resolver D-01/D-02/D-03/D-07/D-08.
+ * 
+ * Concurrencia (D-17): la tabla incluye una columna generada `slotActivo`
+ * (`1` si el estado ocupa, `NULL` si `CANCELLED`) y un índice UNIQUE
+ * `(barberoId, date, startTime, slotActivo)`. Al ser `NULL` distinto de `NULL`
+ * en un índice único de MySQL/MariaDB, pueden coexistir varias reservas
+ * canceladas por franja, pero solo una activa; esto habilita la re-reserva.
+ * `slotActivo` NO se declara aquí porque Prisma no expresa columnas generadas:
+ * se crea en la migración SQL. Prisma Client funciona con o sin ella.
+ */
+export type Reservation = Prisma.ReservationModel

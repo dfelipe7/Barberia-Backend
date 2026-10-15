@@ -64,3 +64,14 @@ export const ScheduleBlockReason = {
 } as const
 
 export type ScheduleBlockReason = (typeof ScheduleBlockReason)[keyof typeof ScheduleBlockReason]
+
+
+export const ReservationStatus = {
+  PENDING: 'PENDING',
+  CONFIRMED: 'CONFIRMED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED'
+} as const
+
+export type ReservationStatus = (typeof ReservationStatus)[keyof typeof ReservationStatus]
