@@ -117,7 +117,8 @@ export const ClienteScalarFieldEnum = {
   id: 'id',
   nombre: 'nombre',
   apellido: 'apellido',
-  telefono: 'telefono'
+  telefono: 'telefono',
+  usuarioId: 'usuarioId'
 } as const
 
 export type ClienteScalarFieldEnum = (typeof ClienteScalarFieldEnum)[keyof typeof ClienteScalarFieldEnum]
@@ -197,6 +198,8 @@ export type GeneralClosureScalarFieldEnum = (typeof GeneralClosureScalarFieldEnu
 export const ReservationScalarFieldEnum = {
   id: 'id',
   barberoId: 'barberoId',
+  servicioId: 'servicioId',
+  clienteId: 'clienteId',
   date: 'date',
   dayOfWeek: 'dayOfWeek',
   startTime: 'startTime',

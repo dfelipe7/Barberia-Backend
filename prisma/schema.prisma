@@ -29,6 +29,7 @@ model Usuario {
 
   administrador Administrador?
   barbero       Barbero?
+  cliente       Cliente?
 }
 
 model Administrador {
@@ -55,11 +56,23 @@ model Barbero {
   reservations Reservation[]
 }
 
+/// Persona que reserva. Unifica cliente invitado y cliente autenticado (D-01/D-02):
+/// - Invitado: `usuarioId = NULL` y contacto directo (`nombre` obligatorio; D-02
+///   exige como mínimo nombre y número de contacto, por eso `apellido`/`telefono`
+///   son opcionales en el modelo, aunque el flujo de invitado valide el teléfono).
+/// - Autenticado: `usuarioId` apunta al `Usuario` autenticado (vínculo opcional y
+///   único) para no duplicar clientes al reservar con Google. No se vincula por
+///   coincidencias no verificadas de nombre/teléfono.
+/// `onDelete: SetNull`: borrar un usuario no elimina el historial de reservas.
 model Cliente {
-  id       Int    @id @default(autoincrement())
-  nombre   String
-  apellido String
-  telefono String
+  id        Int     @id @default(autoincrement())
+  nombre    String
+  apellido  String?
+  telefono  String?
+  usuarioId Int?    @unique
+
+  usuario      Usuario?      @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  reservations Reservation[]
 }
 
 enum EstadoServicio {
@@ -78,6 +91,7 @@ model Servicio {
   creadoEn        DateTime       @default(now())
   actualizadoEn   DateTime       @updatedAt
   barberos        BarberoServicio[] // <--- Conexión con la tabla intermedia
+  reservations    Reservation[]
 }
 
 // Tabla intermedia explícita para la relación muchos a muchos
@@ -202,9 +216,11 @@ enum ReservationStatus {
 /// `BarberScheduleBlock`, para conservar historial y permitir re-reservar la
 /// misma franja tras cancelar.
 ///
-/// Alcance aprobado (delta mínimo): solo los campos necesarios para que HE-08
-/// detecte ocupación de franja. `clienteId`, `servicioId`, `precioReservado`,
-/// descuento e idempotencia quedan fuera hasta resolver D-01/D-02/D-03/D-07/D-08.
+/// Alcance: campos suficientes para crear/asignar una reserva (HU-04) y para que
+/// HE-08 detecte ocupación de franja. `precioReservado`, descuento e idempotencia
+/// quedan fuera hasta resolver D-07/D-08 (no se inventan snapshots). El precio y
+/// la duración vigentes se resuelven en el servicio desde `Servicio`, no se
+/// confían al cliente.
 ///
 /// Concurrencia (D-17): la tabla incluye una columna generada `slotActivo`
 /// (`1` si el estado ocupa, `NULL` si `CANCELLED`) y un índice UNIQUE
@@ -214,15 +230,17 @@ enum ReservationStatus {
 /// `slotActivo` NO se declara aquí porque Prisma no expresa columnas generadas:
 /// se crea en la migración SQL. Prisma Client funciona con o sin ella.
 model Reservation {
-  id        Int               @id @default(autoincrement())
-  barberoId Int
-  date      DateTime          @db.Date // fecha de calendario (America/Bogota)
-  dayOfWeek WeekDay           // derivada de `date`; denormalizada para la consulta semanal
-  startTime String            @db.VarChar(5) // HH:mm
-  endTime   String            @db.VarChar(5) // HH:mm
-  status    ReservationStatus @default(PENDING)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  id         Int               @id @default(autoincrement())
+  barberoId  Int
+  servicioId Int
+  clienteId  Int
+  date       DateTime          @db.Date // fecha de calendario (America/Bogota)
+  dayOfWeek  WeekDay           // derivada de `date`; denormalizada para la consulta semanal
+  startTime  String            @db.VarChar(5) // HH:mm
+  endTime    String            @db.VarChar(5) // HH:mm
+  status     ReservationStatus @default(PENDING)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
 
   // Columna generada a nivel de base de datos: `1` si el estado ocupa la
   // franja, `NULL` si `CANCELLED` (ver migración). Se declara como `@db.TinyInt`
@@ -230,12 +248,17 @@ model Reservation {
   // expresión generada solo exista en SQL. Prisma Client la expone como lectura.
   slotActivo Int? @db.TinyInt
 
-  barbero Barbero @relation(fields: [barberoId], references: [id], onDelete: Restrict)
+  barbero  Barbero  @relation(fields: [barberoId], references: [id], onDelete: Restrict)
+  servicio Servicio @relation(fields: [servicioId], references: [id], onDelete: Restrict)
+  cliente  Cliente  @relation(fields: [clienteId], references: [id], onDelete: Restrict)
 
   // Consulta de ocupación por fecha concreta (método 1 del puerto HE-08).
   @@index([barberoId, date, status])
   // Consulta de ocupación recurrente sin fecha (método 2 del puerto HE-08).
   @@index([barberoId, dayOfWeek, status])
+  // Enlaces de la reserva: servicios y reservas propias de un cliente.
+  @@index([servicioId])
+  @@index([clienteId])
   // Unicidad de franja ocupada: `slotActivo` es NULL para estados no ocupantes,
   // y NULL no colisiona en MySQL/MariaDB, de modo que varias reservas canceladas
   // coexisten y solo una activa por franja (re-reserva tras CANCELLED).

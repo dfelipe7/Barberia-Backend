@@ -234,6 +234,7 @@ export type UsuarioWhereInput = {
   estado?: Prisma.EnumEstadoUsuarioFilter<"Usuario"> | $Enums.EstadoUsuario
   administrador?: Prisma.XOR<Prisma.AdministradorNullableScalarRelationFilter, Prisma.AdministradorWhereInput> | null
   barbero?: Prisma.XOR<Prisma.BarberoNullableScalarRelationFilter, Prisma.BarberoWhereInput> | null
+  cliente?: Prisma.XOR<Prisma.ClienteNullableScalarRelationFilter, Prisma.ClienteWhereInput> | null
 }
 
 export type UsuarioOrderByWithRelationInput = {
@@ -246,6 +247,7 @@ export type UsuarioOrderByWithRelationInput = {
   estado?: Prisma.SortOrder
   administrador?: Prisma.AdministradorOrderByWithRelationInput
   barbero?: Prisma.BarberoOrderByWithRelationInput
+  cliente?: Prisma.ClienteOrderByWithRelationInput
   _relevance?: Prisma.UsuarioOrderByRelevanceInput
 }
 
@@ -262,6 +264,7 @@ export type UsuarioWhereUniqueInput = Prisma.AtLeast<{
   estado?: Prisma.EnumEstadoUsuarioFilter<"Usuario"> | $Enums.EstadoUsuario
   administrador?: Prisma.XOR<Prisma.AdministradorNullableScalarRelationFilter, Prisma.AdministradorWhereInput> | null
   barbero?: Prisma.XOR<Prisma.BarberoNullableScalarRelationFilter, Prisma.BarberoWhereInput> | null
+  cliente?: Prisma.XOR<Prisma.ClienteNullableScalarRelationFilter, Prisma.ClienteWhereInput> | null
 }, "id" | "googleId" | "email">
 
 export type UsuarioOrderByWithAggregationInput = {
@@ -301,6 +304,7 @@ export type UsuarioCreateInput = {
   estado?: $Enums.EstadoUsuario
   administrador?: Prisma.AdministradorCreateNestedOneWithoutUsuarioInput
   barbero?: Prisma.BarberoCreateNestedOneWithoutUsuarioInput
+  cliente?: Prisma.ClienteCreateNestedOneWithoutUsuarioInput
 }
 
 export type UsuarioUncheckedCreateInput = {
@@ -313,6 +317,7 @@ export type UsuarioUncheckedCreateInput = {
   estado?: $Enums.EstadoUsuario
   administrador?: Prisma.AdministradorUncheckedCreateNestedOneWithoutUsuarioInput
   barbero?: Prisma.BarberoUncheckedCreateNestedOneWithoutUsuarioInput
+  cliente?: Prisma.ClienteUncheckedCreateNestedOneWithoutUsuarioInput
 }
 
 export type UsuarioUpdateInput = {
@@ -324,6 +329,7 @@ export type UsuarioUpdateInput = {
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
   administrador?: Prisma.AdministradorUpdateOneWithoutUsuarioNestedInput
   barbero?: Prisma.BarberoUpdateOneWithoutUsuarioNestedInput
+  cliente?: Prisma.ClienteUpdateOneWithoutUsuarioNestedInput
 }
 
 export type UsuarioUncheckedUpdateInput = {
@@ -336,6 +342,7 @@ export type UsuarioUncheckedUpdateInput = {
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
   administrador?: Prisma.AdministradorUncheckedUpdateOneWithoutUsuarioNestedInput
   barbero?: Prisma.BarberoUncheckedUpdateOneWithoutUsuarioNestedInput
+  cliente?: Prisma.ClienteUncheckedUpdateOneWithoutUsuarioNestedInput
 }
 
 export type UsuarioCreateManyInput = {
@@ -416,6 +423,11 @@ export type UsuarioScalarRelationFilter = {
   isNot?: Prisma.UsuarioWhereInput
 }
 
+export type UsuarioNullableScalarRelationFilter = {
+  is?: Prisma.UsuarioWhereInput | null
+  isNot?: Prisma.UsuarioWhereInput | null
+}
+
 export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
 }
@@ -468,6 +480,22 @@ export type UsuarioUpdateOneRequiredWithoutBarberoNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UsuarioUpdateToOneWithWhereWithoutBarberoInput, Prisma.UsuarioUpdateWithoutBarberoInput>, Prisma.UsuarioUncheckedUpdateWithoutBarberoInput>
 }
 
+export type UsuarioCreateNestedOneWithoutClienteInput = {
+  create?: Prisma.XOR<Prisma.UsuarioCreateWithoutClienteInput, Prisma.UsuarioUncheckedCreateWithoutClienteInput>
+  connectOrCreate?: Prisma.UsuarioCreateOrConnectWithoutClienteInput
+  connect?: Prisma.UsuarioWhereUniqueInput
+}
+
+export type UsuarioUpdateOneWithoutClienteNestedInput = {
+  create?: Prisma.XOR<Prisma.UsuarioCreateWithoutClienteInput, Prisma.UsuarioUncheckedCreateWithoutClienteInput>
+  connectOrCreate?: Prisma.UsuarioCreateOrConnectWithoutClienteInput
+  upsert?: Prisma.UsuarioUpsertWithoutClienteInput
+  disconnect?: Prisma.UsuarioWhereInput | boolean
+  delete?: Prisma.UsuarioWhereInput | boolean
+  connect?: Prisma.UsuarioWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UsuarioUpdateToOneWithWhereWithoutClienteInput, Prisma.UsuarioUpdateWithoutClienteInput>, Prisma.UsuarioUncheckedUpdateWithoutClienteInput>
+}
+
 export type UsuarioCreateWithoutAdministradorInput = {
   googleId?: string | null
   email: string
@@ -476,6 +504,7 @@ export type UsuarioCreateWithoutAdministradorInput = {
   rol: $Enums.RolUsuario
   estado?: $Enums.EstadoUsuario
   barbero?: Prisma.BarberoCreateNestedOneWithoutUsuarioInput
+  cliente?: Prisma.ClienteCreateNestedOneWithoutUsuarioInput
 }
 
 export type UsuarioUncheckedCreateWithoutAdministradorInput = {
@@ -487,6 +516,7 @@ export type UsuarioUncheckedCreateWithoutAdministradorInput = {
   rol: $Enums.RolUsuario
   estado?: $Enums.EstadoUsuario
   barbero?: Prisma.BarberoUncheckedCreateNestedOneWithoutUsuarioInput
+  cliente?: Prisma.ClienteUncheckedCreateNestedOneWithoutUsuarioInput
 }
 
 export type UsuarioCreateOrConnectWithoutAdministradorInput = {
@@ -513,6 +543,7 @@ export type UsuarioUpdateWithoutAdministradorInput = {
   rol?: Prisma.EnumRolUsuarioFieldUpdateOperationsInput | $Enums.RolUsuario
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
   barbero?: Prisma.BarberoUpdateOneWithoutUsuarioNestedInput
+  cliente?: Prisma.ClienteUpdateOneWithoutUsuarioNestedInput
 }
 
 export type UsuarioUncheckedUpdateWithoutAdministradorInput = {
@@ -524,6 +555,7 @@ export type UsuarioUncheckedUpdateWithoutAdministradorInput = {
   rol?: Prisma.EnumRolUsuarioFieldUpdateOperationsInput | $Enums.RolUsuario
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
   barbero?: Prisma.BarberoUncheckedUpdateOneWithoutUsuarioNestedInput
+  cliente?: Prisma.ClienteUncheckedUpdateOneWithoutUsuarioNestedInput
 }
 
 export type UsuarioCreateWithoutBarberoInput = {
@@ -534,6 +566,7 @@ export type UsuarioCreateWithoutBarberoInput = {
   rol: $Enums.RolUsuario
   estado?: $Enums.EstadoUsuario
   administrador?: Prisma.AdministradorCreateNestedOneWithoutUsuarioInput
+  cliente?: Prisma.ClienteCreateNestedOneWithoutUsuarioInput
 }
 
 export type UsuarioUncheckedCreateWithoutBarberoInput = {
@@ -545,6 +578,7 @@ export type UsuarioUncheckedCreateWithoutBarberoInput = {
   rol: $Enums.RolUsuario
   estado?: $Enums.EstadoUsuario
   administrador?: Prisma.AdministradorUncheckedCreateNestedOneWithoutUsuarioInput
+  cliente?: Prisma.ClienteUncheckedCreateNestedOneWithoutUsuarioInput
 }
 
 export type UsuarioCreateOrConnectWithoutBarberoInput = {
@@ -571,6 +605,7 @@ export type UsuarioUpdateWithoutBarberoInput = {
   rol?: Prisma.EnumRolUsuarioFieldUpdateOperationsInput | $Enums.RolUsuario
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
   administrador?: Prisma.AdministradorUpdateOneWithoutUsuarioNestedInput
+  cliente?: Prisma.ClienteUpdateOneWithoutUsuarioNestedInput
 }
 
 export type UsuarioUncheckedUpdateWithoutBarberoInput = {
@@ -582,6 +617,69 @@ export type UsuarioUncheckedUpdateWithoutBarberoInput = {
   rol?: Prisma.EnumRolUsuarioFieldUpdateOperationsInput | $Enums.RolUsuario
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
   administrador?: Prisma.AdministradorUncheckedUpdateOneWithoutUsuarioNestedInput
+  cliente?: Prisma.ClienteUncheckedUpdateOneWithoutUsuarioNestedInput
+}
+
+export type UsuarioCreateWithoutClienteInput = {
+  googleId?: string | null
+  email: string
+  nombre: string
+  apellido: string
+  rol: $Enums.RolUsuario
+  estado?: $Enums.EstadoUsuario
+  administrador?: Prisma.AdministradorCreateNestedOneWithoutUsuarioInput
+  barbero?: Prisma.BarberoCreateNestedOneWithoutUsuarioInput
+}
+
+export type UsuarioUncheckedCreateWithoutClienteInput = {
+  id?: number
+  googleId?: string | null
+  email: string
+  nombre: string
+  apellido: string
+  rol: $Enums.RolUsuario
+  estado?: $Enums.EstadoUsuario
+  administrador?: Prisma.AdministradorUncheckedCreateNestedOneWithoutUsuarioInput
+  barbero?: Prisma.BarberoUncheckedCreateNestedOneWithoutUsuarioInput
+}
+
+export type UsuarioCreateOrConnectWithoutClienteInput = {
+  where: Prisma.UsuarioWhereUniqueInput
+  create: Prisma.XOR<Prisma.UsuarioCreateWithoutClienteInput, Prisma.UsuarioUncheckedCreateWithoutClienteInput>
+}
+
+export type UsuarioUpsertWithoutClienteInput = {
+  update: Prisma.XOR<Prisma.UsuarioUpdateWithoutClienteInput, Prisma.UsuarioUncheckedUpdateWithoutClienteInput>
+  create: Prisma.XOR<Prisma.UsuarioCreateWithoutClienteInput, Prisma.UsuarioUncheckedCreateWithoutClienteInput>
+  where?: Prisma.UsuarioWhereInput
+}
+
+export type UsuarioUpdateToOneWithWhereWithoutClienteInput = {
+  where?: Prisma.UsuarioWhereInput
+  data: Prisma.XOR<Prisma.UsuarioUpdateWithoutClienteInput, Prisma.UsuarioUncheckedUpdateWithoutClienteInput>
+}
+
+export type UsuarioUpdateWithoutClienteInput = {
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.StringFieldUpdateOperationsInput | string
+  rol?: Prisma.EnumRolUsuarioFieldUpdateOperationsInput | $Enums.RolUsuario
+  estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  administrador?: Prisma.AdministradorUpdateOneWithoutUsuarioNestedInput
+  barbero?: Prisma.BarberoUpdateOneWithoutUsuarioNestedInput
+}
+
+export type UsuarioUncheckedUpdateWithoutClienteInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.StringFieldUpdateOperationsInput | string
+  rol?: Prisma.EnumRolUsuarioFieldUpdateOperationsInput | $Enums.RolUsuario
+  estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  administrador?: Prisma.AdministradorUncheckedUpdateOneWithoutUsuarioNestedInput
+  barbero?: Prisma.BarberoUncheckedUpdateOneWithoutUsuarioNestedInput
 }
 
 
@@ -596,6 +694,7 @@ export type UsuarioSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   estado?: boolean
   administrador?: boolean | Prisma.Usuario$administradorArgs<ExtArgs>
   barbero?: boolean | Prisma.Usuario$barberoArgs<ExtArgs>
+  cliente?: boolean | Prisma.Usuario$clienteArgs<ExtArgs>
 }, ExtArgs["result"]["usuario"]>
 
 
@@ -614,6 +713,7 @@ export type UsuarioOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
 export type UsuarioInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   administrador?: boolean | Prisma.Usuario$administradorArgs<ExtArgs>
   barbero?: boolean | Prisma.Usuario$barberoArgs<ExtArgs>
+  cliente?: boolean | Prisma.Usuario$clienteArgs<ExtArgs>
 }
 
 export type $UsuarioPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -621,6 +721,7 @@ export type $UsuarioPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
   objects: {
     administrador: Prisma.$AdministradorPayload<ExtArgs> | null
     barbero: Prisma.$BarberoPayload<ExtArgs> | null
+    cliente: Prisma.$ClientePayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
@@ -972,6 +1073,7 @@ export interface Prisma__UsuarioClient<T, Null = never, ExtArgs extends runtime.
   readonly [Symbol.toStringTag]: "PrismaPromise"
   administrador<T extends Prisma.Usuario$administradorArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Usuario$administradorArgs<ExtArgs>>): Prisma.Prisma__AdministradorClient<runtime.Types.Result.GetResult<Prisma.$AdministradorPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   barbero<T extends Prisma.Usuario$barberoArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Usuario$barberoArgs<ExtArgs>>): Prisma.Prisma__BarberoClient<runtime.Types.Result.GetResult<Prisma.$BarberoPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  cliente<T extends Prisma.Usuario$clienteArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Usuario$clienteArgs<ExtArgs>>): Prisma.Prisma__ClienteClient<runtime.Types.Result.GetResult<Prisma.$ClientePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1391,6 +1493,25 @@ export type Usuario$barberoArgs<ExtArgs extends runtime.Types.Extensions.Interna
    */
   include?: Prisma.BarberoInclude<ExtArgs> | null
   where?: Prisma.BarberoWhereInput
+}
+
+/**
+ * Usuario.cliente
+ */
+export type Usuario$clienteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Cliente
+   */
+  select?: Prisma.ClienteSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Cliente
+   */
+  omit?: Prisma.ClienteOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ClienteInclude<ExtArgs> | null
+  where?: Prisma.ClienteWhereInput
 }
 
 /**

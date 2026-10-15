@@ -34,7 +34,14 @@ export type Administrador = Prisma.AdministradorModel
 export type Barbero = Prisma.BarberoModel
 /**
  * Model Cliente
- * 
+ * Persona que reserva. Unifica cliente invitado y cliente autenticado (D-01/D-02):
+ * - Invitado: `usuarioId = NULL` y contacto directo (`nombre` obligatorio; D-02
+ * exige como mínimo nombre y número de contacto, por eso `apellido`/`telefono`
+ * son opcionales en el modelo, aunque el flujo de invitado valide el teléfono).
+ * - Autenticado: `usuarioId` apunta al `Usuario` autenticado (vínculo opcional y
+ * único) para no duplicar clientes al reservar con Google. No se vincula por
+ * coincidencias no verificadas de nombre/teléfono.
+ * `onDelete: SetNull`: borrar un usuario no elimina el historial de reservas.
  */
 export type Cliente = Prisma.ClienteModel
 /**
@@ -76,9 +83,11 @@ export type GeneralClosure = Prisma.GeneralClosureModel
  * `BarberScheduleBlock`, para conservar historial y permitir re-reservar la
  * misma franja tras cancelar.
  * 
- * Alcance aprobado (delta mínimo): solo los campos necesarios para que HE-08
- * detecte ocupación de franja. `clienteId`, `servicioId`, `precioReservado`,
- * descuento e idempotencia quedan fuera hasta resolver D-01/D-02/D-03/D-07/D-08.
+ * Alcance: campos suficientes para crear/asignar una reserva (HU-04) y para que
+ * HE-08 detecte ocupación de franja. `precioReservado`, descuento e idempotencia
+ * quedan fuera hasta resolver D-07/D-08 (no se inventan snapshots). El precio y
+ * la duración vigentes se resuelven en el servicio desde `Servicio`, no se
+ * confían al cliente.
  * 
  * Concurrencia (D-17): la tabla incluye una columna generada `slotActivo`
  * (`1` si el estado ocupa, `NULL` si `CANCELLED`) y un índice UNIQUE

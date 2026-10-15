@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import {
   ESTADOS_QUE_OCUPAN_AGENDA,
   ReservasRepository,
+  esErrorReintentableTransaccion,
 } from './reservas.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
 
@@ -175,9 +176,10 @@ describe('ReservasRepository', () => {
   });
 
   describe('crearConBloqueo', () => {
-    it('debe bloquear la fila del barbero con FOR UPDATE y crear en la misma transacción', async () => {
+    it('debe bloquear la fila del barbero y crear la reserva sobre un cliente existente', async () => {
       const txMock = {
         $queryRaw: jest.fn().mockResolvedValue([{ id: 3 }]),
+        cliente: { create: jest.fn() },
         reservation: { create: jest.fn().mockResolvedValue({ id: 99 }) },
       };
       mockPrismaService.$transaction.mockImplementation(
@@ -186,10 +188,12 @@ describe('ReservasRepository', () => {
 
       const resultado = await repository.crearConBloqueo({
         barberoId: 3,
+        servicioId: 2,
         date: fecha,
         dayOfWeek: WeekDay.MONDAY,
         startTime: '09:00',
         endTime: '10:00',
+        cliente: { clienteId: 55 },
       });
 
       expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
@@ -199,9 +203,12 @@ describe('ReservasRepository', () => {
       expect(sql).toContain('FOR UPDATE');
       expect(sql).toContain('Barbero');
       expect(llamadas[0][1]).toBe(3);
+      expect(txMock.cliente.create).not.toHaveBeenCalled();
       expect(txMock.reservation.create).toHaveBeenCalledWith({
         data: {
           barberoId: 3,
+          servicioId: 2,
+          clienteId: 55,
           date: fecha,
           dayOfWeek: WeekDay.MONDAY,
           startTime: '09:00',
@@ -210,6 +217,138 @@ describe('ReservasRepository', () => {
         },
       });
       expect(resultado).toEqual({ id: 99 });
+    });
+
+    it('debe crear el cliente dentro de la misma transacción cuando no existe', async () => {
+      const txMock = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: 3 }]),
+        cliente: {
+          create: jest.fn().mockResolvedValue({ id: 77 }),
+        },
+        reservation: { create: jest.fn().mockResolvedValue({ id: 100 }) },
+      };
+      mockPrismaService.$transaction.mockImplementation(
+        async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock),
+      );
+
+      await repository.crearConBloqueo({
+        barberoId: 3,
+        servicioId: 2,
+        date: fecha,
+        dayOfWeek: WeekDay.MONDAY,
+        startTime: '09:00',
+        endTime: '10:00',
+        cliente: {
+          crear: { nombre: 'Ana', telefono: '3001234567' },
+        },
+      });
+
+      expect(txMock.cliente.create).toHaveBeenCalledWith({
+        data: {
+          nombre: 'Ana',
+          apellido: null,
+          telefono: '3001234567',
+          usuarioId: null,
+        },
+      });
+      expect(txMock.reservation.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ clienteId: 77, servicioId: 2 }),
+      });
+    });
+
+    it('debe reintentar ante un deadlock transitorio y no reintentar ante P2002', async () => {
+      const deadlock = Object.assign(new Error('deadlock'), { code: 'P2034' });
+      const unicidad = Object.assign(new Error('dup'), { code: 'P2002' });
+
+      mockPrismaService.$transaction
+        .mockRejectedValueOnce(deadlock)
+        .mockResolvedValueOnce({ id: 1 });
+
+      const resultado = await repository.crearConBloqueo({
+        barberoId: 3,
+        servicioId: 2,
+        date: fecha,
+        dayOfWeek: WeekDay.MONDAY,
+        startTime: '09:00',
+        endTime: '10:00',
+        cliente: { clienteId: 55 },
+      });
+
+      expect(resultado).toEqual({ id: 1 });
+      expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(2);
+
+      mockPrismaService.$transaction.mockReset();
+      mockPrismaService.$transaction.mockRejectedValue(unicidad);
+
+      await expect(
+        repository.crearConBloqueo({
+          barberoId: 3,
+          servicioId: 2,
+          date: fecha,
+          dayOfWeek: WeekDay.MONDAY,
+          startTime: '09:00',
+          endTime: '10:00',
+          cliente: { clienteId: 55 },
+        }),
+      ).rejects.toMatchObject({ code: 'P2002' });
+      expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('esErrorReintentableTransaccion', () => {
+    it('debe reconocer deadlock/timeout y rechazar la violación de unicidad', () => {
+      expect(
+        esErrorReintentableTransaccion({ code: 'P2034' }),
+      ).toBe(true);
+      expect(esErrorReintentableTransaccion({ errno: 1213 })).toBe(true);
+      expect(esErrorReintentableTransaccion({ errno: 1205 })).toBe(true);
+      expect(esErrorReintentableTransaccion({ code: 'P2002' })).toBe(false);
+      expect(esErrorReintentableTransaccion(new Error('x'))).toBe(false);
+    });
+  });
+
+  describe('existeReservaActivaDeClienteEnFranja', () => {
+    it('debe filtrar por cliente, barbero, fecha, hora y estados que ocupan', async () => {
+      mockPrismaService.reservation.findFirst.mockResolvedValue({ id: 12 });
+
+      const resultado = await repository.existeReservaActivaDeClienteEnFranja({
+        clienteId: 55,
+        barberoId: 3,
+        fecha,
+        startTime: '09:00',
+      });
+
+      expect(resultado).toBe(true);
+      expect(mockPrismaService.reservation.findFirst).toHaveBeenCalledWith({
+        where: {
+          clienteId: 55,
+          barberoId: 3,
+          date: fecha,
+          startTime: '09:00',
+          status: {
+            in: [
+              ReservationStatus.PENDING,
+              ReservationStatus.CONFIRMED,
+              ReservationStatus.IN_PROGRESS,
+              ReservationStatus.COMPLETED,
+            ],
+          },
+        },
+        select: { id: true },
+      });
+    });
+
+    it('debe devolver false cuando el cliente no tiene reserva en la franja', async () => {
+      mockPrismaService.reservation.findFirst.mockResolvedValue(null);
+
+      const resultado = await repository.existeReservaActivaDeClienteEnFranja({
+        clienteId: 55,
+        barberoId: 3,
+        fecha,
+        startTime: '09:00',
+      });
+
+      expect(resultado).toBe(false);
     });
   });
 

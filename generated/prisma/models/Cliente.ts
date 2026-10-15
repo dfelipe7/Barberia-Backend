@@ -14,7 +14,14 @@ import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model Cliente
- * 
+ * Persona que reserva. Unifica cliente invitado y cliente autenticado (D-01/D-02):
+ * - Invitado: `usuarioId = NULL` y contacto directo (`nombre` obligatorio; D-02
+ * exige como mínimo nombre y número de contacto, por eso `apellido`/`telefono`
+ * son opcionales en el modelo, aunque el flujo de invitado valide el teléfono).
+ * - Autenticado: `usuarioId` apunta al `Usuario` autenticado (vínculo opcional y
+ * único) para no duplicar clientes al reservar con Google. No se vincula por
+ * coincidencias no verificadas de nombre/teléfono.
+ * `onDelete: SetNull`: borrar un usuario no elimina el historial de reservas.
  */
 export type ClienteModel = runtime.Types.Result.DefaultSelection<Prisma.$ClientePayload>
 
@@ -28,10 +35,12 @@ export type AggregateCliente = {
 
 export type ClienteAvgAggregateOutputType = {
   id: number | null
+  usuarioId: number | null
 }
 
 export type ClienteSumAggregateOutputType = {
   id: number | null
+  usuarioId: number | null
 }
 
 export type ClienteMinAggregateOutputType = {
@@ -39,6 +48,7 @@ export type ClienteMinAggregateOutputType = {
   nombre: string | null
   apellido: string | null
   telefono: string | null
+  usuarioId: number | null
 }
 
 export type ClienteMaxAggregateOutputType = {
@@ -46,6 +56,7 @@ export type ClienteMaxAggregateOutputType = {
   nombre: string | null
   apellido: string | null
   telefono: string | null
+  usuarioId: number | null
 }
 
 export type ClienteCountAggregateOutputType = {
@@ -53,16 +64,19 @@ export type ClienteCountAggregateOutputType = {
   nombre: number
   apellido: number
   telefono: number
+  usuarioId: number
   _all: number
 }
 
 
 export type ClienteAvgAggregateInputType = {
   id?: true
+  usuarioId?: true
 }
 
 export type ClienteSumAggregateInputType = {
   id?: true
+  usuarioId?: true
 }
 
 export type ClienteMinAggregateInputType = {
@@ -70,6 +84,7 @@ export type ClienteMinAggregateInputType = {
   nombre?: true
   apellido?: true
   telefono?: true
+  usuarioId?: true
 }
 
 export type ClienteMaxAggregateInputType = {
@@ -77,6 +92,7 @@ export type ClienteMaxAggregateInputType = {
   nombre?: true
   apellido?: true
   telefono?: true
+  usuarioId?: true
 }
 
 export type ClienteCountAggregateInputType = {
@@ -84,6 +100,7 @@ export type ClienteCountAggregateInputType = {
   nombre?: true
   apellido?: true
   telefono?: true
+  usuarioId?: true
   _all?: true
 }
 
@@ -176,8 +193,9 @@ export type ClienteGroupByArgs<ExtArgs extends runtime.Types.Extensions.Internal
 export type ClienteGroupByOutputType = {
   id: number
   nombre: string
-  apellido: string
-  telefono: string
+  apellido: string | null
+  telefono: string | null
+  usuarioId: number | null
   _count: ClienteCountAggregateOutputType | null
   _avg: ClienteAvgAggregateOutputType | null
   _sum: ClienteSumAggregateOutputType | null
@@ -206,33 +224,43 @@ export type ClienteWhereInput = {
   NOT?: Prisma.ClienteWhereInput | Prisma.ClienteWhereInput[]
   id?: Prisma.IntFilter<"Cliente"> | number
   nombre?: Prisma.StringFilter<"Cliente"> | string
-  apellido?: Prisma.StringFilter<"Cliente"> | string
-  telefono?: Prisma.StringFilter<"Cliente"> | string
+  apellido?: Prisma.StringNullableFilter<"Cliente"> | string | null
+  telefono?: Prisma.StringNullableFilter<"Cliente"> | string | null
+  usuarioId?: Prisma.IntNullableFilter<"Cliente"> | number | null
+  usuario?: Prisma.XOR<Prisma.UsuarioNullableScalarRelationFilter, Prisma.UsuarioWhereInput> | null
+  reservations?: Prisma.ReservationListRelationFilter
 }
 
 export type ClienteOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   nombre?: Prisma.SortOrder
-  apellido?: Prisma.SortOrder
-  telefono?: Prisma.SortOrder
+  apellido?: Prisma.SortOrderInput | Prisma.SortOrder
+  telefono?: Prisma.SortOrderInput | Prisma.SortOrder
+  usuarioId?: Prisma.SortOrderInput | Prisma.SortOrder
+  usuario?: Prisma.UsuarioOrderByWithRelationInput
+  reservations?: Prisma.ReservationOrderByRelationAggregateInput
   _relevance?: Prisma.ClienteOrderByRelevanceInput
 }
 
 export type ClienteWhereUniqueInput = Prisma.AtLeast<{
   id?: number
+  usuarioId?: number
   AND?: Prisma.ClienteWhereInput | Prisma.ClienteWhereInput[]
   OR?: Prisma.ClienteWhereInput[]
   NOT?: Prisma.ClienteWhereInput | Prisma.ClienteWhereInput[]
   nombre?: Prisma.StringFilter<"Cliente"> | string
-  apellido?: Prisma.StringFilter<"Cliente"> | string
-  telefono?: Prisma.StringFilter<"Cliente"> | string
-}, "id">
+  apellido?: Prisma.StringNullableFilter<"Cliente"> | string | null
+  telefono?: Prisma.StringNullableFilter<"Cliente"> | string | null
+  usuario?: Prisma.XOR<Prisma.UsuarioNullableScalarRelationFilter, Prisma.UsuarioWhereInput> | null
+  reservations?: Prisma.ReservationListRelationFilter
+}, "id" | "usuarioId">
 
 export type ClienteOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   nombre?: Prisma.SortOrder
-  apellido?: Prisma.SortOrder
-  telefono?: Prisma.SortOrder
+  apellido?: Prisma.SortOrderInput | Prisma.SortOrder
+  telefono?: Prisma.SortOrderInput | Prisma.SortOrder
+  usuarioId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.ClienteCountOrderByAggregateInput
   _avg?: Prisma.ClienteAvgOrderByAggregateInput
   _max?: Prisma.ClienteMaxOrderByAggregateInput
@@ -246,54 +274,70 @@ export type ClienteScalarWhereWithAggregatesInput = {
   NOT?: Prisma.ClienteScalarWhereWithAggregatesInput | Prisma.ClienteScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"Cliente"> | number
   nombre?: Prisma.StringWithAggregatesFilter<"Cliente"> | string
-  apellido?: Prisma.StringWithAggregatesFilter<"Cliente"> | string
-  telefono?: Prisma.StringWithAggregatesFilter<"Cliente"> | string
+  apellido?: Prisma.StringNullableWithAggregatesFilter<"Cliente"> | string | null
+  telefono?: Prisma.StringNullableWithAggregatesFilter<"Cliente"> | string | null
+  usuarioId?: Prisma.IntNullableWithAggregatesFilter<"Cliente"> | number | null
 }
 
 export type ClienteCreateInput = {
   nombre: string
-  apellido: string
-  telefono: string
+  apellido?: string | null
+  telefono?: string | null
+  usuario?: Prisma.UsuarioCreateNestedOneWithoutClienteInput
+  reservations?: Prisma.ReservationCreateNestedManyWithoutClienteInput
 }
 
 export type ClienteUncheckedCreateInput = {
   id?: number
   nombre: string
-  apellido: string
-  telefono: string
+  apellido?: string | null
+  telefono?: string | null
+  usuarioId?: number | null
+  reservations?: Prisma.ReservationUncheckedCreateNestedManyWithoutClienteInput
 }
 
 export type ClienteUpdateInput = {
   nombre?: Prisma.StringFieldUpdateOperationsInput | string
-  apellido?: Prisma.StringFieldUpdateOperationsInput | string
-  telefono?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  usuario?: Prisma.UsuarioUpdateOneWithoutClienteNestedInput
+  reservations?: Prisma.ReservationUpdateManyWithoutClienteNestedInput
 }
 
 export type ClienteUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   nombre?: Prisma.StringFieldUpdateOperationsInput | string
-  apellido?: Prisma.StringFieldUpdateOperationsInput | string
-  telefono?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  usuarioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reservations?: Prisma.ReservationUncheckedUpdateManyWithoutClienteNestedInput
 }
 
 export type ClienteCreateManyInput = {
   id?: number
   nombre: string
-  apellido: string
-  telefono: string
+  apellido?: string | null
+  telefono?: string | null
+  usuarioId?: number | null
 }
 
 export type ClienteUpdateManyMutationInput = {
   nombre?: Prisma.StringFieldUpdateOperationsInput | string
-  apellido?: Prisma.StringFieldUpdateOperationsInput | string
-  telefono?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ClienteUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   nombre?: Prisma.StringFieldUpdateOperationsInput | string
-  apellido?: Prisma.StringFieldUpdateOperationsInput | string
-  telefono?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  usuarioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+}
+
+export type ClienteNullableScalarRelationFilter = {
+  is?: Prisma.ClienteWhereInput | null
+  isNot?: Prisma.ClienteWhereInput | null
 }
 
 export type ClienteOrderByRelevanceInput = {
@@ -307,10 +351,12 @@ export type ClienteCountOrderByAggregateInput = {
   nombre?: Prisma.SortOrder
   apellido?: Prisma.SortOrder
   telefono?: Prisma.SortOrder
+  usuarioId?: Prisma.SortOrder
 }
 
 export type ClienteAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  usuarioId?: Prisma.SortOrder
 }
 
 export type ClienteMaxOrderByAggregateInput = {
@@ -318,6 +364,7 @@ export type ClienteMaxOrderByAggregateInput = {
   nombre?: Prisma.SortOrder
   apellido?: Prisma.SortOrder
   telefono?: Prisma.SortOrder
+  usuarioId?: Prisma.SortOrder
 }
 
 export type ClienteMinOrderByAggregateInput = {
@@ -325,12 +372,194 @@ export type ClienteMinOrderByAggregateInput = {
   nombre?: Prisma.SortOrder
   apellido?: Prisma.SortOrder
   telefono?: Prisma.SortOrder
+  usuarioId?: Prisma.SortOrder
 }
 
 export type ClienteSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  usuarioId?: Prisma.SortOrder
 }
 
+export type ClienteScalarRelationFilter = {
+  is?: Prisma.ClienteWhereInput
+  isNot?: Prisma.ClienteWhereInput
+}
+
+export type ClienteCreateNestedOneWithoutUsuarioInput = {
+  create?: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput>
+  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutUsuarioInput
+  connect?: Prisma.ClienteWhereUniqueInput
+}
+
+export type ClienteUncheckedCreateNestedOneWithoutUsuarioInput = {
+  create?: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput>
+  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutUsuarioInput
+  connect?: Prisma.ClienteWhereUniqueInput
+}
+
+export type ClienteUpdateOneWithoutUsuarioNestedInput = {
+  create?: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput>
+  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutUsuarioInput
+  upsert?: Prisma.ClienteUpsertWithoutUsuarioInput
+  disconnect?: Prisma.ClienteWhereInput | boolean
+  delete?: Prisma.ClienteWhereInput | boolean
+  connect?: Prisma.ClienteWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ClienteUpdateToOneWithWhereWithoutUsuarioInput, Prisma.ClienteUpdateWithoutUsuarioInput>, Prisma.ClienteUncheckedUpdateWithoutUsuarioInput>
+}
+
+export type ClienteUncheckedUpdateOneWithoutUsuarioNestedInput = {
+  create?: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput>
+  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutUsuarioInput
+  upsert?: Prisma.ClienteUpsertWithoutUsuarioInput
+  disconnect?: Prisma.ClienteWhereInput | boolean
+  delete?: Prisma.ClienteWhereInput | boolean
+  connect?: Prisma.ClienteWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ClienteUpdateToOneWithWhereWithoutUsuarioInput, Prisma.ClienteUpdateWithoutUsuarioInput>, Prisma.ClienteUncheckedUpdateWithoutUsuarioInput>
+}
+
+export type NullableIntFieldUpdateOperationsInput = {
+  set?: number | null
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
+export type ClienteCreateNestedOneWithoutReservationsInput = {
+  create?: Prisma.XOR<Prisma.ClienteCreateWithoutReservationsInput, Prisma.ClienteUncheckedCreateWithoutReservationsInput>
+  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutReservationsInput
+  connect?: Prisma.ClienteWhereUniqueInput
+}
+
+export type ClienteUpdateOneRequiredWithoutReservationsNestedInput = {
+  create?: Prisma.XOR<Prisma.ClienteCreateWithoutReservationsInput, Prisma.ClienteUncheckedCreateWithoutReservationsInput>
+  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutReservationsInput
+  upsert?: Prisma.ClienteUpsertWithoutReservationsInput
+  connect?: Prisma.ClienteWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ClienteUpdateToOneWithWhereWithoutReservationsInput, Prisma.ClienteUpdateWithoutReservationsInput>, Prisma.ClienteUncheckedUpdateWithoutReservationsInput>
+}
+
+export type ClienteCreateWithoutUsuarioInput = {
+  nombre: string
+  apellido?: string | null
+  telefono?: string | null
+  reservations?: Prisma.ReservationCreateNestedManyWithoutClienteInput
+}
+
+export type ClienteUncheckedCreateWithoutUsuarioInput = {
+  id?: number
+  nombre: string
+  apellido?: string | null
+  telefono?: string | null
+  reservations?: Prisma.ReservationUncheckedCreateNestedManyWithoutClienteInput
+}
+
+export type ClienteCreateOrConnectWithoutUsuarioInput = {
+  where: Prisma.ClienteWhereUniqueInput
+  create: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput>
+}
+
+export type ClienteUpsertWithoutUsuarioInput = {
+  update: Prisma.XOR<Prisma.ClienteUpdateWithoutUsuarioInput, Prisma.ClienteUncheckedUpdateWithoutUsuarioInput>
+  create: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput>
+  where?: Prisma.ClienteWhereInput
+}
+
+export type ClienteUpdateToOneWithWhereWithoutUsuarioInput = {
+  where?: Prisma.ClienteWhereInput
+  data: Prisma.XOR<Prisma.ClienteUpdateWithoutUsuarioInput, Prisma.ClienteUncheckedUpdateWithoutUsuarioInput>
+}
+
+export type ClienteUpdateWithoutUsuarioInput = {
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reservations?: Prisma.ReservationUpdateManyWithoutClienteNestedInput
+}
+
+export type ClienteUncheckedUpdateWithoutUsuarioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reservations?: Prisma.ReservationUncheckedUpdateManyWithoutClienteNestedInput
+}
+
+export type ClienteCreateWithoutReservationsInput = {
+  nombre: string
+  apellido?: string | null
+  telefono?: string | null
+  usuario?: Prisma.UsuarioCreateNestedOneWithoutClienteInput
+}
+
+export type ClienteUncheckedCreateWithoutReservationsInput = {
+  id?: number
+  nombre: string
+  apellido?: string | null
+  telefono?: string | null
+  usuarioId?: number | null
+}
+
+export type ClienteCreateOrConnectWithoutReservationsInput = {
+  where: Prisma.ClienteWhereUniqueInput
+  create: Prisma.XOR<Prisma.ClienteCreateWithoutReservationsInput, Prisma.ClienteUncheckedCreateWithoutReservationsInput>
+}
+
+export type ClienteUpsertWithoutReservationsInput = {
+  update: Prisma.XOR<Prisma.ClienteUpdateWithoutReservationsInput, Prisma.ClienteUncheckedUpdateWithoutReservationsInput>
+  create: Prisma.XOR<Prisma.ClienteCreateWithoutReservationsInput, Prisma.ClienteUncheckedCreateWithoutReservationsInput>
+  where?: Prisma.ClienteWhereInput
+}
+
+export type ClienteUpdateToOneWithWhereWithoutReservationsInput = {
+  where?: Prisma.ClienteWhereInput
+  data: Prisma.XOR<Prisma.ClienteUpdateWithoutReservationsInput, Prisma.ClienteUncheckedUpdateWithoutReservationsInput>
+}
+
+export type ClienteUpdateWithoutReservationsInput = {
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  usuario?: Prisma.UsuarioUpdateOneWithoutClienteNestedInput
+}
+
+export type ClienteUncheckedUpdateWithoutReservationsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  usuarioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+}
+
+
+/**
+ * Count Type ClienteCountOutputType
+ */
+
+export type ClienteCountOutputType = {
+  reservations: number
+}
+
+export type ClienteCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  reservations?: boolean | ClienteCountOutputTypeCountReservationsArgs
+}
+
+/**
+ * ClienteCountOutputType without action
+ */
+export type ClienteCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ClienteCountOutputType
+   */
+  select?: Prisma.ClienteCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * ClienteCountOutputType without action
+ */
+export type ClienteCountOutputTypeCountReservationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ReservationWhereInput
+}
 
 
 export type ClienteSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -338,6 +567,10 @@ export type ClienteSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   nombre?: boolean
   apellido?: boolean
   telefono?: boolean
+  usuarioId?: boolean
+  usuario?: boolean | Prisma.Cliente$usuarioArgs<ExtArgs>
+  reservations?: boolean | Prisma.Cliente$reservationsArgs<ExtArgs>
+  _count?: boolean | Prisma.ClienteCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["cliente"]>
 
 
@@ -347,18 +580,28 @@ export type ClienteSelectScalar = {
   nombre?: boolean
   apellido?: boolean
   telefono?: boolean
+  usuarioId?: boolean
 }
 
-export type ClienteOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "nombre" | "apellido" | "telefono", ExtArgs["result"]["cliente"]>
+export type ClienteOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "nombre" | "apellido" | "telefono" | "usuarioId", ExtArgs["result"]["cliente"]>
+export type ClienteInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  usuario?: boolean | Prisma.Cliente$usuarioArgs<ExtArgs>
+  reservations?: boolean | Prisma.Cliente$reservationsArgs<ExtArgs>
+  _count?: boolean | Prisma.ClienteCountOutputTypeDefaultArgs<ExtArgs>
+}
 
 export type $ClientePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Cliente"
-  objects: {}
+  objects: {
+    usuario: Prisma.$UsuarioPayload<ExtArgs> | null
+    reservations: Prisma.$ReservationPayload<ExtArgs>[]
+  }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
     nombre: string
-    apellido: string
-    telefono: string
+    apellido: string | null
+    telefono: string | null
+    usuarioId: number | null
   }, ExtArgs["result"]["cliente"]>
   composites: {}
 }
@@ -699,6 +942,8 @@ readonly fields: ClienteFieldRefs;
  */
 export interface Prisma__ClienteClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  usuario<T extends Prisma.Cliente$usuarioArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Cliente$usuarioArgs<ExtArgs>>): Prisma.Prisma__UsuarioClient<runtime.Types.Result.GetResult<Prisma.$UsuarioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  reservations<T extends Prisma.Cliente$reservationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Cliente$reservationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ReservationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -732,6 +977,7 @@ export interface ClienteFieldRefs {
   readonly nombre: Prisma.FieldRef<"Cliente", 'String'>
   readonly apellido: Prisma.FieldRef<"Cliente", 'String'>
   readonly telefono: Prisma.FieldRef<"Cliente", 'String'>
+  readonly usuarioId: Prisma.FieldRef<"Cliente", 'Int'>
 }
     
 
@@ -748,6 +994,10 @@ export type ClienteFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Omit specific fields from the Cliente
    */
   omit?: Prisma.ClienteOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ClienteInclude<ExtArgs> | null
   /**
    * Filter, which Cliente to fetch.
    */
@@ -767,6 +1017,10 @@ export type ClienteFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extension
    */
   omit?: Prisma.ClienteOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ClienteInclude<ExtArgs> | null
+  /**
    * Filter, which Cliente to fetch.
    */
   where: Prisma.ClienteWhereUniqueInput
@@ -784,6 +1038,10 @@ export type ClienteFindFirstArgs<ExtArgs extends runtime.Types.Extensions.Intern
    * Omit specific fields from the Cliente
    */
   omit?: Prisma.ClienteOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ClienteInclude<ExtArgs> | null
   /**
    * Filter, which Cliente to fetch.
    */
@@ -833,6 +1091,10 @@ export type ClienteFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions
    */
   omit?: Prisma.ClienteOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ClienteInclude<ExtArgs> | null
+  /**
    * Filter, which Cliente to fetch.
    */
   where?: Prisma.ClienteWhereInput
@@ -880,6 +1142,10 @@ export type ClienteFindManyArgs<ExtArgs extends runtime.Types.Extensions.Interna
    * Omit specific fields from the Cliente
    */
   omit?: Prisma.ClienteOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ClienteInclude<ExtArgs> | null
   /**
    * Filter, which Clientes to fetch.
    */
@@ -929,6 +1195,10 @@ export type ClienteCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalA
    */
   omit?: Prisma.ClienteOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ClienteInclude<ExtArgs> | null
+  /**
    * The data needed to create a Cliente.
    */
   data: Prisma.XOR<Prisma.ClienteCreateInput, Prisma.ClienteUncheckedCreateInput>
@@ -957,6 +1227,10 @@ export type ClienteUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalA
    * Omit specific fields from the Cliente
    */
   omit?: Prisma.ClienteOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ClienteInclude<ExtArgs> | null
   /**
    * The data needed to update a Cliente.
    */
@@ -998,6 +1272,10 @@ export type ClienteUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalA
    */
   omit?: Prisma.ClienteOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ClienteInclude<ExtArgs> | null
+  /**
    * The filter to search for the Cliente to update in case it exists.
    */
   where: Prisma.ClienteWhereUniqueInput
@@ -1024,6 +1302,10 @@ export type ClienteDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalA
    */
   omit?: Prisma.ClienteOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ClienteInclude<ExtArgs> | null
+  /**
    * Filter which Cliente to delete.
    */
   where: Prisma.ClienteWhereUniqueInput
@@ -1044,6 +1326,49 @@ export type ClienteDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
 }
 
 /**
+ * Cliente.usuario
+ */
+export type Cliente$usuarioArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Usuario
+   */
+  select?: Prisma.UsuarioSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Usuario
+   */
+  omit?: Prisma.UsuarioOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UsuarioInclude<ExtArgs> | null
+  where?: Prisma.UsuarioWhereInput
+}
+
+/**
+ * Cliente.reservations
+ */
+export type Cliente$reservationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Reservation
+   */
+  select?: Prisma.ReservationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Reservation
+   */
+  omit?: Prisma.ReservationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ReservationInclude<ExtArgs> | null
+  where?: Prisma.ReservationWhereInput
+  orderBy?: Prisma.ReservationOrderByWithRelationInput | Prisma.ReservationOrderByWithRelationInput[]
+  cursor?: Prisma.ReservationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ReservationScalarFieldEnum | Prisma.ReservationScalarFieldEnum[]
+}
+
+/**
  * Cliente without action
  */
 export type ClienteDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1055,4 +1380,8 @@ export type ClienteDefaultArgs<ExtArgs extends runtime.Types.Extensions.Internal
    * Omit specific fields from the Cliente
    */
   omit?: Prisma.ClienteOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ClienteInclude<ExtArgs> | null
 }
