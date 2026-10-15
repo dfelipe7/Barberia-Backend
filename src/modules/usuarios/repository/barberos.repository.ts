@@ -64,6 +64,23 @@ export class BarberosRepository {
     });
   }
 
+  /**
+   * Obtiene un barbero por su `Barbero.id`, solo si tanto el perfil de barbero
+   * como la cuenta de usuario están ACTIVOS. Se usa para validar la existencia
+   * del barbero en la consulta pública de disponibilidad.
+   */
+  async obtenerBarberoActivoPorId(barberoId: number) {
+    return this.prisma.barbero.findFirst({
+      where: {
+        id: barberoId,
+        estado: EstadoUsuario.ACTIVO,
+        usuario: {
+          estado: EstadoUsuario.ACTIVO,
+        },
+      },
+    });
+  }
+
   async obtenerBarberosCatalogo(filtro?: { nombre?: string }) {
     const whereCondition: any = {
       estado: EstadoUsuario.ACTIVO,

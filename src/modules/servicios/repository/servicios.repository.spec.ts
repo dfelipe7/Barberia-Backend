@@ -13,8 +13,10 @@ const EstadoServicio = { ACTIVO: 'ACTIVO', INACTIVO: 'INACTIVO' } as const;
 
 const mockPrisma = {
   barbero: { findMany: jest.fn() },
+  barberoServicio: { findUnique: jest.fn() },
   servicio: {
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
@@ -63,6 +65,35 @@ describe('ServiciosRepository', () => {
       const result = await repository.obtenerServicioPorId(1);
       expect(mockPrisma.servicio.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 1 } }));
       expect(result).toEqual({ id: 1 });
+    });
+  });
+
+  describe('obtenerServicioActivoPorId', () => {
+    it('should return an ACTIVO service by id', async () => {
+      mockPrisma.servicio.findFirst.mockResolvedValue({ id: 1 });
+      const result = await repository.obtenerServicioActivoPorId(1);
+      expect(mockPrisma.servicio.findFirst).toHaveBeenCalledWith({
+        where: { id: 1, estado: EstadoServicio.ACTIVO },
+      });
+      expect(result).toEqual({ id: 1 });
+    });
+  });
+
+  describe('existeAsignacionBarbero', () => {
+    it('should return true when the assignment exists', async () => {
+      mockPrisma.barberoServicio.findUnique.mockResolvedValue({ barberoId: 3 });
+      const result = await repository.existeAsignacionBarbero(3, 2);
+      expect(mockPrisma.barberoServicio.findUnique).toHaveBeenCalledWith({
+        where: { barberoId_servicioId: { barberoId: 3, servicioId: 2 } },
+        select: { barberoId: true },
+      });
+      expect(result).toBe(true);
+    });
+
+    it('should return false when the assignment does not exist', async () => {
+      mockPrisma.barberoServicio.findUnique.mockResolvedValue(null);
+      const result = await repository.existeAsignacionBarbero(3, 2);
+      expect(result).toBe(false);
     });
   });
 
