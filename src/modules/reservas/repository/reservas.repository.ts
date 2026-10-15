@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { Prisma } from '../../../../generated/prisma/client';
 import { ReservationStatus, WeekDay } from '../../../../generated/prisma/enums';
 
 /**
@@ -26,6 +27,31 @@ export const ESTADOS_QUE_OCUPAN_AGENDA: readonly ReservationStatus[] = [
 ];
 
 /**
+ * Selección compartida por las consultas del cliente (HU-06/HU-07): la reserva
+ * con el nombre del servicio y el nombre del usuario del barbero. Se excluye
+ * `slotActivo` (detalle interno de concurrencia) y los datos sensibles del
+ * barbero (teléfono, comisión, estado).
+ */
+const SELECCION_RESERVA_CON_RELACIONES = {
+  id: true,
+  barberoId: true,
+  servicioId: true,
+  clienteId: true,
+  date: true,
+  dayOfWeek: true,
+  startTime: true,
+  endTime: true,
+  status: true,
+  precioReservado: true,
+  createdAt: true,
+  updatedAt: true,
+  servicio: { select: { id: true, nombre: true, precio: true } },
+  barbero: {
+    select: { id: true, usuario: { select: { nombre: true, apellido: true } } },
+  },
+} as const;
+
+/**
  * Representación de una reserva desacoplada del modelo Prisma. `slotActivo` es
  * de solo lectura: lo calcula la base de datos (columna generada, ver
  * `prisma/migrations/*_agregar_reservations/migration.sql`).
@@ -40,9 +66,31 @@ export interface ReservaRegistro {
   startTime: string;
   endTime: string;
   status: ReservationStatus;
+  precioReservado: Prisma.Decimal | null;
   slotActivo: number | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * Reserva con las relaciones que necesitan las consultas del cliente
+ * (HU-06/HU-07): servicio (nombre) y barbero (nombre del usuario asociado).
+ */
+export interface ReservaConRelaciones {
+  id: number;
+  barberoId: number;
+  servicioId: number;
+  clienteId: number;
+  date: Date;
+  dayOfWeek: WeekDay;
+  startTime: string;
+  endTime: string;
+  status: ReservationStatus;
+  precioReservado: Prisma.Decimal | null;
+  createdAt: Date;
+  updatedAt: Date;
+  servicio: { id: number; nombre: string; precio: Prisma.Decimal };
+  barbero: { id: number; usuario: { nombre: string; apellido: string } };
 }
 
 export interface ConsultaOcupacionPorFecha {
@@ -85,8 +133,7 @@ export interface CrearClienteDatos {
  * creación para el invitado y para el cliente autenticado.
  */
 export type ClienteDeReserva =
-  | { clienteId: number }
-  | { crear: CrearClienteDatos };
+  { clienteId: number } | { crear: CrearClienteDatos };
 
 export interface CrearReservaDatos {
   barberoId: number;
@@ -96,6 +143,7 @@ export interface CrearReservaDatos {
   startTime: string;
   endTime: string;
   status?: ReservationStatus;
+  precioReservado?: number | null;
   cliente: ClienteDeReserva;
 }
 
@@ -198,6 +246,36 @@ export class ReservasRepository {
   }
 
   /**
+   * Reservas de un cliente con su servicio y barbero, ordenadas cronológicamente
+   * ascendente. La capa de servicio aplica el criterio "próximas primero"
+   * combinando fecha y hora con el instante actual de Bogotá.
+   */
+  async listarReservasDeCliente(
+    clienteId: number,
+  ): Promise<ReservaConRelaciones[]> {
+    return this.prisma.reservation.findMany({
+      where: { clienteId },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      select: SELECCION_RESERVA_CON_RELACIONES,
+    });
+  }
+
+  /**
+   * Reserva concreta de un cliente (filtra por `clienteId`, no solo por id):
+   * devuelve `null` tanto si la reserva no existe como si pertenece a otro
+   * cliente, para no revelar la existencia de reservas ajenas (HU-07).
+   */
+  async obtenerReservaDeCliente(
+    clienteId: number,
+    reservaId: number,
+  ): Promise<ReservaConRelaciones | null> {
+    return this.prisma.reservation.findFirst({
+      where: { id: reservaId, clienteId },
+      select: SELECCION_RESERVA_CON_RELACIONES,
+    });
+  }
+
+  /**
    * Crea una reserva serializando la escritura por barbero con un
    * `SELECT ... FOR UPDATE` sobre la fila de `Barbero`, dentro de una
    * transacción. La transacción por sí sola NO evita el doble booking: la
@@ -244,6 +322,7 @@ export class ReservasRepository {
             startTime: datos.startTime,
             endTime: datos.endTime,
             status: datos.status ?? ReservationStatus.PENDING,
+            precioReservado: datos.precioReservado ?? null,
           },
         });
       }),

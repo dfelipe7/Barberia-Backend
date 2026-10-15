@@ -31,6 +31,7 @@ const mockPrismaService = {
   reservation: {
     findFirst: jest.fn(),
     findUnique: jest.fn(),
+    findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
   },
@@ -214,9 +215,36 @@ describe('ReservasRepository', () => {
           startTime: '09:00',
           endTime: '10:00',
           status: ReservationStatus.PENDING,
+          precioReservado: null,
         },
       });
       expect(resultado).toEqual({ id: 99 });
+    });
+
+    it('debe persistir el precio histórico calculado en el servidor', async () => {
+      const txMock = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: 3 }]),
+        cliente: { create: jest.fn() },
+        reservation: { create: jest.fn().mockResolvedValue({ id: 101 }) },
+      };
+      mockPrismaService.$transaction.mockImplementation(
+        async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock),
+      );
+
+      await repository.crearConBloqueo({
+        barberoId: 3,
+        servicioId: 2,
+        date: fecha,
+        dayOfWeek: WeekDay.MONDAY,
+        startTime: '09:00',
+        endTime: '10:00',
+        precioReservado: 50000,
+        cliente: { clienteId: 55 },
+      });
+
+      expect(txMock.reservation.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ precioReservado: 50000 }),
+      });
     });
 
     it('debe crear el cliente dentro de la misma transacción cuando no existe', async () => {
@@ -297,9 +325,7 @@ describe('ReservasRepository', () => {
 
   describe('esErrorReintentableTransaccion', () => {
     it('debe reconocer deadlock/timeout y rechazar la violación de unicidad', () => {
-      expect(
-        esErrorReintentableTransaccion({ code: 'P2034' }),
-      ).toBe(true);
+      expect(esErrorReintentableTransaccion({ code: 'P2034' })).toBe(true);
       expect(esErrorReintentableTransaccion({ errno: 1213 })).toBe(true);
       expect(esErrorReintentableTransaccion({ errno: 1205 })).toBe(true);
       expect(esErrorReintentableTransaccion({ code: 'P2002' })).toBe(false);
@@ -349,6 +375,45 @@ describe('ReservasRepository', () => {
       });
 
       expect(resultado).toBe(false);
+    });
+  });
+
+  describe('listarReservasDeCliente', () => {
+    it('filtra por cliente y ordena cronológicamente ascendente', async () => {
+      mockPrismaService.reservation.findMany.mockResolvedValue([{ id: 1 }]);
+
+      const resultado = await repository.listarReservasDeCliente(55);
+
+      expect(resultado).toEqual([{ id: 1 }]);
+      expect(mockPrismaService.reservation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { clienteId: 55 },
+          orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+        }),
+      );
+    });
+  });
+
+  describe('obtenerReservaDeCliente', () => {
+    it('filtra por id y clienteId simultáneamente', async () => {
+      mockPrismaService.reservation.findFirst.mockResolvedValue({ id: 42 });
+
+      const resultado = await repository.obtenerReservaDeCliente(55, 42);
+
+      expect(resultado).toEqual({ id: 42 });
+      expect(mockPrismaService.reservation.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 42, clienteId: 55 },
+        }),
+      );
+    });
+
+    it('devuelve null si la reserva no es del cliente', async () => {
+      mockPrismaService.reservation.findFirst.mockResolvedValue(null);
+
+      await expect(
+        repository.obtenerReservaDeCliente(55, 42),
+      ).resolves.toBeNull();
     });
   });
 

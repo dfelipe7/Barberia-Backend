@@ -44,7 +44,7 @@ describe('JwtAuthGuard', () => {
 
   it('debe validar exitosamente un JWT válido y adjuntar request.user', async () => {
     const mockPayload = { id: 1, email: 'test@gmail.com', rol: 'SUPERADMIN' };
-    jwtService.verifyAsync.mockResolvedValue(mockPayload as any);
+    jwtService.verifyAsync.mockResolvedValue(mockPayload);
 
     const context = createMockContext('Bearer token-valido');
     const result = await guard.canActivate(context);
@@ -63,5 +63,18 @@ describe('JwtAuthGuard', () => {
       new UnauthorizedException('Token inválido o expirado'),
     );
   });
-});
 
+  it('debe rechazar un token de CLIENTE aunque su firma sea válida', async () => {
+    jwtService.verifyAsync.mockResolvedValue({
+      clienteId: 7,
+      tipo: 'CLIENTE',
+    });
+
+    const context = createMockContext('Bearer token-cliente');
+    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    const request = context.switchToHttp().getRequest();
+    expect(request.user).toBeUndefined();
+  });
+});

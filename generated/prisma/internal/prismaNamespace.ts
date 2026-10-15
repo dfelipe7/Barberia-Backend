@@ -1164,6 +1164,8 @@ export const ClienteScalarFieldEnum = {
   nombre: 'nombre',
   apellido: 'apellido',
   telefono: 'telefono',
+  googleId: 'googleId',
+  email: 'email',
   usuarioId: 'usuarioId'
 } as const
 
@@ -1251,6 +1253,7 @@ export const ReservationScalarFieldEnum = {
   startTime: 'startTime',
   endTime: 'endTime',
   status: 'status',
+  precioReservado: 'precioReservado',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   slotActivo: 'slotActivo'
@@ -1296,7 +1299,9 @@ export type BarberoOrderByRelevanceFieldEnum = (typeof BarberoOrderByRelevanceFi
 export const ClienteOrderByRelevanceFieldEnum = {
   nombre: 'nombre',
   apellido: 'apellido',
-  telefono: 'telefono'
+  telefono: 'telefono',
+  googleId: 'googleId',
+  email: 'email'
 } as const
 
 export type ClienteOrderByRelevanceFieldEnum = (typeof ClienteOrderByRelevanceFieldEnum)[keyof typeof ClienteOrderByRelevanceFieldEnum]

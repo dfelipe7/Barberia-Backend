@@ -18,9 +18,14 @@ import type * as Prisma from "../internal/prismaNamespace.js"
  * - Invitado: `usuarioId = NULL` y contacto directo (`nombre` obligatorio; D-02
  * exige como mínimo nombre y número de contacto, por eso `apellido`/`telefono`
  * son opcionales en el modelo, aunque el flujo de invitado valide el teléfono).
- * - Autenticado: `usuarioId` apunta al `Usuario` autenticado (vínculo opcional y
- * único) para no duplicar clientes al reservar con Google. No se vincula por
- * coincidencias no verificadas de nombre/teléfono.
+ * - Autenticado con Google (HE-04, Modalidad B): la identidad estable es
+ * `googleId` (el `sub` del ID Token de Google, único cuando existe). El alta es
+ * idempotente por `googleId`, de modo que el mismo cliente no se duplica entre
+ * reservas. `email` se guarda como dato de contacto/consulta, NO como clave de
+ * identidad (no se vincula por coincidencia de correo sin verificación).
+ * - `usuarioId` es un vínculo heredado opcional y único con `Usuario`. La
+ * autenticación de clientes NO depende de él ni crea usuarios de personal; se
+ * conserva por compatibilidad con el historial existente.
  * `onDelete: SetNull`: borrar un usuario no elimina el historial de reservas.
  */
 export type ClienteModel = runtime.Types.Result.DefaultSelection<Prisma.$ClientePayload>
@@ -48,6 +53,8 @@ export type ClienteMinAggregateOutputType = {
   nombre: string | null
   apellido: string | null
   telefono: string | null
+  googleId: string | null
+  email: string | null
   usuarioId: number | null
 }
 
@@ -56,6 +63,8 @@ export type ClienteMaxAggregateOutputType = {
   nombre: string | null
   apellido: string | null
   telefono: string | null
+  googleId: string | null
+  email: string | null
   usuarioId: number | null
 }
 
@@ -64,6 +73,8 @@ export type ClienteCountAggregateOutputType = {
   nombre: number
   apellido: number
   telefono: number
+  googleId: number
+  email: number
   usuarioId: number
   _all: number
 }
@@ -84,6 +95,8 @@ export type ClienteMinAggregateInputType = {
   nombre?: true
   apellido?: true
   telefono?: true
+  googleId?: true
+  email?: true
   usuarioId?: true
 }
 
@@ -92,6 +105,8 @@ export type ClienteMaxAggregateInputType = {
   nombre?: true
   apellido?: true
   telefono?: true
+  googleId?: true
+  email?: true
   usuarioId?: true
 }
 
@@ -100,6 +115,8 @@ export type ClienteCountAggregateInputType = {
   nombre?: true
   apellido?: true
   telefono?: true
+  googleId?: true
+  email?: true
   usuarioId?: true
   _all?: true
 }
@@ -195,6 +212,8 @@ export type ClienteGroupByOutputType = {
   nombre: string
   apellido: string | null
   telefono: string | null
+  googleId: string | null
+  email: string | null
   usuarioId: number | null
   _count: ClienteCountAggregateOutputType | null
   _avg: ClienteAvgAggregateOutputType | null
@@ -226,6 +245,8 @@ export type ClienteWhereInput = {
   nombre?: Prisma.StringFilter<"Cliente"> | string
   apellido?: Prisma.StringNullableFilter<"Cliente"> | string | null
   telefono?: Prisma.StringNullableFilter<"Cliente"> | string | null
+  googleId?: Prisma.StringNullableFilter<"Cliente"> | string | null
+  email?: Prisma.StringNullableFilter<"Cliente"> | string | null
   usuarioId?: Prisma.IntNullableFilter<"Cliente"> | number | null
   usuario?: Prisma.XOR<Prisma.UsuarioNullableScalarRelationFilter, Prisma.UsuarioWhereInput> | null
   reservations?: Prisma.ReservationListRelationFilter
@@ -236,6 +257,8 @@ export type ClienteOrderByWithRelationInput = {
   nombre?: Prisma.SortOrder
   apellido?: Prisma.SortOrderInput | Prisma.SortOrder
   telefono?: Prisma.SortOrderInput | Prisma.SortOrder
+  googleId?: Prisma.SortOrderInput | Prisma.SortOrder
+  email?: Prisma.SortOrderInput | Prisma.SortOrder
   usuarioId?: Prisma.SortOrderInput | Prisma.SortOrder
   usuario?: Prisma.UsuarioOrderByWithRelationInput
   reservations?: Prisma.ReservationOrderByRelationAggregateInput
@@ -244,6 +267,7 @@ export type ClienteOrderByWithRelationInput = {
 
 export type ClienteWhereUniqueInput = Prisma.AtLeast<{
   id?: number
+  googleId?: string
   usuarioId?: number
   AND?: Prisma.ClienteWhereInput | Prisma.ClienteWhereInput[]
   OR?: Prisma.ClienteWhereInput[]
@@ -251,15 +275,18 @@ export type ClienteWhereUniqueInput = Prisma.AtLeast<{
   nombre?: Prisma.StringFilter<"Cliente"> | string
   apellido?: Prisma.StringNullableFilter<"Cliente"> | string | null
   telefono?: Prisma.StringNullableFilter<"Cliente"> | string | null
+  email?: Prisma.StringNullableFilter<"Cliente"> | string | null
   usuario?: Prisma.XOR<Prisma.UsuarioNullableScalarRelationFilter, Prisma.UsuarioWhereInput> | null
   reservations?: Prisma.ReservationListRelationFilter
-}, "id" | "usuarioId">
+}, "id" | "googleId" | "usuarioId">
 
 export type ClienteOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   nombre?: Prisma.SortOrder
   apellido?: Prisma.SortOrderInput | Prisma.SortOrder
   telefono?: Prisma.SortOrderInput | Prisma.SortOrder
+  googleId?: Prisma.SortOrderInput | Prisma.SortOrder
+  email?: Prisma.SortOrderInput | Prisma.SortOrder
   usuarioId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.ClienteCountOrderByAggregateInput
   _avg?: Prisma.ClienteAvgOrderByAggregateInput
@@ -276,6 +303,8 @@ export type ClienteScalarWhereWithAggregatesInput = {
   nombre?: Prisma.StringWithAggregatesFilter<"Cliente"> | string
   apellido?: Prisma.StringNullableWithAggregatesFilter<"Cliente"> | string | null
   telefono?: Prisma.StringNullableWithAggregatesFilter<"Cliente"> | string | null
+  googleId?: Prisma.StringNullableWithAggregatesFilter<"Cliente"> | string | null
+  email?: Prisma.StringNullableWithAggregatesFilter<"Cliente"> | string | null
   usuarioId?: Prisma.IntNullableWithAggregatesFilter<"Cliente"> | number | null
 }
 
@@ -283,6 +312,8 @@ export type ClienteCreateInput = {
   nombre: string
   apellido?: string | null
   telefono?: string | null
+  googleId?: string | null
+  email?: string | null
   usuario?: Prisma.UsuarioCreateNestedOneWithoutClienteInput
   reservations?: Prisma.ReservationCreateNestedManyWithoutClienteInput
 }
@@ -292,6 +323,8 @@ export type ClienteUncheckedCreateInput = {
   nombre: string
   apellido?: string | null
   telefono?: string | null
+  googleId?: string | null
+  email?: string | null
   usuarioId?: number | null
   reservations?: Prisma.ReservationUncheckedCreateNestedManyWithoutClienteInput
 }
@@ -300,6 +333,8 @@ export type ClienteUpdateInput = {
   nombre?: Prisma.StringFieldUpdateOperationsInput | string
   apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   usuario?: Prisma.UsuarioUpdateOneWithoutClienteNestedInput
   reservations?: Prisma.ReservationUpdateManyWithoutClienteNestedInput
 }
@@ -309,6 +344,8 @@ export type ClienteUncheckedUpdateInput = {
   nombre?: Prisma.StringFieldUpdateOperationsInput | string
   apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   usuarioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   reservations?: Prisma.ReservationUncheckedUpdateManyWithoutClienteNestedInput
 }
@@ -318,6 +355,8 @@ export type ClienteCreateManyInput = {
   nombre: string
   apellido?: string | null
   telefono?: string | null
+  googleId?: string | null
+  email?: string | null
   usuarioId?: number | null
 }
 
@@ -325,6 +364,8 @@ export type ClienteUpdateManyMutationInput = {
   nombre?: Prisma.StringFieldUpdateOperationsInput | string
   apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ClienteUncheckedUpdateManyInput = {
@@ -332,6 +373,8 @@ export type ClienteUncheckedUpdateManyInput = {
   nombre?: Prisma.StringFieldUpdateOperationsInput | string
   apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   usuarioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
@@ -351,6 +394,8 @@ export type ClienteCountOrderByAggregateInput = {
   nombre?: Prisma.SortOrder
   apellido?: Prisma.SortOrder
   telefono?: Prisma.SortOrder
+  googleId?: Prisma.SortOrder
+  email?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
 }
 
@@ -364,6 +409,8 @@ export type ClienteMaxOrderByAggregateInput = {
   nombre?: Prisma.SortOrder
   apellido?: Prisma.SortOrder
   telefono?: Prisma.SortOrder
+  googleId?: Prisma.SortOrder
+  email?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
 }
 
@@ -372,6 +419,8 @@ export type ClienteMinOrderByAggregateInput = {
   nombre?: Prisma.SortOrder
   apellido?: Prisma.SortOrder
   telefono?: Prisma.SortOrder
+  googleId?: Prisma.SortOrder
+  email?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
 }
 
@@ -443,6 +492,8 @@ export type ClienteCreateWithoutUsuarioInput = {
   nombre: string
   apellido?: string | null
   telefono?: string | null
+  googleId?: string | null
+  email?: string | null
   reservations?: Prisma.ReservationCreateNestedManyWithoutClienteInput
 }
 
@@ -451,6 +502,8 @@ export type ClienteUncheckedCreateWithoutUsuarioInput = {
   nombre: string
   apellido?: string | null
   telefono?: string | null
+  googleId?: string | null
+  email?: string | null
   reservations?: Prisma.ReservationUncheckedCreateNestedManyWithoutClienteInput
 }
 
@@ -474,6 +527,8 @@ export type ClienteUpdateWithoutUsuarioInput = {
   nombre?: Prisma.StringFieldUpdateOperationsInput | string
   apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   reservations?: Prisma.ReservationUpdateManyWithoutClienteNestedInput
 }
 
@@ -482,6 +537,8 @@ export type ClienteUncheckedUpdateWithoutUsuarioInput = {
   nombre?: Prisma.StringFieldUpdateOperationsInput | string
   apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   reservations?: Prisma.ReservationUncheckedUpdateManyWithoutClienteNestedInput
 }
 
@@ -489,6 +546,8 @@ export type ClienteCreateWithoutReservationsInput = {
   nombre: string
   apellido?: string | null
   telefono?: string | null
+  googleId?: string | null
+  email?: string | null
   usuario?: Prisma.UsuarioCreateNestedOneWithoutClienteInput
 }
 
@@ -497,6 +556,8 @@ export type ClienteUncheckedCreateWithoutReservationsInput = {
   nombre: string
   apellido?: string | null
   telefono?: string | null
+  googleId?: string | null
+  email?: string | null
   usuarioId?: number | null
 }
 
@@ -520,6 +581,8 @@ export type ClienteUpdateWithoutReservationsInput = {
   nombre?: Prisma.StringFieldUpdateOperationsInput | string
   apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   usuario?: Prisma.UsuarioUpdateOneWithoutClienteNestedInput
 }
 
@@ -528,6 +591,8 @@ export type ClienteUncheckedUpdateWithoutReservationsInput = {
   nombre?: Prisma.StringFieldUpdateOperationsInput | string
   apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   usuarioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
@@ -567,6 +632,8 @@ export type ClienteSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   nombre?: boolean
   apellido?: boolean
   telefono?: boolean
+  googleId?: boolean
+  email?: boolean
   usuarioId?: boolean
   usuario?: boolean | Prisma.Cliente$usuarioArgs<ExtArgs>
   reservations?: boolean | Prisma.Cliente$reservationsArgs<ExtArgs>
@@ -580,10 +647,12 @@ export type ClienteSelectScalar = {
   nombre?: boolean
   apellido?: boolean
   telefono?: boolean
+  googleId?: boolean
+  email?: boolean
   usuarioId?: boolean
 }
 
-export type ClienteOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "nombre" | "apellido" | "telefono" | "usuarioId", ExtArgs["result"]["cliente"]>
+export type ClienteOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "nombre" | "apellido" | "telefono" | "googleId" | "email" | "usuarioId", ExtArgs["result"]["cliente"]>
 export type ClienteInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   usuario?: boolean | Prisma.Cliente$usuarioArgs<ExtArgs>
   reservations?: boolean | Prisma.Cliente$reservationsArgs<ExtArgs>
@@ -601,6 +670,8 @@ export type $ClientePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     nombre: string
     apellido: string | null
     telefono: string | null
+    googleId: string | null
+    email: string | null
     usuarioId: number | null
   }, ExtArgs["result"]["cliente"]>
   composites: {}
@@ -977,6 +1048,8 @@ export interface ClienteFieldRefs {
   readonly nombre: Prisma.FieldRef<"Cliente", 'String'>
   readonly apellido: Prisma.FieldRef<"Cliente", 'String'>
   readonly telefono: Prisma.FieldRef<"Cliente", 'String'>
+  readonly googleId: Prisma.FieldRef<"Cliente", 'String'>
+  readonly email: Prisma.FieldRef<"Cliente", 'String'>
   readonly usuarioId: Prisma.FieldRef<"Cliente", 'Int'>
 }
     
