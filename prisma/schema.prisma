@@ -29,6 +29,7 @@ model Usuario {
 
   administrador Administrador?
   barbero       Barbero?
+  cliente       Cliente?
 }
 
 model Administrador {
@@ -50,15 +51,35 @@ model Barbero {
   usuario   Usuario         @relation(fields: [usuarioId], references: [id])
   servicios BarberoServicio[] // <--- Conexión con la tabla intermedia
 
-  weeklySlots BarberWeeklySlot[]
-  blocks      BarberScheduleBlock[]
+  weeklySlots  BarberWeeklySlot[]
+  blocks       BarberScheduleBlock[]
+  reservations Reservation[]
 }
 
+/// Persona que reserva. Unifica cliente invitado y cliente autenticado (D-01/D-02):
+/// - Invitado: `usuarioId = NULL` y contacto directo (`nombre` obligatorio; D-02
+///   exige como mínimo nombre y número de contacto, por eso `apellido`/`telefono`
+///   son opcionales en el modelo, aunque el flujo de invitado valide el teléfono).
+/// - Autenticado con Google (HE-04, Modalidad B): la identidad estable es
+///   `googleId` (el `sub` del ID Token de Google, único cuando existe). El alta es
+///   idempotente por `googleId`, de modo que el mismo cliente no se duplica entre
+///   reservas. `email` se guarda como dato de contacto/consulta, NO como clave de
+///   identidad (no se vincula por coincidencia de correo sin verificación).
+/// - `usuarioId` es un vínculo heredado opcional y único con `Usuario`. La
+///   autenticación de clientes NO depende de él ni crea usuarios de personal; se
+///   conserva por compatibilidad con el historial existente.
+/// `onDelete: SetNull`: borrar un usuario no elimina el historial de reservas.
 model Cliente {
-  id       Int    @id @default(autoincrement())
-  nombre   String
-  apellido String
-  telefono String
+  id        Int     @id @default(autoincrement())
+  nombre    String
+  apellido  String?
+  telefono  String?
+  googleId  String? @unique
+  email     String?
+  usuarioId Int?    @unique
+
+  usuario      Usuario?      @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  reservations Reservation[]
 }
 
 enum EstadoServicio {
@@ -77,6 +98,7 @@ model Servicio {
   creadoEn        DateTime       @default(now())
   actualizadoEn   DateTime       @updatedAt
   barberos        BarberoServicio[] // <--- Conexión con la tabla intermedia
+  reservations    Reservation[]
 }
 
 // Tabla intermedia explícita para la relación muchos a muchos
@@ -179,4 +201,80 @@ model GeneralClosure {
 
   @@index([date, active])
   @@map("general_closures")
+}
+
+// ---------------------------------------------------------------------------
+// HE-04: reservas (subconjunto de persistencia aprobado)
+// ---------------------------------------------------------------------------
+
+/// Ciclo de vida de una reserva. Política de ocupación compartida con HE-08
+/// (ver `src/modules/horarios/ports/proveedor-reservas-activas.port.ts`): todo
+/// estado distinto de `CANCELLED` ocupa la franja; `CANCELLED` la libera.
+/// Los valores definitivos quedan sujetos a D-04 (política de estados con HE-06).
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+/// Una fila por reserva. Sin borrado físico: se cambia de estado, igual que
+/// `BarberScheduleBlock`, para conservar historial y permitir re-reservar la
+/// misma franja tras cancelar.
+///
+/// Alcance: campos suficientes para crear/asignar una reserva (HU-04) y para que
+/// HE-08 detecte ocupación de franja. `precioReservado` conserva el precio del
+/// `Servicio` calculado en el servidor al crear la reserva, para que las
+/// consultas de HU-06/HU-07 no cambien si el catálogo sube de precio después.
+/// Queda `NULL` para reservas anteriores a esta migración (no se inventan
+/// snapshots retroactivos). El descuento y la idempotencia siguen fuera hasta
+/// resolver D-07/D-08. La duración no se persiste: se resuelve del servicio
+/// vigente. El precio y la duración NUNCA se confían al cliente.
+///
+/// Concurrencia (D-17): la tabla incluye una columna generada `slotActivo`
+/// (`1` si el estado ocupa, `NULL` si `CANCELLED`) y un índice UNIQUE
+/// `(barberoId, date, startTime, slotActivo)`. Al ser `NULL` distinto de `NULL`
+/// en un índice único de MySQL/MariaDB, pueden coexistir varias reservas
+/// canceladas por franja, pero solo una activa; esto habilita la re-reserva.
+/// `slotActivo` NO se declara aquí porque Prisma no expresa columnas generadas:
+/// se crea en la migración SQL. Prisma Client funciona con o sin ella.
+model Reservation {
+  id         Int               @id @default(autoincrement())
+  barberoId  Int
+  servicioId Int
+  clienteId  Int
+  date       DateTime          @db.Date // fecha de calendario (America/Bogota)
+  dayOfWeek  WeekDay           // derivada de `date`; denormalizada para la consulta semanal
+  startTime  String            @db.VarChar(5) // HH:mm
+  endTime    String            @db.VarChar(5) // HH:mm
+  status     ReservationStatus @default(PENDING)
+  // Precio del servicio aplicado al crear la reserva (calculado en el servidor).
+  // `NULL` para reservas creadas antes de que existiera esta columna.
+  precioReservado Decimal?     @db.Decimal(10, 2)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  // Columna generada a nivel de base de datos: `1` si el estado ocupa la
+  // franja, `NULL` si `CANCELLED` (ver migración). Se declara como `@db.TinyInt`
+  // para que Prisma conozca la columna y su índice y no genere drift, aunque la
+  // expresión generada solo exista en SQL. Prisma Client la expone como lectura.
+  slotActivo Int? @db.TinyInt
+
+  barbero  Barbero  @relation(fields: [barberoId], references: [id], onDelete: Restrict)
+  servicio Servicio @relation(fields: [servicioId], references: [id], onDelete: Restrict)
+  cliente  Cliente  @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+
+  // Consulta de ocupación por fecha concreta (método 1 del puerto HE-08).
+  @@index([barberoId, date, status])
+  // Consulta de ocupación recurrente sin fecha (método 2 del puerto HE-08).
+  @@index([barberoId, dayOfWeek, status])
+  // Enlaces de la reserva: servicios y reservas propias de un cliente.
+  @@index([servicioId])
+  @@index([clienteId])
+  // Unicidad de franja ocupada: `slotActivo` es NULL para estados no ocupantes,
+  // y NULL no colisiona en MySQL/MariaDB, de modo que varias reservas canceladas
+  // coexisten y solo una activa por franja (re-reserva tras CANCELLED).
+  @@unique([barberoId, date, startTime, slotActivo])
+  @@map("reservations")
 }

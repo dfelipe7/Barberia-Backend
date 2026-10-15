@@ -11,6 +11,7 @@ import { ActualizarServicioDto } from '../dto/dto-peticion/actualizar-servicio.d
 import { CambiarEstadoServicioDto } from '../dto/dto-peticion/cambiar-estado-servicio.dto';
 import { FiltroServiciosDto } from '../dto/dto-peticion/filtro-servicios.dto';
 import { ServicioResponseDto } from '../dto/dto-respuesta/servicio-response.dto';
+import { BarberoPorServicioDto } from '../dto/dto-respuesta/barbero-por-servicio.dto';
 import { ServiciosRepository } from '../repository/servicios.repository';
 
 @Injectable()
@@ -63,6 +64,38 @@ export class ServiciosService {
     async obtenerServiciosPorBarbero(barberoId: number): Promise<ServicioResponseDto[]> {
         const servicios = await this.serviciosRepository.listarServiciosPorBarbero(barberoId);
         return servicios.map((s) => this.mapearServicio(s));
+    }
+
+    /**
+     * HE-04-HU-02: Retorna los barberos ACTIVOS que tienen habilitado un
+     * servicio ACTIVO. Devuelve una lista vacía (no un error) cuando el servicio
+     * existe pero ningún barbero lo presta, para que el cliente muestre el
+     * mensaje "No hay barberos disponibles para este servicio".
+     *
+     * Arroja 404 si el servicio no existe o está inactivo: no se enumeran
+     * barberos de un servicio que no está disponible para reservar.
+     */
+    async obtenerBarberosPorServicio(servicioId: number): Promise<BarberoPorServicioDto[]> {
+        const servicio = await this.serviciosRepository.obtenerServicioActivoPorId(servicioId);
+        if (!servicio) {
+            throw new NotFoundException(
+                `El servicio con ID ${servicioId} no existe o no está activo`,
+            );
+        }
+
+        const barberos =
+            await this.serviciosRepository.listarBarberosActivosPorServicio(servicioId);
+
+        return barberos
+            .map((barbero) => ({
+                id: barbero.id,
+                nombre: barbero.usuario.nombre,
+                apellido: barbero.usuario.apellido,
+                fotoUrl: barbero.fotoUrl,
+            }))
+            .sort((a, b) =>
+                `${a.nombre} ${a.apellido}`.localeCompare(`${b.nombre} ${b.apellido}`),
+            );
     }
 
     /**

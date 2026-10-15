@@ -28,6 +28,7 @@ describe('ServiciosController', () => {
             actualizarServicio: jest.fn().mockResolvedValue({ id: 1, nombre: 'Corte Premium' }),
             subirFotoServicio: jest.fn().mockResolvedValue({ id: 1, fotoUrl: 'foto.jpg' }),
             eliminarFotoServicio: jest.fn().mockResolvedValue({ id: 1, fotoUrl: null }),
+            obtenerBarberosPorServicio: jest.fn().mockResolvedValue([]),
         };
 
         const module: TestingModule = await Test.createTestingModule({
@@ -107,5 +108,20 @@ describe('ServiciosController', () => {
         const res = await controller.eliminarFotoServicio('1');
         expect(serviciosServiceMock.eliminarFotoServicio).toHaveBeenCalledWith(1);
         expect(res).toEqual({ id: 1, fotoUrl: null });
+    });
+
+    describe('obtenerBarberosPorServicio (HE-04-HU-02)', () => {
+        it('debe llamar al servicio con el id y devolver el resultado', async () => {
+            serviciosServiceMock.obtenerBarberosPorServicio.mockResolvedValue([
+                { id: 10, nombre: 'Ana', apellido: 'Ruiz', fotoUrl: null },
+            ]);
+
+            const res = await controller.obtenerBarberosPorServicio(2 as any);
+
+            expect(serviciosServiceMock.obtenerBarberosPorServicio).toHaveBeenCalledWith(2);
+            expect(res).toEqual([
+                { id: 10, nombre: 'Ana', apellido: 'Ruiz', fotoUrl: null },
+            ]);
+        });
     });
 });

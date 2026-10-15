@@ -176,6 +176,46 @@ export class ServiciosRepository {
     }
 
     /**
+     * Consulta directa: Retorna los barberos ACTIVOS (rol y cuenta) asignados a
+     * un servicio ACTIVO a través de la tabla intermedia `BarberoServicio`.
+     * Usado por HE-04-HU-02 para listar quién puede prestar el servicio elegido.
+     *
+     * Devuelve el `Barbero.id` (no el `Usuario.id`) porque es la clave que
+     * consume el endpoint público de disponibilidad.
+     */
+    async listarBarberosActivosPorServicio(servicioId: number) {
+        const asignaciones = await this.prisma.barberoServicio.findMany({
+            where: {
+                servicioId,
+                barbero: {
+                    estado: EstadoUsuario.ACTIVO,
+                    usuario: {
+                        estado: EstadoUsuario.ACTIVO,
+                    },
+                },
+            },
+            select: {
+                barbero: {
+                    select: {
+                        id: true,
+                        fotoUrl: true,
+                        usuario: {
+                            select: {
+                                id: true,
+                                nombre: true,
+                                apellido: true,
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: { barberoId: 'asc' },
+        });
+
+        return asignaciones.map((asignacion) => asignacion.barbero);
+    }
+
+    /**
      * Crea un nuevo servicio y, si se especificaron barberos,
      * los vincula de forma atómica en la tabla intermedia BarberoServicio usando el usuarioId.
      */

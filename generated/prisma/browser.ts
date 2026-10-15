@@ -34,7 +34,19 @@ export type Administrador = Prisma.AdministradorModel
 export type Barbero = Prisma.BarberoModel
 /**
  * Model Cliente
- * 
+ * Persona que reserva. Unifica cliente invitado y cliente autenticado (D-01/D-02):
+ * - Invitado: `usuarioId = NULL` y contacto directo (`nombre` obligatorio; D-02
+ * exige como mínimo nombre y número de contacto, por eso `apellido`/`telefono`
+ * son opcionales en el modelo, aunque el flujo de invitado valide el teléfono).
+ * - Autenticado con Google (HE-04, Modalidad B): la identidad estable es
+ * `googleId` (el `sub` del ID Token de Google, único cuando existe). El alta es
+ * idempotente por `googleId`, de modo que el mismo cliente no se duplica entre
+ * reservas. `email` se guarda como dato de contacto/consulta, NO como clave de
+ * identidad (no se vincula por coincidencia de correo sin verificación).
+ * - `usuarioId` es un vínculo heredado opcional y único con `Usuario`. La
+ * autenticación de clientes NO depende de él ni crea usuarios de personal; se
+ * conserva por compatibilidad con el historial existente.
+ * `onDelete: SetNull`: borrar un usuario no elimina el historial de reservas.
  */
 export type Cliente = Prisma.ClienteModel
 /**
@@ -70,3 +82,27 @@ export type BarberScheduleBlock = Prisma.BarberScheduleBlockModel
  * Prisma (no es una restricción portable).
  */
 export type GeneralClosure = Prisma.GeneralClosureModel
+/**
+ * Model Reservation
+ * Una fila por reserva. Sin borrado físico: se cambia de estado, igual que
+ * `BarberScheduleBlock`, para conservar historial y permitir re-reservar la
+ * misma franja tras cancelar.
+ * 
+ * Alcance: campos suficientes para crear/asignar una reserva (HU-04) y para que
+ * HE-08 detecte ocupación de franja. `precioReservado` conserva el precio del
+ * `Servicio` calculado en el servidor al crear la reserva, para que las
+ * consultas de HU-06/HU-07 no cambien si el catálogo sube de precio después.
+ * Queda `NULL` para reservas anteriores a esta migración (no se inventan
+ * snapshots retroactivos). El descuento y la idempotencia siguen fuera hasta
+ * resolver D-07/D-08. La duración no se persiste: se resuelve del servicio
+ * vigente. El precio y la duración NUNCA se confían al cliente.
+ * 
+ * Concurrencia (D-17): la tabla incluye una columna generada `slotActivo`
+ * (`1` si el estado ocupa, `NULL` si `CANCELLED`) y un índice UNIQUE
+ * `(barberoId, date, startTime, slotActivo)`. Al ser `NULL` distinto de `NULL`
+ * en un índice único de MySQL/MariaDB, pueden coexistir varias reservas
+ * canceladas por franja, pero solo una activa; esto habilita la re-reserva.
+ * `slotActivo` NO se declara aquí porque Prisma no expresa columnas generadas:
+ * se crea en la migración SQL. Prisma Client funciona con o sin ella.
+ */
+export type Reservation = Prisma.ReservationModel

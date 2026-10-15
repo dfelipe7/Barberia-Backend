@@ -1,0 +1,479 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import {
+  BadRequestException,
+  NotFoundException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import {
+  MENSAJE_FRANJA_OCUPADA,
+  MENSAJE_RESERVA_CREADA,
+  MENSAJE_RESERVA_DUPLICADA,
+  MENSAJE_RESERVA_NO_DISPONIBLE,
+  MENSAJE_SIN_RESERVAS,
+  ReservasService,
+} from './reservas.service';
+import { ReservasRepository } from '../repository/reservas.repository';
+import { ClientesRepository } from '../repository/clientes.repository';
+import { DisponibilidadService } from '../../horarios/service/disponibilidad.service';
+import { ServiciosRepository } from '../../servicios/repository/servicios.repository';
+import { FechaBogotaService } from '../../horarios/common/fecha-bogota.service';
+import { EstadoFranja } from '../../horarios/common/estado-franja';
+
+const FECHA = '2026-11-01';
+const HORA = '14:00';
+
+const dtoBase = {
+  barberoId: 3,
+  servicioId: 2,
+  fecha: FECHA,
+  hora: HORA,
+};
+
+describe('ReservasService', () => {
+  let service: ReservasService;
+
+  const reservasRepository = {
+    existeReservaActivaDeClienteEnFranja: jest.fn(),
+    crearConBloqueo: jest.fn(),
+    listarReservasDeCliente: jest.fn(),
+    obtenerReservaDeCliente: jest.fn(),
+  };
+  const clientesRepository = {
+    obtenerPorId: jest.fn(),
+  };
+  const disponibilidadService = {
+    calcularDisponibilidad: jest.fn(),
+  };
+  const serviciosRepository = {
+    obtenerServicioActivoPorId: jest.fn(),
+    listarBarberosActivosPorServicio: jest.fn(),
+  };
+  const fechaBogotaService = {
+    esFechaCalendarioValida: jest.fn(),
+    obtenerDiaSemana: jest.fn(),
+    obtenerFechaBogota: jest.fn(),
+    obtenerHoraBogota: jest.fn(),
+  };
+
+  const franjaDisponible = {
+    startTime: HORA,
+    endTime: '15:00',
+    estado: EstadoFranja.AVAILABLE,
+  };
+
+  const reservaCreada = {
+    id: 42,
+    barberoId: 3,
+    servicioId: 2,
+    clienteId: 77,
+    date: new Date(`${FECHA}T00:00:00.000Z`),
+    dayOfWeek: 'SUNDAY',
+    startTime: HORA,
+    endTime: '15:00',
+    status: 'PENDING',
+    precioReservado: 50000,
+    slotActivo: 1,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const servicioActivo = {
+    id: 2,
+    nombre: 'Corte de cabello',
+    precio: 50000,
+    duracionMinutos: 30,
+  };
+
+  const crearReservaRelacion = (over: Record<string, unknown> = {}) => ({
+    id: 42,
+    barberoId: 3,
+    servicioId: 2,
+    clienteId: 77,
+    date: new Date('2026-11-01T00:00:00.000Z'),
+    dayOfWeek: 'SUNDAY',
+    startTime: '14:00',
+    endTime: '15:00',
+    status: 'PENDING',
+    precioReservado: 50000,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    servicio: { id: 2, nombre: 'Corte de cabello', precio: 50000 },
+    barbero: { id: 3, usuario: { nombre: 'Carlos', apellido: 'Gómez' } },
+    ...over,
+  });
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ReservasService,
+        { provide: ReservasRepository, useValue: reservasRepository },
+        { provide: ClientesRepository, useValue: clientesRepository },
+        { provide: DisponibilidadService, useValue: disponibilidadService },
+        { provide: ServiciosRepository, useValue: serviciosRepository },
+        { provide: FechaBogotaService, useValue: fechaBogotaService },
+      ],
+    }).compile();
+
+    service = module.get<ReservasService>(ReservasService);
+    jest.clearAllMocks();
+
+    fechaBogotaService.esFechaCalendarioValida.mockReturnValue(true);
+    fechaBogotaService.obtenerDiaSemana.mockReturnValue('SUNDAY');
+    fechaBogotaService.obtenerFechaBogota.mockReturnValue('2026-11-01');
+    fechaBogotaService.obtenerHoraBogota.mockReturnValue('12:00');
+    disponibilidadService.calcularDisponibilidad.mockResolvedValue([
+      franjaDisponible,
+    ]);
+    reservasRepository.crearConBloqueo.mockResolvedValue(reservaCreada);
+    serviciosRepository.obtenerServicioActivoPorId.mockResolvedValue(
+      servicioActivo,
+    );
+    serviciosRepository.listarBarberosActivosPorServicio.mockResolvedValue([
+      { id: 3, usuario: { id: 9, nombre: 'Carlos', apellido: 'Gómez' } },
+    ]);
+  });
+
+  it('debe estar definido', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('Modalidad A (invitado)', () => {
+    it('crea la reserva, da de alta al cliente invitado y devuelve la confirmación', async () => {
+      const resultado = await service.crearReserva({
+        ...dtoBase,
+        nombre: 'Ana',
+        apellido: 'Pérez',
+        telefono: '3001234567',
+      });
+
+      expect(resultado).toEqual({
+        mensaje: MENSAJE_RESERVA_CREADA,
+        id: 42,
+        estado: 'PENDING',
+        fecha: FECHA,
+        hora: HORA,
+        horaFin: '15:00',
+        barbero: { id: 3, nombre: 'Carlos', apellido: 'Gómez' },
+        servicio: {
+          id: 2,
+          nombre: 'Corte de cabello',
+          precio: 50000,
+          duracionMinutos: 30,
+        },
+      });
+
+      expect(
+        reservasRepository.existeReservaActivaDeClienteEnFranja,
+      ).not.toHaveBeenCalled();
+      expect(disponibilidadService.calcularDisponibilidad).toHaveBeenCalledWith(
+        {
+          barberoId: 3,
+          servicioId: 2,
+          fecha: FECHA,
+        },
+      );
+      expect(reservasRepository.crearConBloqueo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          barberoId: 3,
+          servicioId: 2,
+          startTime: HORA,
+          endTime: '15:00',
+          dayOfWeek: 'SUNDAY',
+          precioReservado: 50000,
+          cliente: {
+            crear: {
+              nombre: 'Ana',
+              apellido: 'Pérez',
+              telefono: '3001234567',
+            },
+          },
+        }),
+      );
+    });
+
+    it('rechaza al invitado sin nombre o sin teléfono (400) y no consulta disponibilidad', async () => {
+      await expect(
+        service.crearReserva({ ...dtoBase, nombre: 'Ana' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(
+        disponibilidadService.calcularDisponibilidad,
+      ).not.toHaveBeenCalled();
+      expect(reservasRepository.crearConBloqueo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Modalidad B (cliente autenticado)', () => {
+    const identidad = { clienteId: 55 };
+
+    it('reutiliza el Cliente existente y verifica el duplicado del propio cliente', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue({ id: 55 });
+      reservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(
+        false,
+      );
+
+      await service.crearReserva(dtoBase, identidad);
+
+      expect(clientesRepository.obtenerPorId).toHaveBeenCalledWith(55);
+      expect(
+        reservasRepository.existeReservaActivaDeClienteEnFranja,
+      ).toHaveBeenCalledWith({
+        clienteId: 55,
+        barberoId: 3,
+        fecha: new Date(`${FECHA}T00:00:00.000Z`),
+        startTime: HORA,
+      });
+      expect(reservasRepository.crearConBloqueo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cliente: { clienteId: 55 },
+          precioReservado: 50000,
+        }),
+      );
+    });
+
+    it('rechaza la sesión si el cliente ya no existe (401)', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue(null);
+
+      await expect(
+        service.crearReserva(dtoBase, identidad),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+
+      expect(
+        disponibilidadService.calcularDisponibilidad,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rechaza el duplicado del propio cliente con el mensaje de CA-04 (409)', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue({ id: 55 });
+      reservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(
+        true,
+      );
+
+      await expect(service.crearReserva(dtoBase, identidad)).rejects.toThrow(
+        MENSAJE_RESERVA_DUPLICADA,
+      );
+
+      expect(
+        disponibilidadService.calcularDisponibilidad,
+      ).not.toHaveBeenCalled();
+      expect(reservasRepository.crearConBloqueo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('validaciones y conflictos', () => {
+    it('rechaza una fecha con formato inválido (400)', async () => {
+      fechaBogotaService.esFechaCalendarioValida.mockReturnValue(false);
+
+      await expect(
+        service.crearReserva({
+          ...dtoBase,
+          fecha: '2026-13-40',
+          nombre: 'Ana',
+          telefono: '3001234567',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rechaza una franja ocupada con el mensaje de CA-03 (409)', async () => {
+      disponibilidadService.calcularDisponibilidad.mockResolvedValue([
+        { startTime: HORA, endTime: '15:00', estado: EstadoFranja.RESERVED },
+      ]);
+
+      await expect(
+        service.crearReserva({
+          ...dtoBase,
+          nombre: 'Ana',
+          telefono: '3001234567',
+        }),
+      ).rejects.toThrow(MENSAJE_FRANJA_OCUPADA);
+
+      expect(reservasRepository.crearConBloqueo).not.toHaveBeenCalled();
+    });
+
+    it('rechaza una hora que no corresponde a una franja del catálogo (400)', async () => {
+      disponibilidadService.calcularDisponibilidad.mockResolvedValue([]);
+
+      await expect(
+        service.crearReserva({
+          ...dtoBase,
+          hora: '14:30',
+          nombre: 'Ana',
+          telefono: '3001234567',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('traduce la violación de unicidad P2002 a un 409 de CA-03', async () => {
+      reservasRepository.crearConBloqueo.mockRejectedValue(
+        Object.assign(new Error('dup'), { code: 'P2002' }),
+      );
+
+      await expect(
+        service.crearReserva({
+          ...dtoBase,
+          nombre: 'Ana',
+          telefono: '3001234567',
+        }),
+      ).rejects.toThrow(MENSAJE_FRANJA_OCUPADA);
+    });
+
+    it('propaga el 404 de servicio/barbero inexistente desde la disponibilidad', async () => {
+      disponibilidadService.calcularDisponibilidad.mockRejectedValue(
+        new NotFoundException('El barbero 3 no existe o no está activo'),
+      );
+
+      await expect(
+        service.crearReserva({
+          ...dtoBase,
+          nombre: 'Ana',
+          telefono: '3001234567',
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('propaga el 503 fail-closed de la disponibilidad sin crear reserva', async () => {
+      disponibilidadService.calcularDisponibilidad.mockRejectedValue(
+        new ServiceUnavailableException('disponibilidad no disponible'),
+      );
+
+      await expect(
+        service.crearReserva({
+          ...dtoBase,
+          nombre: 'Ana',
+          telefono: '3001234567',
+        }),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+      expect(reservasRepository.crearConBloqueo).not.toHaveBeenCalled();
+    });
+
+    it('falla con 404 si el servicio desaparece antes de crear la reserva', async () => {
+      serviciosRepository.obtenerServicioActivoPorId.mockResolvedValue(null);
+
+      await expect(
+        service.crearReserva({
+          ...dtoBase,
+          nombre: 'Ana',
+          telefono: '3001234567',
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(reservasRepository.crearConBloqueo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('HU-06 listarMisReservas', () => {
+    const identidad = { clienteId: 55 };
+
+    it('devuelve lista vacía con el mensaje exacto cuando no hay reservas', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue({ id: 55 });
+      reservasRepository.listarReservasDeCliente.mockResolvedValue([]);
+
+      await expect(service.listarMisReservas(identidad)).resolves.toEqual({
+        mensaje: MENSAJE_SIN_RESERVAS,
+        reservas: [],
+      });
+      expect(reservasRepository.listarReservasDeCliente).toHaveBeenCalledWith(
+        55,
+      );
+    });
+
+    it('ordena próximas primero y mapea el DTO del cliente', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue({ id: 55 });
+      reservasRepository.listarReservasDeCliente.mockResolvedValue([
+        crearReservaRelacion({
+          id: 1,
+          date: new Date('2026-10-01T00:00:00.000Z'),
+          startTime: '10:00',
+        }),
+        crearReservaRelacion({
+          id: 2,
+          date: new Date('2026-12-01T00:00:00.000Z'),
+          startTime: '14:00',
+        }),
+        crearReservaRelacion({
+          id: 3,
+          date: new Date('2026-11-01T00:00:00.000Z'),
+          startTime: '09:00',
+        }),
+        crearReservaRelacion({
+          id: 4,
+          date: new Date('2026-11-01T00:00:00.000Z'),
+          startTime: '16:00',
+        }),
+      ]);
+
+      const resultado = await service.listarMisReservas(identidad);
+
+      expect(resultado.mensaje).toBeUndefined();
+      expect(resultado.reservas.map((r) => r.id)).toEqual([4, 2, 3, 1]);
+      expect(resultado.reservas[0]).toEqual({
+        id: 4,
+        estado: 'PENDING',
+        fecha: '2026-11-01',
+        hora: '16:00',
+        horaFin: '15:00',
+        precio: 50000,
+        barbero: { id: 3, nombre: 'Carlos', apellido: 'Gómez' },
+        servicio: { id: 2, nombre: 'Corte de cabello' },
+      });
+    });
+
+    it('usa el precio vigente del servicio cuando no hay precio histórico', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue({ id: 55 });
+      reservasRepository.listarReservasDeCliente.mockResolvedValue([
+        crearReservaRelacion({ precioReservado: null }),
+      ]);
+
+      const resultado = await service.listarMisReservas(identidad);
+
+      expect(resultado.reservas[0].precio).toBe(50000);
+    });
+
+    it('rechaza (401) si el cliente de la sesión ya no existe', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue(null);
+
+      await expect(service.listarMisReservas(identidad)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(reservasRepository.listarReservasDeCliente).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('HU-07 obtenerMiReserva', () => {
+    const identidad = { clienteId: 55 };
+
+    it('devuelve el detalle de una reserva propia', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue({ id: 55 });
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ id: 42 }),
+      );
+
+      await expect(service.obtenerMiReserva(identidad, 42)).resolves.toEqual({
+        id: 42,
+        estado: 'PENDING',
+        fecha: '2026-11-01',
+        hora: '14:00',
+        horaFin: '15:00',
+        precio: 50000,
+        barbero: { id: 3, nombre: 'Carlos', apellido: 'Gómez' },
+        servicio: { id: 2, nombre: 'Corte de cabello' },
+      });
+
+      expect(reservasRepository.obtenerReservaDeCliente).toHaveBeenCalledWith(
+        55,
+        42,
+      );
+    });
+
+    it('responde 404 con el mensaje exacto si no existe o no es propia', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue({ id: 55 });
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(null);
+
+      await expect(service.obtenerMiReserva(identidad, 99)).rejects.toThrow(
+        MENSAJE_RESERVA_NO_DISPONIBLE,
+      );
+    });
+  });
+});

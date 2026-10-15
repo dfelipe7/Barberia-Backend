@@ -13,7 +13,7 @@ const EstadoServicio = { ACTIVO: 'ACTIVO', INACTIVO: 'INACTIVO' } as const;
 
 const mockPrisma = {
   barbero: { findMany: jest.fn() },
-  barberoServicio: { findUnique: jest.fn() },
+  barberoServicio: { findUnique: jest.fn(), findMany: jest.fn() },
   servicio: {
     findUnique: jest.fn(),
     findFirst: jest.fn(),
@@ -175,6 +175,63 @@ describe('ServiciosRepository', () => {
         }),
       }));
       expect(result).toEqual([{ id: 1 }]);
+    });
+  });
+
+  describe('listarBarberosActivosPorServicio (HE-04-HU-02)', () => {
+    it('should return barberos with Barbero.id and map to flat barbero objects', async () => {
+      mockPrisma.barberoServicio.findMany.mockResolvedValue([
+        {
+          barbero: {
+            id: 10,
+            fotoUrl: '/uploads/barberos/ana.jpg',
+            usuario: { id: 100, nombre: 'Ana', apellido: 'Ruiz' },
+          },
+        },
+        {
+          barbero: {
+            id: 30,
+            fotoUrl: null,
+            usuario: { id: 300, nombre: 'Zoe', apellido: 'Díaz' },
+          },
+        },
+      ]);
+
+      const result = await repository.listarBarberosActivosPorServicio(2);
+
+      expect(mockPrisma.barberoServicio.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            servicioId: 2,
+            barbero: {
+              estado: 'ACTIVO',
+              usuario: { estado: 'ACTIVO' },
+            },
+          }),
+          select: expect.any(Object),
+          orderBy: { barberoId: 'asc' },
+        }),
+      );
+      expect(result).toEqual([
+        {
+          id: 10,
+          fotoUrl: '/uploads/barberos/ana.jpg',
+          usuario: { id: 100, nombre: 'Ana', apellido: 'Ruiz' },
+        },
+        {
+          id: 30,
+          fotoUrl: null,
+          usuario: { id: 300, nombre: 'Zoe', apellido: 'Díaz' },
+        },
+      ]);
+    });
+
+    it('should return empty array when no active barberos for the service', async () => {
+      mockPrisma.barberoServicio.findMany.mockResolvedValue([]);
+
+      const result = await repository.listarBarberosActivosPorServicio(2);
+
+      expect(result).toEqual([]);
     });
   });
 

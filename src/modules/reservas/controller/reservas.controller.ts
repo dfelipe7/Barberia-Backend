@@ -1,0 +1,195 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseIntPipe,
+  Post,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiBody,
+  ApiConflictResponse,
+  ApiCreatedResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
+import { CrearReservaDto } from '../dto/dto-peticion/crear-reserva.dto';
+import { ReservaCreadaResponseDto } from '../dto/dto-respuesta/reserva-creada-response.dto';
+import { ReservaClienteDto } from '../dto/dto-respuesta/reserva-cliente.dto';
+import { MisReservasResponseDto } from '../dto/dto-respuesta/mis-reservas-response.dto';
+import {
+  IdentidadClienteAutenticado,
+  ReservasService,
+} from '../service/reservas.service';
+import { ClienteOpcionalJwtAuthGuard } from '../../../auth/clientes/guards/cliente-opcional-jwt-auth.guard';
+import { ClienteJwtAuthGuard } from '../../../auth/clientes/guards/cliente-jwt-auth.guard';
+
+/** Petición con la identidad de cliente que publica el guard de cliente. */
+interface PeticionConCliente {
+  cliente?: { clienteId: number };
+}
+
+/**
+ * Endpoints de reservas de HE-04.
+ *
+ * - `POST /reservas`: creación en las dos modalidades de D-01 (invitado sin
+ *   token; cliente autenticado con token de cliente).
+ * - `GET /reservas/me`: reservas propias (HU-06), próximas primero.
+ * - `GET /reservas/me/:reservaId`: detalle de una reserva propia (HU-07).
+ *
+ * Las rutas `/me` exigen un token de CLIENTE; el `clienteId` se toma del token
+ * verificado, nunca de parámetros del frontend.
+ */
+@ApiTags('reservas')
+@Controller('reservas')
+export class ReservasController {
+  constructor(private readonly reservasService: ReservasService) {}
+
+  @Post()
+  @UseGuards(ClienteOpcionalJwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Crear una reserva para un cliente invitado o autenticado',
+    description:
+      'Endpoint que acepta ambas modalidades: sin token crea una reserva de invitado (exige nombre y teléfono); con un token de cliente válido asocia la reserva al cliente autenticado. Valida servicio, barbero, fecha y hora (400), servicio/barbero inexistentes o no asignados (404), franja ocupada o duplicada (409) y devuelve el identificador de la reserva (201).',
+  })
+  @ApiBody({ type: CrearReservaDto })
+  @ApiCreatedResponse({
+    description: 'Reserva creada exitosamente',
+    type: ReservaCreadaResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Datos obligatorios ausentes o inválidos (servicio/barbero/fecha/hora, o contacto del invitado)',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de cliente presente pero inválido o expirado',
+  })
+  @ApiNotFoundResponse({
+    description:
+      'El servicio o el barbero no existen, o el barbero no presta el servicio',
+  })
+  @ApiConflictResponse({
+    description:
+      'La franja ya no está disponible (409) o el cliente ya tiene una reserva en ese horario',
+  })
+  @ApiResponse({
+    status: 503,
+    description:
+      'La disponibilidad no puede calcularse de forma segura (fail-closed de HE-08)',
+  })
+  async crearReserva(
+    @Body() dto: CrearReservaDto,
+    @Req() request: PeticionConCliente,
+  ): Promise<ReservaCreadaResponseDto> {
+    return this.reservasService.crearReserva(
+      dto,
+      this.extraerIdentidad(request.cliente),
+    );
+  }
+
+  @Get('me')
+  @UseGuards(ClienteJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Listar mis reservas (cliente autenticado)',
+    description:
+      'Devuelve las reservas del cliente autenticado con su servicio, barbero, fecha, hora y estado, ordenadas próximas primero. Sin reservas responde una lista vacía con el mensaje "No tienes reservas registradas".',
+  })
+  @ApiOkResponse({ type: MisReservasResponseDto })
+  @ApiUnauthorizedResponse({
+    description: 'Token de cliente ausente, inválido o expirado',
+  })
+  async listarMisReservas(
+    @Req() request: PeticionConCliente,
+  ): Promise<MisReservasResponseDto> {
+    return this.reservasService.listarMisReservas(
+      this.extraerIdentidadRequerida(request.cliente),
+    );
+  }
+
+  @Get('me/:reservaId')
+  @UseGuards(ClienteJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Consultar el detalle de una reserva propia (cliente autenticado)',
+    description:
+      'Devuelve servicio, barbero, fecha, hora, precio aplicado y estado de una reserva del cliente autenticado. Si la reserva no existe o pertenece a otro cliente, responde 404 con "La reserva no se encuentra disponible".',
+  })
+  @ApiParam({
+    name: 'reservaId',
+    example: 42,
+    description: 'Identificador de la reserva',
+  })
+  @ApiOkResponse({ type: ReservaClienteDto })
+  @ApiBadRequestResponse({ description: 'Identificador de reserva inválido' })
+  @ApiUnauthorizedResponse({
+    description: 'Token de cliente ausente, inválido o expirado',
+  })
+  @ApiNotFoundResponse({ description: 'La reserva no se encuentra disponible' })
+  async obtenerMiReserva(
+    @Req() request: PeticionConCliente,
+    @Param('reservaId', ParseIntPipe) reservaId: number,
+  ): Promise<ReservaClienteDto> {
+    if (reservaId <= 0) {
+      throw new BadRequestException(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
+    }
+
+    return this.reservasService.obtenerMiReserva(
+      this.extraerIdentidadRequerida(request.cliente),
+      reservaId,
+    );
+  }
+
+  /**
+   * Traduce la identidad publicada por el guard a la del servicio. Devuelve
+   * `undefined` cuando la petición es de invitado (sin token).
+   */
+  private extraerIdentidad(
+    cliente: unknown,
+  ): IdentidadClienteAutenticado | undefined {
+    if (!cliente || typeof cliente !== 'object') {
+      return undefined;
+    }
+
+    const clienteId = Number((cliente as { clienteId?: unknown }).clienteId);
+
+    if (!Number.isInteger(clienteId) || clienteId <= 0) {
+      return undefined;
+    }
+
+    return { clienteId };
+  }
+
+  /**
+   * Variante para rutas que exigen cliente: el guard ya garantiza la identidad,
+   * pero se revalida como defensa en profundidad.
+   */
+  private extraerIdentidadRequerida(
+    cliente: unknown,
+  ): IdentidadClienteAutenticado {
+    const identidad = this.extraerIdentidad(cliente);
+
+    if (!identidad) {
+      throw new UnauthorizedException('Token de cliente requerido');
+    }
+
+    return identidad;
+  }
+}

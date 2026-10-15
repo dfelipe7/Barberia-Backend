@@ -9,5 +9,12 @@ describe('Auth index re-exports', () => {
     expect(authExports.Roles).toBeDefined();
     expect(authExports.AuthController).toBeDefined();
     expect(authExports.AuthModule).toBeDefined();
+    expect(authExports.GoogleTokenVerifier).toBeDefined();
+    expect(authExports.ClientesAuthService).toBeDefined();
+    expect(authExports.ClientesAuthController).toBeDefined();
+    expect(authExports.ClientesAuthModule).toBeDefined();
+    expect(authExports.ClienteJwtService).toBeDefined();
+    expect(authExports.ClienteJwtAuthGuard).toBeDefined();
+    expect(authExports.ClienteOpcionalJwtAuthGuard).toBeDefined();
   });
 });

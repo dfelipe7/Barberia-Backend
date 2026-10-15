@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GoogleAuthService } from './google-auth.service';
-import { ConfigService } from '@nestjs/config';
+import { GoogleTokenVerifier } from './google-token-verifier.service';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
@@ -8,15 +8,16 @@ import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
 describe('GoogleAuthService', () => {
   let service: GoogleAuthService;
   let jwtService: jest.Mocked<JwtService>;
+  let googleTokenVerifier: { verificar: jest.Mock };
   let prisma: any;
 
   beforeEach(async () => {
-    const mockConfigService = {
-      getOrThrow: jest.fn().mockReturnValue('test-google-client-id'),
-    };
-
     const mockJwtService = {
       sign: jest.fn().mockReturnValue('signed-jwt-token'),
+    };
+
+    const mockVerifier = {
+      verificar: jest.fn(),
     };
 
     const mockPrisma = {
@@ -29,14 +30,15 @@ describe('GoogleAuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GoogleAuthService,
-        { provide: ConfigService, useValue: mockConfigService },
         { provide: JwtService, useValue: mockJwtService },
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: GoogleTokenVerifier, useValue: mockVerifier },
       ],
     }).compile();
 
     service = module.get<GoogleAuthService>(GoogleAuthService);
     jwtService = module.get(JwtService);
+    googleTokenVerifier = module.get(GoogleTokenVerifier);
     prisma = module.get(PrismaService);
   });
 
@@ -45,7 +47,9 @@ describe('GoogleAuthService', () => {
   });
 
   it('debe lanzar UnauthorizedException si verifyIdToken falla', async () => {
-    jest.spyOn((service as any).oauthClient, 'verifyIdToken').mockRejectedValue(new Error('Invalid token'));
+    googleTokenVerifier.verificar.mockRejectedValue(
+      new UnauthorizedException('invalid'),
+    );
 
     await expect(service.loginConGoogle('invalid-token')).rejects.toThrow(
       UnauthorizedException,
@@ -53,9 +57,7 @@ describe('GoogleAuthService', () => {
   });
 
   it('debe lanzar UnauthorizedException si el payload de Google no contiene email', async () => {
-    jest.spyOn((service as any).oauthClient, 'verifyIdToken').mockResolvedValue({
-      getPayload: () => ({ sub: '123' }),
-    } as any);
+    googleTokenVerifier.verificar.mockResolvedValue({ sub: '123' });
 
     await expect(service.loginConGoogle('token-sin-email')).rejects.toThrow(
       UnauthorizedException,
@@ -63,9 +65,10 @@ describe('GoogleAuthService', () => {
   });
 
   it('debe lanzar UnauthorizedException si el usuario no existe en la base de datos', async () => {
-    jest.spyOn((service as any).oauthClient, 'verifyIdToken').mockResolvedValue({
-      getPayload: () => ({ email: 'desconocido@gmail.com', sub: '123' }),
-    } as any);
+    googleTokenVerifier.verificar.mockResolvedValue({
+      email: 'desconocido@gmail.com',
+      sub: '123',
+    });
 
     prisma.usuario.findUnique.mockResolvedValue(null);
 
@@ -75,9 +78,10 @@ describe('GoogleAuthService', () => {
   });
 
   it('debe lanzar ForbiddenException si el usuario está INACTIVO', async () => {
-    jest.spyOn((service as any).oauthClient, 'verifyIdToken').mockResolvedValue({
-      getPayload: () => ({ email: 'inactivo@gmail.com', sub: '123' }),
-    } as any);
+    googleTokenVerifier.verificar.mockResolvedValue({
+      email: 'inactivo@gmail.com',
+      sub: '123',
+    });
 
     prisma.usuario.findUnique.mockResolvedValue({
       id: 2,
@@ -94,9 +98,10 @@ describe('GoogleAuthService', () => {
   });
 
   it('debe lanzar ForbiddenException si el usuario no tiene roles activos', async () => {
-    jest.spyOn((service as any).oauthClient, 'verifyIdToken').mockResolvedValue({
-      getPayload: () => ({ email: 'sinrol@gmail.com', sub: '123' }),
-    } as any);
+    googleTokenVerifier.verificar.mockResolvedValue({
+      email: 'sinrol@gmail.com',
+      sub: '123',
+    });
 
     prisma.usuario.findUnique.mockResolvedValue({
       id: 3,
@@ -115,9 +120,10 @@ describe('GoogleAuthService', () => {
   });
 
   it('debe permitir login a un administrador activo sin foto de Google pero con foto propia de barbero', async () => {
-    jest.spyOn((service as any).oauthClient, 'verifyIdToken').mockResolvedValue({
-      getPayload: () => ({ email: 'admin@gmail.com', sub: '12345' }),
-    } as any);
+    googleTokenVerifier.verificar.mockResolvedValue({
+      email: 'admin@gmail.com',
+      sub: '12345',
+    });
 
     prisma.usuario.findUnique.mockResolvedValue({
       id: 4,
@@ -139,13 +145,11 @@ describe('GoogleAuthService', () => {
   });
 
   it('debe retornar accessToken y usuario si el login es exitoso para superadmin', async () => {
-    jest.spyOn((service as any).oauthClient, 'verifyIdToken').mockResolvedValue({
-      getPayload: () => ({
-        email: 'admin@gmail.com',
-        sub: '12345',
-        picture: 'https://photo.url',
-      }),
-    } as any);
+    googleTokenVerifier.verificar.mockResolvedValue({
+      email: 'admin@gmail.com',
+      sub: '12345',
+      picture: 'https://photo.url',
+    });
 
     prisma.usuario.findUnique.mockResolvedValue({
       id: 1,

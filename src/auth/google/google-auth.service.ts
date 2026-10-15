@@ -4,45 +4,31 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { OAuth2Client } from 'google-auth-library';
 import { PrismaService } from '../../prisma/prisma.service';
+import { GoogleTokenVerifier } from './google-token-verifier.service';
 
 @Injectable()
 export class GoogleAuthService {
   private readonly logger = new Logger(GoogleAuthService.name);
-  private readonly oauthClient: OAuth2Client;
-  private readonly googleClientId: string;
 
   constructor(
-    private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-  ) {
-    this.googleClientId = this.configService.getOrThrow<string>('GOOGLE_CLIENT_ID');
-    this.oauthClient = new OAuth2Client(this.googleClientId);
-  }
+    private readonly googleTokenVerifier: GoogleTokenVerifier,
+  ) {}
 
   /**
    * Valida el token emitido por Google OAuth 2.0 y genera la sesión en la Barbería.
    * Si el usuario no existe en la base de datos, rechaza el acceso (Sistema cerrado).
    */
   async loginConGoogle(idToken: string) {
-    let payload;
-    try {
-      const ticket = await this.oauthClient.verifyIdToken({
-        idToken,
-        audience: this.googleClientId,
-      });
-      payload = ticket.getPayload();
-    } catch (error: any) {
-      this.logger.warn(`Intento de login con token de Google inválido: ${error?.message}`);
-      throw new UnauthorizedException('El token de autenticación de Google es inválido o ha expirado.');
-    }
+    const payload = await this.googleTokenVerifier.verificar(idToken);
 
     if (!payload?.email) {
-      throw new UnauthorizedException('No se pudo obtener el correo de la cuenta de Google.');
+      throw new UnauthorizedException(
+        'No se pudo obtener el correo de la cuenta de Google.',
+      );
     }
 
     const email = payload.email.toLowerCase().trim();
@@ -55,7 +41,9 @@ export class GoogleAuthService {
     });
 
     if (!usuario) {
-      this.logger.warn(`Acceso rechazado: ${email} intentó iniciar sesión pero no está registrado.`);
+      this.logger.warn(
+        `Acceso rechazado: ${email} intentó iniciar sesión pero no está registrado.`,
+      );
       throw new UnauthorizedException(
         'No tienes acceso a la plataforma. Tu correo no está registrado en el personal de la barbería.',
       );
@@ -63,7 +51,9 @@ export class GoogleAuthService {
 
     if (usuario.estado === 'INACTIVO') {
       this.logger.warn(`Acceso denegado: ${email} tiene su cuenta suspendida.`);
-      throw new ForbiddenException('Tu cuenta ha sido desactivada por un administrador.');
+      throw new ForbiddenException(
+        'Tu cuenta ha sido desactivada por un administrador.',
+      );
     }
 
     const esSuperAdmin = usuario.rol === 'SUPERADMIN';
@@ -72,7 +62,9 @@ export class GoogleAuthService {
 
     if (!esSuperAdmin && !esAdminActivo && !esBarberoActivo) {
       this.logger.warn(`Acceso denegado: ${email} no tiene roles activos.`);
-      throw new ForbiddenException('Tu cuenta no tiene ningún rol activo asignado.');
+      throw new ForbiddenException(
+        'Tu cuenta no tiene ningún rol activo asignado.',
+      );
     }
 
     // Vincular googleId si es la primera vez que inicia sesión con Google
@@ -98,7 +90,9 @@ export class GoogleAuthService {
 
     const accessToken = this.jwtService.sign(tokenPayload);
 
-    this.logger.log(`LOGIN EXITOSO: ${usuario.nombre} (${usuario.email}) - Rol: ${usuario.rol}`);
+    this.logger.log(
+      `LOGIN EXITOSO: ${usuario.nombre} (${usuario.email}) - Rol: ${usuario.rol}`,
+    );
 
     return {
       accessToken,

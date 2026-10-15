@@ -59,7 +59,8 @@ export const ModelName = {
   BarberoServicio: 'BarberoServicio',
   BarberWeeklySlot: 'BarberWeeklySlot',
   BarberScheduleBlock: 'BarberScheduleBlock',
-  GeneralClosure: 'GeneralClosure'
+  GeneralClosure: 'GeneralClosure',
+  Reservation: 'Reservation'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -116,7 +117,10 @@ export const ClienteScalarFieldEnum = {
   id: 'id',
   nombre: 'nombre',
   apellido: 'apellido',
-  telefono: 'telefono'
+  telefono: 'telefono',
+  googleId: 'googleId',
+  email: 'email',
+  usuarioId: 'usuarioId'
 } as const
 
 export type ClienteScalarFieldEnum = (typeof ClienteScalarFieldEnum)[keyof typeof ClienteScalarFieldEnum]
@@ -193,6 +197,25 @@ export const GeneralClosureScalarFieldEnum = {
 export type GeneralClosureScalarFieldEnum = (typeof GeneralClosureScalarFieldEnum)[keyof typeof GeneralClosureScalarFieldEnum]
 
 
+export const ReservationScalarFieldEnum = {
+  id: 'id',
+  barberoId: 'barberoId',
+  servicioId: 'servicioId',
+  clienteId: 'clienteId',
+  date: 'date',
+  dayOfWeek: 'dayOfWeek',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  status: 'status',
+  precioReservado: 'precioReservado',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  slotActivo: 'slotActivo'
+} as const
+
+export type ReservationScalarFieldEnum = (typeof ReservationScalarFieldEnum)[keyof typeof ReservationScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -230,7 +253,9 @@ export type BarberoOrderByRelevanceFieldEnum = (typeof BarberoOrderByRelevanceFi
 export const ClienteOrderByRelevanceFieldEnum = {
   nombre: 'nombre',
   apellido: 'apellido',
-  telefono: 'telefono'
+  telefono: 'telefono',
+  googleId: 'googleId',
+  email: 'email'
 } as const
 
 export type ClienteOrderByRelevanceFieldEnum = (typeof ClienteOrderByRelevanceFieldEnum)[keyof typeof ClienteOrderByRelevanceFieldEnum]
@@ -269,4 +294,12 @@ export const GeneralClosureOrderByRelevanceFieldEnum = {
 } as const
 
 export type GeneralClosureOrderByRelevanceFieldEnum = (typeof GeneralClosureOrderByRelevanceFieldEnum)[keyof typeof GeneralClosureOrderByRelevanceFieldEnum]
+
+
+export const ReservationOrderByRelevanceFieldEnum = {
+  startTime: 'startTime',
+  endTime: 'endTime'
+} as const
+
+export type ReservationOrderByRelevanceFieldEnum = (typeof ReservationOrderByRelevanceFieldEnum)[keyof typeof ReservationOrderByRelevanceFieldEnum]
 

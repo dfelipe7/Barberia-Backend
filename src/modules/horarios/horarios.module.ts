@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../../auth/auth.module';
 import { UsuariosModule } from '../usuarios/usuarios.module';
 import { ServiciosModule } from '../servicios/servicios.module';
+import { ReservasInfraModule } from '../reservas/reservas-infra.module';
 import { HorarioSemanalController } from './controller/horario-semanal.controller';
 import { BloqueosHorarioController } from './controller/bloqueos-horario.controller';
 import { DisponibilidadController } from './controller/disponibilidad.controller';
@@ -20,13 +21,9 @@ import { CierreGeneralRule } from './strategies/cierre-general.rule';
 import { BloqueoActivoRule } from './strategies/bloqueo-activo.rule';
 import { ReservaActivaRule } from './strategies/reserva-activa.rule';
 import { REGLAS_DISPONIBILIDAD } from './strategies/regla-disponibilidad.strategy';
-import {
-  PROVEEDOR_RESERVAS_ACTIVAS,
-  ProveedorReservasActivasNoDisponible,
-} from './ports/proveedor-reservas-activas.port';
 
 @Module({
-  imports: [AuthModule, UsuariosModule, ServiciosModule],
+  imports: [AuthModule, UsuariosModule, ServiciosModule, ReservasInfraModule],
   controllers: [
     HorarioSemanalController,
     BloqueosHorarioController,
@@ -41,10 +38,6 @@ import {
     BloqueosHorarioRepository,
     CierresGeneralesRepository,
     BloqueosHorarioService,
-    {
-      provide: PROVEEDOR_RESERVAS_ACTIVAS,
-      useClass: ProveedorReservasActivasNoDisponible,
-    },
     HorarioSemanalRule,
     CierreGeneralRule,
     BloqueoActivoRule,
