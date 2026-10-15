@@ -49,6 +49,9 @@ model Barbero {
 
   usuario   Usuario         @relation(fields: [usuarioId], references: [id])
   servicios BarberoServicio[] // <--- Conexión con la tabla intermedia
+
+  weeklySlots BarberWeeklySlot[]
+  blocks      BarberScheduleBlock[]
 }
 
 model Cliente {
@@ -84,4 +87,96 @@ model BarberoServicio {
   barbero     Barbero  @relation(fields: [barberoId], references: [id], onDelete: Cascade)
   servicio    Servicio @relation(fields: [servicioId], references: [id], onDelete: Cascade)
   @@id([barberoId, servicioId]) // Llave primaria compuesta
+}
+
+// ---------------------------------------------------------------------------
+// HE-08: horarios, bloqueos y cierres generales
+// ---------------------------------------------------------------------------
+
+/// Día de la semana del horario semanal. Definido una sola vez y reutilizado.
+enum WeekDay {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+/// Ciclo de vida de un bloqueo. Persiste historial: no hay borrado físico.
+enum ScheduleBlockStatus {
+  ACTIVE
+  REACTIVATED
+  CANCELLED
+}
+
+/// Motivo opcional de un bloqueo.
+enum ScheduleBlockReason {
+  PERSONAL
+  MEDICAL
+  VACATION
+  OTHER
+}
+
+/// Cada registro representa una franja de 60 minutos del horario semanal.
+/// La unicidad (barbero, día, hora inicial) ya actúa como índice para consultas
+/// por barbero/semana; no se agrega un índice redundante sobre el prefijo.
+model BarberWeeklySlot {
+  id        Int      @id @default(autoincrement())
+  barberoId Int
+  dayOfWeek WeekDay
+  startTime String   @db.VarChar(5) // HH:mm
+  endTime   String   @db.VarChar(5) // HH:mm
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  barbero Barbero @relation(fields: [barberoId], references: [id], onDelete: Cascade)
+
+  @@unique([barberoId, dayOfWeek, startTime])
+  @@map("barber_weekly_slots")
+}
+
+/// Periodos de no disponibilidad y bloqueos temporales (HE08-HU-03/HU-05/HU-06).
+/// `date` es fecha de calendario (@db.Date): ver nota de zona horaria más abajo.
+/// `reactivatedBy` guarda el identificador del usuario responsable sin imponer
+/// integridad referencial (decisión alineada con la spec §7.4).
+model BarberScheduleBlock {
+  id            Int                  @id @default(autoincrement())
+  barberoId     Int
+  date          DateTime             @db.Date
+  startTime     String               @db.VarChar(5) // HH:mm
+  endTime       String               @db.VarChar(5) // HH:mm
+  reason        ScheduleBlockReason?
+  notes         String?              @db.Text
+  status        ScheduleBlockStatus  @default(ACTIVE)
+  reactivatedAt DateTime?
+  reactivatedBy Int?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  barbero Barbero @relation(fields: [barberoId], references: [id], onDelete: Cascade)
+
+  @@index([barberoId, date, status])
+  @@map("barber_schedule_blocks")
+}
+
+/// Cierre general (HE-08 solo lo consulta; su CRUD no pertenece a este alcance).
+/// `allDay = true` cubre el día completo; con `false`, startTime/endTime son
+/// obligatorios. Esa consistencia condicional se valida en DTO/servicio, no en
+/// Prisma (no es una restricción portable).
+model GeneralClosure {
+  id        Int      @id @default(autoincrement())
+  date      DateTime @db.Date
+  startTime String?  @db.VarChar(5) // HH:mm
+  endTime   String?  @db.VarChar(5) // HH:mm
+  allDay    Boolean  @default(false)
+  reason    String   @db.Text
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date, active])
+  @@map("general_closures")
 }

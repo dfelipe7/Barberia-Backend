@@ -78,6 +78,29 @@ export class ServiciosRepository {
     }
 
     /**
+     * Obtiene un servicio por su ID solo si está ACTIVO. Se usa para validar la
+     * consulta pública de disponibilidad sin exponer servicios inactivos.
+     */
+    async obtenerServicioActivoPorId(id: number) {
+        return this.prisma.servicio.findFirst({
+            where: { id, estado: EstadoServicio.ACTIVO },
+        });
+    }
+
+    /**
+     * Indica si un barbero está asignado a un servicio mediante la tabla
+     * intermedia `BarberoServicio` (clave compuesta barberoId + servicioId).
+     * La disponibilidad pública solo es válida si el barbero ofrece el servicio.
+     */
+    async existeAsignacionBarbero(barberoId: number, servicioId: number) {
+        const asignacion = await this.prisma.barberoServicio.findUnique({
+            where: { barberoId_servicioId: { barberoId, servicioId } },
+            select: { barberoId: true },
+        });
+        return asignacion !== null;
+    }
+
+    /**
      * Catálogo público: Lista únicamente los servicios que están ACTIVOS con opción de filtro por nombre.
      * Ordenados alfabéticamente para facilitar la selección al cliente en la reserva.
      */

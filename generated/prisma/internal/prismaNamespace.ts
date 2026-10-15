@@ -402,7 +402,10 @@ export const ModelName = {
   Barbero: 'Barbero',
   Cliente: 'Cliente',
   Servicio: 'Servicio',
-  BarberoServicio: 'BarberoServicio'
+  BarberoServicio: 'BarberoServicio',
+  BarberWeeklySlot: 'BarberWeeklySlot',
+  BarberScheduleBlock: 'BarberScheduleBlock',
+  GeneralClosure: 'GeneralClosure'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -418,7 +421,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "usuario" | "administrador" | "barbero" | "cliente" | "servicio" | "barberoServicio"
+    modelProps: "usuario" | "administrador" | "barbero" | "cliente" | "servicio" | "barberoServicio" | "barberWeeklySlot" | "barberScheduleBlock" | "generalClosure"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -818,6 +821,204 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    BarberWeeklySlot: {
+      payload: Prisma.$BarberWeeklySlotPayload<ExtArgs>
+      fields: Prisma.BarberWeeklySlotFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.BarberWeeklySlotFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberWeeklySlotPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.BarberWeeklySlotFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberWeeklySlotPayload>
+        }
+        findFirst: {
+          args: Prisma.BarberWeeklySlotFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberWeeklySlotPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.BarberWeeklySlotFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberWeeklySlotPayload>
+        }
+        findMany: {
+          args: Prisma.BarberWeeklySlotFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberWeeklySlotPayload>[]
+        }
+        create: {
+          args: Prisma.BarberWeeklySlotCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberWeeklySlotPayload>
+        }
+        createMany: {
+          args: Prisma.BarberWeeklySlotCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        delete: {
+          args: Prisma.BarberWeeklySlotDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberWeeklySlotPayload>
+        }
+        update: {
+          args: Prisma.BarberWeeklySlotUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberWeeklySlotPayload>
+        }
+        deleteMany: {
+          args: Prisma.BarberWeeklySlotDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.BarberWeeklySlotUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        upsert: {
+          args: Prisma.BarberWeeklySlotUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberWeeklySlotPayload>
+        }
+        aggregate: {
+          args: Prisma.BarberWeeklySlotAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateBarberWeeklySlot>
+        }
+        groupBy: {
+          args: Prisma.BarberWeeklySlotGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BarberWeeklySlotGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.BarberWeeklySlotCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BarberWeeklySlotCountAggregateOutputType> | number
+        }
+      }
+    }
+    BarberScheduleBlock: {
+      payload: Prisma.$BarberScheduleBlockPayload<ExtArgs>
+      fields: Prisma.BarberScheduleBlockFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.BarberScheduleBlockFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberScheduleBlockPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.BarberScheduleBlockFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberScheduleBlockPayload>
+        }
+        findFirst: {
+          args: Prisma.BarberScheduleBlockFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberScheduleBlockPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.BarberScheduleBlockFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberScheduleBlockPayload>
+        }
+        findMany: {
+          args: Prisma.BarberScheduleBlockFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberScheduleBlockPayload>[]
+        }
+        create: {
+          args: Prisma.BarberScheduleBlockCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberScheduleBlockPayload>
+        }
+        createMany: {
+          args: Prisma.BarberScheduleBlockCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        delete: {
+          args: Prisma.BarberScheduleBlockDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberScheduleBlockPayload>
+        }
+        update: {
+          args: Prisma.BarberScheduleBlockUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberScheduleBlockPayload>
+        }
+        deleteMany: {
+          args: Prisma.BarberScheduleBlockDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.BarberScheduleBlockUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        upsert: {
+          args: Prisma.BarberScheduleBlockUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BarberScheduleBlockPayload>
+        }
+        aggregate: {
+          args: Prisma.BarberScheduleBlockAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateBarberScheduleBlock>
+        }
+        groupBy: {
+          args: Prisma.BarberScheduleBlockGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BarberScheduleBlockGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.BarberScheduleBlockCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BarberScheduleBlockCountAggregateOutputType> | number
+        }
+      }
+    }
+    GeneralClosure: {
+      payload: Prisma.$GeneralClosurePayload<ExtArgs>
+      fields: Prisma.GeneralClosureFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.GeneralClosureFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GeneralClosurePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.GeneralClosureFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GeneralClosurePayload>
+        }
+        findFirst: {
+          args: Prisma.GeneralClosureFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GeneralClosurePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.GeneralClosureFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GeneralClosurePayload>
+        }
+        findMany: {
+          args: Prisma.GeneralClosureFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GeneralClosurePayload>[]
+        }
+        create: {
+          args: Prisma.GeneralClosureCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GeneralClosurePayload>
+        }
+        createMany: {
+          args: Prisma.GeneralClosureCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        delete: {
+          args: Prisma.GeneralClosureDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GeneralClosurePayload>
+        }
+        update: {
+          args: Prisma.GeneralClosureUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GeneralClosurePayload>
+        }
+        deleteMany: {
+          args: Prisma.GeneralClosureDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.GeneralClosureUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        upsert: {
+          args: Prisma.GeneralClosureUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GeneralClosurePayload>
+        }
+        aggregate: {
+          args: Prisma.GeneralClosureAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateGeneralClosure>
+        }
+        groupBy: {
+          args: Prisma.GeneralClosureGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GeneralClosureGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.GeneralClosureCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GeneralClosureCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -925,6 +1126,53 @@ export const BarberoServicioScalarFieldEnum = {
 export type BarberoServicioScalarFieldEnum = (typeof BarberoServicioScalarFieldEnum)[keyof typeof BarberoServicioScalarFieldEnum]
 
 
+export const BarberWeeklySlotScalarFieldEnum = {
+  id: 'id',
+  barberoId: 'barberoId',
+  dayOfWeek: 'dayOfWeek',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  active: 'active',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type BarberWeeklySlotScalarFieldEnum = (typeof BarberWeeklySlotScalarFieldEnum)[keyof typeof BarberWeeklySlotScalarFieldEnum]
+
+
+export const BarberScheduleBlockScalarFieldEnum = {
+  id: 'id',
+  barberoId: 'barberoId',
+  date: 'date',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  reason: 'reason',
+  notes: 'notes',
+  status: 'status',
+  reactivatedAt: 'reactivatedAt',
+  reactivatedBy: 'reactivatedBy',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type BarberScheduleBlockScalarFieldEnum = (typeof BarberScheduleBlockScalarFieldEnum)[keyof typeof BarberScheduleBlockScalarFieldEnum]
+
+
+export const GeneralClosureScalarFieldEnum = {
+  id: 'id',
+  date: 'date',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  allDay: 'allDay',
+  reason: 'reason',
+  active: 'active',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type GeneralClosureScalarFieldEnum = (typeof GeneralClosureScalarFieldEnum)[keyof typeof GeneralClosureScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -975,6 +1223,32 @@ export const ServicioOrderByRelevanceFieldEnum = {
 } as const
 
 export type ServicioOrderByRelevanceFieldEnum = (typeof ServicioOrderByRelevanceFieldEnum)[keyof typeof ServicioOrderByRelevanceFieldEnum]
+
+
+export const BarberWeeklySlotOrderByRelevanceFieldEnum = {
+  startTime: 'startTime',
+  endTime: 'endTime'
+} as const
+
+export type BarberWeeklySlotOrderByRelevanceFieldEnum = (typeof BarberWeeklySlotOrderByRelevanceFieldEnum)[keyof typeof BarberWeeklySlotOrderByRelevanceFieldEnum]
+
+
+export const BarberScheduleBlockOrderByRelevanceFieldEnum = {
+  startTime: 'startTime',
+  endTime: 'endTime',
+  notes: 'notes'
+} as const
+
+export type BarberScheduleBlockOrderByRelevanceFieldEnum = (typeof BarberScheduleBlockOrderByRelevanceFieldEnum)[keyof typeof BarberScheduleBlockOrderByRelevanceFieldEnum]
+
+
+export const GeneralClosureOrderByRelevanceFieldEnum = {
+  startTime: 'startTime',
+  endTime: 'endTime',
+  reason: 'reason'
+} as const
+
+export type GeneralClosureOrderByRelevanceFieldEnum = (typeof GeneralClosureOrderByRelevanceFieldEnum)[keyof typeof GeneralClosureOrderByRelevanceFieldEnum]
 
 
 
@@ -1029,6 +1303,34 @@ export type EnumEstadoServicioFieldRefInput<$PrismaModel> = FieldRefInputType<$P
  * Reference to a field of type 'DateTime'
  */
 export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
+    
+
+
+/**
+ * Reference to a field of type 'WeekDay'
+ */
+export type EnumWeekDayFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'WeekDay'>
+    
+
+
+/**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+/**
+ * Reference to a field of type 'ScheduleBlockReason'
+ */
+export type EnumScheduleBlockReasonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScheduleBlockReason'>
+    
+
+
+/**
+ * Reference to a field of type 'ScheduleBlockStatus'
+ */
+export type EnumScheduleBlockStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScheduleBlockStatus'>
     
 
 
@@ -1195,6 +1497,9 @@ export type GlobalOmitConfig = {
   cliente?: Prisma.ClienteOmit
   servicio?: Prisma.ServicioOmit
   barberoServicio?: Prisma.BarberoServicioOmit
+  barberWeeklySlot?: Prisma.BarberWeeklySlotOmit
+  barberScheduleBlock?: Prisma.BarberScheduleBlockOmit
+  generalClosure?: Prisma.GeneralClosureOmit
 }
 
 /* Types for Logging */

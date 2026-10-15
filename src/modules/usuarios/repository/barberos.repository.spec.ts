@@ -8,6 +8,7 @@ const mockPrismaService = {
     create: jest.fn(),
     update: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     findMany: jest.fn(),
   },
 };
@@ -96,6 +97,23 @@ describe('BarberosRepository', () => {
         where: { usuarioId: 1 },
       });
       expect(result).toEqual({ usuarioId: 1 });
+    });
+  });
+
+  describe('obtenerBarberoActivoPorId', () => {
+    it('should query only when barbero and usuario are ACTIVO', async () => {
+      mockPrismaService.barbero.findFirst.mockResolvedValue({ id: 7 });
+
+      const result = await repository.obtenerBarberoActivoPorId(7);
+
+      expect(prisma.barbero.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 7,
+          estado: EstadoUsuario.ACTIVO,
+          usuario: { estado: EstadoUsuario.ACTIVO },
+        },
+      });
+      expect(result).toEqual({ id: 7 });
     });
   });
 

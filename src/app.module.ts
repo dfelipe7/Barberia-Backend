@@ -8,6 +8,7 @@ import { UsuariosModule } from './modules/usuarios/usuarios.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { BootstrapService } from './bootstrap/bootstrap.service';
 import { ServiciosModule } from './modules/servicios/servicios.module';
+import { HorariosModule } from './modules/horarios/horarios.module';
 import { AppLoggerModule } from './logger/logger.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { AllExceptionsFilter } from './logger/all-exceptions.filter';
@@ -41,6 +42,7 @@ import { AllExceptionsFilter } from './logger/all-exceptions.filter';
     AuthModule,
     UsuariosModule,
     ServiciosModule,
+    HorariosModule,
     PrismaModule,
     AppLoggerModule,
     AlertsModule,

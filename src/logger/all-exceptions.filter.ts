@@ -31,10 +31,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getResponse()
         : 'Internal server error';
 
+    const responseObject =
+      typeof rawResponse === 'object' && rawResponse !== null
+        ? (rawResponse as Record<string, unknown>)
+        : undefined;
+
     const message =
-      typeof rawResponse === 'object' && rawResponse !== null && 'message' in rawResponse
-        ? (rawResponse as any).message
+      responseObject && 'message' in responseObject
+        ? responseObject.message
         : rawResponse;
+
+    const code = responseObject?.code;
+    const details = responseObject?.details;
 
     const logContext = {
       timestamp: new Date().toISOString(),
@@ -49,27 +57,38 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // OWASP A09: Monitoreo de Seguridad (Alertas Tempranas)
     // Si es 401 o 403, lo registramos como una Advertencia (warn) de seguridad
     if (status === HttpStatus.UNAUTHORIZED || status === HttpStatus.FORBIDDEN) {
-      this.logger.warn(`Security Event [${status}]: Intento de acceso denegado`, logContext);
-      
+      this.logger.warn(
+        `Security Event [${status}]: Intento de acceso denegado`,
+        logContext,
+      );
+
       // OWASP A09: Evitar fatiga de alertas. Solo enviar correo si es intento de violación de roles (403).
       // Los 401 (sesión expirada) se guardan en el log físico pero no envían correo.
       if (status === HttpStatus.FORBIDDEN) {
-        this.alertsService.sendSecurityAlert(status, logContext).catch((err) => {
-          this.logger.error('Error enviando alerta de seguridad', err);
-        });
+        this.alertsService
+          .sendSecurityAlert(status, logContext)
+          .catch((err) => {
+            this.logger.error('Error enviando alerta de seguridad', err);
+          });
       }
-    } 
+    }
     // Si es un error 500 o fallos de DB, lo registramos como Error Crítico
     else if (status >= 500) {
-      this.logger.error(`Critical Error [${status}]: Fallo en el servidor`, exception instanceof Error ? exception.stack : '', logContext);
+      this.logger.error(
+        `Critical Error [${status}]: Fallo en el servidor`,
+        exception instanceof Error ? exception.stack : '',
+        logContext,
+      );
       // Disparar correo de alerta para caídas del servidor
       this.alertsService.sendSecurityAlert(status, logContext).catch((err) => {
         this.logger.error('Error enviando alerta de seguridad', err);
       });
-    } 
+    }
     // Errores de validación o conflicto (400, 409) son menos graves pero los logueamos
     else {
-      this.logger.log(`Client Error [${status}]: Petición rechazada - Path: ${request.url}`);
+      this.logger.log(
+        `Client Error [${status}]: Petición rechazada - Path: ${request.url}`,
+      );
     }
 
     response.status(status).json({
@@ -77,6 +96,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
       path: request.url,
       message,
+      ...(code === undefined ? {} : { code }),
+      ...(details === undefined ? {} : { details }),
     });
   }
 }
