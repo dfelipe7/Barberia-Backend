@@ -51,43 +51,51 @@ export class HorariosRepository {
   }
 
   /**
-   * Persiste el conjunto de franjas vigentes del barbero.
+   * Persiste el conjunto de franjas vigentes del barbero (reemplazo completo).
    *
-   * Realiza un `upsert` por cada franja (clave compuesta barbero/día/hora) en
-   * una sola transacción, reactivando cualquier franja que hubiese quedado
-   * inactiva. No elimina filas: la verificación de reservas activas que
-   * autorizaría la eliminación pertenece a HE-04 y aún no está integrada.
+   * En una sola transacción desactiva lógicamente todas las franjas activas del
+   * barbero y luego hace `upsert` de las franjas recibidas (clave compuesta
+   * barbero/día/hora), reactivando las que se conservan. No borra filas: el
+   * historial se mantiene vía la bandera `active`.
+   *
+   * La política de reservas (HE-04) que autoriza eliminar franjas se verifica
+   * en la capa de servicio antes de invocar este método; aquí solo se persiste
+   * el conjunto final.
    */
   async reemplazarFranjas(
     barberoId: number,
     franjas: FranjaHorarioPersistencia[],
   ) {
-    if (franjas.length > 0) {
-      await this.prisma.$transaction(
-        franjas.map((franja) =>
-          this.prisma.barberWeeklySlot.upsert({
-            where: {
-              barberoId_dayOfWeek_startTime: {
-                barberoId,
-                dayOfWeek: franja.dayOfWeek,
-                startTime: franja.startTime,
-              },
-            },
-            update: {
-              endTime: franja.endTime,
-              active: true,
-            },
-            create: {
+    const operaciones = [
+      this.prisma.barberWeeklySlot.updateMany({
+        where: { barberoId, active: true },
+        data: { active: false },
+      }),
+      ...franjas.map((franja) =>
+        this.prisma.barberWeeklySlot.upsert({
+          where: {
+            barberoId_dayOfWeek_startTime: {
               barberoId,
               dayOfWeek: franja.dayOfWeek,
               startTime: franja.startTime,
-              endTime: franja.endTime,
-              active: true,
             },
-          }),
-        ),
-      );
-    }
+          },
+          update: {
+            endTime: franja.endTime,
+            active: true,
+          },
+          create: {
+            barberoId,
+            dayOfWeek: franja.dayOfWeek,
+            startTime: franja.startTime,
+            endTime: franja.endTime,
+            active: true,
+          },
+        }),
+      ),
+    ];
+
+    await this.prisma.$transaction(operaciones);
 
     return this.obtenerFranjasActivasPorBarbero(barberoId);
   }

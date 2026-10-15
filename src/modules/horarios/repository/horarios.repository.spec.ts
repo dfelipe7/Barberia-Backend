@@ -20,6 +20,7 @@ const mockPrismaService = {
   barberWeeklySlot: {
     findMany: jest.fn(),
     upsert: jest.fn(),
+    updateMany: jest.fn(),
   },
   $transaction: jest.fn(),
 };
@@ -79,7 +80,7 @@ describe('HorariosRepository', () => {
   });
 
   describe('reemplazarFranjas', () => {
-    it('debe hacer upsert por cada franja en una transacción y retornar las activas', async () => {
+    it('debe desactivar las franjas activas y hacer upsert de las recibidas en una transacción', async () => {
       mockPrismaService.$transaction.mockResolvedValue([]);
       mockPrismaService.barberWeeklySlot.findMany.mockResolvedValue([
         { id: 9 },
@@ -94,7 +95,13 @@ describe('HorariosRepository', () => {
       expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
       const operaciones = mockPrismaService.$transaction.mock
         .calls[0][0] as unknown[];
-      expect(operaciones).toHaveLength(1);
+      expect(operaciones).toHaveLength(2);
+      expect(
+        mockPrismaService.barberWeeklySlot.updateMany,
+      ).toHaveBeenCalledWith({
+        where: { barberoId: 3, active: true },
+        data: { active: false },
+      });
       expect(mockPrismaService.barberWeeklySlot.upsert).toHaveBeenCalledWith({
         where: {
           barberoId_dayOfWeek_startTime: {
@@ -115,12 +122,23 @@ describe('HorariosRepository', () => {
       expect(resultado).toEqual([{ id: 9 }]);
     });
 
-    it('no debe abrir transacción cuando la lista está vacía y retorna las activas', async () => {
+    it('debe desactivar todas las franjas y no hacer upsert cuando la lista está vacía', async () => {
+      mockPrismaService.$transaction.mockResolvedValue([]);
       mockPrismaService.barberWeeklySlot.findMany.mockResolvedValue([]);
 
       const resultado = await repository.reemplazarFranjas(3, []);
 
-      expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
+      expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
+      const operaciones = mockPrismaService.$transaction.mock
+        .calls[0][0] as unknown[];
+      expect(operaciones).toHaveLength(1);
+      expect(
+        mockPrismaService.barberWeeklySlot.updateMany,
+      ).toHaveBeenCalledWith({
+        where: { barberoId: 3, active: true },
+        data: { active: false },
+      });
+      expect(mockPrismaService.barberWeeklySlot.upsert).not.toHaveBeenCalled();
       expect(resultado).toEqual([]);
     });
   });

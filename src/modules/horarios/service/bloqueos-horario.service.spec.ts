@@ -438,6 +438,24 @@ describe('BloqueosHorarioService', () => {
         service.cancelarBloqueo(usuarioAutenticado, 1),
       ).rejects.toThrow(ConflictException);
     });
+
+    it('debe lanzar 404 si el bloqueo pertenece a otro barbero (sin mutar)', async () => {
+      bloqueosRepository.obtenerPorId.mockResolvedValue(
+        crearRegistro({ barberoId: 99 }),
+      );
+
+      await expect(
+        service.cancelarBloqueo(usuarioAutenticado, 1),
+      ).rejects.toThrow(NotFoundException);
+      expect(bloqueosRepository.actualizar).not.toHaveBeenCalled();
+    });
+
+    it('debe lanzar 401 si no se puede identificar al usuario autenticado', async () => {
+      await expect(service.cancelarBloqueo({}, 1)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(bloqueosRepository.actualizar).not.toHaveBeenCalled();
+    });
   });
 
   describe('reactivarBloqueo', () => {
@@ -470,6 +488,24 @@ describe('BloqueosHorarioService', () => {
       await expect(
         service.reactivarBloqueo(usuarioAutenticado, 1),
       ).rejects.toThrow(ConflictException);
+      expect(bloqueosRepository.actualizar).not.toHaveBeenCalled();
+    });
+
+    it('debe lanzar 404 si el bloqueo pertenece a otro barbero (sin mutar)', async () => {
+      bloqueosRepository.obtenerPorId.mockResolvedValue(
+        crearRegistro({ barberoId: 99 }),
+      );
+
+      await expect(
+        service.reactivarBloqueo(usuarioAutenticado, 1),
+      ).rejects.toThrow(NotFoundException);
+      expect(bloqueosRepository.actualizar).not.toHaveBeenCalled();
+    });
+
+    it('debe lanzar 401 si no se puede identificar al usuario autenticado', async () => {
+      await expect(service.reactivarBloqueo({}, 1)).rejects.toThrow(
+        UnauthorizedException,
+      );
       expect(bloqueosRepository.actualizar).not.toHaveBeenCalled();
     });
   });
