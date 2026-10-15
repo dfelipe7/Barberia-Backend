@@ -25,6 +25,10 @@ import {
   ReservasNoDisponiblesError,
 } from '../ports/proveedor-reservas-activas.port';
 import type { ProveedorReservasActivas } from '../ports/proveedor-reservas-activas.port';
+import {
+  CODIGOS_CONFLICTO,
+  DomainConflictException,
+} from '../../../common/exceptions/domain-conflict.exception';
 import { CrearBloqueoHorarioDto } from '../dto/dto-peticion/crear-bloqueo-horario.dto';
 import { ActualizarBloqueoHorarioDto } from '../dto/dto-peticion/actualizar-bloqueo-horario.dto';
 import { FiltroBloqueosHorarioDto } from '../dto/dto-peticion/filtro-bloqueos-horario.dto';
@@ -479,8 +483,10 @@ export class BloqueosHorarioService {
     }
 
     if (existeReserva) {
-      throw new ConflictException(
-        'El rango contiene una reserva no cancelada (SCHEDULE_BLOCK_HAS_RESERVATIONS)',
+      throw new DomainConflictException(
+        'El rango contiene una reserva no cancelada',
+        CODIGOS_CONFLICTO.SCHEDULE_BLOCK_HAS_RESERVATIONS,
+        { barberoId, fecha, startTime, endTime },
       );
     }
   }

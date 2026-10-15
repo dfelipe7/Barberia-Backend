@@ -23,6 +23,11 @@ describe('ReservaActivaRule', () => {
           ? Promise.reject(existe)
           : Promise.resolve(existe),
       ),
+      existeReservaNoCanceladaEnFranjaSemanal: jest.fn(() =>
+        existe instanceof Error
+          ? Promise.reject(existe)
+          : Promise.resolve(existe),
+      ),
     };
     return { proveedor, rule: new ReservaActivaRule(proveedor) };
   };

@@ -1,8 +1,9 @@
 import {
+  Inject,
   Injectable,
   BadRequestException,
-  ConflictException,
   ForbiddenException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -15,6 +16,15 @@ import {
   HorariosRepository,
 } from '../repository/horarios.repository';
 import { BarberosRepository } from '../../usuarios/repository/barberos.repository';
+import {
+  PROVEEDOR_RESERVAS_ACTIVAS,
+  ReservasNoDisponiblesError,
+} from '../ports/proveedor-reservas-activas.port';
+import type { ProveedorReservasActivas } from '../ports/proveedor-reservas-activas.port';
+import {
+  CODIGOS_CONFLICTO,
+  DomainConflictException,
+} from '../../../common/exceptions/domain-conflict.exception';
 import {
   FranjaHorarioSemanalPeticionDto,
   ReemplazarHorarioSemanalDto,
@@ -38,6 +48,8 @@ export class HorarioSemanalService {
     private readonly horariosRepository: HorariosRepository,
     private readonly barberosRepository: BarberosRepository,
     private readonly franjaFactory: FranjaFactory,
+    @Inject(PROVEEDOR_RESERVAS_ACTIVAS)
+    private readonly proveedorReservas: ProveedorReservasActivas,
   ) {}
 
   /**
@@ -53,13 +65,18 @@ export class HorarioSemanalService {
   }
 
   /**
-   * HU-02: Reemplaza por completo el horario semanal del barbero autenticado.
+   * HE08-HU-01: Reemplaza por completo el horario semanal del barbero
+   * autenticado.
    *
    * Valida cada franja (formato, jornada, alineación y duración fija de 60
    * minutos) y que no existan duplicados ni solapamientos dentro de un mismo
-   * día. Por ahora solo se permite agregar franjas: eliminar o mover franjas
-   * existentes queda bloqueado a la espera de la verificación de reservas
-   * activas que pertenece a HE-04.
+   * día.
+   *
+   * Eliminar o reducir una franja existente solo se rechaza si esa franja
+   * contiene reservas no canceladas: la verificación se delega en
+   * `ProveedorReservasActivas` (HE-04). Mientras HE-04 no esté integrado, esa
+   * verificación falla de forma cerrada (503) en lugar de asumir que no hay
+   * reservas afectadas.
    */
   async reemplazarMiHorarioSemanal(
     usuarioAutenticado: any,
@@ -72,7 +89,11 @@ export class HorarioSemanalService {
 
     const existentes =
       await this.horariosRepository.obtenerFranjasActivasPorBarbero(barbero.id);
-    this.asegurarSinFranjasAfectadas(existentes, franjas);
+    await this.asegurarFranjasSinReservasActivas(
+      barbero.id,
+      existentes,
+      franjas,
+    );
 
     const guardadas = await this.horariosRepository.reemplazarFranjas(
       barbero.id,
@@ -204,16 +225,18 @@ export class HorarioSemanalService {
   }
 
   /**
-   * LÍMITE EXPLÍCITO (HE-04 pendiente): reemplazar el horario no debe eliminar
-   * ni reducir una franja que afecte reservas activas. Como la verificación de
-   * reservas todavía no existe, la operación se bloquea cuando la nueva lista
-   * no conserva todas las franjas activas actuales, en lugar de asumir que no
-   * hay reservas afectadas.
+   * HE08-HU-01 + HE-04: eliminar o reducir una franja existente no debe
+   * invalidar reservas no canceladas. Se calculan las franjas afectadas (las
+   * que existían y no se conservan) y se consultan en bloque al proveedor de
+   * reservas. Si alguna tiene reservas → 409 con código estable
+   * `SCHEDULE_CHANGE_AFFECTS_RESERVATIONS`. Si el proveedor (HE-04) no está
+   * integrado → 503 (fail-closed), en vez de asumir que no hay reservas.
    */
-  private asegurarSinFranjasAfectadas(
+  private async asegurarFranjasSinReservasActivas(
+    barberoId: number,
     existentes: FranjaHorarioPersistencia[],
     nuevas: FranjaHorarioSemanalPeticionDto[],
-  ): void {
+  ): Promise<void> {
     const clavesNuevas = new Set(
       nuevas.map((franja) => `${franja.dayOfWeek}|${franja.startTime}`),
     );
@@ -222,10 +245,37 @@ export class HorarioSemanalService {
       (franja) => !clavesNuevas.has(`${franja.dayOfWeek}|${franja.startTime}`),
     );
 
-    if (afectadas.length > 0) {
-      throw new ConflictException(
-        'No es posible eliminar, reducir ni mover franjas del horario: la verificación de reservas activas (HE-04) todavía no está integrada. Solo se permite agregar franjas. Si necesitas quitar franjas, primero cancela o reprograma las reservas afectadas.',
-      );
+    for (const franja of afectadas) {
+      let existeReserva: boolean;
+
+      try {
+        existeReserva =
+          await this.proveedorReservas.existeReservaNoCanceladaEnFranjaSemanal({
+            barberoId,
+            dayOfWeek: franja.dayOfWeek,
+            startTime: franja.startTime,
+            endTime: franja.endTime,
+          });
+      } catch (error) {
+        if (error instanceof ReservasNoDisponiblesError) {
+          throw new ServiceUnavailableException(
+            'No es posible verificar reservas activas: la integración con HE-04 todavía no está disponible. La operación se rechaza para no invalidar reservas (SCHEDULE_CHANGE_AFFECTS_RESERVATIONS).',
+          );
+        }
+        throw error;
+      }
+
+      if (existeReserva) {
+        throw new DomainConflictException(
+          `No es posible eliminar, reducir ni mover la franja ${franja.dayOfWeek} ${franja.startTime}-${franja.endTime}: contiene reservas no canceladas`,
+          CODIGOS_CONFLICTO.SCHEDULE_CHANGE_AFFECTS_RESERVATIONS,
+          {
+            dayOfWeek: franja.dayOfWeek,
+            startTime: franja.startTime,
+            endTime: franja.endTime,
+          },
+        );
+      }
     }
   }
 

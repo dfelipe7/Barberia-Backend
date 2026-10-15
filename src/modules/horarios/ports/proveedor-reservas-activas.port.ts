@@ -30,6 +30,19 @@ export interface ConsultaConflictoReserva {
   endTime: string;
 }
 
+/**
+ * Consulta de conflicto recurrente: una franja del horario semanal
+ * (`dayOfWeek` + `startTime`) sin fecha concreta. La usa el reemplazo del
+ * horario para saber si eliminar esa franja afectaría reservas no canceladas de
+ * cualquier fecha futura.
+ */
+export interface ConsultaConflictoFranjaSemanal {
+  barberoId: number;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+}
+
 export interface ProveedorReservasActivas {
   /**
    * Indica si el rango `[startTime, endTime)` de un barbero en una fecha
@@ -37,6 +50,15 @@ export interface ProveedorReservasActivas {
    */
   existeReservaNoCanceladaEnFranja(
     consulta: ConsultaConflictoReserva,
+  ): Promise<boolean>;
+
+  /**
+   * Indica si existe al menos una reserva no cancelada, en cualquier fecha, que
+   * ocupe la franja semanal indicada (`dayOfWeek` + inicio). Necesario para
+   * rechazar la eliminación de franjas del horario sin enumerar fechas.
+   */
+  existeReservaNoCanceladaEnFranjaSemanal(
+    consulta: ConsultaConflictoFranjaSemanal,
   ): Promise<boolean>;
 }
 
@@ -65,6 +87,10 @@ export class ReservasNoDisponiblesError extends Error {
 @Injectable()
 export class ProveedorReservasActivasNoDisponible implements ProveedorReservasActivas {
   existeReservaNoCanceladaEnFranja(): Promise<boolean> {
+    return Promise.reject(new ReservasNoDisponiblesError());
+  }
+
+  existeReservaNoCanceladaEnFranjaSemanal(): Promise<boolean> {
     return Promise.reject(new ReservasNoDisponiblesError());
   }
 }

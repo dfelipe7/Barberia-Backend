@@ -1,14 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { HorarioSemanalService } from './horario-semanal.service';
 import { HorariosRepository } from '../repository/horarios.repository';
 import { BarberosRepository } from '../../usuarios/repository/barberos.repository';
 import { FranjaFactory } from '../factory/franja.factory';
+import {
+  PROVEEDOR_RESERVAS_ACTIVAS,
+  ReservasNoDisponiblesError,
+} from '../ports/proveedor-reservas-activas.port';
+import {
+  CODIGOS_CONFLICTO,
+  DomainConflictException,
+} from '../../../common/exceptions/domain-conflict.exception';
 
 jest.mock('../../../../generated/prisma/enums', () => ({
   WeekDay: {
@@ -28,6 +36,9 @@ describe('HorarioSemanalService', () => {
   let service: HorarioSemanalService;
   let horariosRepository: jest.Mocked<HorariosRepository>;
   let barberosRepository: jest.Mocked<BarberosRepository>;
+  let proveedorReservas: {
+    existeReservaNoCanceladaEnFranjaSemanal: jest.Mock;
+  };
 
   const usuarioAutenticado = { id: 10, sub: '10', email: 'barbero@test.com' };
 
@@ -43,12 +54,19 @@ describe('HorarioSemanalService', () => {
         .mockResolvedValue({ id: 7, usuarioId: 10 }),
     };
 
+    proveedorReservas = {
+      existeReservaNoCanceladaEnFranjaSemanal: jest
+        .fn()
+        .mockResolvedValue(false),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         HorarioSemanalService,
         { provide: HorariosRepository, useValue: mockHorariosRepository },
         { provide: BarberosRepository, useValue: mockBarberosRepository },
         FranjaFactory,
+        { provide: PROVEEDOR_RESERVAS_ACTIVAS, useValue: proveedorReservas },
       ],
     }).compile();
 
@@ -128,16 +146,96 @@ describe('HorarioSemanalService', () => {
       });
     });
 
-    it('debe lanzar ConflictException si la nueva lista elimina una franja existente', async () => {
+    it('debe reemplazar el horario cuando solo se agregan franjas sin consultar reservas', async () => {
       horariosRepository.obtenerFranjasActivasPorBarbero.mockResolvedValue([
         { dayOfWeek: WeekDay.MONDAY, startTime: '09:00', endTime: '10:00' },
       ] as any);
+      const dto = {
+        franjas: [
+          { dayOfWeek: WeekDay.MONDAY, startTime: '09:00', endTime: '10:00' },
+          { dayOfWeek: WeekDay.TUESDAY, startTime: '09:00', endTime: '10:00' },
+        ],
+      };
+      horariosRepository.reemplazarFranjas.mockResolvedValue(
+        dto.franjas as any,
+      );
+
+      await service.reemplazarMiHorarioSemanal(usuarioAutenticado, dto);
+
+      expect(
+        proveedorReservas.existeReservaNoCanceladaEnFranjaSemanal,
+      ).not.toHaveBeenCalled();
+      expect(horariosRepository.reemplazarFranjas).toHaveBeenCalledWith(
+        7,
+        dto.franjas,
+      );
+    });
+
+    it('debe permitir eliminar una franja cuando no tiene reservas no canceladas', async () => {
+      horariosRepository.obtenerFranjasActivasPorBarbero.mockResolvedValue([
+        { dayOfWeek: WeekDay.MONDAY, startTime: '09:00', endTime: '10:00' },
+      ] as any);
+      proveedorReservas.existeReservaNoCanceladaEnFranjaSemanal.mockResolvedValue(
+        false,
+      );
+
+      const dto = { franjas: [] };
+
+      await service.reemplazarMiHorarioSemanal(usuarioAutenticado, dto);
+
+      expect(
+        proveedorReservas.existeReservaNoCanceladaEnFranjaSemanal,
+      ).toHaveBeenCalledWith({
+        barberoId: 7,
+        dayOfWeek: WeekDay.MONDAY,
+        startTime: '09:00',
+        endTime: '10:00',
+      });
+      expect(horariosRepository.reemplazarFranjas).toHaveBeenCalledWith(7, []);
+    });
+
+    it('debe lanzar 409 con código SCHEDULE_CHANGE_AFFECTS_RESERVATIONS si la franja eliminada tiene reservas', async () => {
+      horariosRepository.obtenerFranjasActivasPorBarbero.mockResolvedValue([
+        { dayOfWeek: WeekDay.MONDAY, startTime: '09:00', endTime: '10:00' },
+      ] as any);
+      proveedorReservas.existeReservaNoCanceladaEnFranjaSemanal.mockResolvedValue(
+        true,
+      );
+
+      const dto = { franjas: [] };
+
+      const capturado: unknown = await service
+        .reemplazarMiHorarioSemanal(usuarioAutenticado, dto)
+        .then(() => undefined)
+        .catch((e: unknown) => e);
+
+      expect(capturado).toBeInstanceOf(DomainConflictException);
+      const excepcion = capturado as DomainConflictException;
+      expect(excepcion.getStatus()).toBe(409);
+      expect(excepcion.getResponse()).toMatchObject({
+        code: CODIGOS_CONFLICTO.SCHEDULE_CHANGE_AFFECTS_RESERVATIONS,
+        details: {
+          dayOfWeek: WeekDay.MONDAY,
+          startTime: '09:00',
+          endTime: '10:00',
+        },
+      });
+      expect(horariosRepository.reemplazarFranjas).not.toHaveBeenCalled();
+    });
+
+    it('debe fallar cerrado con 503 si HE-04 no está disponible y hay franjas afectadas', async () => {
+      horariosRepository.obtenerFranjasActivasPorBarbero.mockResolvedValue([
+        { dayOfWeek: WeekDay.MONDAY, startTime: '09:00', endTime: '10:00' },
+      ] as any);
+      proveedorReservas.existeReservaNoCanceladaEnFranjaSemanal.mockRejectedValue(
+        new ReservasNoDisponiblesError(),
+      );
 
       const dto = { franjas: [] };
 
       await expect(
         service.reemplazarMiHorarioSemanal(usuarioAutenticado, dto),
-      ).rejects.toThrow(ConflictException);
+      ).rejects.toThrow(ServiceUnavailableException);
       expect(horariosRepository.reemplazarFranjas).not.toHaveBeenCalled();
     });
 

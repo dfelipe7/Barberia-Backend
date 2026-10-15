@@ -18,6 +18,7 @@ import {
   PROVEEDOR_RESERVAS_ACTIVAS,
   ReservasNoDisponiblesError,
 } from '../ports/proveedor-reservas-activas.port';
+import { CODIGOS_CONFLICTO } from '../../../common/exceptions/domain-conflict.exception';
 
 jest.mock('../../../../generated/prisma/enums', () => ({
   WeekDay: {
@@ -195,14 +196,22 @@ describe('BloqueosHorarioService', () => {
       expect(bloqueosRepository.crear).not.toHaveBeenCalled();
     });
 
-    it('debe lanzar 409 si el rango contiene una reserva no cancelada', async () => {
+    it('debe lanzar 409 con código SCHEDULE_BLOCK_HAS_RESERVATIONS si el rango contiene una reserva no cancelada', async () => {
       proveedorReservas.existeReservaNoCanceladaEnFranja.mockResolvedValue(
         true,
       );
 
-      await expect(
-        service.crearBloqueo(usuarioAutenticado, dto),
-      ).rejects.toThrow(ConflictException);
+      const capturado: unknown = await service
+        .crearBloqueo(usuarioAutenticado, dto)
+        .then(() => undefined)
+        .catch((e: unknown) => e);
+
+      expect(capturado).toBeInstanceOf(ConflictException);
+      const excepcion = capturado as ConflictException;
+      expect(excepcion.getStatus()).toBe(409);
+      expect(excepcion.getResponse()).toMatchObject({
+        code: CODIGOS_CONFLICTO.SCHEDULE_BLOCK_HAS_RESERVATIONS,
+      });
       expect(bloqueosRepository.crear).not.toHaveBeenCalled();
     });
 
