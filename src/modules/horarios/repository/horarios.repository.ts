@@ -32,6 +32,25 @@ export class HorariosRepository {
   }
 
   /**
+   * Obtiene las franjas activas del barbero para un día de la semana concreto,
+   * ordenadas por hora de inicio. Se usa al validar que un bloqueo caiga dentro
+   * del horario semanal de ese día.
+   */
+  async obtenerFranjasActivasPorBarberoYDia(
+    barberoId: number,
+    dayOfWeek: WeekDay,
+  ) {
+    return this.prisma.barberWeeklySlot.findMany({
+      where: {
+        barberoId,
+        dayOfWeek,
+        active: true,
+      },
+      orderBy: { startTime: 'asc' },
+    });
+  }
+
+  /**
    * Persiste el conjunto de franjas vigentes del barbero.
    *
    * Realiza un `upsert` por cada franja (clave compuesta barbero/día/hora) en

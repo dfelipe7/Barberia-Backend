@@ -59,6 +59,25 @@ describe('HorariosRepository', () => {
     });
   });
 
+  describe('obtenerFranjasActivasPorBarberoYDia', () => {
+    it('debe consultar las franjas activas del barbero para un día concreto', async () => {
+      mockPrismaService.barberWeeklySlot.findMany.mockResolvedValue([
+        { id: 1 },
+      ]);
+
+      const resultado = await repository.obtenerFranjasActivasPorBarberoYDia(
+        5,
+        WeekDay.MONDAY,
+      );
+
+      expect(mockPrismaService.barberWeeklySlot.findMany).toHaveBeenCalledWith({
+        where: { barberoId: 5, dayOfWeek: WeekDay.MONDAY, active: true },
+        orderBy: { startTime: 'asc' },
+      });
+      expect(resultado).toEqual([{ id: 1 }]);
+    });
+  });
+
   describe('reemplazarFranjas', () => {
     it('debe hacer upsert por cada franja en una transacción y retornar las activas', async () => {
       mockPrismaService.$transaction.mockResolvedValue([]);
