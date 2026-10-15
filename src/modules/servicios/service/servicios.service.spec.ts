@@ -16,12 +16,14 @@ describe('ServiciosService', () => {
       obtenerBarberosActivosPorIds: jest.fn(),
       obtenerServicioPorNombre: jest.fn(),
       obtenerServicioPorId: jest.fn(),
+      obtenerServicioActivoPorId: jest.fn(),
       crearServicio: jest.fn(),
       actualizarServicio: jest.fn(),
       cambiarEstado: jest.fn(),
       listarServiciosCatalogo: jest.fn(),
       listarServiciosGestion: jest.fn(),
       listarServiciosPorBarbero: jest.fn(),
+      listarBarberosActivosPorServicio: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -117,6 +119,52 @@ describe('ServiciosService', () => {
       const res = await service.obtenerServiciosPorBarbero(5);
       expect(res).toHaveLength(1);
       expect(repository.listarServiciosPorBarbero).toHaveBeenCalledWith(5);
+    });
+  });
+
+  describe('obtenerBarberosPorServicio (HE-04-HU-02)', () => {
+    it('debe lanzar NotFoundException si el servicio no existe o está inactivo', async () => {
+      repository.obtenerServicioActivoPorId.mockResolvedValue(null);
+
+      await expect(service.obtenerBarberosPorServicio(999)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(repository.listarBarberosActivosPorServicio).not.toHaveBeenCalled();
+    });
+
+    it('debe devolver lista vacía cuando el servicio existe pero ningún barbero lo presta', async () => {
+      repository.obtenerServicioActivoPorId.mockResolvedValue({ id: 1 } as any);
+      repository.listarBarberosActivosPorServicio.mockResolvedValue([]);
+
+      const res = await service.obtenerBarberosPorServicio(1);
+
+      expect(res).toEqual([]);
+      expect(repository.listarBarberosActivosPorServicio).toHaveBeenCalledWith(1);
+    });
+
+    it('debe mapear los barberos con el Barbero.id (no el Usuario.id) y ordenarlos por nombre', async () => {
+      repository.obtenerServicioActivoPorId.mockResolvedValue({ id: 1 } as any);
+      repository.listarBarberosActivosPorServicio.mockResolvedValue([
+        {
+          id: 30,
+          fotoUrl: null,
+          usuario: { id: 300, nombre: 'Zoe', apellido: 'Díaz' },
+        },
+        {
+          id: 10,
+          fotoUrl: '/uploads/barberos/ana.jpg',
+          usuario: { id: 100, nombre: 'Ana', apellido: 'Ruiz' },
+        },
+      ] as any);
+
+      const res = await service.obtenerBarberosPorServicio(1);
+
+      expect(res).toEqual([
+        { id: 10, nombre: 'Ana', apellido: 'Ruiz', fotoUrl: '/uploads/barberos/ana.jpg' },
+        { id: 30, nombre: 'Zoe', apellido: 'Díaz', fotoUrl: null },
+      ]);
+      // El id expuesto es Barbero.id, no Usuario.id (100/300).
+      expect(res.map((b) => b.id)).toEqual([10, 30]);
     });
   });
 

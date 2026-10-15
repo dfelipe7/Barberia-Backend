@@ -11,6 +11,7 @@ import {
     UseInterceptors,
     UploadedFile,
     BadRequestException,
+    ParseIntPipe,
     HttpCode,
     HttpStatus,
 } from '@nestjs/common';
@@ -22,6 +23,7 @@ import {
     ApiResponse,
     ApiParam,
     ApiConsumes,
+    ApiNotFoundResponse,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { crearMulterOptions } from '../../../common/config/multer.config';
@@ -31,6 +33,7 @@ import { ActualizarServicioDto } from '../dto/dto-peticion/actualizar-servicio.d
 import { CambiarEstadoServicioDto } from '../dto/dto-peticion/cambiar-estado-servicio.dto';
 import { FiltroServiciosDto } from '../dto/dto-peticion/filtro-servicios.dto';
 import { ServicioResponseDto } from '../dto/dto-respuesta/servicio-response.dto';
+import { BarberoPorServicioDto } from '../dto/dto-respuesta/barbero-por-servicio.dto';
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
@@ -92,6 +95,38 @@ export class ServiciosController {
     @ApiResponse({ status: 200, description: 'Servicios activos del barbero', type: ServicioResponseDto, isArray: true })
     async obtenerServiciosPorBarbero(@Param('barberoId') barberoId: string) {
         return this.serviciosService.obtenerServiciosPorBarbero(Number(barberoId));
+    }
+
+    /**
+     * GET /servicios/:servicioId/barberos
+     * Lista los barberos activos que tienen habilitado el servicio (HE-04-HU-02).
+     * Endpoint PÚBLICO: el cliente elige el servicio y luego ve quién puede
+     * prestarlo. Devuelve el `Barbero.id`, listo para consultar disponibilidad.
+     */
+    @Get(':servicioId/barberos')
+    @ApiOperation({
+        summary: 'Obtiene los barberos activos que pueden realizar un servicio',
+        description:
+            'Endpoint PÚBLICO. Devuelve los barberos activos asignados al servicio activo indicado, con el ID de barbero que consume el endpoint de disponibilidad. Devuelve una lista vacía si ningún barbero ofrece el servicio (el frontend muestra el mensaje informativo). Responde 404 si el servicio no existe o está inactivo.',
+    })
+    @ApiParam({
+        name: 'servicioId',
+        description: 'ID numérico del servicio',
+        type: Number,
+        example: 1,
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Barberos activos que prestan el servicio (puede ser una lista vacía)',
+        type: BarberoPorServicioDto,
+        isArray: true,
+    })
+    @ApiResponse({ status: 400, description: 'El identificador de servicio no es un número válido' })
+    @ApiNotFoundResponse({ description: 'El servicio no existe o está inactivo' })
+    async obtenerBarberosPorServicio(
+        @Param('servicioId', ParseIntPipe) servicioId: number,
+    ): Promise<BarberoPorServicioDto[]> {
+        return this.serviciosService.obtenerBarberosPorServicio(servicioId);
     }
 
     /**
