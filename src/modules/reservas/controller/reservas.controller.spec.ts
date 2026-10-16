@@ -14,6 +14,8 @@ describe('ReservasController', () => {
     crearReserva: jest.fn(),
     listarMisReservas: jest.fn(),
     obtenerMiReserva: jest.fn(),
+    modificarReserva: jest.fn(),
+    cancelarReserva: jest.fn(),
     obtenerAgendaBarbero: jest.fn(),
     obtenerAgendaSemanalBarbero: jest.fn(),
   };
@@ -139,5 +141,65 @@ describe('ReservasController', () => {
       mockUser,
       consulta,
     );
+  });
+
+  describe('modificarMiReserva', () => {
+    const modDto = { fecha: '2026-11-02', hora: '15:00' };
+
+    it('modifica la reserva delegando al servicio con la identidad autenticada', async () => {
+      const mockRespuesta = { id: 42, mensaje: 'Reserva modificada correctamente' };
+      reservasService.modificarReserva.mockResolvedValue(mockRespuesta);
+
+      const resultado = await controller.modificarMiReserva(
+        { cliente: { clienteId: 9 } },
+        42,
+        modDto,
+      );
+
+      expect(resultado).toBe(mockRespuesta);
+      expect(reservasService.modificarReserva).toHaveBeenCalledWith(
+        { clienteId: 9 },
+        42,
+        modDto,
+      );
+    });
+
+    it('rechaza un reservaId no positivo con 400', async () => {
+      await expect(
+        controller.modificarMiReserva(
+          { cliente: { clienteId: 9 } },
+          -1,
+          modDto,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(reservasService.modificarReserva).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('cancelarMiReserva', () => {
+    it('cancela la reserva delegando al servicio con la identidad autenticada', async () => {
+      const mockRespuesta = { id: 42, mensaje: 'Reserva cancelada correctamente' };
+      reservasService.cancelarReserva.mockResolvedValue(mockRespuesta);
+
+      const resultado = await controller.cancelarMiReserva(
+        { cliente: { clienteId: 9 } },
+        42,
+      );
+
+      expect(resultado).toBe(mockRespuesta);
+      expect(reservasService.cancelarReserva).toHaveBeenCalledWith(
+        { clienteId: 9 },
+        42,
+      );
+    });
+
+    it('rechaza un reservaId no positivo con 400', async () => {
+      await expect(
+        controller.cancelarMiReserva({ cliente: { clienteId: 9 } }, 0),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(reservasService.cancelarReserva).not.toHaveBeenCalled();
+    });
   });
 });

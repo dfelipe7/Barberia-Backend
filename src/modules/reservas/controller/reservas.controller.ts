@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -29,9 +30,12 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { CrearReservaDto } from '../dto/dto-peticion/crear-reserva.dto';
+import { ModificarReservaDto } from '../dto/dto-peticion/modificar-reserva.dto';
 import { ConsultaAgendaBarberoDto } from '../dto/dto-peticion/consulta-agenda-barbero.dto';
 import { ConsultaAgendaSemanalDto } from '../dto/dto-peticion/consulta-agenda-semanal.dto';
 import { ReservaCreadaResponseDto } from '../dto/dto-respuesta/reserva-creada-response.dto';
+import { ReservaModificadaResponseDto } from '../dto/dto-respuesta/reserva-modificada-response.dto';
+import { ReservaCanceladaResponseDto } from '../dto/dto-respuesta/reserva-cancelada-response.dto';
 import { ReservaClienteDto } from '../dto/dto-respuesta/reserva-cliente.dto';
 import { MisReservasResponseDto } from '../dto/dto-respuesta/mis-reservas-response.dto';
 import {
@@ -234,6 +238,104 @@ export class ReservasController {
     }
 
     return this.reservasService.obtenerMiReserva(
+      this.extraerIdentidadRequerida(request.cliente),
+      reservaId,
+    );
+  }
+
+  @Patch('me/:reservaId')
+  @UseGuards(ClienteJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Modificar una reserva propia (cliente autenticado)',
+    description:
+      'Permite cambiar de forma parcial la fecha, hora o barbero de una reserva del cliente autenticado. Valida la disponibilidad mediante HE-08 y garantiza atómicamente la reserva sin riesgo de dobles reservas. Si el nuevo horario no está disponible, responde 409 con "El horario seleccionado no está disponible".',
+  })
+  @ApiParam({
+    name: 'reservaId',
+    example: 42,
+    description: 'Identificador de la reserva a modificar',
+  })
+  @ApiBody({ type: ModificarReservaDto })
+  @ApiOkResponse({
+    description: 'Reserva modificada correctamente',
+    type: ReservaModificadaResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Parámetros o cuerpo inválidos, solicitud vacía o servicio no prestado por el barbero destino',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de cliente ausente, inválido o expirado',
+  })
+  @ApiNotFoundResponse({
+    description: 'La reserva no se encuentra disponible',
+  })
+  @ApiConflictResponse({
+    description:
+      'El horario seleccionado no está disponible o el estado actual de la reserva no permite modificarla',
+  })
+  async modificarMiReserva(
+    @Req() request: PeticionConCliente,
+    @Param('reservaId', ParseIntPipe) reservaId: number,
+    @Body() dto: ModificarReservaDto,
+  ): Promise<ReservaModificadaResponseDto> {
+    if (reservaId <= 0) {
+      throw new BadRequestException(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
+    }
+
+    return this.reservasService.modificarReserva(
+      this.extraerIdentidadRequerida(request.cliente),
+      reservaId,
+      dto,
+    );
+  }
+
+  @Patch('me/:reservaId/cancelar')
+  @UseGuards(ClienteJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Cancelar una reserva propia (cliente autenticado)',
+    description:
+      'Transiciona la reserva al estado CANCELLED, liberando la franja de agenda para nuevas reservas. Si la petición se repite para una reserva ya cancelada, se responde de forma idempotente sin duplicar efectos secundarios.',
+  })
+  @ApiParam({
+    name: 'reservaId',
+    example: 42,
+    description: 'Identificador de la reserva a cancelar',
+  })
+  @ApiOkResponse({
+    description: 'Reserva cancelada correctamente',
+    type: ReservaCanceladaResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Identificador de reserva inválido',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de cliente ausente, inválido o expirado',
+  })
+  @ApiNotFoundResponse({
+    description: 'La reserva no se encuentra disponible',
+  })
+  @ApiConflictResponse({
+    description:
+      'El estado actual de la reserva no permite cancelarla (por ejemplo, COMPLETED o IN_PROGRESS)',
+  })
+  async cancelarMiReserva(
+    @Req() request: PeticionConCliente,
+    @Param('reservaId', ParseIntPipe) reservaId: number,
+  ): Promise<ReservaCanceladaResponseDto> {
+    if (reservaId <= 0) {
+      throw new BadRequestException(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
+    }
+
+    return this.reservasService.cancelarReserva(
       this.extraerIdentidadRequerida(request.cliente),
       reservaId,
     );

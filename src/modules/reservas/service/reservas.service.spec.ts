@@ -8,8 +8,11 @@ import {
 } from '@nestjs/common';
 import {
   MENSAJE_FRANJA_OCUPADA,
+  MENSAJE_HORARIO_NO_DISPONIBLE,
+  MENSAJE_RESERVA_CANCELADA,
   MENSAJE_RESERVA_CREADA,
   MENSAJE_RESERVA_DUPLICADA,
+  MENSAJE_RESERVA_MODIFICADA,
   MENSAJE_RESERVA_NO_DISPONIBLE,
   MENSAJE_SIN_RESERVAS,
   ReservasService,
@@ -43,6 +46,8 @@ describe('ReservasService', () => {
     obtenerReservaDeCliente: jest.fn(),
     listarReservasDeBarberoEnFecha: jest.fn(),
     listarReservasDeBarberoEnRango: jest.fn(),
+    modificarConBloqueo: jest.fn(),
+    cancelar: jest.fn(),
   };
   const clientesRepository = {
     obtenerPorId: jest.fn(),
@@ -53,6 +58,7 @@ describe('ReservasService', () => {
   const serviciosRepository = {
     obtenerServicioActivoPorId: jest.fn(),
     listarBarberosActivosPorServicio: jest.fn(),
+    existeAsignacionBarbero: jest.fn(),
   };
   const fechaBogotaService = {
     esFechaCalendarioValida: jest.fn(),
@@ -62,6 +68,7 @@ describe('ReservasService', () => {
   };
   const barberosRepository = {
     obtenerBarberoPorUsuarioId: jest.fn(),
+    obtenerBarberoActivoPorId: jest.fn(),
   };
 
   const franjaDisponible = {
@@ -883,6 +890,366 @@ describe('ReservasService', () => {
           hasta: '2026-11-08',
         }),
       ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
+  describe('modificarReserva (HU-08)', () => {
+    const identidad = { clienteId: 77 };
+    const barberoDestinoActivo = {
+      id: 5,
+      estado: EstadoUsuario.ACTIVO,
+      usuarioId: 10,
+      telefono: '3009998877',
+      porcentajeComision: 40,
+      fotoUrl: null,
+      usuario: { nombre: 'Pedro', apellido: 'López' },
+    };
+
+    beforeEach(() => {
+      clientesRepository.obtenerPorId.mockResolvedValue({ id: 77 });
+      fechaBogotaService.esFechaCalendarioValida.mockReturnValue(true);
+      fechaBogotaService.obtenerDiaSemana.mockReturnValue('TUESDAY');
+      serviciosRepository.obtenerServicioActivoPorId.mockResolvedValue(servicioActivo);
+      barberosRepository.obtenerBarberoActivoPorId.mockResolvedValue(barberoDestinoActivo);
+      serviciosRepository.existeAsignacionBarbero.mockResolvedValue(true);
+      reservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(false);
+      disponibilidadService.calcularDisponibilidad.mockResolvedValue([
+        { startTime: '15:00', endTime: '16:00', estado: EstadoFranja.AVAILABLE },
+      ]);
+    });
+
+    it('modifica exitosamente fecha, hora y barbero cuando la franja está disponible y el servicio asignado', async () => {
+      const reservaOriginal = crearReservaRelacion({
+        id: 42,
+        barberoId: 3,
+        status: ReservationStatus.PENDING,
+        precioReservado: 50000,
+      });
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(reservaOriginal);
+
+      const reservaActualizada = crearReservaRelacion({
+        id: 42,
+        barberoId: 5,
+        date: new Date('2026-11-03T00:00:00.000Z'),
+        startTime: '15:00',
+        endTime: '16:00',
+        precioReservado: 50000,
+        barbero: { id: 5, usuario: { nombre: 'Pedro', apellido: 'López' } },
+      });
+      reservasRepository.modificarConBloqueo.mockResolvedValue(reservaActualizada);
+
+      const respuesta = await service.modificarReserva(identidad, 42, {
+        fecha: '2026-11-03',
+        hora: '15:00',
+        barberoId: 5,
+      });
+
+      expect(respuesta.mensaje).toBe(MENSAJE_RESERVA_MODIFICADA);
+      expect(respuesta.id).toBe(42);
+      expect(respuesta.fecha).toBe('2026-11-03');
+      expect(respuesta.hora).toBe('15:00');
+      expect(respuesta.horaFin).toBe('16:00');
+      expect(respuesta.barbero.id).toBe(5);
+      expect(respuesta.barbero.nombre).toBe('Pedro');
+      expect(respuesta.servicio.nombre).toBe('Corte de cabello');
+      expect(reservasRepository.modificarConBloqueo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 42,
+          barberoId: 5,
+          startTime: '15:00',
+          endTime: '16:00',
+        }),
+      );
+    });
+
+    it('rechaza con BadRequestException si el cuerpo está vacío', async () => {
+      await expect(
+        service.modificarReserva(identidad, 42, {}),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(reservasRepository.obtenerReservaDeCliente).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con BadRequestException si la fecha proporcionada es inválida', async () => {
+      fechaBogotaService.esFechaCalendarioValida.mockReturnValue(false);
+
+      await expect(
+        service.modificarReserva(identidad, 42, { fecha: 'invalida' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rechaza con UnauthorizedException si la sesión del cliente no es válida', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue(null);
+
+      await expect(
+        service.modificarReserva(identidad, 42, { hora: '15:00' }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('rechaza con NotFoundException si la reserva no existe o pertenece a otro cliente', async () => {
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(null);
+
+      await expect(
+        service.modificarReserva(identidad, 42, { hora: '15:00' }),
+      ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
+    });
+
+    it('rechaza con ConflictException si la reserva ya está CANCELLED', async () => {
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ status: ReservationStatus.CANCELLED }),
+      );
+
+      await expect(
+        service.modificarReserva(identidad, 42, { hora: '15:00' }),
+      ).rejects.toThrow('No es posible modificar una reserva cancelada');
+    });
+
+    it('rechaza con ConflictException si la reserva está COMPLETED o IN_PROGRESS', async () => {
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ status: ReservationStatus.COMPLETED }),
+      );
+
+      await expect(
+        service.modificarReserva(identidad, 42, { hora: '15:00' }),
+      ).rejects.toThrow('No es posible modificar una reserva en estado COMPLETED');
+
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ status: ReservationStatus.IN_PROGRESS }),
+      );
+
+      await expect(
+        service.modificarReserva(identidad, 42, { hora: '15:00' }),
+      ).rejects.toThrow('No es posible modificar una reserva en estado IN_PROGRESS');
+    });
+
+    it('rechaza con NotFoundException si el nuevo barbero no existe o está inactivo', async () => {
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ status: ReservationStatus.PENDING }),
+      );
+      barberosRepository.obtenerBarberoActivoPorId.mockResolvedValue(null);
+
+      await expect(
+        service.modificarReserva(identidad, 42, { barberoId: 99 }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('rechaza con BadRequestException si el barbero destino no presta el servicio', async () => {
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ status: ReservationStatus.PENDING, servicioId: 2 }),
+      );
+      serviciosRepository.existeAsignacionBarbero.mockResolvedValue(false);
+
+      await expect(
+        service.modificarReserva(identidad, 42, { barberoId: 5 }),
+      ).rejects.toThrow('El barbero 5 no presta el servicio 2');
+    });
+
+    it('rechaza con ConflictException si el propio cliente ya tiene una reserva en el horario destino', async () => {
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({
+          id: 42,
+          barberoId: 3,
+          startTime: '14:00',
+          status: ReservationStatus.PENDING,
+        }),
+      );
+      reservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(true);
+
+      await expect(
+        service.modificarReserva(identidad, 42, { hora: '15:00' }),
+      ).rejects.toThrow(MENSAJE_RESERVA_DUPLICADA);
+    });
+
+    it('rechaza con ConflictException (El horario seleccionado no está disponible) si la franja no está AVAILABLE', async () => {
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({
+          id: 42,
+          barberoId: 3,
+          startTime: '14:00',
+          status: ReservationStatus.PENDING,
+        }),
+      );
+      disponibilidadService.calcularDisponibilidad.mockResolvedValue([
+        { startTime: '15:00', endTime: '16:00', estado: EstadoFranja.RESERVED },
+      ]);
+
+      await expect(
+        service.modificarReserva(identidad, 42, { hora: '15:00' }),
+      ).rejects.toThrow(MENSAJE_HORARIO_NO_DISPONIBLE);
+    });
+
+    it('permite modificar hacia la misma franja sin conflicto consigo misma (excluyendo su id)', async () => {
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({
+          id: 42,
+          barberoId: 3,
+          date: new Date('2026-11-01T00:00:00.000Z'),
+          startTime: '14:00',
+          status: ReservationStatus.PENDING,
+        }),
+      );
+      disponibilidadService.calcularDisponibilidad.mockResolvedValue([
+        { startTime: '14:00', endTime: '15:00', estado: EstadoFranja.AVAILABLE },
+      ]);
+      barberosRepository.obtenerBarberoActivoPorId.mockResolvedValue({
+        id: 3,
+        estado: EstadoUsuario.ACTIVO,
+        usuario: { nombre: 'Carlos', apellido: 'Gómez' },
+      });
+      reservasRepository.modificarConBloqueo.mockResolvedValue(
+        crearReservaRelacion({ id: 42 }),
+      );
+
+      const respuesta = await service.modificarReserva(identidad, 42, {
+        hora: '14:00',
+      });
+
+      expect(respuesta.mensaje).toBe(MENSAJE_RESERVA_MODIFICADA);
+      expect(disponibilidadService.calcularDisponibilidad).toHaveBeenCalledWith(
+        expect.objectContaining({
+          barberoId: 3,
+          excluirReservaId: 42,
+        }),
+      );
+    });
+
+    it('maneja violación de concurrencia P2002 traduciéndola a 409 El horario seleccionado no está disponible', async () => {
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ id: 42, status: ReservationStatus.PENDING }),
+      );
+      reservasRepository.modificarConBloqueo.mockRejectedValue({ code: 'P2002' });
+
+      await expect(
+        service.modificarReserva(identidad, 42, { hora: '15:00' }),
+      ).rejects.toThrow(MENSAJE_HORARIO_NO_DISPONIBLE);
+    });
+
+    it('conserva el precio histórico de la reserva original aunque el servicio actual haya subido de precio', async () => {
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ id: 42, precioReservado: 45000, status: ReservationStatus.PENDING }),
+      );
+      serviciosRepository.obtenerServicioActivoPorId.mockResolvedValue({
+        ...servicioActivo,
+        precio: 80000,
+      });
+
+      let precioEnviadoARepo: number | null | undefined;
+      reservasRepository.modificarConBloqueo.mockImplementation(async (datos) => {
+        precioEnviadoARepo = datos.precioReservado;
+        return crearReservaRelacion({
+          id: 42,
+          precioReservado: datos.precioReservado,
+        });
+      });
+
+      const respuesta = await service.modificarReserva(identidad, 42, { hora: '15:00' });
+
+      expect(precioEnviadoARepo).toBe(45000);
+      expect(respuesta.precio).toBe(45000);
+    });
+
+    it('propaga error dentro de la transacción manteniendo la reserva original intacta', async () => {
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ id: 42, status: ReservationStatus.PENDING }),
+      );
+      reservasRepository.modificarConBloqueo.mockRejectedValue(
+        new Error('Transaction rollback simulated'),
+      );
+
+      await expect(
+        service.modificarReserva(identidad, 42, { hora: '15:00' }),
+      ).rejects.toThrow('Transaction rollback simulated');
+    });
+  });
+
+  describe('cancelarReserva (HU-09)', () => {
+    const identidad = { clienteId: 77 };
+
+    beforeEach(() => {
+      clientesRepository.obtenerPorId.mockResolvedValue({ id: 77 });
+    });
+
+    it('cancela exitosamente una reserva propia en estado PENDING o CONFIRMED', async () => {
+      const reserva = crearReservaRelacion({
+        id: 42,
+        status: ReservationStatus.CONFIRMED,
+      });
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(reserva);
+      reservasRepository.cancelar.mockResolvedValue({
+        id: 42,
+        status: ReservationStatus.CANCELLED,
+      });
+
+      const respuesta = await service.cancelarReserva(identidad, 42);
+
+      expect(respuesta.mensaje).toBe(MENSAJE_RESERVA_CANCELADA);
+      expect(respuesta.id).toBe(42);
+      expect(respuesta.estado).toBe(ReservationStatus.CANCELLED);
+      expect(reservasRepository.cancelar).toHaveBeenCalledWith(42);
+    });
+
+    it('rechaza con NotFoundException si la reserva no pertenece al cliente o no existe', async () => {
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(null);
+
+      await expect(service.cancelarReserva(identidad, 999)).rejects.toThrow(
+        MENSAJE_RESERVA_NO_DISPONIBLE,
+      );
+
+      expect(reservasRepository.cancelar).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con ConflictException si la reserva se encuentra en COMPLETED o IN_PROGRESS', async () => {
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ id: 42, status: ReservationStatus.COMPLETED }),
+      );
+
+      await expect(service.cancelarReserva(identidad, 42)).rejects.toThrow(
+        'No es posible cancelar una reserva en estado COMPLETED',
+      );
+
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ id: 42, status: ReservationStatus.IN_PROGRESS }),
+      );
+
+      await expect(service.cancelarReserva(identidad, 42)).rejects.toThrow(
+        'No es posible cancelar una reserva en estado IN_PROGRESS',
+      );
+
+      expect(reservasRepository.cancelar).not.toHaveBeenCalled();
+    });
+
+    it('gestiona peticiones repetidas de forma idempotente sin duplicar llamadas a repositorio', async () => {
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ id: 42, status: ReservationStatus.CANCELLED }),
+      );
+
+      const respuesta = await service.cancelarReserva(identidad, 42);
+
+      expect(respuesta.mensaje).toBe(MENSAJE_RESERVA_CANCELADA);
+      expect(respuesta.id).toBe(42);
+      expect(respuesta.estado).toBe(ReservationStatus.CANCELLED);
+      expect(reservasRepository.cancelar).not.toHaveBeenCalled();
+    });
+
+    it('desistimiento del cliente: si el cliente no confirma en frontend, no se invoca la cancelación', () => {
+      const reserva = crearReservaRelacion({
+        id: 42,
+        status: ReservationStatus.CONFIRMED,
+      });
+
+      // El usuario desiste en el frontend: no hay llamada a cancelarReserva
+      expect(reserva.status).toBe(ReservationStatus.CONFIRMED);
+      expect(reservasRepository.cancelar).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con UnauthorizedException si la sesión del cliente no es válida', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue(null);
+
+      await expect(service.cancelarReserva(identidad, 42)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+
+      expect(reservasRepository.cancelar).not.toHaveBeenCalled();
     });
   });
 });

@@ -43,6 +43,9 @@ export class PrismaProveedorReservasActivas implements ProveedorReservasActivas 
       fecha: new Date(`${consulta.fecha}T00:00:00.000Z`),
       startTime: consulta.startTime,
       endTime: consulta.endTime,
+      ...(consulta.excluirReservaId !== undefined
+        ? { excluirReservaId: consulta.excluirReservaId }
+        : {}),
     });
   }
 
