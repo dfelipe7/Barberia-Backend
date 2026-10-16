@@ -116,6 +116,38 @@ describe('ReservasRepository', () => {
 
       expect(resultado).toBe(false);
     });
+
+    it('debe excluir la reserva indicada cuando se especifica excluirReservaId', async () => {
+      mockPrismaService.reservation.findFirst.mockResolvedValue(null);
+
+      const resultado = await repository.existeReservaQueOcupaEnFranja({
+        barberoId: 3,
+        fecha,
+        startTime: '09:00',
+        endTime: '10:00',
+        excluirReservaId: 42,
+      });
+
+      expect(resultado).toBe(false);
+      expect(mockPrismaService.reservation.findFirst).toHaveBeenCalledWith({
+        where: {
+          barberoId: 3,
+          date: fecha,
+          status: {
+            in: [
+              ReservationStatus.PENDING,
+              ReservationStatus.CONFIRMED,
+              ReservationStatus.IN_PROGRESS,
+              ReservationStatus.COMPLETED,
+            ],
+          },
+          startTime: { lt: '10:00' },
+          endTime: { gt: '09:00' },
+          id: { not: 42 },
+        },
+        select: { id: true },
+      });
+    });
   });
 
   describe('existeReservaQueOcupaEnFranjaSemanal', () => {
@@ -216,9 +248,36 @@ describe('ReservasRepository', () => {
           endTime: '10:00',
           status: ReservationStatus.PENDING,
           precioReservado: null,
+          gestionTokenHash: null,
         },
       });
       expect(resultado).toEqual({ id: 99 });
+    });
+
+    it('debe persistir el gestionTokenHash cuando se proporciona al crear la reserva', async () => {
+      const txMock = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: 3 }]),
+        cliente: { create: jest.fn() },
+        reservation: { create: jest.fn().mockResolvedValue({ id: 102 }) },
+      };
+      mockPrismaService.$transaction.mockImplementation(
+        async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock),
+      );
+
+      await repository.crearConBloqueo({
+        barberoId: 3,
+        servicioId: 2,
+        date: fecha,
+        dayOfWeek: WeekDay.MONDAY,
+        startTime: '09:00',
+        endTime: '10:00',
+        gestionTokenHash: 'hash-seguro-123',
+        cliente: { clienteId: 55 },
+      });
+
+      expect(txMock.reservation.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ gestionTokenHash: 'hash-seguro-123' }),
+      });
     });
 
     it('debe persistir el precio histórico calculado en el servidor', async () => {
@@ -417,6 +476,44 @@ describe('ReservasRepository', () => {
     });
   });
 
+  describe('obtenerReservaParaGestionInvitado', () => {
+    it('busca por id de reserva e incluye relaciones y gestionTokenHash', async () => {
+      const mockReserva = {
+        id: 42,
+        barberoId: 3,
+        servicioId: 2,
+        clienteId: 55,
+        gestionTokenHash: 'hash-secreto-sha256',
+        servicio: { id: 2, nombre: 'Corte', precio: 50000 },
+        barbero: { id: 3, usuario: { nombre: 'Carlos', apellido: 'Gómez' } },
+      };
+      mockPrismaService.reservation.findUnique.mockResolvedValue(mockReserva);
+
+      const resultado = await repository.obtenerReservaParaGestionInvitado(42);
+
+      expect(resultado).toEqual(mockReserva);
+      expect(mockPrismaService.reservation.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 42 },
+          select: expect.objectContaining({
+            id: true,
+            gestionTokenHash: true,
+            servicio: expect.anything(),
+            barbero: expect.anything(),
+          }),
+        }),
+      );
+    });
+
+    it('devuelve null si la reserva no existe', async () => {
+      mockPrismaService.reservation.findUnique.mockResolvedValue(null);
+
+      const resultado = await repository.obtenerReservaParaGestionInvitado(999);
+
+      expect(resultado).toBeNull();
+    });
+  });
+
   describe('listarReservasDeBarberoEnFecha', () => {
     it('filtra por barberoId, fecha y estados que ocupan agenda, ordenando por hora de inicio', async () => {
       const mockReservas = [
@@ -483,6 +580,99 @@ describe('ReservasRepository', () => {
           orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
         }),
       );
+    });
+  });
+
+  describe('modificarConBloqueo', () => {
+    const modDatos = {
+      id: 42,
+      barberoId: 3,
+      date: fecha,
+      dayOfWeek: WeekDay.MONDAY,
+      startTime: '10:00',
+      endTime: '11:00',
+      precioReservado: 50000,
+    };
+
+    it('debe bloquear la fila del barbero, validar que no haya conflicto y actualizar la reserva', async () => {
+      const txMock = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: 3 }]),
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          update: jest.fn().mockResolvedValue({ id: 42, startTime: '10:00' }),
+        },
+      };
+      mockPrismaService.$transaction.mockImplementation(
+        async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock),
+      );
+
+      const resultado = await repository.modificarConBloqueo(modDatos);
+
+      expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
+      expect(txMock.$queryRaw).toHaveBeenCalledTimes(1);
+      const llamadas = txMock.$queryRaw.mock.calls as unknown[][];
+      const sql = (llamadas[0][0] as string[]).join('?');
+      expect(sql).toContain('FOR UPDATE');
+      expect(llamadas[0][1]).toBe(3);
+
+      expect(txMock.reservation.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: { not: 42 },
+          barberoId: 3,
+          date: fecha,
+          status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
+          startTime: { lt: '11:00' },
+          endTime: { gt: '10:00' },
+        },
+        select: { id: true },
+      });
+
+      expect(txMock.reservation.update).toHaveBeenCalledWith({
+        where: { id: 42 },
+        data: {
+          barberoId: 3,
+          date: fecha,
+          dayOfWeek: WeekDay.MONDAY,
+          startTime: '10:00',
+          endTime: '11:00',
+          precioReservado: 50000,
+        },
+        select: expect.any(Object),
+      });
+
+      expect(resultado).toEqual({ id: 42, startTime: '10:00' });
+    });
+
+    it('debe lanzar ConflictException si otra reserva activa ocupa la franja de destino dentro de la transacción', async () => {
+      const txMock = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: 3 }]),
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue({ id: 99 }),
+          update: jest.fn(),
+        },
+      };
+      mockPrismaService.$transaction.mockImplementation(
+        async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock),
+      );
+
+      await expect(repository.modificarConBloqueo(modDatos)).rejects.toThrow(
+        'El horario seleccionado no está disponible',
+      );
+
+      expect(txMock.reservation.update).not.toHaveBeenCalled();
+    });
+
+    it('debe reintentar ante un deadlock transitorio y propagar errores no reintentables', async () => {
+      const deadlock = Object.assign(new Error('deadlock'), { code: 'P2034' });
+
+      mockPrismaService.$transaction
+        .mockRejectedValueOnce(deadlock)
+        .mockResolvedValueOnce({ id: 42 });
+
+      const resultado = await repository.modificarConBloqueo(modDatos);
+
+      expect(resultado).toEqual({ id: 42 });
+      expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(2);
     });
   });
 

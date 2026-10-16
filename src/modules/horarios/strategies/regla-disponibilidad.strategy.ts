@@ -40,6 +40,8 @@ export interface ContextoDisponibilidad {
     startTime: string | null;
     endTime: string | null;
   }>;
+  /** Reserva a excluir del cálculo de ocupación (al modificar una reserva propia). */
+  excluirReservaId?: number;
 }
 
 /**

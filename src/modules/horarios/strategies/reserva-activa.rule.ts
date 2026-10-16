@@ -7,7 +7,10 @@ import type {
   ReglaDisponibilidad,
 } from './regla-disponibilidad.strategy';
 import { PROVEEDOR_RESERVAS_ACTIVAS } from '../ports/proveedor-reservas-activas.port';
-import type { ProveedorReservasActivas } from '../ports/proveedor-reservas-activas.port';
+import type {
+  ConsultaConflictoReserva,
+  ProveedorReservasActivas,
+} from '../ports/proveedor-reservas-activas.port';
 
 /**
  * Regla de reserva activa: una franja que contiene una reserva no cancelada
@@ -32,13 +35,18 @@ export class ReservaActivaRule implements ReglaDisponibilidad {
     franja: FranjaHorario,
     contexto: ContextoDisponibilidad,
   ): Promise<EstadoFranja | null> {
+    const consulta: ConsultaConflictoReserva = {
+      barberoId: contexto.barberoId,
+      fecha: contexto.fecha,
+      startTime: franja.startTime,
+      endTime: franja.endTime,
+      ...(contexto.excluirReservaId !== undefined
+        ? { excluirReservaId: contexto.excluirReservaId }
+        : {}),
+    };
+
     const contieneReserva =
-      await this.proveedorReservas.existeReservaNoCanceladaEnFranja({
-        barberoId: contexto.barberoId,
-        fecha: contexto.fecha,
-        startTime: franja.startTime,
-        endTime: franja.endTime,
-      });
+      await this.proveedorReservas.existeReservaNoCanceladaEnFranja(consulta);
 
     return contieneReserva ? EstadoFranja.RESERVED : null;
   }

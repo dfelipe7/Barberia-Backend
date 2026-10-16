@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ReservationStatus } from '../../../../../generated/prisma/enums';
 
 /** Barbero confirmado en la reserva (datos mínimos, sin información sensible). */
@@ -60,4 +60,11 @@ export class ReservaCreadaResponseDto {
 
   @ApiProperty({ type: ServicioReservaDto })
   servicio: ServicioReservaDto;
+
+  @ApiPropertyOptional({
+    example: 'a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0',
+    description:
+      'Token secreto de gestión generado exclusivamente para reservas de invitados. Debe ser conservado de forma privada para modificar o cancelar la reserva.',
+  })
+  tokenGestion?: string;
 }

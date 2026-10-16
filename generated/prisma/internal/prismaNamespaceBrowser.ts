@@ -208,6 +208,7 @@ export const ReservationScalarFieldEnum = {
   endTime: 'endTime',
   status: 'status',
   precioReservado: 'precioReservado',
+  gestionTokenHash: 'gestionTokenHash',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   slotActivo: 'slotActivo'
@@ -298,7 +299,8 @@ export type GeneralClosureOrderByRelevanceFieldEnum = (typeof GeneralClosureOrde
 
 export const ReservationOrderByRelevanceFieldEnum = {
   startTime: 'startTime',
-  endTime: 'endTime'
+  endTime: 'endTime',
+  gestionTokenHash: 'gestionTokenHash'
 } as const
 
 export type ReservationOrderByRelevanceFieldEnum = (typeof ReservationOrderByRelevanceFieldEnum)[keyof typeof ReservationOrderByRelevanceFieldEnum]

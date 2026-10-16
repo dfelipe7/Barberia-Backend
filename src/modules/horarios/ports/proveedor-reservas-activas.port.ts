@@ -28,6 +28,7 @@ export interface ConsultaConflictoReserva {
   fecha: string;
   startTime: string;
   endTime: string;
+  excluirReservaId?: number;
 }
 
 /**

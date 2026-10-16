@@ -12,4 +12,6 @@ export interface ConsultaDisponibilidad {
   servicioId?: number;
   /** Fecha de calendario `YYYY-MM-DD` del día de agenda. */
   fecha: string;
+  /** Reserva a excluir del cálculo de ocupación (al modificar una reserva propia). */
+  excluirReservaId?: number;
 }

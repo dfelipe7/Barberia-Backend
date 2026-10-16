@@ -76,6 +76,27 @@ describe('PrismaProveedorReservasActivas (adaptador del puerto HE-08)', () => {
       });
     });
 
+    it('propaga excluirReservaId al repositorio cuando se proporciona', async () => {
+      repository.existeReservaQueOcupaEnFranja.mockResolvedValue(false);
+
+      const resultado = await adaptador.existeReservaNoCanceladaEnFranja({
+        barberoId: 3,
+        fecha: '2026-11-01',
+        startTime: '09:00',
+        endTime: '10:00',
+        excluirReservaId: 42,
+      });
+
+      expect(resultado).toBe(false);
+      expect(repository.existeReservaQueOcupaEnFranja).toHaveBeenCalledWith({
+        barberoId: 3,
+        fecha: new Date('2026-11-01T00:00:00.000Z'),
+        startTime: '09:00',
+        endTime: '10:00',
+        excluirReservaId: 42,
+      });
+    });
+
     it('devuelve false cuando no hay reserva que ocupe la franja (incluye CANCELLED)', async () => {
       repository.existeReservaQueOcupaEnFranja.mockResolvedValue(false);
 

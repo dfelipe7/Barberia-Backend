@@ -252,6 +252,10 @@ model Reservation {
   // Precio del servicio aplicado al crear la reserva (calculado en el servidor).
   // `NULL` para reservas creadas antes de que existiera esta columna.
   precioReservado Decimal?     @db.Decimal(10, 2)
+  // Hash del token criptográfico de gestión para reservas de invitados.
+  // Permite modificar o cancelar la reserva sin requerir inicio de sesión.
+  // `NULL` para reservas creadas por clientes autenticados o anteriores a esta columna.
+  gestionTokenHash String?     @db.VarChar(255)
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 

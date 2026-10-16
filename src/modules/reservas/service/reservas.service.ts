@@ -7,11 +7,15 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { EstadoUsuario } from '../../../../generated/prisma/enums';
+import * as crypto from 'node:crypto';
+import { EstadoUsuario, ReservationStatus } from '../../../../generated/prisma/enums';
 import { CrearReservaDto } from '../dto/dto-peticion/crear-reserva.dto';
+import { ModificarReservaDto } from '../dto/dto-peticion/modificar-reserva.dto';
 import { ConsultaAgendaBarberoDto } from '../dto/dto-peticion/consulta-agenda-barbero.dto';
 import { ConsultaAgendaSemanalDto } from '../dto/dto-peticion/consulta-agenda-semanal.dto';
 import { ReservaCreadaResponseDto } from '../dto/dto-respuesta/reserva-creada-response.dto';
+import { ReservaModificadaResponseDto } from '../dto/dto-respuesta/reserva-modificada-response.dto';
+import { ReservaCanceladaResponseDto } from '../dto/dto-respuesta/reserva-cancelada-response.dto';
 import { ReservaClienteDto } from '../dto/dto-respuesta/reserva-cliente.dto';
 import { MisReservasResponseDto } from '../dto/dto-respuesta/mis-reservas-response.dto';
 import {
@@ -22,6 +26,8 @@ import {
 import {
   ClienteDeReserva,
   CrearReservaDatos,
+  MENSAJE_HORARIO_NO_DISPONIBLE,
+  ModificarReservaDatos,
   ReservaAgendaRegistro,
   ReservaConRelaciones,
   ReservaRegistro,
@@ -37,8 +43,11 @@ import { BarberosRepository } from '../../usuarios/repository/barberos.repositor
 
 /** Mensajes de dominio exigidos por los criterios de aceptación (Excel HE-04). */
 export const MENSAJE_RESERVA_CREADA = 'Reserva creada exitosamente';
+export const MENSAJE_RESERVA_MODIFICADA = 'Reserva modificada correctamente';
+export const MENSAJE_RESERVA_CANCELADA = 'Reserva cancelada correctamente';
 export const MENSAJE_FRANJA_OCUPADA =
   'El horario seleccionado ya no está disponible. Por favor selecciona otro horario';
+export { MENSAJE_HORARIO_NO_DISPONIBLE };
 export const MENSAJE_RESERVA_DUPLICADA =
   'Ya tienes una reserva registrada para este horario';
 export const MENSAJE_SIN_RESERVAS = 'No tienes reservas registradas';
@@ -122,6 +131,14 @@ export class ReservasService {
 
     const servicio = await this.obtenerServicio(dto.servicioId);
 
+    let tokenGestion: string | undefined;
+    let gestionTokenHash: string | undefined;
+
+    if (!identidad) {
+      tokenGestion = this.generarTokenGestion();
+      gestionTokenHash = this.hashearToken(tokenGestion);
+    }
+
     const reserva = await this.crearConManejoDeConflicto({
       barberoId: dto.barberoId,
       servicioId: dto.servicioId,
@@ -131,6 +148,7 @@ export class ReservasService {
       endTime: franja.endTime,
       // Precio histórico calculado en el servidor, no confiado al cliente.
       precioReservado: Number(servicio.precio),
+      gestionTokenHash: gestionTokenHash ?? null,
       cliente: cliente.clienteDeReserva,
     });
 
@@ -138,7 +156,7 @@ export class ReservasService {
       `AUDIT: reserva creada id=${reserva.id} barberoId=${reserva.barberoId} servicioId=${reserva.servicioId} clienteId=${reserva.clienteId} autenticado=${identidad ? 'si' : 'no'}`,
     );
 
-    return this.construirRespuesta(reserva, dto.fecha, servicio);
+    return this.construirRespuesta(reserva, dto.fecha, servicio, tokenGestion);
   }
 
   /**
@@ -184,6 +202,330 @@ export class ReservasService {
     }
 
     return this.aReservaCliente(reserva);
+  }
+
+  /**
+   * HU-08: Modificar una reserva propia (cliente autenticado).
+   * Permite cambiar fecha, hora o barbero de forma atómica y con protección de concurrencia.
+   */
+  async modificarReserva(
+    identidad: IdentidadClienteAutenticado,
+    reservaId: number,
+    dto: ModificarReservaDto,
+  ): Promise<ReservaModificadaResponseDto> {
+    this.validarDatosModificacion(dto);
+
+    await this.asegurarClienteVigente(identidad.clienteId);
+
+    const reserva = await this.reservasRepository.obtenerReservaDeCliente(
+      identidad.clienteId,
+      reservaId,
+    );
+
+    if (!reserva) {
+      throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+    }
+
+    return this.ejecutarModificacionReserva(reserva, dto, 'autenticado');
+  }
+
+  /**
+   * HU-08 (Invitados): Modificar una reserva de invitado mediante token de gestión.
+   * Valida el token con comparación segura timingSafeEqual y ejecuta la modificación.
+   */
+  async modificarReservaInvitado(
+    reservaId: number,
+    tokenGestion: string,
+    dto: ModificarReservaDto,
+  ): Promise<ReservaModificadaResponseDto> {
+    this.validarDatosModificacion(dto);
+
+    const reserva = await this.validarReservaParaGestionInvitado(
+      reservaId,
+      tokenGestion,
+    );
+
+    return this.ejecutarModificacionReserva(reserva, dto, 'invitado');
+  }
+
+  /**
+   * HU-09: Cancelar una reserva propia (cliente autenticado).
+   * Transición confirmada al estado CANCELLED, liberando la franja.
+   * Manejo idempotente de peticiones repetidas sin efectos secundarios.
+   */
+  async cancelarReserva(
+    identidad: IdentidadClienteAutenticado,
+    reservaId: number,
+  ): Promise<ReservaCanceladaResponseDto> {
+    await this.asegurarClienteVigente(identidad.clienteId);
+
+    const reserva = await this.reservasRepository.obtenerReservaDeCliente(
+      identidad.clienteId,
+      reservaId,
+    );
+
+    if (!reserva) {
+      throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+    }
+
+    return this.ejecutarCancelacionReserva(reserva, 'autenticado');
+  }
+
+  /**
+   * HU-09 (Invitados): Cancelar una reserva de invitado mediante token de gestión.
+   * Valida el token con comparación segura timingSafeEqual y ejecuta la cancelación idempotente.
+   */
+  async cancelarReservaInvitado(
+    reservaId: number,
+    tokenGestion: string,
+  ): Promise<ReservaCanceladaResponseDto> {
+    const reserva = await this.validarReservaParaGestionInvitado(
+      reservaId,
+      tokenGestion,
+    );
+
+    return this.ejecutarCancelacionReserva(reserva, 'invitado');
+  }
+
+  /**
+   * Lógica de negocio compartida para modificar una reserva (HU-08),
+   * invocada tras verificar la autorización (vía JWT de cliente o token de gestión de invitado).
+   */
+  private async ejecutarModificacionReserva(
+    reserva: ReservaConRelaciones,
+    dto: ModificarReservaDto,
+    modalidad: 'autenticado' | 'invitado',
+  ): Promise<ReservaModificadaResponseDto> {
+    if (reserva.status === ReservationStatus.CANCELLED) {
+      throw new ConflictException('No es posible modificar una reserva cancelada');
+    }
+
+    if (
+      reserva.status === ReservationStatus.COMPLETED ||
+      reserva.status === ReservationStatus.IN_PROGRESS
+    ) {
+      throw new ConflictException(
+        `No es posible modificar una reserva en estado ${reserva.status}`,
+      );
+    }
+
+    const fechaDestinoStr = dto.fecha ?? this.aFechaCalendario(reserva.date);
+    const horaDestino = dto.hora ?? reserva.startTime;
+    const barberoDestinoId = dto.barberoId ?? reserva.barberoId;
+
+    const servicio = await this.obtenerServicio(reserva.servicioId);
+
+    const barberoDestino =
+      await this.barberosRepository.obtenerBarberoActivoPorId(barberoDestinoId);
+
+    if (!barberoDestino) {
+      throw new NotFoundException(
+        `El barbero ${barberoDestinoId} no existe o no está activo`,
+      );
+    }
+
+    const asignado = await this.serviciosRepository.existeAsignacionBarbero(
+      barberoDestinoId,
+      reserva.servicioId,
+    );
+
+    if (!asignado) {
+      throw new BadRequestException(
+        `El barbero ${barberoDestinoId} no presta el servicio ${reserva.servicioId}`,
+      );
+    }
+
+    const cambioDeFranja =
+      barberoDestinoId !== reserva.barberoId ||
+      fechaDestinoStr !== this.aFechaCalendario(reserva.date) ||
+      horaDestino !== reserva.startTime;
+
+    if (cambioDeFranja) {
+      const duplicada =
+        await this.reservasRepository.existeReservaActivaDeClienteEnFranja({
+          clienteId: reserva.clienteId,
+          barberoId: barberoDestinoId,
+          fecha: this.aFechaDate(fechaDestinoStr),
+          startTime: horaDestino,
+        });
+
+      if (duplicada) {
+        throw new ConflictException(MENSAJE_RESERVA_DUPLICADA);
+      }
+    }
+
+    const franja = await this.obtenerFranjaDisponible(
+      barberoDestinoId,
+      reserva.servicioId,
+      fechaDestinoStr,
+      horaDestino,
+      reserva.id,
+    );
+
+    const precioHistorico =
+      reserva.precioReservado !== null
+        ? Number(reserva.precioReservado)
+        : Number(servicio.precio);
+
+    const reservaActualizada = await this.modificarConManejoDeConflicto({
+      id: reserva.id,
+      barberoId: barberoDestinoId,
+      date: this.aFechaDate(fechaDestinoStr),
+      dayOfWeek: this.fechaBogotaService.obtenerDiaSemana(fechaDestinoStr),
+      startTime: franja.startTime,
+      endTime: franja.endTime,
+      precioReservado: precioHistorico,
+    });
+
+    this.logger.log(
+      `AUDIT: reserva modificada id=${reservaActualizada.id} barberoId=${reservaActualizada.barberoId} fecha=${fechaDestinoStr} hora=${reservaActualizada.startTime} clienteId=${reserva.clienteId} modalidad=${modalidad}`,
+    );
+
+    return {
+      mensaje: MENSAJE_RESERVA_MODIFICADA,
+      id: reservaActualizada.id,
+      estado: reservaActualizada.status,
+      fecha: fechaDestinoStr,
+      hora: reservaActualizada.startTime,
+      horaFin: reservaActualizada.endTime,
+      precio: precioHistorico,
+      barbero: {
+        id: reservaActualizada.barbero.id,
+        nombre: reservaActualizada.barbero.usuario.nombre,
+        apellido: reservaActualizada.barbero.usuario.apellido,
+      },
+      servicio: {
+        id: servicio.id,
+        nombre: servicio.nombre,
+        precio: Number(servicio.precio),
+        duracionMinutos: servicio.duracionMinutos,
+      },
+    };
+  }
+
+  /**
+   * Lógica de negocio compartida para cancelar una reserva (HU-09),
+   * invocada tras verificar la autorización (vía JWT de cliente o token de gestión de invitado).
+   */
+  private async ejecutarCancelacionReserva(
+    reserva: ReservaConRelaciones,
+    modalidad: 'autenticado' | 'invitado',
+  ): Promise<ReservaCanceladaResponseDto> {
+    if (
+      reserva.status === ReservationStatus.COMPLETED ||
+      reserva.status === ReservationStatus.IN_PROGRESS
+    ) {
+      throw new ConflictException(
+        `No es posible cancelar una reserva en estado ${reserva.status}`,
+      );
+    }
+
+    if (reserva.status === ReservationStatus.CANCELLED) {
+      return {
+        mensaje: MENSAJE_RESERVA_CANCELADA,
+        id: reserva.id,
+        estado: ReservationStatus.CANCELLED,
+      };
+    }
+
+    await this.reservasRepository.cancelar(reserva.id);
+
+    this.logger.log(
+      `AUDIT: reserva cancelada id=${reserva.id} clienteId=${reserva.clienteId} modalidad=${modalidad}`,
+    );
+
+    return {
+      mensaje: MENSAJE_RESERVA_CANCELADA,
+      id: reserva.id,
+      estado: ReservationStatus.CANCELLED,
+    };
+  }
+
+  /**
+   * Valida los campos de modificación para HU-08.
+   */
+  private validarDatosModificacion(dto: ModificarReservaDto): void {
+    if (!dto.fecha && !dto.hora && !dto.barberoId) {
+      throw new BadRequestException(
+        'Debe proporcionar al menos un campo para modificar la reserva (fecha, hora o barberoId)',
+      );
+    }
+
+    if (dto.fecha) {
+      this.validarFecha(dto.fecha);
+    }
+  }
+
+  /**
+   * Valida que la reserva exista, pertenezca a un invitado (posea hash de gestión)
+   * y que el token provisto coincida de forma criptográficamente segura (timingSafeEqual).
+   * Para evitar filtración de existencia de reservas (oráculos de inferencia),
+   * ante token ausente, reserva inexistente, reserva de cliente autenticado o credencial
+   * errónea, responde exactamente la misma excepción: 404 con MENSAJE_RESERVA_NO_DISPONIBLE.
+   */
+  async validarReservaParaGestionInvitado(
+    reservaId: number,
+    tokenGestion?: string,
+  ): Promise<ReservaConRelaciones> {
+    if (
+      !tokenGestion ||
+      typeof tokenGestion !== 'string' ||
+      tokenGestion.trim().length === 0
+    ) {
+      throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+    }
+
+    const reserva =
+      await this.reservasRepository.obtenerReservaParaGestionInvitado(reservaId);
+
+    if (!reserva) {
+      throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+    }
+
+    const tokenValido = this.compararTokenGestion(
+      tokenGestion.trim(),
+      reserva.gestionTokenHash,
+    );
+
+    if (!tokenValido) {
+      throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+    }
+
+    return reserva;
+  }
+
+  /** Genera un token criptográficamente seguro de 256 bits en formato hexadecimal (64 caracteres). */
+  generarTokenGestion(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  /** Genera el hash SHA-256 de un token en formato hexadecimal. */
+  hashearToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  /**
+   * Compara de forma segura en tiempo constante el hash del token proporcionado con el hash almacenado.
+   * Evita ataques de temporización (timing attacks).
+   */
+  compararTokenGestion(
+    tokenProporcionado: string,
+    hashAlmacenado: string | null,
+  ): boolean {
+    if (!hashAlmacenado || !tokenProporcionado) {
+      return false;
+    }
+
+    const hashCalculado = this.hashearToken(tokenProporcionado);
+
+    const bufferCalculado = Buffer.from(hashCalculado, 'utf8');
+    const bufferAlmacenado = Buffer.from(hashAlmacenado, 'utf8');
+
+    if (bufferCalculado.length !== bufferAlmacenado.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(bufferCalculado, bufferAlmacenado);
   }
 
   /**
@@ -306,11 +648,13 @@ export class ReservasService {
     servicioId: number,
     fecha: string,
     hora: string,
+    excluirReservaId?: number,
   ): Promise<FranjaEvaluada> {
     const franjas = await this.disponibilidadService.calcularDisponibilidad({
       barberoId,
       servicioId,
       fecha,
+      ...(excluirReservaId !== undefined ? { excluirReservaId } : {}),
     });
 
     const franja = franjas.find((f) => f.startTime === hora);
@@ -322,7 +666,11 @@ export class ReservasService {
     }
 
     if (franja.estado !== EstadoFranja.AVAILABLE) {
-      throw new ConflictException(MENSAJE_FRANJA_OCUPADA);
+      const mensaje =
+        excluirReservaId !== undefined
+          ? MENSAJE_HORARIO_NO_DISPONIBLE
+          : MENSAJE_FRANJA_OCUPADA;
+      throw new ConflictException(mensaje);
     }
 
     return franja;
@@ -361,6 +709,23 @@ export class ReservasService {
     }
   }
 
+  /**
+   * Modifica la reserva traduciendo la violación de unicidad (`P2002`) o conflicto
+   * a un 409 con el mensaje de HU-08.
+   */
+  private async modificarConManejoDeConflicto(
+    datos: ModificarReservaDatos,
+  ): Promise<ReservaConRelaciones> {
+    try {
+      return await this.reservasRepository.modificarConBloqueo(datos);
+    } catch (error) {
+      if (this.esViolacionUnicidad(error)) {
+        throw new ConflictException(MENSAJE_HORARIO_NO_DISPONIBLE);
+      }
+      throw error;
+    }
+  }
+
   /** Construye la confirmación con datos del servidor (nunca del cliente). */
   private async construirRespuesta(
     reserva: ReservaRegistro,
@@ -371,6 +736,7 @@ export class ReservasService {
       precio: unknown;
       duracionMinutos: number;
     },
+    tokenGestion?: string,
   ): Promise<ReservaCreadaResponseDto> {
     const barberos =
       await this.serviciosRepository.listarBarberosActivosPorServicio(
@@ -404,6 +770,7 @@ export class ReservasService {
         precio: Number(servicio.precio),
         duracionMinutos: servicio.duracionMinutos,
       },
+      ...(tokenGestion ? { tokenGestion } : {}),
     };
   }
 

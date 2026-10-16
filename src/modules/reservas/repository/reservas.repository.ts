@@ -1,7 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { Prisma } from '../../../../generated/prisma/client';
 import { ReservationStatus, WeekDay } from '../../../../generated/prisma/enums';
+
+export const MENSAJE_HORARIO_NO_DISPONIBLE =
+  'El horario seleccionado no está disponible';
 
 /**
  * Persistencia de reservas (HE-04, subconjunto aprobado).
@@ -67,6 +70,7 @@ export interface ReservaRegistro {
   endTime: string;
   status: ReservationStatus;
   precioReservado: Prisma.Decimal | null;
+  gestionTokenHash: string | null;
   slotActivo: number | null;
   createdAt: Date;
   updatedAt: Date;
@@ -161,6 +165,7 @@ export interface ConsultaOcupacionPorFecha {
   fecha: Date;
   startTime: string;
   endTime: string;
+  excluirReservaId?: number;
 }
 
 export interface ConsultaOcupacionPorDiaSemana {
@@ -207,7 +212,18 @@ export interface CrearReservaDatos {
   endTime: string;
   status?: ReservationStatus;
   precioReservado?: number | null;
+  gestionTokenHash?: string | null;
   cliente: ClienteDeReserva;
+}
+
+export interface ModificarReservaDatos {
+  id: number;
+  barberoId: number;
+  date: Date;
+  dayOfWeek: WeekDay;
+  startTime: string;
+  endTime: string;
+  precioReservado?: number | null;
 }
 
 /** Códigos/errores que pueden reintentarse (deadlock o contención de locks). */
@@ -251,6 +267,9 @@ export class ReservasRepository {
         status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
         startTime: { lt: consulta.endTime },
         endTime: { gt: consulta.startTime },
+        ...(consulta.excluirReservaId !== undefined
+          ? { id: { not: consulta.excluirReservaId } }
+          : {}),
       },
       select: { id: true },
     });
@@ -335,6 +354,22 @@ export class ReservasRepository {
     return this.prisma.reservation.findFirst({
       where: { id: reservaId, clienteId },
       select: SELECCION_RESERVA_CON_RELACIONES,
+    });
+  }
+
+  /**
+   * Obtiene la reserva con sus relaciones y el hash del token de gestión,
+   * para validar peticiones de modificación o cancelación de invitados.
+   */
+  async obtenerReservaParaGestionInvitado(
+    reservaId: number,
+  ): Promise<(ReservaConRelaciones & { gestionTokenHash: string | null }) | null> {
+    return this.prisma.reservation.findUnique({
+      where: { id: reservaId },
+      select: {
+        ...SELECCION_RESERVA_CON_RELACIONES,
+        gestionTokenHash: true,
+      },
     });
   }
 
@@ -428,6 +463,7 @@ export class ReservasRepository {
             endTime: datos.endTime,
             status: datos.status ?? ReservationStatus.PENDING,
             precioReservado: datos.precioReservado ?? null,
+            gestionTokenHash: datos.gestionTokenHash ?? null,
           },
         });
       }),
@@ -456,6 +492,55 @@ export class ReservasRepository {
   private esperar(intento: number): Promise<void> {
     const milisegundos = 25 * intento;
     return new Promise((resolve) => setTimeout(resolve, milisegundos));
+  }
+
+  /**
+   * Modifica una reserva serializando la escritura por barbero con un
+   * `SELECT ... FOR UPDATE` sobre la fila de `Barbero`, dentro de una
+   * transacción. Revalida que no exista otra reserva activa que ocupe
+   * la franja de destino (excluyendo la reserva que se está modificando).
+   * La unicidad a nivel de motor (D-17) y la transacción garantizan
+   * que no haya dobles reservas.
+   */
+  async modificarConBloqueo(
+    datos: ModificarReservaDatos,
+  ): Promise<ReservaConRelaciones> {
+    return this.conReintentos(() =>
+      this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM Barbero WHERE id = ${datos.barberoId} FOR UPDATE`;
+
+        const conflicto = await tx.reservation.findFirst({
+          where: {
+            id: { not: datos.id },
+            barberoId: datos.barberoId,
+            date: datos.date,
+            status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
+            startTime: { lt: datos.endTime },
+            endTime: { gt: datos.startTime },
+          },
+          select: { id: true },
+        });
+
+        if (conflicto) {
+          throw new ConflictException(MENSAJE_HORARIO_NO_DISPONIBLE);
+        }
+
+        return tx.reservation.update({
+          where: { id: datos.id },
+          data: {
+            barberoId: datos.barberoId,
+            date: datos.date,
+            dayOfWeek: datos.dayOfWeek,
+            startTime: datos.startTime,
+            endTime: datos.endTime,
+            ...(datos.precioReservado !== undefined
+              ? { precioReservado: datos.precioReservado }
+              : {}),
+          },
+          select: SELECCION_RESERVA_CON_RELACIONES,
+        });
+      }),
+    );
   }
 
   /**

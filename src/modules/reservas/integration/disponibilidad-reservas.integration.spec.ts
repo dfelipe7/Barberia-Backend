@@ -204,4 +204,31 @@ describe('Integración HE-08 ↔ HE-04 (disponibilidad sobre reservas reales)', 
       service.obtenerDisponibilidadPublica({ barberoId: 7, fecha: FECHA }),
     ).rejects.toThrow('DB connection lost');
   });
+
+  it('permite consultar disponibilidad excluyendo una reserva (revalidación para modificación HU-08)', async () => {
+    prisma.reservation.findFirst.mockImplementation(
+      (args: { where: { startTime: { lt: string }; id?: { not: number } } }) => {
+        if (args.where.id?.not === 42) {
+          return Promise.resolve(null);
+        }
+        return Promise.resolve({ id: 42 });
+      },
+    );
+
+    const resultado = await service.calcularDisponibilidad({
+      barberoId: 7,
+      fecha: FECHA,
+      excluirReservaId: 42,
+    });
+
+    const franjaDiez = resultado.find((f) => f.startTime === '10:00');
+    expect(franjaDiez?.estado).toBe('AVAILABLE');
+    expect(prisma.reservation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: { not: 42 },
+        }),
+      }),
+    );
+  });
 });

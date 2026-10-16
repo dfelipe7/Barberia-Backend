@@ -253,6 +253,9 @@ export class DisponibilidadService {
       franjasHorario,
       bloqueosActivos,
       cierresActivos,
+      ...(consulta.excluirReservaId !== undefined
+        ? { excluirReservaId: consulta.excluirReservaId }
+        : {}),
     };
   }
 
