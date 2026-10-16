@@ -70,6 +70,7 @@ export interface ReservaRegistro {
   endTime: string;
   status: ReservationStatus;
   precioReservado: Prisma.Decimal | null;
+  gestionTokenHash: string | null;
   slotActivo: number | null;
   createdAt: Date;
   updatedAt: Date;
@@ -211,6 +212,7 @@ export interface CrearReservaDatos {
   endTime: string;
   status?: ReservationStatus;
   precioReservado?: number | null;
+  gestionTokenHash?: string | null;
   cliente: ClienteDeReserva;
 }
 
@@ -356,6 +358,22 @@ export class ReservasRepository {
   }
 
   /**
+   * Obtiene la reserva con sus relaciones y el hash del token de gestión,
+   * para validar peticiones de modificación o cancelación de invitados.
+   */
+  async obtenerReservaParaGestionInvitado(
+    reservaId: number,
+  ): Promise<(ReservaConRelaciones & { gestionTokenHash: string | null }) | null> {
+    return this.prisma.reservation.findUnique({
+      where: { id: reservaId },
+      select: {
+        ...SELECCION_RESERVA_CON_RELACIONES,
+        gestionTokenHash: true,
+      },
+    });
+  }
+
+  /**
    * Lista las reservas activas (no canceladas) de un barbero para una fecha dada,
    * ordenadas cronológicamente por hora de inicio.
    */
@@ -445,6 +463,7 @@ export class ReservasRepository {
             endTime: datos.endTime,
             status: datos.status ?? ReservationStatus.PENDING,
             precioReservado: datos.precioReservado ?? null,
+            gestionTokenHash: datos.gestionTokenHash ?? null,
           },
         });
       }),

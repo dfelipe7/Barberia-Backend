@@ -248,9 +248,36 @@ describe('ReservasRepository', () => {
           endTime: '10:00',
           status: ReservationStatus.PENDING,
           precioReservado: null,
+          gestionTokenHash: null,
         },
       });
       expect(resultado).toEqual({ id: 99 });
+    });
+
+    it('debe persistir el gestionTokenHash cuando se proporciona al crear la reserva', async () => {
+      const txMock = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: 3 }]),
+        cliente: { create: jest.fn() },
+        reservation: { create: jest.fn().mockResolvedValue({ id: 102 }) },
+      };
+      mockPrismaService.$transaction.mockImplementation(
+        async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock),
+      );
+
+      await repository.crearConBloqueo({
+        barberoId: 3,
+        servicioId: 2,
+        date: fecha,
+        dayOfWeek: WeekDay.MONDAY,
+        startTime: '09:00',
+        endTime: '10:00',
+        gestionTokenHash: 'hash-seguro-123',
+        cliente: { clienteId: 55 },
+      });
+
+      expect(txMock.reservation.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ gestionTokenHash: 'hash-seguro-123' }),
+      });
     });
 
     it('debe persistir el precio histórico calculado en el servidor', async () => {
@@ -446,6 +473,44 @@ describe('ReservasRepository', () => {
       await expect(
         repository.obtenerReservaDeCliente(55, 42),
       ).resolves.toBeNull();
+    });
+  });
+
+  describe('obtenerReservaParaGestionInvitado', () => {
+    it('busca por id de reserva e incluye relaciones y gestionTokenHash', async () => {
+      const mockReserva = {
+        id: 42,
+        barberoId: 3,
+        servicioId: 2,
+        clienteId: 55,
+        gestionTokenHash: 'hash-secreto-sha256',
+        servicio: { id: 2, nombre: 'Corte', precio: 50000 },
+        barbero: { id: 3, usuario: { nombre: 'Carlos', apellido: 'Gómez' } },
+      };
+      mockPrismaService.reservation.findUnique.mockResolvedValue(mockReserva);
+
+      const resultado = await repository.obtenerReservaParaGestionInvitado(42);
+
+      expect(resultado).toEqual(mockReserva);
+      expect(mockPrismaService.reservation.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 42 },
+          select: expect.objectContaining({
+            id: true,
+            gestionTokenHash: true,
+            servicio: expect.anything(),
+            barbero: expect.anything(),
+          }),
+        }),
+      );
+    });
+
+    it('devuelve null si la reserva no existe', async () => {
+      mockPrismaService.reservation.findUnique.mockResolvedValue(null);
+
+      const resultado = await repository.obtenerReservaParaGestionInvitado(999);
+
+      expect(resultado).toBeNull();
     });
   });
 

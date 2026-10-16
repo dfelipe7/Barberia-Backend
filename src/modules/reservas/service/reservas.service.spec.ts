@@ -177,7 +177,10 @@ describe('ReservasService', () => {
           precio: 50000,
           duracionMinutos: 30,
         },
+        tokenGestion: expect.any(String),
       });
+
+      expect(resultado.tokenGestion).toHaveLength(64);
 
       expect(
         reservasRepository.existeReservaActivaDeClienteEnFranja,
@@ -197,6 +200,7 @@ describe('ReservasService', () => {
           endTime: '15:00',
           dayOfWeek: 'SUNDAY',
           precioReservado: 50000,
+          gestionTokenHash: expect.any(String),
           cliente: {
             crear: {
               nombre: 'Ana',
@@ -229,8 +233,9 @@ describe('ReservasService', () => {
         false,
       );
 
-      await service.crearReserva(dtoBase, identidad);
+      const resultado = await service.crearReserva(dtoBase, identidad);
 
+      expect(resultado.tokenGestion).toBeUndefined();
       expect(clientesRepository.obtenerPorId).toHaveBeenCalledWith(55);
       expect(
         reservasRepository.existeReservaActivaDeClienteEnFranja,
@@ -244,6 +249,7 @@ describe('ReservasService', () => {
         expect.objectContaining({
           cliente: { clienteId: 55 },
           precioReservado: 50000,
+          gestionTokenHash: null,
         }),
       );
     });

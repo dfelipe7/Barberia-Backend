@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ReservasController } from './reservas.controller';
-import { ReservasService } from '../service/reservas.service';
+import { MENSAJE_RESERVA_NO_DISPONIBLE, ReservasService } from '../service/reservas.service';
 import { ClienteJwtAuthGuard } from '../../../auth/clientes/guards/cliente-jwt-auth.guard';
 import { ClienteOpcionalJwtAuthGuard } from '../../../auth/clientes/guards/cliente-opcional-jwt-auth.guard';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
@@ -16,6 +16,8 @@ describe('ReservasController', () => {
     obtenerMiReserva: jest.fn(),
     modificarReserva: jest.fn(),
     cancelarReserva: jest.fn(),
+    modificarReservaInvitado: jest.fn(),
+    cancelarReservaInvitado: jest.fn(),
     obtenerAgendaBarbero: jest.fn(),
     obtenerAgendaSemanalBarbero: jest.fn(),
   };
@@ -200,6 +202,148 @@ describe('ReservasController', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(reservasService.cancelarReserva).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('modificarReservaInvitado', () => {
+    const modDto = { hora: '16:00' };
+    const tokenValido = 'token-secreto-invitado-123';
+    const tokenIncorrecto = 'token-falso-456';
+
+    it('1. Un token válido en el encabezado autoriza la modificación', async () => {
+      const mockRespuesta = { id: 42, mensaje: 'Reserva modificada correctamente' };
+      reservasService.modificarReservaInvitado.mockResolvedValue(mockRespuesta);
+
+      const resultado = await controller.modificarReservaInvitado(
+        42,
+        tokenValido,
+        modDto,
+      );
+
+      expect(resultado).toBe(mockRespuesta);
+      expect(reservasService.modificarReservaInvitado).toHaveBeenCalledWith(
+        42,
+        tokenValido,
+        modDto,
+      );
+    });
+
+    it('2. Sin encabezado, un token enviado en el cuerpo JSON o query NO autoriza (404 genérico)', async () => {
+      // El controlador recibe tokenGestion del encabezado; si no se provee encabezado,
+      // cualquier token colocado en el cuerpo no es leído y resulta en 404.
+      const cuerpoConTokenInyectado = { ...modDto, token: tokenValido } as any;
+
+      await expect(
+        controller.modificarReservaInvitado(42, undefined, cuerpoConTokenInyectado),
+      ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
+
+      await expect(
+        controller.modificarReservaInvitado(42, '', cuerpoConTokenInyectado),
+      ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
+
+      expect(reservasService.modificarReservaInvitado).not.toHaveBeenCalled();
+    });
+
+    it('3. Un encabezado incorrecto no autoriza aunque exista un token en el cuerpo (404 genérico)', async () => {
+      reservasService.modificarReservaInvitado.mockRejectedValue(
+        new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE),
+      );
+
+      const cuerpoConTokenInyectado = { ...modDto, token: tokenValido } as any;
+
+      await expect(
+        controller.modificarReservaInvitado(42, tokenIncorrecto, cuerpoConTokenInyectado),
+      ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
+
+      expect(reservasService.modificarReservaInvitado).toHaveBeenCalledWith(
+        42,
+        tokenIncorrecto,
+        cuerpoConTokenInyectado,
+      );
+    });
+
+    it('4. Reserva inexistente y credencial inválida devuelven idéntico 404 genérico', async () => {
+      reservasService.modificarReservaInvitado.mockRejectedValue(
+        new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE),
+      );
+
+      await expect(
+        controller.modificarReservaInvitado(9999, tokenValido, modDto),
+      ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
+    });
+
+    it('5. Rechaza con 400 si el reservaId es menor o igual a 0', async () => {
+      await expect(
+        controller.modificarReservaInvitado(0, tokenValido, modDto),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(reservasService.modificarReservaInvitado).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('cancelarReservaInvitado', () => {
+    const tokenValido = 'token-secreto-invitado-123';
+    const tokenIncorrecto = 'token-falso-456';
+
+    it('1. Un token válido en el encabezado autoriza la cancelación', async () => {
+      const mockRespuesta = { id: 42, mensaje: 'Reserva cancelada correctamente' };
+      reservasService.cancelarReservaInvitado.mockResolvedValue(mockRespuesta);
+
+      const resultado = await controller.cancelarReservaInvitado(
+        42,
+        tokenValido,
+      );
+
+      expect(resultado).toBe(mockRespuesta);
+      expect(reservasService.cancelarReservaInvitado).toHaveBeenCalledWith(
+        42,
+        tokenValido,
+      );
+    });
+
+    it('2. Sin encabezado, la cancelación no se autoriza (404 genérico)', async () => {
+      await expect(
+        controller.cancelarReservaInvitado(42, undefined),
+      ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
+
+      await expect(
+        controller.cancelarReservaInvitado(42, '   '),
+      ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
+
+      expect(reservasService.cancelarReservaInvitado).not.toHaveBeenCalled();
+    });
+
+    it('3. Un encabezado incorrecto no autoriza la cancelación (404 genérico)', async () => {
+      reservasService.cancelarReservaInvitado.mockRejectedValue(
+        new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE),
+      );
+
+      await expect(
+        controller.cancelarReservaInvitado(42, tokenIncorrecto),
+      ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
+
+      expect(reservasService.cancelarReservaInvitado).toHaveBeenCalledWith(
+        42,
+        tokenIncorrecto,
+      );
+    });
+
+    it('4. Reserva inexistente y credencial inválida devuelven idéntico 404 genérico en cancelación', async () => {
+      reservasService.cancelarReservaInvitado.mockRejectedValue(
+        new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE),
+      );
+
+      await expect(
+        controller.cancelarReservaInvitado(9999, tokenValido),
+      ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
+    });
+
+    it('5. Rechaza con 400 si el reservaId es menor o igual a 0', async () => {
+      await expect(
+        controller.cancelarReservaInvitado(-5, tokenValido),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(reservasService.cancelarReservaInvitado).not.toHaveBeenCalled();
     });
   });
 });

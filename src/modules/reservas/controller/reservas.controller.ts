@@ -3,8 +3,10 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   ParseIntPipe,
   Patch,
@@ -21,6 +23,7 @@ import {
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiHeader,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -44,6 +47,7 @@ import {
 } from '../dto/dto-respuesta/agenda-barbero-response.dto';
 import {
   IdentidadClienteAutenticado,
+  MENSAJE_RESERVA_NO_DISPONIBLE,
   ReservasService,
 } from '../service/reservas.service';
 import { ClienteOpcionalJwtAuthGuard } from '../../../auth/clientes/guards/cliente-opcional-jwt-auth.guard';
@@ -338,6 +342,116 @@ export class ReservasController {
     return this.reservasService.cancelarReserva(
       this.extraerIdentidadRequerida(request.cliente),
       reservaId,
+    );
+  }
+
+  @Patch('invitado/:reservaId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Modificar una reserva de invitado mediante token de gestión',
+    description:
+      'Permite a un cliente invitado modificar de forma segura su reserva sin iniciar sesión, suministrando el token de gestión exclusivamente en el encabezado HTTP X-Reservation-Management-Token. No se admite el envío de credenciales por URL ni en el cuerpo JSON. Si la reserva no existe o el token es incorrecto, ausente o vacío, responde con 404 ("La reserva no se encuentra disponible") para evitar filtración de existencia de reservas.',
+  })
+  @ApiParam({
+    name: 'reservaId',
+    example: 42,
+    description: 'Identificador de la reserva a modificar',
+  })
+  @ApiHeader({
+    name: 'X-Reservation-Management-Token',
+    description:
+      'Token de gestión entregado al crear la reserva de invitado (único canal autorizado de credencial)',
+    required: true,
+  })
+  @ApiBody({ type: ModificarReservaDto })
+  @ApiOkResponse({
+    description: 'Reserva modificada correctamente',
+    type: ReservaModificadaResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Parámetros o cuerpo inválidos, solicitud vacía o servicio no prestado por el barbero destino',
+  })
+  @ApiNotFoundResponse({
+    description:
+      'La reserva no se encuentra disponible (reserva inexistente o credencial de gestión ausente/inválida)',
+  })
+  @ApiConflictResponse({
+    description:
+      'El horario seleccionado no está disponible o el estado actual de la reserva no permite modificarla',
+  })
+  async modificarReservaInvitado(
+    @Param('reservaId', ParseIntPipe) reservaId: number,
+    @Headers('x-reservation-management-token') tokenGestion: string | undefined,
+    @Body() dto: ModificarReservaDto,
+  ): Promise<ReservaModificadaResponseDto> {
+    if (reservaId <= 0) {
+      throw new BadRequestException(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
+    }
+
+    if (!tokenGestion || tokenGestion.trim().length === 0) {
+      throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+    }
+
+    return this.reservasService.modificarReservaInvitado(
+      reservaId,
+      tokenGestion.trim(),
+      dto,
+    );
+  }
+
+  @Patch('invitado/:reservaId/cancelar')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Cancelar una reserva de invitado mediante token de gestión',
+    description:
+      'Permite a un cliente invitado cancelar su propia reserva sin iniciar sesión, suministrando el token de gestión exclusivamente en el encabezado HTTP X-Reservation-Management-Token. No se admite el envío de credenciales por URL ni en el cuerpo JSON. Si la reserva no existe o el token es incorrecto, ausente o vacío, responde con 404 ("La reserva no se encuentra disponible") para evitar filtración de existencia de reservas.',
+  })
+  @ApiParam({
+    name: 'reservaId',
+    example: 42,
+    description: 'Identificador de la reserva a cancelar',
+  })
+  @ApiHeader({
+    name: 'X-Reservation-Management-Token',
+    description:
+      'Token de gestión entregado al crear la reserva de invitado (único canal autorizado de credencial)',
+    required: true,
+  })
+  @ApiOkResponse({
+    description: 'Reserva cancelada correctamente',
+    type: ReservaCanceladaResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Identificador de reserva inválido',
+  })
+  @ApiNotFoundResponse({
+    description:
+      'La reserva no se encuentra disponible (reserva inexistente o credencial de gestión ausente/inválida)',
+  })
+  @ApiConflictResponse({
+    description:
+      'El estado actual de la reserva no permite cancelarla (por ejemplo, COMPLETED o IN_PROGRESS)',
+  })
+  async cancelarReservaInvitado(
+    @Param('reservaId', ParseIntPipe) reservaId: number,
+    @Headers('x-reservation-management-token') tokenGestion: string | undefined,
+  ): Promise<ReservaCanceladaResponseDto> {
+    if (reservaId <= 0) {
+      throw new BadRequestException(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
+    }
+
+    if (!tokenGestion || tokenGestion.trim().length === 0) {
+      throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+    }
+
+    return this.reservasService.cancelarReservaInvitado(
+      reservaId,
+      tokenGestion.trim(),
     );
   }
 
