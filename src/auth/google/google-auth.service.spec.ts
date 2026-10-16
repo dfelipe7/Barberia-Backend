@@ -171,12 +171,111 @@ describe('GoogleAuthService', () => {
       nombre: 'Felipe',
       apellido: 'Armero',
       rol: 'SUPERADMIN',
+      roles: ['SUPERADMIN'],
       estado: 'ACTIVO',
       fotoUrl: 'https://photo.url',
     });
     expect(prisma.usuario.update).toHaveBeenCalledWith({
       where: { id: 1 },
       data: { googleId: '12345' },
+    });
+  });
+
+  it('debe asignar múltiples roles si el usuario es administrador y barbero activos', async () => {
+    googleTokenVerifier.verificar.mockResolvedValue({
+      email: 'adminbarbero@gmail.com',
+      sub: '99999',
+    });
+
+    prisma.usuario.findUnique.mockResolvedValue({
+      id: 10,
+      email: 'adminbarbero@gmail.com',
+      estado: 'ACTIVO',
+      rol: 'ADMINISTRADOR',
+      nombre: 'Carlos',
+      apellido: 'Perez',
+      googleId: '99999',
+      administrador: { estado: 'ACTIVO' },
+      barbero: { estado: 'ACTIVO', fotoUrl: '/foto.jpg' },
+    } as any);
+
+    const result = await service.loginConGoogle('valid-token');
+
+    expect(result.usuario.roles).toEqual(['ADMINISTRADOR', 'BARBERO']);
+    expect(jwtService.sign).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roles: ['ADMINISTRADOR', 'BARBERO'],
+      }),
+    );
+  });
+
+  describe('refrescarSesion', () => {
+    it('debe lanzar UnauthorizedException si el usuario no existe', async () => {
+      prisma.usuario.findUnique.mockResolvedValue(null);
+
+      await expect(service.refrescarSesion(999)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('debe lanzar ForbiddenException si el usuario está INACTIVO', async () => {
+      prisma.usuario.findUnique.mockResolvedValue({
+        id: 999,
+        estado: 'INACTIVO',
+      });
+
+      await expect(service.refrescarSesion(999)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('debe emitir un nuevo token con roles actualizados de la BD', async () => {
+      prisma.usuario.findUnique.mockResolvedValue({
+        id: 10,
+        email: 'carlos@gmail.com',
+        nombre: 'Carlos',
+        apellido: 'Perez',
+        rol: 'ADMINISTRADOR',
+        estado: 'ACTIVO',
+        administrador: { estado: 'ACTIVO' },
+        barbero: { estado: 'ACTIVO', fotoUrl: '/foto.jpg' },
+      });
+
+      const result = await service.refrescarSesion(10);
+
+      expect(result.accessToken).toBe('signed-jwt-token');
+      expect(result.usuario.roles).toEqual(['ADMINISTRADOR', 'BARBERO']);
+      expect(jwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sub: '10',
+          roles: ['ADMINISTRADOR', 'BARBERO'],
+          fotoUrl: '/foto.jpg',
+        }),
+      );
+    });
+
+    it('debe preservar la foto de Google si el usuario no tiene foto propia en la BD', async () => {
+      prisma.usuario.findUnique.mockResolvedValue({
+        id: 11,
+        email: 'admin@gmail.com',
+        nombre: 'Admin',
+        apellido: 'Puro',
+        rol: 'ADMINISTRADOR',
+        estado: 'ACTIVO',
+        administrador: { estado: 'ACTIVO' },
+        barbero: null,
+      });
+
+      const googlePhoto = 'https://lh3.googleusercontent.com/a/google-avatar.jpg';
+      const result = await service.refrescarSesion(11, googlePhoto);
+
+      expect(result.usuario.fotoUrl).toBe(googlePhoto);
+      expect(jwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sub: '11',
+          fotoUrl: googlePhoto,
+        }),
+      );
     });
   });
 });

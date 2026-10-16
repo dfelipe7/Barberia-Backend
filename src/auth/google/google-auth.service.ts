@@ -56,17 +56,6 @@ export class GoogleAuthService {
       );
     }
 
-    const esSuperAdmin = usuario.rol === 'SUPERADMIN';
-    const esAdminActivo = usuario.administrador?.estado === 'ACTIVO';
-    const esBarberoActivo = usuario.barbero?.estado === 'ACTIVO';
-
-    if (!esSuperAdmin && !esAdminActivo && !esBarberoActivo) {
-      this.logger.warn(`Acceso denegado: ${email} no tiene roles activos.`);
-      throw new ForbiddenException(
-        'Tu cuenta no tiene ningún rol activo asignado.',
-      );
-    }
-
     // Vincular googleId si es la primera vez que inicia sesión con Google
     if (!usuario.googleId && payload.sub) {
       await this.prisma.usuario.update({
@@ -74,6 +63,79 @@ export class GoogleAuthService {
         data: { googleId: payload.sub },
       });
     }
+
+    const sesion = this.construirSesion(usuario, payload.picture);
+
+    this.logger.log(
+      `LOGIN EXITOSO: ${usuario.nombre} (${usuario.email}) - Roles: ${sesion.usuario.roles.join(', ')}`,
+    );
+
+    return sesion;
+  }
+
+  /**
+   * Revalida los roles vigentes en la base de datos y emite un nuevo JWT actualizado
+   * sin requerir que el usuario cierre sesión.
+   */
+  async refrescarSesion(usuarioId: number, fotoUrlActual?: string | null) {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      include: {
+        administrador: true,
+        barbero: true,
+      },
+    });
+
+    if (!usuario) {
+      throw new UnauthorizedException('El usuario no existe en la base de datos.');
+    }
+
+    if (usuario.estado === 'INACTIVO') {
+      throw new ForbiddenException('Tu cuenta ha sido desactivada por un administrador.');
+    }
+
+    const sesion = this.construirSesion(usuario, fotoUrlActual);
+
+    this.logger.debug(
+      `TOKEN RENOVADO: ${usuario.nombre} (${usuario.email}) - Roles: ${sesion.usuario.roles.join(', ')}`,
+    );
+
+    return sesion;
+  }
+
+  private construirSesion(usuario: any, fotoUrlGoogle?: string | null) {
+    const esSuperAdmin = usuario.rol === 'SUPERADMIN';
+    const esAdminActivo = usuario.administrador?.estado === 'ACTIVO';
+    const esBarberoActivo = usuario.barbero?.estado === 'ACTIVO';
+
+    if (!esSuperAdmin && !esAdminActivo && !esBarberoActivo) {
+      this.logger.warn(`Acceso denegado: ${usuario.email} no tiene roles activos.`);
+      throw new ForbiddenException(
+        'Tu cuenta no tiene ningún rol activo asignado.',
+      );
+    }
+
+    // Resolver todos los roles activos del usuario
+    const roles: string[] = [];
+    if (esSuperAdmin) {
+      roles.push('SUPERADMIN');
+    }
+    if (esAdminActivo || (usuario.rol === 'ADMINISTRADOR' && !usuario.administrador)) {
+      if (!roles.includes('ADMINISTRADOR')) {
+        roles.push('ADMINISTRADOR');
+      }
+    }
+    if (esBarberoActivo || (usuario.rol === 'BARBERO' && !usuario.barbero)) {
+      if (!roles.includes('BARBERO')) {
+        roles.push('BARBERO');
+      }
+    }
+
+    // Prioridad de foto:
+    // 1. Foto personalizada de barbero en la base de datos
+    // 2. Foto de la cuenta de Google
+    // 3. null (iniciales)
+    const fotoUrl = usuario.barbero?.fotoUrl || fotoUrlGoogle || null;
 
     // Generar el JWT oficial de la Barbería con sus roles y reclamos
     const tokenPayload = {
@@ -83,16 +145,12 @@ export class GoogleAuthService {
       nombre: usuario.nombre,
       apellido: usuario.apellido,
       rol: usuario.rol,
-      roles: [usuario.rol],
+      roles,
       estado: usuario.estado,
-      fotoUrl: payload.picture || (usuario.barbero?.fotoUrl ?? null),
+      fotoUrl,
     };
 
     const accessToken = this.jwtService.sign(tokenPayload);
-
-    this.logger.log(
-      `LOGIN EXITOSO: ${usuario.nombre} (${usuario.email}) - Rol: ${usuario.rol}`,
-    );
 
     return {
       accessToken,
@@ -102,8 +160,9 @@ export class GoogleAuthService {
         nombre: usuario.nombre,
         apellido: usuario.apellido,
         rol: usuario.rol,
+        roles,
         estado: usuario.estado,
-        fotoUrl: payload.picture || (usuario.barbero?.fotoUrl ?? null),
+        fotoUrl,
       },
     };
   }

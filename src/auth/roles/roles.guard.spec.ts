@@ -45,6 +45,16 @@ describe('RolesGuard', () => {
     expect(guard.canActivate(context)).toBe(true);
   });
 
+  it('debe permitir acceso si el usuario tiene rol principal diferente pero roles incluye el requerido', () => {
+    reflector.getAllAndOverride.mockReturnValue(['BARBERO']);
+    const context = createMockContext({
+      rol: 'ADMINISTRADOR',
+      roles: ['ADMINISTRADOR', 'BARBERO'],
+    });
+
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
   it('debe permitir acceso si el usuario tiene roles en realm_access', () => {
     reflector.getAllAndOverride.mockReturnValue(['SUPERADMIN']);
     const context = createMockContext({ realm_access: { roles: ['SUPERADMIN'] } });

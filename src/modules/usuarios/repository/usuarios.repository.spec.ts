@@ -62,7 +62,7 @@ describe('UsuariosRepository', () => {
         where: { googleId: 'g-1' },
         include: { administrador: true, barbero: true },
       });
-      expect(result.googleId).toBe('g-1');
+      expect(result?.googleId).toBe('g-1');
     });
   });
 
@@ -74,7 +74,7 @@ describe('UsuariosRepository', () => {
         where: { email: 'test@test.com' },
         include: { administrador: true, barbero: true },
       });
-      expect(result.email).toBe('test@test.com');
+      expect(result?.email).toBe('test@test.com');
     });
   });
 

@@ -64,6 +64,7 @@ import { REGLAS_DISPONIBILIDAD } from './strategies/regla-disponibilidad.strateg
     HorarioSemanalService,
     HorariosRepository,
     FranjaFactory,
+    FechaBogotaService,
     BloqueosHorarioService,
     BloqueosHorarioRepository,
     CierresGeneralesRepository,
