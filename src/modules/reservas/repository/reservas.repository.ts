@@ -93,6 +93,69 @@ export interface ReservaConRelaciones {
   barbero: { id: number; usuario: { nombre: string; apellido: string } };
 }
 
+/**
+ * Selección para la agenda operativa del barbero. Incluye datos de contacto del
+ * cliente y detalles del servicio (duración y precio). No expone tokens ni googleId.
+ */
+const SELECCION_RESERVA_AGENDA_BARBERO = {
+  id: true,
+  barberoId: true,
+  servicioId: true,
+  clienteId: true,
+  date: true,
+  dayOfWeek: true,
+  startTime: true,
+  endTime: true,
+  status: true,
+  precioReservado: true,
+  createdAt: true,
+  updatedAt: true,
+  cliente: {
+    select: {
+      nombre: true,
+      apellido: true,
+      telefono: true,
+    },
+  },
+  servicio: {
+    select: {
+      id: true,
+      nombre: true,
+      duracionMinutos: true,
+      precio: true,
+    },
+  },
+} as const;
+
+/**
+ * Registro de reserva con los campos requeridos para la vista de agenda del barbero.
+ */
+export interface ReservaAgendaRegistro {
+  id: number;
+  barberoId: number;
+  servicioId: number;
+  clienteId: number;
+  date: Date;
+  dayOfWeek: WeekDay;
+  startTime: string;
+  endTime: string;
+  status: ReservationStatus;
+  precioReservado: Prisma.Decimal | null;
+  createdAt: Date;
+  updatedAt: Date;
+  cliente: {
+    nombre: string;
+    apellido: string | null;
+    telefono: string | null;
+  };
+  servicio: {
+    id: number;
+    nombre: string;
+    duracionMinutos: number;
+    precio: Prisma.Decimal;
+  };
+}
+
 export interface ConsultaOcupacionPorFecha {
   barberoId: number;
   fecha: Date;
@@ -272,6 +335,48 @@ export class ReservasRepository {
     return this.prisma.reservation.findFirst({
       where: { id: reservaId, clienteId },
       select: SELECCION_RESERVA_CON_RELACIONES,
+    });
+  }
+
+  /**
+   * Lista las reservas activas (no canceladas) de un barbero para una fecha dada,
+   * ordenadas cronológicamente por hora de inicio.
+   */
+  async listarReservasDeBarberoEnFecha(
+    barberoId: number,
+    fecha: Date,
+  ): Promise<ReservaAgendaRegistro[]> {
+    return this.prisma.reservation.findMany({
+      where: {
+        barberoId,
+        date: fecha,
+        status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
+      },
+      orderBy: { startTime: 'asc' },
+      select: SELECCION_RESERVA_AGENDA_BARBERO,
+    });
+  }
+
+  /**
+   * Lista las reservas activas (no canceladas) de un barbero para un rango de fechas [desde, hasta],
+   * ordenadas cronológicamente por fecha ascendente y hora de inicio ascendente.
+   */
+  async listarReservasDeBarberoEnRango(
+    barberoId: number,
+    desde: Date,
+    hasta: Date,
+  ): Promise<ReservaAgendaRegistro[]> {
+    return this.prisma.reservation.findMany({
+      where: {
+        barberoId,
+        date: {
+          gte: desde,
+          lte: hasta,
+        },
+        status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
+      },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      select: SELECCION_RESERVA_AGENDA_BARBERO,
     });
   }
 

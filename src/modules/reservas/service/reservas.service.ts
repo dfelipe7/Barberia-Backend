@@ -1,18 +1,28 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { EstadoUsuario } from '../../../../generated/prisma/enums';
 import { CrearReservaDto } from '../dto/dto-peticion/crear-reserva.dto';
+import { ConsultaAgendaBarberoDto } from '../dto/dto-peticion/consulta-agenda-barbero.dto';
+import { ConsultaAgendaSemanalDto } from '../dto/dto-peticion/consulta-agenda-semanal.dto';
 import { ReservaCreadaResponseDto } from '../dto/dto-respuesta/reserva-creada-response.dto';
 import { ReservaClienteDto } from '../dto/dto-respuesta/reserva-cliente.dto';
 import { MisReservasResponseDto } from '../dto/dto-respuesta/mis-reservas-response.dto';
 import {
+  AgendaBarberoResponseDto,
+  AgendaSemanalBarberoResponseDto,
+  CitaAgendaBarberoDto,
+} from '../dto/dto-respuesta/agenda-barbero-response.dto';
+import {
   ClienteDeReserva,
   CrearReservaDatos,
+  ReservaAgendaRegistro,
   ReservaConRelaciones,
   ReservaRegistro,
   ReservasRepository,
@@ -23,6 +33,7 @@ import { EstadoFranja } from '../../horarios/common/estado-franja';
 import type { FranjaEvaluada } from '../../horarios/common/estado-franja';
 import { FechaBogotaService } from '../../horarios/common/fecha-bogota.service';
 import { ServiciosRepository } from '../../servicios/repository/servicios.repository';
+import { BarberosRepository } from '../../usuarios/repository/barberos.repository';
 
 /** Mensajes de dominio exigidos por los criterios de aceptación (Excel HE-04). */
 export const MENSAJE_RESERVA_CREADA = 'Reserva creada exitosamente';
@@ -68,6 +79,7 @@ export class ReservasService {
     private readonly disponibilidadService: DisponibilidadService,
     private readonly serviciosRepository: ServiciosRepository,
     private readonly fechaBogotaService: FechaBogotaService,
+    private readonly barberosRepository: BarberosRepository,
   ) {}
 
   /**
@@ -172,6 +184,68 @@ export class ReservasService {
     }
 
     return this.aReservaCliente(reserva);
+  }
+
+  /**
+   * Consulta la agenda de reservas del barbero autenticado para una fecha dada.
+   *
+   * Recupera las citas activas del barbero ordenadas por hora de inicio,
+   * incluyendo los datos de contacto del cliente y el servicio asociado.
+   * Las reservas canceladas no se incluyen en la agenda activa.
+   */
+  async obtenerAgendaBarbero(
+    usuarioAutenticado: unknown,
+    consulta: ConsultaAgendaBarberoDto,
+  ): Promise<AgendaBarberoResponseDto> {
+    this.validarFecha(consulta.fecha);
+
+    const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
+
+    const fechaDate = this.aFechaDate(consulta.fecha);
+    const reservas =
+      await this.reservasRepository.listarReservasDeBarberoEnFecha(
+        barbero.id,
+        fechaDate,
+      );
+
+    return {
+      fecha: consulta.fecha,
+      reservas: reservas.map((r) => this.aCitaAgendaBarbero(r, consulta.fecha)),
+    };
+  }
+
+  /**
+   * Consulta la agenda de reservas del barbero autenticado para un rango de fechas (máximo 7 días).
+   *
+   * Recupera las citas activas del barbero ordenadas cronológicamente por fecha
+   * y hora de inicio, con información de contacto del cliente y detalles del servicio.
+   * Las reservas canceladas se excluyen de la agenda activa.
+   */
+  async obtenerAgendaSemanalBarbero(
+    usuarioAutenticado: unknown,
+    consulta: ConsultaAgendaSemanalDto,
+  ): Promise<AgendaSemanalBarberoResponseDto> {
+    this.validarRangoFechas(consulta.desde, consulta.hasta);
+
+    const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
+
+    const desdeDate = this.aFechaDate(consulta.desde);
+    const hastaDate = this.aFechaDate(consulta.hasta);
+
+    const reservas =
+      await this.reservasRepository.listarReservasDeBarberoEnRango(
+        barbero.id,
+        desdeDate,
+        hastaDate,
+      );
+
+    return {
+      desde: consulta.desde,
+      hasta: consulta.hasta,
+      reservas: reservas.map((r) =>
+        this.aCitaAgendaBarbero(r, this.aFechaCalendario(r.date)),
+      ),
+    };
   }
 
   /**
@@ -399,6 +473,43 @@ export class ReservasService {
     }
   }
 
+  /**
+   * Valida un rango de fechas de calendario:
+   * 1. Ambas deben ser fechas de calendario válidas (formato y existencia en calendario).
+   * 2. `desde` no puede ser posterior a `hasta`.
+   * 3. El rango total no puede superar los 7 días consecutivos (inclusive).
+   */
+  private validarRangoFechas(desde: string, hasta: string): void {
+    if (!this.fechaBogotaService.esFechaCalendarioValida(desde)) {
+      throw new BadRequestException(
+        `Fecha inicial ("desde") inválida: "${desde}". Se esperaba una fecha de calendario YYYY-MM-DD`,
+      );
+    }
+
+    if (!this.fechaBogotaService.esFechaCalendarioValida(hasta)) {
+      throw new BadRequestException(
+        `Fecha final ("hasta") inválida: "${hasta}". Se esperaba una fecha de calendario YYYY-MM-DD`,
+      );
+    }
+
+    if (desde > hasta) {
+      throw new BadRequestException(
+        'La fecha inicial ("desde") no puede ser posterior a la fecha final ("hasta")',
+      );
+    }
+
+    const fechaDesde = this.aFechaDate(desde);
+    const fechaHasta = this.aFechaDate(hasta);
+    const diferenciaMs = fechaHasta.getTime() - fechaDesde.getTime();
+    const diferenciaDias = Math.round(diferenciaMs / (1000 * 60 * 60 * 24)) + 1;
+
+    if (diferenciaDias > 7) {
+      throw new BadRequestException(
+        'El rango de consulta no puede superar los 7 días consecutivos',
+      );
+    }
+  }
+
   private aFechaDate(fecha: string): Date {
     return new Date(`${fecha}T00:00:00.000Z`);
   }
@@ -413,5 +524,75 @@ export class ReservasService {
 
   private esViolacionUnicidad(error: unknown): boolean {
     return (error as { code?: unknown } | null)?.code === 'P2002';
+  }
+
+  /**
+   * Resuelve el perfil de barbero del usuario autenticado.
+   * Lanza 403 si el usuario no tiene perfil de barbero o si se encuentra inactivo.
+   */
+  private async obtenerBarberoAutenticado(usuarioAutenticado: any) {
+    const usuarioId = this.resolverUsuarioId(usuarioAutenticado);
+    const barbero =
+      await this.barberosRepository.obtenerBarberoPorUsuarioId(usuarioId);
+
+    if (!barbero) {
+      throw new ForbiddenException(
+        'El usuario autenticado no tiene un perfil de barbero asociado',
+      );
+    }
+
+    if (barbero.estado !== EstadoUsuario.ACTIVO) {
+      throw new ForbiddenException(
+        'El perfil de barbero se encuentra inactivo',
+      );
+    }
+
+    return barbero;
+  }
+
+  /**
+   * Extrae el `Usuario.id` del payload JWT de personal (`id` numérico o `sub`).
+   */
+  private resolverUsuarioId(usuarioAutenticado: any): number {
+    const idCrudo = usuarioAutenticado?.id ?? usuarioAutenticado?.sub;
+    const usuarioId = Number(idCrudo);
+
+    if (
+      idCrudo === undefined ||
+      idCrudo === null ||
+      Number.isNaN(usuarioId) ||
+      usuarioId <= 0
+    ) {
+      throw new UnauthorizedException(
+        'No se pudo identificar al usuario autenticado',
+      );
+    }
+
+    return usuarioId;
+  }
+
+  /** Traduce un registro de persistencia al DTO de cita de la agenda del barbero. */
+  private aCitaAgendaBarbero(
+    reserva: ReservaAgendaRegistro,
+    fecha: string,
+  ): CitaAgendaBarberoDto {
+    return {
+      id: reserva.id,
+      fecha,
+      hora: reserva.startTime,
+      horaFin: reserva.endTime,
+      estado: reserva.status,
+      precio: Number(reserva.precioReservado ?? reserva.servicio.precio),
+      cliente: {
+        nombre: reserva.cliente.nombre,
+        apellido: reserva.cliente.apellido ?? null,
+        telefono: reserva.cliente.telefono ?? null,
+      },
+      servicio: {
+        id: reserva.servicio.id,
+        nombre: reserva.servicio.nombre,
+        duracionMinutos: reserva.servicio.duracionMinutos,
+      },
+    };
   }
 }

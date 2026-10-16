@@ -179,4 +179,68 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
       expect(payload.aud).toBe('barberia-clientes');
     });
   });
+
+  describe('protección de la agenda del barbero contra clientes y administradores', () => {
+    const jwtPersonal = new JwtService({ secret: SECRETO_PERSONAL });
+    const jwtCliente = new JwtService();
+    const clienteJwtService = new ClienteJwtService(
+      jwtCliente,
+      configPara(SECRETO_CLIENTE),
+    );
+
+    it('un cliente autenticado es rechazado por JwtAuthGuard en la ruta del barbero', async () => {
+      const token = clienteJwtService.firmar({
+        clienteId: 99,
+        email: 'cliente@test.com',
+        nombre: 'Cliente',
+      });
+      const guard = new JwtAuthGuard(jwtPersonal);
+      const { context } = crearContexto(`Bearer ${token}`);
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('un administrador sin rol BARBERO es rechazado por RolesGuard', () => {
+      const { RolesGuard } = require('../src/auth/roles/roles.guard');
+      const reflector = {
+        getAllAndOverride: jest.fn().mockReturnValue(['BARBERO']),
+      };
+      const rolesGuard = new RolesGuard(reflector);
+
+      const requestAdmin = {
+        user: { id: 1, rol: 'ADMINISTRADOR', roles: ['ADMINISTRADOR'] },
+      };
+      const contextAdmin = {
+        switchToHttp: () => ({ getRequest: () => requestAdmin }),
+        getHandler: () => ({}),
+        getClass: () => ({}),
+      } as any;
+
+      const { ForbiddenException } = require('@nestjs/common');
+      expect(() => rolesGuard.canActivate(contextAdmin)).toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('un barbero con rol BARBERO es aceptado por RolesGuard', () => {
+      const { RolesGuard } = require('../src/auth/roles/roles.guard');
+      const reflector = {
+        getAllAndOverride: jest.fn().mockReturnValue(['BARBERO']),
+      };
+      const rolesGuard = new RolesGuard(reflector);
+
+      const requestBarbero = {
+        user: { id: 3, rol: 'BARBERO', roles: ['BARBERO'] },
+      };
+      const contextBarbero = {
+        switchToHttp: () => ({ getRequest: () => requestBarbero }),
+        getHandler: () => ({}),
+        getClass: () => ({}),
+      } as any;
+
+      expect(rolesGuard.canActivate(contextBarbero)).toBe(true);
+    });
+  });
 });

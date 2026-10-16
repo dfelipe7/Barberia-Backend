@@ -4,6 +4,8 @@ import { ReservasController } from './reservas.controller';
 import { ReservasService } from '../service/reservas.service';
 import { ClienteJwtAuthGuard } from '../../../auth/clientes/guards/cliente-jwt-auth.guard';
 import { ClienteOpcionalJwtAuthGuard } from '../../../auth/clientes/guards/cliente-opcional-jwt-auth.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../auth/roles/roles.guard';
 
 describe('ReservasController', () => {
   let controller: ReservasController;
@@ -12,6 +14,8 @@ describe('ReservasController', () => {
     crearReserva: jest.fn(),
     listarMisReservas: jest.fn(),
     obtenerMiReserva: jest.fn(),
+    obtenerAgendaBarbero: jest.fn(),
+    obtenerAgendaSemanalBarbero: jest.fn(),
   };
 
   const dto = {
@@ -31,6 +35,10 @@ describe('ReservasController', () => {
       .overrideGuard(ClienteOpcionalJwtAuthGuard)
       .useValue({ canActivate: () => true })
       .overrideGuard(ClienteJwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
       .useValue({ canActivate: () => true })
       .compile();
 
@@ -90,5 +98,46 @@ describe('ReservasController', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(reservasService.obtenerMiReserva).not.toHaveBeenCalled();
+  });
+
+  it('obtiene la agenda del barbero autenticado', async () => {
+    const mockAgenda = { fecha: '2026-11-01', reservas: [] };
+    reservasService.obtenerAgendaBarbero.mockResolvedValue(mockAgenda);
+
+    const mockUser = { id: 5, rol: 'BARBERO' };
+    const resultado = await controller.obtenerMiAgenda(
+      { user: mockUser },
+      { fecha: '2026-11-01' },
+    );
+
+    expect(resultado).toBe(mockAgenda);
+    expect(reservasService.obtenerAgendaBarbero).toHaveBeenCalledWith(
+      mockUser,
+      { fecha: '2026-11-01' },
+    );
+  });
+
+  it('obtiene la agenda semanal del barbero autenticado', async () => {
+    const mockAgendaSemanal = {
+      desde: '2026-11-02',
+      hasta: '2026-11-08',
+      reservas: [],
+    };
+    reservasService.obtenerAgendaSemanalBarbero.mockResolvedValue(
+      mockAgendaSemanal,
+    );
+
+    const mockUser = { id: 5, rol: 'BARBERO' };
+    const consulta = { desde: '2026-11-02', hasta: '2026-11-08' };
+    const resultado = await controller.obtenerMiAgendaSemanal(
+      { user: mockUser },
+      consulta,
+    );
+
+    expect(resultado).toBe(mockAgendaSemanal);
+    expect(reservasService.obtenerAgendaSemanalBarbero).toHaveBeenCalledWith(
+      mockUser,
+      consulta,
+    );
   });
 });
