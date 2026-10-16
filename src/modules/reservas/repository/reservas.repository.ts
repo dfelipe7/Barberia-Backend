@@ -358,6 +358,29 @@ export class ReservasRepository {
   }
 
   /**
+   * Lista las reservas activas (no canceladas) de un barbero para un rango de fechas [desde, hasta],
+   * ordenadas cronológicamente por fecha ascendente y hora de inicio ascendente.
+   */
+  async listarReservasDeBarberoEnRango(
+    barberoId: number,
+    desde: Date,
+    hasta: Date,
+  ): Promise<ReservaAgendaRegistro[]> {
+    return this.prisma.reservation.findMany({
+      where: {
+        barberoId,
+        date: {
+          gte: desde,
+          lte: hasta,
+        },
+        status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
+      },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      select: SELECCION_RESERVA_AGENDA_BARBERO,
+    });
+  }
+
+  /**
    * Crea una reserva serializando la escritura por barbero con un
    * `SELECT ... FOR UPDATE` sobre la fila de `Barbero`, dentro de una
    * transacción. La transacción por sí sola NO evita el doble booking: la

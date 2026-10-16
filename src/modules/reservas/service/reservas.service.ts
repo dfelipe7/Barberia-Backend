@@ -10,11 +10,13 @@ import {
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
 import { CrearReservaDto } from '../dto/dto-peticion/crear-reserva.dto';
 import { ConsultaAgendaBarberoDto } from '../dto/dto-peticion/consulta-agenda-barbero.dto';
+import { ConsultaAgendaSemanalDto } from '../dto/dto-peticion/consulta-agenda-semanal.dto';
 import { ReservaCreadaResponseDto } from '../dto/dto-respuesta/reserva-creada-response.dto';
 import { ReservaClienteDto } from '../dto/dto-respuesta/reserva-cliente.dto';
 import { MisReservasResponseDto } from '../dto/dto-respuesta/mis-reservas-response.dto';
 import {
   AgendaBarberoResponseDto,
+  AgendaSemanalBarberoResponseDto,
   CitaAgendaBarberoDto,
 } from '../dto/dto-respuesta/agenda-barbero-response.dto';
 import {
@@ -209,6 +211,40 @@ export class ReservasService {
     return {
       fecha: consulta.fecha,
       reservas: reservas.map((r) => this.aCitaAgendaBarbero(r, consulta.fecha)),
+    };
+  }
+
+  /**
+   * Consulta la agenda de reservas del barbero autenticado para un rango de fechas (máximo 7 días).
+   *
+   * Recupera las citas activas del barbero ordenadas cronológicamente por fecha
+   * y hora de inicio, con información de contacto del cliente y detalles del servicio.
+   * Las reservas canceladas se excluyen de la agenda activa.
+   */
+  async obtenerAgendaSemanalBarbero(
+    usuarioAutenticado: unknown,
+    consulta: ConsultaAgendaSemanalDto,
+  ): Promise<AgendaSemanalBarberoResponseDto> {
+    this.validarRangoFechas(consulta.desde, consulta.hasta);
+
+    const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
+
+    const desdeDate = this.aFechaDate(consulta.desde);
+    const hastaDate = this.aFechaDate(consulta.hasta);
+
+    const reservas =
+      await this.reservasRepository.listarReservasDeBarberoEnRango(
+        barbero.id,
+        desdeDate,
+        hastaDate,
+      );
+
+    return {
+      desde: consulta.desde,
+      hasta: consulta.hasta,
+      reservas: reservas.map((r) =>
+        this.aCitaAgendaBarbero(r, this.aFechaCalendario(r.date)),
+      ),
     };
   }
 
@@ -433,6 +469,43 @@ export class ReservasService {
     if (!this.fechaBogotaService.esFechaCalendarioValida(fecha)) {
       throw new BadRequestException(
         `Fecha inválida: "${fecha}". Se esperaba una fecha de calendario YYYY-MM-DD`,
+      );
+    }
+  }
+
+  /**
+   * Valida un rango de fechas de calendario:
+   * 1. Ambas deben ser fechas de calendario válidas (formato y existencia en calendario).
+   * 2. `desde` no puede ser posterior a `hasta`.
+   * 3. El rango total no puede superar los 7 días consecutivos (inclusive).
+   */
+  private validarRangoFechas(desde: string, hasta: string): void {
+    if (!this.fechaBogotaService.esFechaCalendarioValida(desde)) {
+      throw new BadRequestException(
+        `Fecha inicial ("desde") inválida: "${desde}". Se esperaba una fecha de calendario YYYY-MM-DD`,
+      );
+    }
+
+    if (!this.fechaBogotaService.esFechaCalendarioValida(hasta)) {
+      throw new BadRequestException(
+        `Fecha final ("hasta") inválida: "${hasta}". Se esperaba una fecha de calendario YYYY-MM-DD`,
+      );
+    }
+
+    if (desde > hasta) {
+      throw new BadRequestException(
+        'La fecha inicial ("desde") no puede ser posterior a la fecha final ("hasta")',
+      );
+    }
+
+    const fechaDesde = this.aFechaDate(desde);
+    const fechaHasta = this.aFechaDate(hasta);
+    const diferenciaMs = fechaHasta.getTime() - fechaDesde.getTime();
+    const diferenciaDias = Math.round(diferenciaMs / (1000 * 60 * 60 * 24)) + 1;
+
+    if (diferenciaDias > 7) {
+      throw new BadRequestException(
+        'El rango de consulta no puede superar los 7 días consecutivos',
       );
     }
   }

@@ -15,6 +15,7 @@ describe('ReservasController', () => {
     listarMisReservas: jest.fn(),
     obtenerMiReserva: jest.fn(),
     obtenerAgendaBarbero: jest.fn(),
+    obtenerAgendaSemanalBarbero: jest.fn(),
   };
 
   const dto = {
@@ -113,6 +114,30 @@ describe('ReservasController', () => {
     expect(reservasService.obtenerAgendaBarbero).toHaveBeenCalledWith(
       mockUser,
       { fecha: '2026-11-01' },
+    );
+  });
+
+  it('obtiene la agenda semanal del barbero autenticado', async () => {
+    const mockAgendaSemanal = {
+      desde: '2026-11-02',
+      hasta: '2026-11-08',
+      reservas: [],
+    };
+    reservasService.obtenerAgendaSemanalBarbero.mockResolvedValue(
+      mockAgendaSemanal,
+    );
+
+    const mockUser = { id: 5, rol: 'BARBERO' };
+    const consulta = { desde: '2026-11-02', hasta: '2026-11-08' };
+    const resultado = await controller.obtenerMiAgendaSemanal(
+      { user: mockUser },
+      consulta,
+    );
+
+    expect(resultado).toBe(mockAgendaSemanal);
+    expect(reservasService.obtenerAgendaSemanalBarbero).toHaveBeenCalledWith(
+      mockUser,
+      consulta,
     );
   });
 });

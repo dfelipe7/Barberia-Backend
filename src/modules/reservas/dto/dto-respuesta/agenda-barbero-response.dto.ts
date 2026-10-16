@@ -113,3 +113,27 @@ export class AgendaBarberoResponseDto {
   })
   reservas: CitaAgendaBarberoDto[];
 }
+
+/**
+ * Respuesta de la agenda en un rango de fechas (ej. semanal) del barbero.
+ */
+export class AgendaSemanalBarberoResponseDto {
+  @ApiProperty({
+    example: '2026-11-02',
+    description: 'Fecha inicial del rango en formato YYYY-MM-DD',
+  })
+  desde: string;
+
+  @ApiProperty({
+    example: '2026-11-08',
+    description: 'Fecha final del rango en formato YYYY-MM-DD',
+  })
+  hasta: string;
+
+  @ApiProperty({
+    type: [CitaAgendaBarberoDto],
+    description:
+      'Lista de reservas activas del barbero en el rango, ordenadas cronológicamente por fecha y hora de inicio',
+  })
+  reservas: CitaAgendaBarberoDto[];
+}

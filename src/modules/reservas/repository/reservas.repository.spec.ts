@@ -449,6 +449,43 @@ describe('ReservasRepository', () => {
     });
   });
 
+  describe('listarReservasDeBarberoEnRango', () => {
+    it('filtra por barberoId, rango gte/lte y estados que ocupan agenda, ordenando por fecha y hora', async () => {
+      const desde = new Date('2026-11-02T00:00:00.000Z');
+      const hasta = new Date('2026-11-08T00:00:00.000Z');
+      const mockReservas = [
+        {
+          id: 11,
+          barberoId: 3,
+          date: desde,
+          startTime: '09:00',
+          endTime: '10:00',
+          status: ReservationStatus.CONFIRMED,
+          cliente: { nombre: 'Carlos', apellido: 'Pérez', telefono: '3001234567' },
+          servicio: { id: 2, nombre: 'Corte clásico', duracionMinutos: 45, precio: 50000 },
+        },
+      ];
+      mockPrismaService.reservation.findMany.mockResolvedValue(mockReservas);
+
+      const resultado = await repository.listarReservasDeBarberoEnRango(3, desde, hasta);
+
+      expect(resultado).toEqual(mockReservas);
+      expect(mockPrismaService.reservation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            barberoId: 3,
+            date: {
+              gte: desde,
+              lte: hasta,
+            },
+            status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
+          },
+          orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+        }),
+      );
+    });
+  });
+
   describe('cancelar', () => {
     it('debe pasar la reserva a CANCELLED sin borrarla', async () => {
       mockPrismaService.reservation.update.mockResolvedValue({

@@ -42,6 +42,7 @@ describe('ReservasService', () => {
     listarReservasDeCliente: jest.fn(),
     obtenerReservaDeCliente: jest.fn(),
     listarReservasDeBarberoEnFecha: jest.fn(),
+    listarReservasDeBarberoEnRango: jest.fn(),
   };
   const clientesRepository = {
     obtenerPorId: jest.fn(),
@@ -665,6 +666,223 @@ describe('ReservasService', () => {
       );
 
       expect(barberosRepository.obtenerBarberoPorUsuarioId).toHaveBeenCalledWith(7);
+    });
+  });
+
+  describe('Agenda semanal del barbero (obtenerAgendaSemanalBarbero)', () => {
+    const usuarioBarbero = { id: 7, rol: 'BARBERO' };
+    const barberoActivo = {
+      id: 3,
+      usuarioId: 7,
+      telefono: '3110000000',
+      porcentajeComision: 50,
+      estado: EstadoUsuario.ACTIVO,
+    };
+
+    const citaLunes = {
+      id: 201,
+      barberoId: 3,
+      servicioId: 2,
+      clienteId: 55,
+      date: new Date('2026-11-02T00:00:00.000Z'),
+      dayOfWeek: 'MONDAY',
+      startTime: '09:00',
+      endTime: '10:00',
+      status: ReservationStatus.CONFIRMED,
+      precioReservado: 50000,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      cliente: {
+        nombre: 'Carlos',
+        apellido: 'Pérez',
+        telefono: '3001234567',
+      },
+      servicio: {
+        id: 2,
+        nombre: 'Corte clásico',
+        duracionMinutos: 45,
+        precio: 50000,
+      },
+    };
+
+    const citaMiercoles = {
+      id: 202,
+      barberoId: 3,
+      servicioId: 5,
+      clienteId: 88,
+      date: new Date('2026-11-04T00:00:00.000Z'),
+      dayOfWeek: 'WEDNESDAY',
+      startTime: '14:00',
+      endTime: '15:00',
+      status: ReservationStatus.PENDING,
+      precioReservado: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      cliente: {
+        nombre: 'Invitado',
+        apellido: null,
+        telefono: '3119876543',
+      },
+      servicio: {
+        id: 5,
+        nombre: 'Barba',
+        duracionMinutos: 30,
+        precio: 25000,
+      },
+    };
+
+    beforeEach(() => {
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue(barberoActivo);
+      reservasRepository.listarReservasDeBarberoEnRango = jest.fn();
+    });
+
+    it('devuelve las reservas del rango semanal ordenadas cronológicamente', async () => {
+      reservasRepository.listarReservasDeBarberoEnRango.mockResolvedValue([
+        citaLunes,
+        citaMiercoles,
+      ]);
+
+      const resultado = await service.obtenerAgendaSemanalBarbero(usuarioBarbero, {
+        desde: '2026-11-02',
+        hasta: '2026-11-08',
+      });
+
+      expect(resultado).toEqual({
+        desde: '2026-11-02',
+        hasta: '2026-11-08',
+        reservas: [
+          {
+            id: 201,
+            fecha: '2026-11-02',
+            hora: '09:00',
+            horaFin: '10:00',
+            estado: ReservationStatus.CONFIRMED,
+            precio: 50000,
+            cliente: {
+              nombre: 'Carlos',
+              apellido: 'Pérez',
+              telefono: '3001234567',
+            },
+            servicio: {
+              id: 2,
+              nombre: 'Corte clásico',
+              duracionMinutos: 45,
+            },
+          },
+          {
+            id: 202,
+            fecha: '2026-11-04',
+            hora: '14:00',
+            horaFin: '15:00',
+            estado: ReservationStatus.PENDING,
+            precio: 25000,
+            cliente: {
+              nombre: 'Invitado',
+              apellido: null,
+              telefono: '3119876543',
+            },
+            servicio: {
+              id: 5,
+              nombre: 'Barba',
+              duracionMinutos: 30,
+            },
+          },
+        ],
+      });
+
+      expect(barberosRepository.obtenerBarberoPorUsuarioId).toHaveBeenCalledWith(7);
+      expect(reservasRepository.listarReservasDeBarberoEnRango).toHaveBeenCalledWith(
+        3,
+        new Date('2026-11-02T00:00:00.000Z'),
+        new Date('2026-11-08T00:00:00.000Z'),
+      );
+    });
+
+    it('devuelve lista vacía cuando no hay reservas en el rango', async () => {
+      reservasRepository.listarReservasDeBarberoEnRango.mockResolvedValue([]);
+
+      const resultado = await service.obtenerAgendaSemanalBarbero(usuarioBarbero, {
+        desde: '2026-11-02',
+        hasta: '2026-11-08',
+      });
+
+      expect(resultado).toEqual({
+        desde: '2026-11-02',
+        hasta: '2026-11-08',
+        reservas: [],
+      });
+    });
+
+    it('rechaza si la fecha "desde" es inválida con 400', async () => {
+      fechaBogotaService.esFechaCalendarioValida.mockImplementation((f) => f !== 'invalida');
+
+      await expect(
+        service.obtenerAgendaSemanalBarbero(usuarioBarbero, {
+          desde: 'invalida',
+          hasta: '2026-11-08',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rechaza si la fecha "hasta" es inválida con 400', async () => {
+      fechaBogotaService.esFechaCalendarioValida.mockImplementation((f) => f !== 'invalida');
+
+      await expect(
+        service.obtenerAgendaSemanalBarbero(usuarioBarbero, {
+          desde: '2026-11-02',
+          hasta: 'invalida',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rechaza si "desde" es posterior a "hasta" con 400', async () => {
+      fechaBogotaService.esFechaCalendarioValida.mockReturnValue(true);
+
+      await expect(
+        service.obtenerAgendaSemanalBarbero(usuarioBarbero, {
+          desde: '2026-11-08',
+          hasta: '2026-11-02',
+        }),
+      ).rejects.toThrow('La fecha inicial ("desde") no puede ser posterior a la fecha final ("hasta")');
+    });
+
+    it('rechaza un rango superior a 7 días consecutivos con 400', async () => {
+      fechaBogotaService.esFechaCalendarioValida.mockReturnValue(true);
+
+      // Del 2 de noviembre al 10 de noviembre son 9 días
+      await expect(
+        service.obtenerAgendaSemanalBarbero(usuarioBarbero, {
+          desde: '2026-11-02',
+          hasta: '2026-11-10',
+        }),
+      ).rejects.toThrow('El rango de consulta no puede superar los 7 días consecutivos');
+    });
+
+    it('rechaza a un usuario que no tiene perfil de barbero asociado (403)', async () => {
+      fechaBogotaService.esFechaCalendarioValida.mockReturnValue(true);
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue(null);
+
+      await expect(
+        service.obtenerAgendaSemanalBarbero({ id: 99 }, {
+          desde: '2026-11-02',
+          hasta: '2026-11-08',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rechaza a un barbero con perfil inactivo (403)', async () => {
+      fechaBogotaService.esFechaCalendarioValida.mockReturnValue(true);
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        ...barberoActivo,
+        estado: EstadoUsuario.INACTIVO,
+      });
+
+      await expect(
+        service.obtenerAgendaSemanalBarbero(usuarioBarbero, {
+          desde: '2026-11-02',
+          hasta: '2026-11-08',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
 });
