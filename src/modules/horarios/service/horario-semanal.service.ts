@@ -3,6 +3,7 @@ import {
   Injectable,
   BadRequestException,
   ForbiddenException,
+  NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -85,6 +86,59 @@ export class HorarioSemanalService {
     const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
     const franjas = dto.franjas ?? [];
 
+    this.validarFranjas(franjas);
+
+    const existentes =
+      await this.horariosRepository.obtenerFranjasActivasPorBarbero(barbero.id);
+    await this.asegurarFranjasSinReservasActivas(
+      barbero.id,
+      existentes,
+      franjas,
+    );
+
+    const guardadas = await this.horariosRepository.reemplazarFranjas(
+      barbero.id,
+      franjas,
+    );
+    return this.mapearHorario(barbero.id, guardadas);
+  }
+
+  /**
+   * SUPERADMIN: Consulta el horario semanal de cualquier barbero por su barberoId.
+   */
+  async obtenerHorarioSemanalDeBarbero(
+    barberoId: number,
+  ): Promise<HorarioSemanalResponseDto> {
+    const barbero =
+      await this.barberosRepository.obtenerBarberoActivoPorId(barberoId);
+    if (!barbero) {
+      throw new NotFoundException(
+        `El barbero con ID ${barberoId} no existe o no está activo`,
+      );
+    }
+
+    const franjas =
+      await this.horariosRepository.obtenerFranjasActivasPorBarbero(barbero.id);
+    return this.mapearHorario(barbero.id, franjas);
+  }
+
+  /**
+   * SUPERADMIN: Reemplaza el horario semanal de cualquier barbero por su barberoId,
+   * respetando la regla de no afectar reservas existentes.
+   */
+  async reemplazarHorarioSemanalDeBarbero(
+    barberoId: number,
+    dto: ReemplazarHorarioSemanalDto,
+  ): Promise<HorarioSemanalResponseDto> {
+    const barbero =
+      await this.barberosRepository.obtenerBarberoActivoPorId(barberoId);
+    if (!barbero) {
+      throw new NotFoundException(
+        `El barbero con ID ${barberoId} no existe o no está activo`,
+      );
+    }
+
+    const franjas = dto.franjas ?? [];
     this.validarFranjas(franjas);
 
     const existentes =

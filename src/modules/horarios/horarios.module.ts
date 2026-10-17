@@ -7,6 +7,7 @@ import { HorarioSemanalController } from './controller/horario-semanal.controlle
 import { BloqueosHorarioController } from './controller/bloqueos-horario.controller';
 import { DisponibilidadController } from './controller/disponibilidad.controller';
 import { DisponibilidadBarberoController } from './controller/disponibilidad-barbero.controller';
+import { AdminHorariosController } from './controller/admin-horarios.controller';
 import { HorarioSemanalService } from './service/horario-semanal.service';
 import { BloqueosHorarioService } from './service/bloqueos-horario.service';
 import { DisponibilidadService } from './service/disponibilidad.service';
@@ -29,6 +30,7 @@ import { REGLAS_DISPONIBILIDAD } from './strategies/regla-disponibilidad.strateg
     BloqueosHorarioController,
     DisponibilidadController,
     DisponibilidadBarberoController,
+    AdminHorariosController,
   ],
   providers: [
     HorariosRepository,

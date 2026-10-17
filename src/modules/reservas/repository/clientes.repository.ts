@@ -95,4 +95,25 @@ export class ClientesRepository {
       throw error;
     }
   }
+
+  /**
+   * Busca clientes por nombre, apellido, teléfono o email para asociar a una reserva (HU-13-CA-02).
+   */
+  async buscarClientes(termino: string) {
+    const t = termino.trim();
+    if (!t) return [];
+
+    return this.prisma.cliente.findMany({
+      where: {
+        OR: [
+          { nombre: { contains: t } },
+          { apellido: { contains: t } },
+          { telefono: { contains: t } },
+          { email: { contains: t } },
+        ],
+      },
+      take: 20,
+      orderBy: { nombre: 'asc' },
+    });
+  }
 }

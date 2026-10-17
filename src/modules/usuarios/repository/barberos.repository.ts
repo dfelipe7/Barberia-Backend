@@ -81,6 +81,15 @@ export class BarberosRepository {
     });
   }
 
+  async obtenerBarberoPorId(id: number) {
+    return this.prisma.barbero.findUnique({
+      where: { id },
+      include: {
+        usuario: true,
+      },
+    });
+  }
+
   async obtenerBarberosCatalogo(filtro?: { nombre?: string }) {
     const whereCondition: any = {
       estado: EstadoUsuario.ACTIVO,
