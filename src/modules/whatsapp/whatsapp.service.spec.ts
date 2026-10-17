@@ -3,6 +3,7 @@ import {
   WhatsAppService,
   PLANTILLA_CONFIRMACION_DEFAULT,
   PLANTILLA_RECORDATORIO_DEFAULT,
+  enmascararTelefono,
 } from './whatsapp.service';
 
 describe('WhatsAppService', () => {
@@ -53,6 +54,25 @@ describe('WhatsAppService', () => {
     });
   });
 
+  describe('pausar e iniciar', () => {
+    it('pausar debe poner el servicio en modo reposo si no está conectado ni tiene sesión guardada', () => {
+      jest.spyOn(service, 'tieneSesionGuardada').mockReturnValue(false);
+      const res = service.pausar();
+      expect(res).toEqual({ mensaje: 'WhatsApp en modo reposo.' });
+    });
+
+    it('pausar debe indicar que sigue activo si tiene sesión guardada', () => {
+      jest.spyOn(service, 'tieneSesionGuardada').mockReturnValue(true);
+      const res = service.pausar();
+      expect(res).toEqual({ mensaje: 'WhatsApp activo con sesión guardada.' });
+    });
+
+    it('iniciar debe reactivar el servicio bajo demanda', () => {
+      const res = service.iniciar();
+      expect(res).toEqual({ mensaje: 'Iniciando WhatsApp...' });
+    });
+  });
+
   describe('enviarMensaje sin conexión', () => {
     it('debe retornar false si no hay socket o no está conectado', async () => {
       const enviado = await service.enviarMensaje('3001234567', 'Hola');
@@ -65,6 +85,7 @@ describe('WhatsAppService', () => {
       const plantillas = await service.obtenerPlantillas();
       expect(plantillas.confirmacion).toBe(PLANTILLA_CONFIRMACION_DEFAULT);
       expect(plantillas.recordatorio).toBe(PLANTILLA_RECORDATORIO_DEFAULT);
+      expect(plantillas.minutosAnticipacion).toBe(120);
     });
 
     it('reemplazarVariables debe sustituir adecuadamente todas las etiquetas {cliente}, {fecha}, etc.', () => {
@@ -126,6 +147,23 @@ describe('WhatsAppService', () => {
         '3001234567',
         expect.stringContaining('RECORDATORIO DE TU CITA'),
       );
+    });
+  });
+
+  describe('enmascararTelefono (Privacidad y OWASP)', () => {
+    it('debe ocultar los dígitos centrales de un número telefónico', () => {
+      expect(enmascararTelefono('3187594854')).toBe('318****854');
+    });
+
+    it('debe enmascarar correctamente un JID de WhatsApp preservando el dominio', () => {
+      expect(enmascararTelefono('573187594854@s.whatsapp.net')).toBe('573****854@s.whatsapp.net');
+    });
+
+    it('debe responder de forma segura ante cadenas cortas, nulas o vacías', () => {
+      expect(enmascararTelefono('')).toBe('***');
+      expect(enmascararTelefono(null)).toBe('***');
+      expect(enmascararTelefono(undefined)).toBe('***');
+      expect(enmascararTelefono('123')).toBe('****');
     });
   });
 });

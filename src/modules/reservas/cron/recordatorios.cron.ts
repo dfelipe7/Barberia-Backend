@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ReservasRepository } from '../repository/reservas.repository';
-import { WhatsAppService } from '../../whatsapp/whatsapp.service';
+import { WhatsAppService, enmascararTelefono } from '../../whatsapp/whatsapp.service';
 import { FechaBogotaService } from '../../horarios/common/fecha-bogota.service';
 
 @Injectable()
@@ -44,13 +44,18 @@ export class RecordatoriosCron {
         `[CRON RECORDATORIOS] Analizando ${reservasPendientes.length} citas de hoy (${fechaBogotaStr}) para recordatorio WhatsApp...`,
       );
 
+      const minutosAnticipacion =
+        typeof this.whatsappService.obtenerMinutosAnticipacion === 'function'
+          ? await this.whatsappService.obtenerMinutosAnticipacion()
+          : 120;
+
       for (const reserva of reservasPendientes) {
         const [horaCita, minutoCita] = reserva.startTime.split(':').map(Number);
         const citaMinutos = horaCita * 60 + minutoCita;
         const diferenciaMinutos = citaMinutos - ahoraMinutos;
 
-        // Si la cita es dentro de 0 a 120 minutos (las próximas 2 horas)
-        if (diferenciaMinutos >= 0 && diferenciaMinutos <= 120) {
+        // Si la cita está dentro de la ventana de anticipación configurada (0 a N minutos)
+        if (diferenciaMinutos >= 0 && diferenciaMinutos <= minutosAnticipacion) {
           const telefono = reserva.cliente?.telefono;
           const clienteNombre =
             `${reserva.cliente?.nombre ?? ''} ${reserva.cliente?.apellido ?? ''}`.trim() ||
@@ -62,7 +67,7 @@ export class RecordatoriosCron {
 
           if (telefono) {
             this.logger.log(
-              `[CRON RECORDATORIOS] Enviando recordatorio para cita #${reserva.id} a ${clienteNombre} (${telefono})`,
+              `[CRON RECORDATORIOS] Enviando recordatorio para cita #${reserva.id} a ${clienteNombre} (${enmascararTelefono(telefono)})`,
             );
 
             await this.whatsappService.enviarRecordatorioReserva({

@@ -11,20 +11,25 @@ describe('WhatsAppController', () => {
   beforeEach(async () => {
     whatsappService = {
       getStatus: jest.fn().mockReturnValue({ conectado: true, qr: null }),
+      iniciar: jest.fn().mockReturnValue({ mensaje: 'Iniciando WhatsApp...' }),
+      pausar: jest.fn().mockReturnValue({ mensaje: 'WhatsApp en modo reposo.' }),
       desconectar: jest
         .fn()
         .mockResolvedValue({ mensaje: 'WhatsApp desvinculado con éxito.' }),
       obtenerPlantillas: jest.fn().mockResolvedValue({
         confirmacion: 'Plantilla confirmacion',
         recordatorio: 'Plantilla recordatorio',
+        minutosAnticipacion: 120,
       }),
       guardarPlantillas: jest.fn().mockResolvedValue({
         confirmacion: 'Nueva confirmacion',
         recordatorio: 'Nuevo recordatorio',
+        minutosAnticipacion: 120,
       }),
       resetPlantillas: jest.fn().mockResolvedValue({
         confirmacion: 'Default confirmacion',
         recordatorio: 'Default recordatorio',
+        minutosAnticipacion: 120,
       }),
     };
 
@@ -58,12 +63,29 @@ describe('WhatsAppController', () => {
     });
   });
 
+  describe('iniciar', () => {
+    it('debe iniciar la conexión bajo demanda', () => {
+      const resultado = controller.iniciar();
+      expect(resultado).toEqual({ mensaje: 'Iniciando WhatsApp...' });
+      expect(whatsappService.iniciar).toHaveBeenCalled();
+    });
+  });
+
+  describe('pausar', () => {
+    it('debe pausar la conexión y entrar en reposo', () => {
+      const resultado = controller.pausar();
+      expect(resultado).toEqual({ mensaje: 'WhatsApp en modo reposo.' });
+      expect(whatsappService.pausar).toHaveBeenCalled();
+    });
+  });
+
   describe('plantillas', () => {
     it('debe obtener las plantillas activas', async () => {
       const plantillas = await controller.obtenerPlantillas();
       expect(plantillas).toEqual({
         confirmacion: 'Plantilla confirmacion',
         recordatorio: 'Plantilla recordatorio',
+        minutosAnticipacion: 120,
       });
       expect(whatsappService.obtenerPlantillas).toHaveBeenCalled();
     });
@@ -71,10 +93,12 @@ describe('WhatsAppController', () => {
     it('debe guardar las plantillas actualizadas', async () => {
       const res = await controller.guardarPlantillas({
         confirmacion: 'Nueva confirmacion',
+        minutosAnticipacion: 120,
       });
       expect(res).toEqual({
         confirmacion: 'Nueva confirmacion',
         recordatorio: 'Nuevo recordatorio',
+        minutosAnticipacion: 120,
       });
       expect(whatsappService.guardarPlantillas).toHaveBeenCalled();
     });
@@ -84,6 +108,7 @@ describe('WhatsAppController', () => {
       expect(res).toEqual({
         confirmacion: 'Default confirmacion',
         recordatorio: 'Default recordatorio',
+        minutosAnticipacion: 120,
       });
       expect(whatsappService.resetPlantillas).toHaveBeenCalled();
     });

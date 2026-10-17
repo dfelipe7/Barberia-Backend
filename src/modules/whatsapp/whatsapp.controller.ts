@@ -22,13 +22,16 @@ import { Roles } from '../../auth/roles/roles.decorator';
 import { ActualizarPlantillasDto } from './dto/actualizar-plantillas.dto';
 
 @ApiTags('whatsapp')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('SUPERADMIN', 'ADMINISTRADOR')
 @Controller('whatsapp')
 export class WhatsAppController {
   constructor(private readonly whatsappService: WhatsAppService) {}
 
   /**
    * Obtiene el estado actual de la conexión de WhatsApp y el QR si está pendiente.
-   * Este endpoint es público para permitir el sondeo (polling) sin interrupciones por expiración de tokens.
+   * Requiere rol ADMINISTRADOR o SUPERADMIN.
    */
   @Get('status')
   @HttpCode(HttpStatus.OK)
@@ -50,12 +53,63 @@ export class WhatsAppController {
       },
     },
   })
+  @ApiUnauthorizedResponse({ description: 'No autorizado o token inválido/expirado.' })
   getStatus() {
     return this.whatsappService.getStatus();
   }
 
   /**
+   * Reactiva el socket bajo demanda para generar un código QR nuevo.
+   * Requiere rol ADMINISTRADOR o SUPERADMIN.
+   */
+  @Post('iniciar')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Iniciar / Despertar WhatsApp',
+    description: 'Reactiva el socket bajo demanda y comienza la generación de código QR para vincular.',
+  })
+  @ApiOkResponse({
+    description: 'Conexión de WhatsApp iniciada exitosamente.',
+    schema: {
+      type: 'object',
+      properties: {
+        mensaje: { type: 'string', example: 'Iniciando WhatsApp...' },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({ description: 'No autorizado o token inválido/expirado.' })
+  iniciar() {
+    return this.whatsappService.iniciar();
+  }
+
+  /**
+   * Pone la conexión de WhatsApp en modo reposo si no está conectado ni tiene sesión guardada.
+   * Cierra el socket para evitar consumo de recursos.
+   * Requiere rol ADMINISTRADOR o SUPERADMIN.
+   */
+  @Post('pausar')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Pausar WhatsApp (Modo Reposo)',
+    description: 'Cierra el socket de WhatsApp para no generar códigos QR innecesarios si no se está escaneando.',
+  })
+  @ApiOkResponse({
+    description: 'WhatsApp puesto en modo reposo.',
+    schema: {
+      type: 'object',
+      properties: {
+        mensaje: { type: 'string', example: 'WhatsApp en modo reposo.' },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({ description: 'No autorizado o token inválido/expirado.' })
+  pausar() {
+    return this.whatsappService.pausar();
+  }
+
+  /**
    * Obtiene las plantillas de mensajes configuradas para confirmación y recordatorios.
+   * Requiere rol ADMINISTRADOR o SUPERADMIN.
    */
   @Get('plantillas')
   @HttpCode(HttpStatus.OK)
@@ -63,6 +117,7 @@ export class WhatsAppController {
     summary: 'Obtener plantillas de mensajes',
     description: 'Retorna las plantillas activas de confirmación y recordatorio.',
   })
+  @ApiUnauthorizedResponse({ description: 'No autorizado o token inválido/expirado.' })
   async obtenerPlantillas() {
     return await this.whatsappService.obtenerPlantillas();
   }
@@ -72,14 +127,12 @@ export class WhatsAppController {
    * Requiere rol ADMINISTRADOR o SUPERADMIN.
    */
   @Put('plantillas')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Guardar plantillas de mensajes',
     description: 'Actualiza los textos de las plantillas de confirmación y recordatorio.',
   })
+  @ApiUnauthorizedResponse({ description: 'No autorizado o token inválido/expirado.' })
   async guardarPlantillas(@Body() dto: ActualizarPlantillasDto) {
     return await this.whatsappService.guardarPlantillas(dto);
   }
@@ -89,14 +142,12 @@ export class WhatsAppController {
    * Requiere rol ADMINISTRADOR o SUPERADMIN.
    */
   @Post('plantillas/reset')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Restablecer plantillas por defecto',
     description: 'Borra las personalizaciones y restaura los mensajes predeterminados.',
   })
+  @ApiUnauthorizedResponse({ description: 'No autorizado o token inválido/expirado.' })
   async resetPlantillas() {
     return await this.whatsappService.resetPlantillas();
   }
@@ -106,10 +157,7 @@ export class WhatsAppController {
    * Requiere rol ADMINISTRADOR o SUPERADMIN.
    */
   @Post('desconectar')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Desvincular WhatsApp',
     description: 'Cierra sesión activa de WhatsApp y reinicia el servicio para generar un nuevo código QR.',
