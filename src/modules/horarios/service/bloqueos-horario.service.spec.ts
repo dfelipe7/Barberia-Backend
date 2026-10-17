@@ -97,6 +97,9 @@ describe('BloqueosHorarioService', () => {
       obtenerBarberoPorUsuarioId: jest
         .fn()
         .mockResolvedValue({ id: 7, usuarioId: 10 }),
+      obtenerBarberoActivoPorId: jest
+        .fn()
+        .mockResolvedValue({ id: 7, usuarioId: 10, estaActivo: true }),
     };
 
     proveedorReservas = {
@@ -411,6 +414,62 @@ describe('BloqueosHorarioService', () => {
       ).rejects.toThrow(ServiceUnavailableException);
       expect(bloqueosRepository.actualizar).not.toHaveBeenCalled();
     });
+
+    it('debe excluir el propio bloqueo al validar solapamiento al actualizar horario', async () => {
+      bloqueosRepository.obtenerPorId.mockResolvedValue(
+        crearRegistro({ id: 1 }),
+      );
+      bloqueosRepository.listarActivosPorBarberoYFecha.mockResolvedValue([
+        crearRegistro({ id: 1, startTime: '16:00', endTime: '17:00' }),
+      ]);
+      horariosRepository.obtenerFranjasActivasPorBarberoYDia.mockResolvedValue([
+        { startTime: '16:00' },
+      ] as any);
+      bloqueosRepository.actualizar.mockResolvedValue(
+        crearRegistro({ id: 1, startTime: '16:00', endTime: '17:00' }),
+      );
+
+      const resultado = await service.actualizarBloqueo(usuarioAutenticado, 1, {
+        startTime: '16:00',
+        endTime: '17:00',
+      });
+
+      expect(resultado.mensaje).toBe('Bloqueo actualizado correctamente');
+    });
+
+    it('debe rechazar si coincide con un cierre general parcial que se solapa', async () => {
+      bloqueosRepository.obtenerPorId.mockResolvedValue(crearRegistro());
+      horariosRepository.obtenerFranjasActivasPorBarberoYDia.mockResolvedValue([
+        { startTime: '16:00' },
+      ] as any);
+      cierresRepository.obtenerActivosEnFecha.mockResolvedValueOnce([
+        { allDay: false, startTime: '16:15', endTime: '16:45' } as any,
+      ]);
+
+      await expect(
+        service.actualizarBloqueo(usuarioAutenticado, 1, {
+          startTime: '16:00',
+          endTime: '17:00',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('debe propagar errores no previstos del proveedor de reservas', async () => {
+      bloqueosRepository.obtenerPorId.mockResolvedValue(crearRegistro());
+      horariosRepository.obtenerFranjasActivasPorBarberoYDia.mockResolvedValue([
+        { startTime: '16:00' },
+      ] as any);
+      proveedorReservas.existeReservaNoCanceladaEnFranja.mockRejectedValue(
+        new Error('Fallo inesperado de base de datos'),
+      );
+
+      await expect(
+        service.actualizarBloqueo(usuarioAutenticado, 1, {
+          startTime: '16:00',
+          endTime: '17:00',
+        }),
+      ).rejects.toThrow('Fallo inesperado de base de datos');
+    });
   });
 
   describe('cancelarBloqueo', () => {
@@ -507,6 +566,278 @@ describe('BloqueosHorarioService', () => {
         UnauthorizedException,
       );
       expect(bloqueosRepository.actualizar).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Operaciones administrativas de bloqueos por barberoId (SUPERADMIN)', () => {
+    const actorAdmin = { id: 99, sub: '99', email: 'superadmin@test.com' };
+    const barberoObjetivoId = 7;
+
+    describe('crearBloqueoDeBarbero', () => {
+      const dto = {
+        date: '2026-10-20',
+        startTime: '15:00',
+        endTime: '16:00',
+        reason: ScheduleBlockReason.PERSONAL,
+        notes: 'Bloqueo asignado por SUPERADMIN',
+      };
+
+      it('debe crear un bloqueo para el barbero objetivo exitosamente', async () => {
+        bloqueosRepository.crear.mockResolvedValue(
+          crearRegistro({
+            id: 20,
+            barberoId: barberoObjetivoId,
+            notes: 'Bloqueo asignado por SUPERADMIN',
+          }),
+        );
+
+        const resultado = await service.crearBloqueoDeBarbero(
+          barberoObjetivoId,
+          dto,
+        );
+
+        expect(
+          barberosRepository.obtenerBarberoActivoPorId,
+        ).toHaveBeenCalledWith(barberoObjetivoId);
+        expect(bloqueosRepository.crear).toHaveBeenCalledWith({
+          barberoId: barberoObjetivoId,
+          date: fecha,
+          startTime: '15:00',
+          endTime: '16:00',
+          reason: ScheduleBlockReason.PERSONAL,
+          notes: 'Bloqueo asignado por SUPERADMIN',
+        });
+        expect(resultado.mensaje).toBe('Bloqueo creado correctamente');
+        expect(resultado.block.id).toBe(20);
+      });
+
+      it('debe lanzar NotFoundException si el barbero objetivo no existe o está inactivo', async () => {
+        barberosRepository.obtenerBarberoActivoPorId.mockResolvedValueOnce(
+          null,
+        );
+
+        await expect(service.crearBloqueoDeBarbero(999, dto)).rejects.toThrow(
+          NotFoundException,
+        );
+        expect(bloqueosRepository.crear).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('listarBloqueosDeBarbero', () => {
+      it('debe listar los bloqueos del barbero objetivo sin filtro de fecha', async () => {
+        bloqueosRepository.listarPorBarbero.mockResolvedValue([
+          crearRegistro({ id: 10, barberoId: barberoObjetivoId }),
+        ]);
+
+        const resultado = await service.listarBloqueosDeBarbero(
+          barberoObjetivoId,
+          {},
+        );
+
+        expect(resultado).toHaveLength(1);
+        expect(resultado[0].id).toBe(10);
+        expect(bloqueosRepository.listarPorBarbero).toHaveBeenCalledWith(
+          barberoObjetivoId,
+          { date: undefined, status: undefined },
+        );
+      });
+
+      it('debe listar los bloqueos del barbero filtrando por fecha válida', async () => {
+        bloqueosRepository.listarPorBarbero.mockResolvedValue([
+          crearRegistro({ id: 11, barberoId: barberoObjetivoId }),
+        ]);
+
+        const resultado = await service.listarBloqueosDeBarbero(
+          barberoObjetivoId,
+          { fecha: '2026-10-20' },
+        );
+
+        expect(resultado).toHaveLength(1);
+        expect(resultado[0].id).toBe(11);
+        expect(bloqueosRepository.listarPorBarbero).toHaveBeenCalledWith(
+          barberoObjetivoId,
+          { date: fecha, status: undefined },
+        );
+      });
+
+      it('debe lanzar NotFoundException si el barbero objetivo no existe', async () => {
+        barberosRepository.obtenerBarberoActivoPorId.mockResolvedValueOnce(
+          null,
+        );
+
+        await expect(service.listarBloqueosDeBarbero(999, {})).rejects.toThrow(
+          NotFoundException,
+        );
+      });
+    });
+
+    describe('actualizarBloqueoDeBarbero', () => {
+      const dto = {
+        date: '2026-10-20',
+        startTime: '15:00',
+        endTime: '16:00',
+        notes: 'Nota actualizada por SUPERADMIN',
+      };
+
+      it('debe actualizar el bloqueo del barbero objetivo exitosamente', async () => {
+        bloqueosRepository.obtenerPorId.mockResolvedValue(
+          crearRegistro({ id: 5, barberoId: barberoObjetivoId }),
+        );
+        bloqueosRepository.actualizar.mockResolvedValue(
+          crearRegistro({
+            id: 5,
+            barberoId: barberoObjetivoId,
+            notes: 'Nota actualizada por SUPERADMIN',
+          }),
+        );
+
+        const resultado = await service.actualizarBloqueoDeBarbero(
+          barberoObjetivoId,
+          5,
+          dto,
+        );
+
+        expect(resultado.mensaje).toBe('Bloqueo actualizado correctamente');
+        expect(resultado.block.notes).toBe('Nota actualizada por SUPERADMIN');
+        expect(bloqueosRepository.actualizar).toHaveBeenCalledWith(5, {
+          date: fecha,
+          startTime: '15:00',
+          endTime: '16:00',
+          reason: ScheduleBlockReason.PERSONAL,
+          notes: 'Nota actualizada por SUPERADMIN',
+        });
+      });
+
+      it('debe lanzar NotFoundException si el bloqueo no pertenece al barbero objetivo', async () => {
+        bloqueosRepository.obtenerPorId.mockResolvedValue(
+          crearRegistro({ id: 5, barberoId: 999 }),
+        );
+
+        await expect(
+          service.actualizarBloqueoDeBarbero(barberoObjetivoId, 5, dto),
+        ).rejects.toThrow(NotFoundException);
+        expect(bloqueosRepository.actualizar).not.toHaveBeenCalled();
+      });
+
+      it('debe lanzar NotFoundException si el barbero objetivo no existe', async () => {
+        barberosRepository.obtenerBarberoActivoPorId.mockResolvedValueOnce(
+          null,
+        );
+
+        await expect(
+          service.actualizarBloqueoDeBarbero(999, 5, dto),
+        ).rejects.toThrow(NotFoundException);
+      });
+    });
+
+    describe('cancelarBloqueoDeBarbero', () => {
+      it('debe cancelar el bloqueo del barbero objetivo exitosamente', async () => {
+        bloqueosRepository.obtenerPorId.mockResolvedValue(
+          crearRegistro({ id: 5, barberoId: barberoObjetivoId }),
+        );
+        bloqueosRepository.actualizar.mockResolvedValue(
+          crearRegistro({
+            id: 5,
+            barberoId: barberoObjetivoId,
+            status: ScheduleBlockStatus.CANCELLED,
+          }),
+        );
+
+        const resultado = await service.cancelarBloqueoDeBarbero(
+          barberoObjetivoId,
+          5,
+        );
+
+        expect(resultado.mensaje).toBe('Bloqueo cancelado correctamente');
+        expect(resultado.block.status).toBe(ScheduleBlockStatus.CANCELLED);
+        expect(bloqueosRepository.actualizar).toHaveBeenCalledWith(
+          5,
+          expect.objectContaining({
+            status: ScheduleBlockStatus.CANCELLED,
+          }),
+        );
+      });
+
+      it('debe lanzar ConflictException si el bloqueo ya estaba cancelado', async () => {
+        bloqueosRepository.obtenerPorId.mockResolvedValue(
+          crearRegistro({
+            id: 5,
+            barberoId: barberoObjetivoId,
+            status: ScheduleBlockStatus.CANCELLED,
+          }),
+        );
+
+        await expect(
+          service.cancelarBloqueoDeBarbero(barberoObjetivoId, 5),
+        ).rejects.toThrow(ConflictException);
+        expect(bloqueosRepository.actualizar).not.toHaveBeenCalled();
+      });
+
+      it('debe lanzar NotFoundException si el barbero objetivo no existe', async () => {
+        barberosRepository.obtenerBarberoActivoPorId.mockResolvedValueOnce(
+          null,
+        );
+
+        await expect(service.cancelarBloqueoDeBarbero(999, 5)).rejects.toThrow(
+          NotFoundException,
+        );
+      });
+    });
+
+    describe('reactivarBloqueoDeBarbero', () => {
+      it('debe reactivar un bloqueo ACTIVE del barbero objetivo exitosamente', async () => {
+        bloqueosRepository.obtenerPorId.mockResolvedValue(
+          crearRegistro({ id: 5, barberoId: barberoObjetivoId }),
+        );
+        bloqueosRepository.actualizar.mockResolvedValue(
+          crearRegistro({
+            id: 5,
+            barberoId: barberoObjetivoId,
+            status: ScheduleBlockStatus.REACTIVATED,
+          }),
+        );
+
+        const resultado = await service.reactivarBloqueoDeBarbero(
+          barberoObjetivoId,
+          5,
+          actorAdmin,
+        );
+
+        expect(resultado.mensaje).toBe('Bloqueo reactivado correctamente');
+        expect(resultado.block.status).toBe(ScheduleBlockStatus.REACTIVATED);
+        expect(bloqueosRepository.actualizar).toHaveBeenCalledWith(
+          5,
+          expect.objectContaining({
+            status: ScheduleBlockStatus.REACTIVATED,
+            reactivatedBy: 99,
+          }),
+        );
+      });
+
+      it('debe lanzar ConflictException si el bloqueo no está ACTIVE', async () => {
+        bloqueosRepository.obtenerPorId.mockResolvedValue(
+          crearRegistro({
+            id: 5,
+            barberoId: barberoObjetivoId,
+            status: ScheduleBlockStatus.CANCELLED,
+          }),
+        );
+
+        await expect(
+          service.reactivarBloqueoDeBarbero(barberoObjetivoId, 5, actorAdmin),
+        ).rejects.toThrow(ConflictException);
+        expect(bloqueosRepository.actualizar).not.toHaveBeenCalled();
+      });
+
+      it('debe lanzar NotFoundException si el barbero objetivo no existe', async () => {
+        barberosRepository.obtenerBarberoActivoPorId.mockResolvedValueOnce(
+          null,
+        );
+
+        await expect(
+          service.reactivarBloqueoDeBarbero(999, 5, actorAdmin),
+        ).rejects.toThrow(NotFoundException);
+      });
     });
   });
 });

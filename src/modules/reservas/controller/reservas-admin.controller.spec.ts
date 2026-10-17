@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ReservasController } from './reservas.controller';
 import { ReservasService } from '../service/reservas.service';
@@ -56,7 +57,9 @@ describe('ReservasController - Endpoints Administrativos (HU-13 y SUPERADMIN)', 
         ROLES_KEY,
         controller.crearReservaAdmin,
       );
-      expect(roles).toEqual(expect.arrayContaining(['ADMINISTRADOR', 'SUPERADMIN']));
+      expect(roles).toEqual(
+        expect.arrayContaining(['ADMINISTRADOR', 'SUPERADMIN']),
+      );
       expect(roles).toHaveLength(2);
     });
 
@@ -73,7 +76,9 @@ describe('ReservasController - Endpoints Administrativos (HU-13 y SUPERADMIN)', 
         ROLES_KEY,
         controller.buscarClientesAdmin,
       );
-      expect(roles).toEqual(expect.arrayContaining(['ADMINISTRADOR', 'SUPERADMIN']));
+      expect(roles).toEqual(
+        expect.arrayContaining(['ADMINISTRADOR', 'SUPERADMIN']),
+      );
       expect(roles).toHaveLength(2);
     });
 
@@ -120,7 +125,12 @@ describe('ReservasController - Endpoints Administrativos (HU-13 y SUPERADMIN)', 
         precio: '25000',
         estado: 'CONFIRMED',
         barbero: { id: 2, nombre: 'Duvan', apellido: 'Armero' },
-        servicio: { id: 1, nombre: 'Corte', duracionMinutos: 60, precio: '25000' },
+        servicio: {
+          id: 1,
+          nombre: 'Corte',
+          duracionMinutos: 60,
+          precio: '25000',
+        },
       };
       (service.crearReservaAdmin as jest.Mock).mockResolvedValue(mockRespuesta);
 
@@ -130,7 +140,10 @@ describe('ReservasController - Endpoints Administrativos (HU-13 y SUPERADMIN)', 
     });
 
     it('listarReservasAdmin delega en service.listarReservasAdmin con filtros', async () => {
-      const filtro: FiltroReservasAdminDto = { barberoId: 2, estado: ReservationStatus.CONFIRMED };
+      const filtro: FiltroReservasAdminDto = {
+        barberoId: 2,
+        estado: ReservationStatus.CONFIRMED,
+      };
       const mockLista = { total: 1, reservas: [] };
       (service.listarReservasAdmin as jest.Mock).mockResolvedValue(mockLista);
 
@@ -148,6 +161,16 @@ describe('ReservasController - Endpoints Administrativos (HU-13 y SUPERADMIN)', 
       expect(service.obtenerReservaAdmin).toHaveBeenCalledWith(15);
     });
 
+    it('obtenerReservaAdmin lanza BadRequestException si reservaId <= 0', async () => {
+      await expect(controller.obtenerReservaAdmin(0)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(controller.obtenerReservaAdmin(-5)).rejects.toThrow(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
+      expect(service.obtenerReservaAdmin).not.toHaveBeenCalled();
+    });
+
     it('modificarReservaAdmin delega con ID y DTO', async () => {
       const dto: ModificarReservaDto = { hora: '16:00' };
       const mockResp = { id: 15, hora: '16:00' } as any;
@@ -156,6 +179,17 @@ describe('ReservasController - Endpoints Administrativos (HU-13 y SUPERADMIN)', 
       const res = await controller.modificarReservaAdmin(15, dto);
       expect(res).toBe(mockResp);
       expect(service.modificarReservaAdmin).toHaveBeenCalledWith(15, dto);
+    });
+
+    it('modificarReservaAdmin lanza BadRequestException si reservaId <= 0', async () => {
+      const dto: ModificarReservaDto = { hora: '16:00' };
+      await expect(controller.modificarReservaAdmin(0, dto)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(controller.modificarReservaAdmin(-1, dto)).rejects.toThrow(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
+      expect(service.modificarReservaAdmin).not.toHaveBeenCalled();
     });
 
     it('cancelarReservaAdmin delega con ID numérico', async () => {
@@ -167,9 +201,23 @@ describe('ReservasController - Endpoints Administrativos (HU-13 y SUPERADMIN)', 
       expect(service.cancelarReservaAdmin).toHaveBeenCalledWith(15);
     });
 
+    it('cancelarReservaAdmin lanza BadRequestException si reservaId <= 0', async () => {
+      await expect(controller.cancelarReservaAdmin(0)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(controller.cancelarReservaAdmin(-2)).rejects.toThrow(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
+      expect(service.cancelarReservaAdmin).not.toHaveBeenCalled();
+    });
+
     it('buscarClientesAdmin delega término de búsqueda', async () => {
-      const mockClientes = [{ id: 1, nombre: 'Ana', apellido: 'López', telefono: '300123' }];
-      (service.buscarClientesAdmin as jest.Mock).mockResolvedValue(mockClientes);
+      const mockClientes = [
+        { id: 1, nombre: 'Ana', apellido: 'López', telefono: '300123' },
+      ];
+      (service.buscarClientesAdmin as jest.Mock).mockResolvedValue(
+        mockClientes,
+      );
 
       const res = await controller.buscarClientesAdmin('Ana');
       expect(res).toBe(mockClientes);

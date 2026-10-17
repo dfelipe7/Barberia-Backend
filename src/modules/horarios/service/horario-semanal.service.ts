@@ -60,9 +60,7 @@ export class HorarioSemanalService {
     usuarioAutenticado: any,
   ): Promise<HorarioSemanalResponseDto> {
     const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
-    const franjas =
-      await this.horariosRepository.obtenerFranjasActivasPorBarbero(barbero.id);
-    return this.mapearHorario(barbero.id, franjas);
+    return this.ejecutarObtenerHorario(barbero.id);
   }
 
   /**
@@ -84,23 +82,7 @@ export class HorarioSemanalService {
     dto: ReemplazarHorarioSemanalDto,
   ): Promise<HorarioSemanalResponseDto> {
     const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
-    const franjas = dto.franjas ?? [];
-
-    this.validarFranjas(franjas);
-
-    const existentes =
-      await this.horariosRepository.obtenerFranjasActivasPorBarbero(barbero.id);
-    await this.asegurarFranjasSinReservasActivas(
-      barbero.id,
-      existentes,
-      franjas,
-    );
-
-    const guardadas = await this.horariosRepository.reemplazarFranjas(
-      barbero.id,
-      franjas,
-    );
-    return this.mapearHorario(barbero.id, guardadas);
+    return this.ejecutarReemplazoHorario(barbero.id, dto);
   }
 
   /**
@@ -117,9 +99,7 @@ export class HorarioSemanalService {
       );
     }
 
-    const franjas =
-      await this.horariosRepository.obtenerFranjasActivasPorBarbero(barbero.id);
-    return this.mapearHorario(barbero.id, franjas);
+    return this.ejecutarObtenerHorario(barbero.id);
   }
 
   /**
@@ -138,22 +118,37 @@ export class HorarioSemanalService {
       );
     }
 
+    return this.ejecutarReemplazoHorario(barbero.id, dto);
+  }
+
+  private async ejecutarObtenerHorario(
+    barberoId: number,
+  ): Promise<HorarioSemanalResponseDto> {
+    const franjas =
+      await this.horariosRepository.obtenerFranjasActivasPorBarbero(barberoId);
+    return this.mapearHorario(barberoId, franjas);
+  }
+
+  private async ejecutarReemplazoHorario(
+    barberoId: number,
+    dto: ReemplazarHorarioSemanalDto,
+  ): Promise<HorarioSemanalResponseDto> {
     const franjas = dto.franjas ?? [];
     this.validarFranjas(franjas);
 
     const existentes =
-      await this.horariosRepository.obtenerFranjasActivasPorBarbero(barbero.id);
+      await this.horariosRepository.obtenerFranjasActivasPorBarbero(barberoId);
     await this.asegurarFranjasSinReservasActivas(
-      barbero.id,
+      barberoId,
       existentes,
       franjas,
     );
 
     const guardadas = await this.horariosRepository.reemplazarFranjas(
-      barbero.id,
+      barberoId,
       franjas,
     );
-    return this.mapearHorario(barbero.id, guardadas);
+    return this.mapearHorario(barberoId, guardadas);
   }
 
   /**
