@@ -256,6 +256,8 @@ model Reservation {
   // Permite modificar o cancelar la reserva sin requerir inicio de sesión.
   // `NULL` para reservas creadas por clientes autenticados o anteriores a esta columna.
   gestionTokenHash String?     @db.VarChar(255)
+  // Control de recordatorio automático por WhatsApp (2 horas antes)
+  recordatorioEnviado Boolean  @default(false)
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 
@@ -282,3 +284,18 @@ model Reservation {
   @@unique([barberoId, date, startTime, slotActivo])
   @@map("reservations")
 }
+
+// ---------------------------------------------------------------------------
+// Plantillas de mensajes dinámicos de WhatsApp
+// ---------------------------------------------------------------------------
+model WhatsAppPlantilla {
+  id        Int      @id @default(autoincrement())
+  tipo      String   @unique @db.VarChar(50) // CONFIRMACION, RECORDATORIO, CANCELACION, etc.
+  mensaje   String   @db.Text
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("whatsapp_plantillas")
+}
+

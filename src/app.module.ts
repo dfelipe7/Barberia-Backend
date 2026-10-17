@@ -15,11 +15,15 @@ import { AppLoggerModule } from './logger/logger.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { AllExceptionsFilter } from './logger/all-exceptions.filter';
 
+import { ScheduleModule } from '@nestjs/schedule';
+import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     // OWASP A04: Rate Limiting (Límite de Peticiones)
     // Previene ataques de fuerza bruta y DDoS limitando a 100 peticiones por minuto por IP.
     ThrottlerModule.forRoot([
@@ -49,6 +53,7 @@ import { AllExceptionsFilter } from './logger/all-exceptions.filter';
     ServiciosModule,
     HorariosModule,
     ReservasModule,
+    WhatsAppModule,
     PrismaModule,
     AppLoggerModule,
     AlertsModule,

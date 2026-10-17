@@ -60,7 +60,8 @@ export const ModelName = {
   BarberWeeklySlot: 'BarberWeeklySlot',
   BarberScheduleBlock: 'BarberScheduleBlock',
   GeneralClosure: 'GeneralClosure',
-  Reservation: 'Reservation'
+  Reservation: 'Reservation',
+  WhatsAppPlantilla: 'WhatsAppPlantilla'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -209,12 +210,25 @@ export const ReservationScalarFieldEnum = {
   status: 'status',
   precioReservado: 'precioReservado',
   gestionTokenHash: 'gestionTokenHash',
+  recordatorioEnviado: 'recordatorioEnviado',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   slotActivo: 'slotActivo'
 } as const
 
 export type ReservationScalarFieldEnum = (typeof ReservationScalarFieldEnum)[keyof typeof ReservationScalarFieldEnum]
+
+
+export const WhatsAppPlantillaScalarFieldEnum = {
+  id: 'id',
+  tipo: 'tipo',
+  mensaje: 'mensaje',
+  activo: 'activo',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WhatsAppPlantillaScalarFieldEnum = (typeof WhatsAppPlantillaScalarFieldEnum)[keyof typeof WhatsAppPlantillaScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -304,4 +318,12 @@ export const ReservationOrderByRelevanceFieldEnum = {
 } as const
 
 export type ReservationOrderByRelevanceFieldEnum = (typeof ReservationOrderByRelevanceFieldEnum)[keyof typeof ReservationOrderByRelevanceFieldEnum]
+
+
+export const WhatsAppPlantillaOrderByRelevanceFieldEnum = {
+  tipo: 'tipo',
+  mensaje: 'mensaje'
+} as const
+
+export type WhatsAppPlantillaOrderByRelevanceFieldEnum = (typeof WhatsAppPlantillaOrderByRelevanceFieldEnum)[keyof typeof WhatsAppPlantillaOrderByRelevanceFieldEnum]
 

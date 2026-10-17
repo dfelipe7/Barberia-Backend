@@ -5,10 +5,12 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import * as crypto from 'node:crypto';
 import { EstadoUsuario, ReservationStatus } from '../../../../generated/prisma/enums';
+import { WhatsAppService } from '../../whatsapp/whatsapp.service';
 import { CrearReservaDto } from '../dto/dto-peticion/crear-reserva.dto';
 import { ModificarReservaDto } from '../dto/dto-peticion/modificar-reserva.dto';
 import { ConsultaAgendaBarberoDto } from '../dto/dto-peticion/consulta-agenda-barbero.dto';
@@ -89,6 +91,7 @@ export class ReservasService {
     private readonly serviciosRepository: ServiciosRepository,
     private readonly fechaBogotaService: FechaBogotaService,
     private readonly barberosRepository: BarberosRepository,
+    @Optional() private readonly whatsappService?: WhatsAppService,
   ) {}
 
   /**
@@ -152,11 +155,60 @@ export class ReservasService {
       cliente: cliente.clienteDeReserva,
     });
 
-    this.logger.log(
-      `AUDIT: reserva creada id=${reserva.id} barberoId=${reserva.barberoId} servicioId=${reserva.servicioId} clienteId=${reserva.clienteId} autenticado=${identidad ? 'si' : 'no'}`,
+    const respuesta = await this.construirRespuesta(
+      reserva,
+      dto.fecha,
+      servicio,
+      tokenGestion,
     );
 
-    return this.construirRespuesta(reserva, dto.fecha, servicio, tokenGestion);
+    // Disparo desacoplado de confirmación por WhatsApp en segundo plano
+    if (this.whatsappService) {
+      this.dispararConfirmacionWhatsApp(dto, cliente.clienteIdConocido, servicio.nombre, respuesta);
+    }
+
+    return respuesta;
+  }
+
+  /**
+   * Envía confirmación por WhatsApp en segundo plano sin bloquear ni afectar la respuesta HTTP.
+   */
+  private async dispararConfirmacionWhatsApp(
+    dto: CrearReservaDto,
+    clienteIdConocido: number | null,
+    servicioNombre: string,
+    respuesta: ReservaCreadaResponseDto,
+  ): Promise<void> {
+    try {
+      let telefono = dto.telefono ?? null;
+      let clienteNombre = dto.nombre
+        ? `${dto.nombre} ${dto.apellido ?? ''}`.trim()
+        : null;
+
+      if (clienteIdConocido) {
+        const clienteDb = await this.clientesRepository.obtenerPorId(clienteIdConocido);
+        if (clienteDb) {
+          if (!telefono && clienteDb.telefono) telefono = clienteDb.telefono;
+          if (!clienteNombre) {
+            clienteNombre = `${clienteDb.nombre} ${clienteDb.apellido ?? ''}`.trim();
+          }
+        }
+      }
+
+      if (telefono && this.whatsappService) {
+        await this.whatsappService.enviarConfirmacionReserva({
+          telefono,
+          clienteNombre: clienteNombre || 'Cliente',
+          servicioNombre,
+          barberoNombre: `${respuesta.barbero.nombre} ${respuesta.barbero.apellido}`.trim(),
+          fecha: respuesta.fecha,
+          hora: respuesta.hora,
+          precio: respuesta.servicio.precio,
+        });
+      }
+    } catch (err: any) {
+      this.logger.warn(`No se pudo enviar confirmación por WhatsApp: ${err?.message ?? err}`);
+    }
   }
 
   /**

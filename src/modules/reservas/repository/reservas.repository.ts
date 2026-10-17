@@ -554,4 +554,62 @@ export class ReservasRepository {
       data: { status: ReservationStatus.CANCELLED },
     });
   }
+
+  /**
+   * Obtiene las reservas de una fecha con estado PENDING o CONFIRMED
+   * que aún no han recibido el recordatorio automático por WhatsApp.
+   */
+  async obtenerCitasPendientesRecordatorio(fecha: Date) {
+    return this.prisma.reservation.findMany({
+      where: {
+        date: fecha,
+        status: { in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED] },
+        recordatorioEnviado: false,
+      },
+      select: {
+        id: true,
+        startTime: true,
+        endTime: true,
+        precioReservado: true,
+        date: true,
+        cliente: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            telefono: true,
+          },
+        },
+        barbero: {
+          select: {
+            id: true,
+            usuario: {
+              select: {
+                nombre: true,
+                apellido: true,
+              },
+            },
+          },
+        },
+        servicio: {
+          select: {
+            id: true,
+            nombre: true,
+            precio: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Marca el recordatorio de una reserva como enviado para no retransmitirlo.
+   */
+  async marcarRecordatorioEnviado(id: number): Promise<void> {
+    await this.prisma.reservation.update({
+      where: { id },
+      data: { recordatorioEnviado: true },
+    });
+  }
 }
+

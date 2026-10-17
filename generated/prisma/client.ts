@@ -128,3 +128,8 @@ export type GeneralClosure = Prisma.GeneralClosureModel
  * se crea en la migración SQL. Prisma Client funciona con o sin ella.
  */
 export type Reservation = Prisma.ReservationModel
+/**
+ * Model WhatsAppPlantilla
+ * 
+ */
+export type WhatsAppPlantilla = Prisma.WhatsAppPlantillaModel

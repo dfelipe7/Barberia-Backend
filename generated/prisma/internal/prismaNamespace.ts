@@ -406,7 +406,8 @@ export const ModelName = {
   BarberWeeklySlot: 'BarberWeeklySlot',
   BarberScheduleBlock: 'BarberScheduleBlock',
   GeneralClosure: 'GeneralClosure',
-  Reservation: 'Reservation'
+  Reservation: 'Reservation',
+  WhatsAppPlantilla: 'WhatsAppPlantilla'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -422,7 +423,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "usuario" | "administrador" | "barbero" | "cliente" | "servicio" | "barberoServicio" | "barberWeeklySlot" | "barberScheduleBlock" | "generalClosure" | "reservation"
+    modelProps: "usuario" | "administrador" | "barbero" | "cliente" | "servicio" | "barberoServicio" | "barberWeeklySlot" | "barberScheduleBlock" | "generalClosure" | "reservation" | "whatsAppPlantilla"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1086,6 +1087,72 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    WhatsAppPlantilla: {
+      payload: Prisma.$WhatsAppPlantillaPayload<ExtArgs>
+      fields: Prisma.WhatsAppPlantillaFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.WhatsAppPlantillaFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppPlantillaPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.WhatsAppPlantillaFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppPlantillaPayload>
+        }
+        findFirst: {
+          args: Prisma.WhatsAppPlantillaFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppPlantillaPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.WhatsAppPlantillaFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppPlantillaPayload>
+        }
+        findMany: {
+          args: Prisma.WhatsAppPlantillaFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppPlantillaPayload>[]
+        }
+        create: {
+          args: Prisma.WhatsAppPlantillaCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppPlantillaPayload>
+        }
+        createMany: {
+          args: Prisma.WhatsAppPlantillaCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        delete: {
+          args: Prisma.WhatsAppPlantillaDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppPlantillaPayload>
+        }
+        update: {
+          args: Prisma.WhatsAppPlantillaUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppPlantillaPayload>
+        }
+        deleteMany: {
+          args: Prisma.WhatsAppPlantillaDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.WhatsAppPlantillaUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        upsert: {
+          args: Prisma.WhatsAppPlantillaUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppPlantillaPayload>
+        }
+        aggregate: {
+          args: Prisma.WhatsAppPlantillaAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateWhatsAppPlantilla>
+        }
+        groupBy: {
+          args: Prisma.WhatsAppPlantillaGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WhatsAppPlantillaGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.WhatsAppPlantillaCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WhatsAppPlantillaCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1255,12 +1322,25 @@ export const ReservationScalarFieldEnum = {
   status: 'status',
   precioReservado: 'precioReservado',
   gestionTokenHash: 'gestionTokenHash',
+  recordatorioEnviado: 'recordatorioEnviado',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   slotActivo: 'slotActivo'
 } as const
 
 export type ReservationScalarFieldEnum = (typeof ReservationScalarFieldEnum)[keyof typeof ReservationScalarFieldEnum]
+
+
+export const WhatsAppPlantillaScalarFieldEnum = {
+  id: 'id',
+  tipo: 'tipo',
+  mensaje: 'mensaje',
+  activo: 'activo',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WhatsAppPlantillaScalarFieldEnum = (typeof WhatsAppPlantillaScalarFieldEnum)[keyof typeof WhatsAppPlantillaScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1350,6 +1430,14 @@ export const ReservationOrderByRelevanceFieldEnum = {
 } as const
 
 export type ReservationOrderByRelevanceFieldEnum = (typeof ReservationOrderByRelevanceFieldEnum)[keyof typeof ReservationOrderByRelevanceFieldEnum]
+
+
+export const WhatsAppPlantillaOrderByRelevanceFieldEnum = {
+  tipo: 'tipo',
+  mensaje: 'mensaje'
+} as const
+
+export type WhatsAppPlantillaOrderByRelevanceFieldEnum = (typeof WhatsAppPlantillaOrderByRelevanceFieldEnum)[keyof typeof WhatsAppPlantillaOrderByRelevanceFieldEnum]
 
 
 
@@ -1609,6 +1697,7 @@ export type GlobalOmitConfig = {
   barberScheduleBlock?: Prisma.BarberScheduleBlockOmit
   generalClosure?: Prisma.GeneralClosureOmit
   reservation?: Prisma.ReservationOmit
+  whatsAppPlantilla?: Prisma.WhatsAppPlantillaOmit
 }
 
 /* Types for Logging */
