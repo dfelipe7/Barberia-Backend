@@ -168,6 +168,99 @@ export interface ConsultaOcupacionPorFecha {
   excluirReservaId?: number;
 }
 
+export const SELECCION_RESERVA_ADMIN = {
+  id: true,
+  barberoId: true,
+  servicioId: true,
+  clienteId: true,
+  date: true,
+  dayOfWeek: true,
+  startTime: true,
+  endTime: true,
+  status: true,
+  precioReservado: true,
+  createdAt: true,
+  updatedAt: true,
+  cliente: {
+    select: {
+      id: true,
+      nombre: true,
+      apellido: true,
+      telefono: true,
+      email: true,
+      usuarioId: true,
+      googleId: true,
+    },
+  },
+  servicio: {
+    select: {
+      id: true,
+      nombre: true,
+      precio: true,
+      duracionMinutos: true,
+    },
+  },
+  barbero: {
+    select: {
+      id: true,
+      usuario: {
+        select: {
+          id: true,
+          nombre: true,
+          apellido: true,
+        },
+      },
+    },
+  },
+} as const;
+
+export interface ReservaAdminRegistro {
+  id: number;
+  barberoId: number;
+  servicioId: number;
+  clienteId: number;
+  date: Date;
+  dayOfWeek: WeekDay;
+  startTime: string;
+  endTime: string;
+  status: ReservationStatus;
+  precioReservado: Prisma.Decimal | null;
+  createdAt: Date;
+  updatedAt: Date;
+  cliente: {
+    id: number;
+    nombre: string;
+    apellido: string | null;
+    telefono: string | null;
+    email: string | null;
+    usuarioId: number | null;
+    googleId: string | null;
+  };
+  servicio: {
+    id: number;
+    nombre: string;
+    precio: Prisma.Decimal;
+    duracionMinutos: number;
+  };
+  barbero: {
+    id: number;
+    usuario: {
+      id: number;
+      nombre: string;
+      apellido: string;
+    };
+  };
+}
+
+export interface FiltroReservasAdminRepo {
+  fecha?: Date;
+  desde?: Date;
+  hasta?: Date;
+  barberoId?: number;
+  estado?: ReservationStatus;
+  clienteId?: number;
+}
+
 export interface ConsultaOcupacionPorDiaSemana {
   barberoId: number;
   dayOfWeek: WeekDay;
@@ -193,6 +286,7 @@ export interface CrearClienteDatos {
   apellido?: string | null;
   telefono?: string | null;
   usuarioId?: number | null;
+  email?: string | null;
 }
 
 /**
@@ -374,6 +468,18 @@ export class ReservasRepository {
   }
 
   /**
+   * Obtiene la reserva con sus relaciones básicas (barbero y servicio) por ID, para uso administrativo.
+   */
+  async obtenerReservaConRelaciones(
+    id: number,
+  ): Promise<ReservaConRelaciones | null> {
+    return this.prisma.reservation.findUnique({
+      where: { id },
+      select: SELECCION_RESERVA_CON_RELACIONES,
+    });
+  }
+
+  /**
    * Lista las reservas activas (no canceladas) de un barbero para una fecha dada,
    * ordenadas cronológicamente por hora de inicio.
    */
@@ -446,6 +552,9 @@ export class ReservasRepository {
               nombre: datos.cliente.crear.nombre,
               apellido: datos.cliente.crear.apellido ?? null,
               telefono: datos.cliente.crear.telefono ?? null,
+              ...(datos.cliente.crear.email !== undefined
+                ? { email: datos.cliente.crear.email }
+                : {}),
               usuarioId: datos.cliente.crear.usuarioId ?? null,
             },
           });
@@ -609,6 +718,54 @@ export class ReservasRepository {
     await this.prisma.reservation.update({
       where: { id },
       data: { recordatorioEnviado: true },
+    });
+  }
+
+  /**
+   * Obtiene una reserva detallada con sus relaciones completas para la vista de SUPERADMIN.
+   */
+  async obtenerReservaAdminPorId(
+    id: number,
+  ): Promise<ReservaAdminRegistro | null> {
+    return this.prisma.reservation.findUnique({
+      where: { id },
+      select: SELECCION_RESERVA_ADMIN,
+    });
+  }
+
+  /**
+   * Lista reservas de la barbería aplicando filtros directos en base de datos (fecha, rango, barbero, estado, cliente).
+   */
+  async listarReservasAdmin(
+    filtro: FiltroReservasAdminRepo,
+  ): Promise<ReservaAdminRegistro[]> {
+    const where: Prisma.ReservationWhereInput = {};
+
+    if (filtro.fecha) {
+      where.date = filtro.fecha;
+    } else if (filtro.desde || filtro.hasta) {
+      where.date = {
+        ...(filtro.desde ? { gte: filtro.desde } : {}),
+        ...(filtro.hasta ? { lte: filtro.hasta } : {}),
+      };
+    }
+
+    if (filtro.barberoId) {
+      where.barberoId = filtro.barberoId;
+    }
+
+    if (filtro.estado) {
+      where.status = filtro.estado;
+    }
+
+    if (filtro.clienteId) {
+      where.clienteId = filtro.clienteId;
+    }
+
+    return this.prisma.reservation.findMany({
+      where,
+      orderBy: [{ date: 'desc' }, { startTime: 'desc' }],
+      select: SELECCION_RESERVA_ADMIN,
     });
   }
 }

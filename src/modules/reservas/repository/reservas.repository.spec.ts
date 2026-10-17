@@ -524,13 +524,25 @@ describe('ReservasRepository', () => {
           startTime: '09:00',
           endTime: '10:00',
           status: ReservationStatus.CONFIRMED,
-          cliente: { nombre: 'Pedro', apellido: 'Gómez', telefono: '3001112233' },
-          servicio: { id: 1, nombre: 'Corte', duracionMinutos: 60, precio: 30000 },
+          cliente: {
+            nombre: 'Pedro',
+            apellido: 'Gómez',
+            telefono: '3001112233',
+          },
+          servicio: {
+            id: 1,
+            nombre: 'Corte',
+            duracionMinutos: 60,
+            precio: 30000,
+          },
         },
       ];
       mockPrismaService.reservation.findMany.mockResolvedValue(mockReservas);
 
-      const resultado = await repository.listarReservasDeBarberoEnFecha(3, fecha);
+      const resultado = await repository.listarReservasDeBarberoEnFecha(
+        3,
+        fecha,
+      );
 
       expect(resultado).toEqual(mockReservas);
       expect(mockPrismaService.reservation.findMany).toHaveBeenCalledWith(
@@ -558,13 +570,26 @@ describe('ReservasRepository', () => {
           startTime: '09:00',
           endTime: '10:00',
           status: ReservationStatus.CONFIRMED,
-          cliente: { nombre: 'Carlos', apellido: 'Pérez', telefono: '3001234567' },
-          servicio: { id: 2, nombre: 'Corte clásico', duracionMinutos: 45, precio: 50000 },
+          cliente: {
+            nombre: 'Carlos',
+            apellido: 'Pérez',
+            telefono: '3001234567',
+          },
+          servicio: {
+            id: 2,
+            nombre: 'Corte clásico',
+            duracionMinutos: 45,
+            precio: 50000,
+          },
         },
       ];
       mockPrismaService.reservation.findMany.mockResolvedValue(mockReservas);
 
-      const resultado = await repository.listarReservasDeBarberoEnRango(3, desde, hasta);
+      const resultado = await repository.listarReservasDeBarberoEnRango(
+        3,
+        desde,
+        hasta,
+      );
 
       expect(resultado).toEqual(mockReservas);
       expect(mockPrismaService.reservation.findMany).toHaveBeenCalledWith(
@@ -692,6 +717,135 @@ describe('ReservasRepository', () => {
       expect(resultado).toEqual({
         id: 5,
         status: ReservationStatus.CANCELLED,
+      });
+    });
+  });
+
+  describe('Métodos administrativos (HU-13 y SUPERADMIN)', () => {
+    describe('obtenerReservaConRelaciones', () => {
+      it('debe consultar la reserva por id con relaciones básicas', async () => {
+        const mockRes = { id: 42, barberoId: 3, servicioId: 1 };
+        mockPrismaService.reservation.findUnique.mockResolvedValue(mockRes);
+
+        const res = await repository.obtenerReservaConRelaciones(42);
+
+        expect(mockPrismaService.reservation.findUnique).toHaveBeenCalledWith({
+          where: { id: 42 },
+          select: expect.any(Object),
+        });
+        expect(res).toBe(mockRes);
+      });
+    });
+
+    describe('obtenerReservaAdminPorId', () => {
+      it('debe consultar la reserva con relaciones completas de admin', async () => {
+        const mockRes = { id: 42, cliente: { nombre: 'Pedro' } };
+        mockPrismaService.reservation.findUnique.mockResolvedValue(mockRes);
+
+        const res = await repository.obtenerReservaAdminPorId(42);
+
+        expect(mockPrismaService.reservation.findUnique).toHaveBeenCalledWith({
+          where: { id: 42 },
+          select: expect.any(Object),
+        });
+        expect(res).toBe(mockRes);
+      });
+    });
+
+    describe('listarReservasAdmin', () => {
+      it('aplica filtro por fecha puntual', async () => {
+        mockPrismaService.reservation.findMany.mockResolvedValue([]);
+        const fechaFiltro = new Date('2026-11-20T00:00:00.000Z');
+
+        await repository.listarReservasAdmin({ fecha: fechaFiltro });
+
+        expect(mockPrismaService.reservation.findMany).toHaveBeenCalledWith({
+          where: { date: fechaFiltro },
+          orderBy: [{ date: 'desc' }, { startTime: 'desc' }],
+          select: expect.any(Object),
+        });
+      });
+
+      it('aplica filtro por rango desde y hasta, barbero, estado y cliente', async () => {
+        mockPrismaService.reservation.findMany.mockResolvedValue([]);
+        const desde = new Date('2026-11-01T00:00:00.000Z');
+        const hasta = new Date('2026-11-30T00:00:00.000Z');
+
+        await repository.listarReservasAdmin({
+          desde,
+          hasta,
+          barberoId: 2,
+          estado: ReservationStatus.CONFIRMED,
+          clienteId: 5,
+        });
+
+        expect(mockPrismaService.reservation.findMany).toHaveBeenCalledWith({
+          where: {
+            date: { gte: desde, lte: hasta },
+            barberoId: 2,
+            status: ReservationStatus.CONFIRMED,
+            clienteId: 5,
+          },
+          orderBy: [{ date: 'desc' }, { startTime: 'desc' }],
+          select: expect.any(Object),
+        });
+      });
+
+      it('consulta sin filtros cuando no se suministran parámetros', async () => {
+        mockPrismaService.reservation.findMany.mockResolvedValue([]);
+
+        await repository.listarReservasAdmin({});
+
+        expect(mockPrismaService.reservation.findMany).toHaveBeenCalledWith({
+          where: {},
+          orderBy: [{ date: 'desc' }, { startTime: 'desc' }],
+          select: expect.any(Object),
+        });
+      });
+    });
+
+    describe('crearConBloqueo con email de cliente ocasional', () => {
+      it('persiste el email en cliente.create cuando está presente', async () => {
+        const txMock = {
+          $queryRaw: jest.fn().mockResolvedValue([{ id: 3 }]),
+          reservation: {
+            findFirst: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockResolvedValue({ id: 100 }),
+          },
+          cliente: {
+            create: jest.fn().mockResolvedValue({ id: 50 }),
+          },
+        };
+        mockPrismaService.$transaction.mockImplementation(
+          async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock),
+        );
+
+        await repository.crearConBloqueo({
+          barberoId: 3,
+          servicioId: 1,
+          date: fecha,
+          dayOfWeek: WeekDay.MONDAY,
+          startTime: '10:00',
+          endTime: '11:00',
+          precioReservado: 25000,
+          cliente: {
+            crear: {
+              nombre: 'Carlos',
+              telefono: '3119998877',
+              email: 'carlos@mail.com',
+            },
+          },
+        });
+
+        expect(txMock.cliente.create).toHaveBeenCalledWith({
+          data: {
+            nombre: 'Carlos',
+            apellido: null,
+            telefono: '3119998877',
+            email: 'carlos@mail.com',
+            usuarioId: null,
+          },
+        });
       });
     });
   });

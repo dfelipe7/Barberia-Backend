@@ -49,7 +49,9 @@ describe('BarberosRepository', () => {
   describe('crearPerfilBarbero', () => {
     it('should call crearBarberoNuevo', async () => {
       const data = { usuarioId: 1, telefono: '123', porcentajeComision: 50 };
-      jest.spyOn(repository, 'crearBarberoNuevo').mockResolvedValue({ ...data } as any);
+      jest
+        .spyOn(repository, 'crearBarberoNuevo')
+        .mockResolvedValue({ ...data } as any);
 
       const result = await repository.crearPerfilBarbero(data);
 
@@ -60,7 +62,10 @@ describe('BarberosRepository', () => {
 
   describe('actualizarComision', () => {
     it('should update comision', async () => {
-      mockPrismaService.barbero.update.mockResolvedValue({ usuarioId: 1, porcentajeComision: 60 });
+      mockPrismaService.barbero.update.mockResolvedValue({
+        usuarioId: 1,
+        porcentajeComision: 60,
+      });
 
       const result = await repository.actualizarComision(1, 60);
 
@@ -75,7 +80,10 @@ describe('BarberosRepository', () => {
   describe('actualizarPerfilBarbero', () => {
     it('should update barbero profile', async () => {
       const data = { telefono: '456' };
-      mockPrismaService.barbero.update.mockResolvedValue({ usuarioId: 1, ...data });
+      mockPrismaService.barbero.update.mockResolvedValue({
+        usuarioId: 1,
+        ...data,
+      });
 
       const result = await repository.actualizarPerfilBarbero(1, data);
 
@@ -120,7 +128,7 @@ describe('BarberosRepository', () => {
   describe('obtenerBarberosCatalogo', () => {
     it('should return barberos with ACTIVO status', async () => {
       mockPrismaService.barbero.findMany.mockResolvedValue([{ id: 1 }]);
-      
+
       const result = await repository.obtenerBarberosCatalogo();
 
       expect(prisma.barbero.findMany).toHaveBeenCalledWith({
@@ -135,7 +143,7 @@ describe('BarberosRepository', () => {
 
     it('should filter by nombre', async () => {
       mockPrismaService.barbero.findMany.mockResolvedValue([{ id: 1 }]);
-      
+
       await repository.obtenerBarberosCatalogo({ nombre: 'Juan' });
 
       expect(prisma.barbero.findMany).toHaveBeenCalledWith({
@@ -178,7 +186,9 @@ describe('BarberosRepository', () => {
 
     it('should filter by INACTIVO status', async () => {
       mockPrismaService.barbero.findMany.mockResolvedValue([{ id: 1 }]);
-      await repository.obtenerBarberosGestion({ estado: EstadoUsuario.INACTIVO });
+      await repository.obtenerBarberosGestion({
+        estado: EstadoUsuario.INACTIVO,
+      });
       expect(prisma.barbero.findMany).toHaveBeenCalledWith({
         where: {
           OR: [
@@ -210,13 +220,42 @@ describe('BarberosRepository', () => {
 
   describe('actualizarEstadoBarbero', () => {
     it('should update status', async () => {
-      mockPrismaService.barbero.update.mockResolvedValue({ usuarioId: 1, estado: EstadoUsuario.ACTIVO });
-      const result = await repository.actualizarEstadoBarbero(1, EstadoUsuario.ACTIVO);
+      mockPrismaService.barbero.update.mockResolvedValue({
+        usuarioId: 1,
+        estado: EstadoUsuario.ACTIVO,
+      });
+      const result = await repository.actualizarEstadoBarbero(
+        1,
+        EstadoUsuario.ACTIVO,
+      );
       expect(prisma.barbero.update).toHaveBeenCalledWith({
         where: { usuarioId: 1 },
         data: { estado: EstadoUsuario.ACTIVO },
       });
       expect(result.estado).toBe(EstadoUsuario.ACTIVO);
+    });
+  });
+
+  describe('obtenerBarberoPorId', () => {
+    it('debe consultar el barbero por id incluyendo su usuario', async () => {
+      const mockBarbero = { id: 5, usuario: { id: 10, nombre: 'Carlos' } };
+      mockPrismaService.barbero.findUnique.mockResolvedValue(mockBarbero);
+
+      const result = await repository.obtenerBarberoPorId(5);
+
+      expect(prisma.barbero.findUnique).toHaveBeenCalledWith({
+        where: { id: 5 },
+        include: { usuario: true },
+      });
+      expect(result).toBe(mockBarbero);
+    });
+
+    it('debe retornar null si no existe el barbero', async () => {
+      mockPrismaService.barbero.findUnique.mockResolvedValue(null);
+
+      const result = await repository.obtenerBarberoPorId(999);
+
+      expect(result).toBeNull();
     });
   });
 });

@@ -20,6 +20,9 @@ import { ReservaModificadaResponseDto } from '../dto/dto-respuesta/reserva-modif
 import { ReservaCanceladaResponseDto } from '../dto/dto-respuesta/reserva-cancelada-response.dto';
 import { ReservaClienteDto } from '../dto/dto-respuesta/reserva-cliente.dto';
 import { MisReservasResponseDto } from '../dto/dto-respuesta/mis-reservas-response.dto';
+import { CrearReservaAdminDto } from '../dto/dto-peticion/crear-reserva-admin.dto';
+import { FiltroReservasAdminDto } from '../dto/dto-peticion/filtro-reservas-admin.dto';
+import { ReservaAdminDetalleDto } from '../dto/dto-respuesta/reserva-admin-detalle.dto';
 import {
   AgendaBarberoResponseDto,
   AgendaSemanalBarberoResponseDto,
@@ -30,6 +33,7 @@ import {
   CrearReservaDatos,
   MENSAJE_HORARIO_NO_DISPONIBLE,
   ModificarReservaDatos,
+  ReservaAdminRegistro,
   ReservaAgendaRegistro,
   ReservaConRelaciones,
   ReservaRegistro,
@@ -340,13 +344,281 @@ export class ReservasService {
   }
 
   /**
+   * HU-13: Creación administrativa de reserva para ADMINISTRADOR o SUPERADMIN.
+   * Permite agendar para un cliente registrado existente o dar de alta un cliente
+   * ocasional dentro de la misma transacción atómica.
+   */
+  async crearReservaAdmin(
+    dto: CrearReservaAdminDto,
+  ): Promise<ReservaCreadaResponseDto> {
+    this.validarFecha(dto.fecha);
+
+    let clienteDeReserva: ClienteDeReserva;
+    let clienteIdConocido: number | null = null;
+    let tokenGestion: string | undefined = undefined;
+    let gestionTokenHash: string | null = null;
+    let clienteNombreNotif = 'Cliente';
+    let clienteTelefonoNotif: string | null = null;
+
+    if (dto.clienteId !== undefined && dto.clienteId !== null) {
+      const clienteDb = await this.clientesRepository.obtenerPorId(dto.clienteId);
+      if (!clienteDb) {
+        throw new NotFoundException(`El cliente con ID ${dto.clienteId} no existe`);
+      }
+      clienteIdConocido = clienteDb.id;
+      clienteDeReserva = { clienteId: clienteDb.id };
+      clienteNombreNotif = `${clienteDb.nombre} ${clienteDb.apellido ?? ''}`.trim();
+      clienteTelefonoNotif = dto.telefono ?? clienteDb.telefono ?? null;
+
+      // CA-04: el mismo cliente no puede duplicar la reserva de la franja.
+      const duplicada =
+        await this.reservasRepository.existeReservaActivaDeClienteEnFranja({
+          clienteId: clienteDb.id,
+          barberoId: dto.barberoId,
+          fecha: this.aFechaDate(dto.fecha),
+          startTime: dto.hora,
+        });
+
+      if (duplicada) {
+        throw new ConflictException(MENSAJE_RESERVA_DUPLICADA);
+      }
+    } else {
+      // Cliente ocasional sin cuenta (HU-13-CA-03, CA-04)
+      const nombreLimpio = dto.nombre?.trim();
+      const telefonoLimpio = dto.telefono?.trim();
+
+      if (!nombreLimpio || !telefonoLimpio) {
+        throw new BadRequestException(
+          'Para un cliente ocasional, el nombre y el teléfono son obligatorios',
+        );
+      }
+
+      tokenGestion = this.generarTokenGestion();
+      gestionTokenHash = this.hashearToken(tokenGestion);
+
+      clienteDeReserva = {
+        crear: {
+          nombre: nombreLimpio,
+          apellido: dto.apellido?.trim() ?? null,
+          telefono: telefonoLimpio,
+          email: dto.email?.trim() ?? null,
+          usuarioId: null,
+        },
+      };
+      clienteNombreNotif = `${nombreLimpio} ${dto.apellido?.trim() ?? ''}`.trim();
+      clienteTelefonoNotif = telefonoLimpio;
+    }
+
+    const servicio = await this.obtenerServicio(dto.servicioId);
+
+    const barbero = await this.barberosRepository.obtenerBarberoActivoPorId(
+      dto.barberoId,
+    );
+    if (!barbero) {
+      throw new NotFoundException(
+        `El barbero ${dto.barberoId} no existe o no está activo`,
+      );
+    }
+
+    const asignado = await this.serviciosRepository.existeAsignacionBarbero(
+      dto.barberoId,
+      dto.servicioId,
+    );
+    if (!asignado) {
+      throw new BadRequestException(
+        `El barbero ${dto.barberoId} no presta el servicio ${dto.servicioId}`,
+      );
+    }
+
+    const franja = await this.obtenerFranjaDisponible(
+      dto.barberoId,
+      dto.servicioId,
+      dto.fecha,
+      dto.hora,
+    );
+
+    const reserva = await this.crearConManejoDeConflicto({
+      barberoId: dto.barberoId,
+      servicioId: dto.servicioId,
+      date: this.aFechaDate(dto.fecha),
+      dayOfWeek: this.fechaBogotaService.obtenerDiaSemana(dto.fecha),
+      startTime: franja.startTime,
+      endTime: franja.endTime,
+      status: ReservationStatus.CONFIRMED,
+      precioReservado: Number(servicio.precio),
+      gestionTokenHash,
+      cliente: clienteDeReserva,
+    });
+
+    this.logger.log(
+      `AUDIT: reserva administrativa creada id=${reserva.id} barberoId=${reserva.barberoId} servicioId=${reserva.servicioId} clienteId=${reserva.clienteId}`,
+    );
+
+    const respuesta = await this.construirRespuesta(
+      reserva,
+      dto.fecha,
+      servicio,
+      tokenGestion,
+    );
+
+    // Disparo desacoplado de confirmación por WhatsApp en segundo plano
+    if (this.whatsappService && clienteTelefonoNotif) {
+      this.whatsappService.enviarConfirmacionReserva({
+        telefono: clienteTelefonoNotif,
+        clienteNombre: clienteNombreNotif,
+        servicioNombre: servicio.nombre,
+        barberoNombre: `${respuesta.barbero.nombre} ${respuesta.barbero.apellido}`.trim(),
+        fecha: respuesta.fecha,
+        hora: respuesta.hora,
+        precio: respuesta.servicio.precio,
+      }).catch((err) =>
+        this.logger.warn(`No se pudo enviar confirmación por WhatsApp en admin: ${err?.message ?? err}`),
+      );
+    }
+
+    return respuesta;
+  }
+
+  /**
+   * SUPERADMIN: Listar reservas de la barbería aplicando filtros en base de datos.
+   */
+  async listarReservasAdmin(
+    filtro: FiltroReservasAdminDto,
+  ): Promise<ReservaAdminDetalleDto[]> {
+    let fechaDate: Date | undefined = undefined;
+    let desdeDate: Date | undefined = undefined;
+    let hastaDate: Date | undefined = undefined;
+
+    if (filtro.fecha) {
+      this.validarFecha(filtro.fecha);
+      fechaDate = this.aFechaDate(filtro.fecha);
+    }
+
+    if (filtro.desde) {
+      this.validarFecha(filtro.desde);
+      desdeDate = this.aFechaDate(filtro.desde);
+    }
+
+    if (filtro.hasta) {
+      this.validarFecha(filtro.hasta);
+      hastaDate = this.aFechaDate(filtro.hasta);
+    }
+
+    if (filtro.desde && filtro.hasta && filtro.desde > filtro.hasta) {
+      throw new BadRequestException(
+        'El rango de fechas es inválido: "desde" debe ser menor o igual a "hasta"',
+      );
+    }
+
+    const registros = await this.reservasRepository.listarReservasAdmin({
+      fecha: fechaDate,
+      desde: desdeDate,
+      hasta: hastaDate,
+      barberoId: filtro.barberoId,
+      estado: filtro.estado,
+      clienteId: filtro.clienteId,
+    });
+
+    return registros.map((r) => this.mapearReservaAdmin(r));
+  }
+
+  /**
+   * SUPERADMIN: Consulta el detalle completo de cualquier reserva de la barbería.
+   */
+  async obtenerReservaAdmin(reservaId: number): Promise<ReservaAdminDetalleDto> {
+    const reserva = await this.reservasRepository.obtenerReservaAdminPorId(reservaId);
+    if (!reserva) {
+      throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+    }
+    return this.mapearReservaAdmin(reserva);
+  }
+
+  /**
+   * SUPERADMIN: Modifica una reserva de cualquier barbero respetando las reglas de disponibilidad.
+   */
+  async modificarReservaAdmin(
+    reservaId: number,
+    dto: ModificarReservaDto,
+  ): Promise<ReservaModificadaResponseDto> {
+    this.validarDatosModificacion(dto);
+
+    const reserva = await this.reservasRepository.obtenerReservaConRelaciones(reservaId);
+    if (!reserva) {
+      throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+    }
+
+    return this.ejecutarModificacionReserva(reserva, dto, 'admin');
+  }
+
+  /**
+   * SUPERADMIN: Cancela una reserva de cualquier barbero.
+   */
+  async cancelarReservaAdmin(
+    reservaId: number,
+  ): Promise<ReservaCanceladaResponseDto> {
+    const reserva = await this.reservasRepository.obtenerReservaConRelaciones(reservaId);
+    if (!reserva) {
+      throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+    }
+
+    return this.ejecutarCancelacionReserva(reserva, 'admin');
+  }
+
+  /**
+   * Búsqueda de clientes para selección administrativa (HU-13-CA-02).
+   */
+  async buscarClientesAdmin(termino: string) {
+    return this.clientesRepository.buscarClientes(termino);
+  }
+
+  /**
+   * Mapea el registro de persistencia a la respuesta detallada de administración.
+   */
+  private mapearReservaAdmin(r: ReservaAdminRegistro): ReservaAdminDetalleDto {
+    const esRegistrado = Boolean(r.cliente.usuarioId || r.cliente.googleId);
+    const precio =
+      r.precioReservado !== null
+        ? Number(r.precioReservado)
+        : Number(r.servicio.precio);
+
+    return {
+      id: r.id,
+      fecha: this.aFechaCalendario(r.date),
+      hora: r.startTime,
+      horaFin: r.endTime,
+      estado: r.status,
+      precio,
+      createdAt: r.createdAt,
+      barbero: {
+        id: r.barbero.id,
+        nombre: r.barbero.usuario.nombre,
+        apellido: r.barbero.usuario.apellido,
+      },
+      cliente: {
+        id: r.cliente.id,
+        nombre: r.cliente.nombre,
+        apellido: r.cliente.apellido,
+        telefono: r.cliente.telefono,
+        email: r.cliente.email,
+        esRegistrado,
+      },
+      servicio: {
+        id: r.servicio.id,
+        nombre: r.servicio.nombre,
+        precio: Number(r.servicio.precio),
+        duracionMinutos: r.servicio.duracionMinutos,
+      },
+    };
+  }
+
+  /**
    * Lógica de negocio compartida para modificar una reserva (HU-08),
-   * invocada tras verificar la autorización (vía JWT de cliente o token de gestión de invitado).
+   * invocada tras verificar la autorización (vía JWT de cliente, token de gestión de invitado o admin).
    */
   private async ejecutarModificacionReserva(
     reserva: ReservaConRelaciones,
     dto: ModificarReservaDto,
-    modalidad: 'autenticado' | 'invitado',
+    modalidad: 'autenticado' | 'invitado' | 'admin',
   ): Promise<ReservaModificadaResponseDto> {
     if (reserva.status === ReservationStatus.CANCELLED) {
       throw new ConflictException('No es posible modificar una reserva cancelada');
@@ -461,7 +733,7 @@ export class ReservasService {
    */
   private async ejecutarCancelacionReserva(
     reserva: ReservaConRelaciones,
-    modalidad: 'autenticado' | 'invitado',
+    modalidad: 'autenticado' | 'invitado' | 'admin',
   ): Promise<ReservaCanceladaResponseDto> {
     if (
       reserva.status === ReservationStatus.COMPLETED ||

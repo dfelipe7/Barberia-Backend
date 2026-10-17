@@ -7,6 +7,7 @@ const mockPrismaService = {
     findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    findMany: jest.fn(),
   },
 };
 
@@ -120,6 +121,48 @@ describe('ClientesRepository', () => {
       await expect(repository.buscarOcrearPorGoogle(datos)).rejects.toThrow(
         'db down',
       );
+    });
+  });
+
+  describe('buscarClientes (HU-13)', () => {
+    it('devuelve una lista vacía si el término está vacío o solo contiene espacios', async () => {
+      const resVacio = await repository.buscarClientes('');
+      const resEspacios = await repository.buscarClientes('   ');
+
+      expect(resVacio).toEqual([]);
+      expect(resEspacios).toEqual([]);
+      expect(mockPrismaService.cliente.findMany).not.toHaveBeenCalled();
+    });
+
+    it('busca clientes por nombre, apellido, teléfono o email aplicando trim y orden alfabético', async () => {
+      const mockClientes = [
+        {
+          id: 1,
+          nombre: 'Carlos',
+          apellido: 'Gómez',
+          telefono: '3119998877',
+          email: 'carlos@mail.com',
+        },
+      ];
+      mockPrismaService.cliente.findMany = jest
+        .fn()
+        .mockResolvedValue(mockClientes);
+
+      const resultado = await repository.buscarClientes('  Carlos  ');
+
+      expect(mockPrismaService.cliente.findMany).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { nombre: { contains: 'Carlos' } },
+            { apellido: { contains: 'Carlos' } },
+            { telefono: { contains: 'Carlos' } },
+            { email: { contains: 'Carlos' } },
+          ],
+        },
+        take: 20,
+        orderBy: { nombre: 'asc' },
+      });
+      expect(resultado).toBe(mockClientes);
     });
   });
 });

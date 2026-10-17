@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
+  NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -50,6 +52,9 @@ describe('HorarioSemanalService', () => {
 
     const mockBarberosRepository = {
       obtenerBarberoPorUsuarioId: jest
+        .fn()
+        .mockResolvedValue({ id: 7, usuarioId: 10 }),
+      obtenerBarberoActivoPorId: jest
         .fn()
         .mockResolvedValue({ id: 7, usuarioId: 10 }),
     };
@@ -284,6 +289,108 @@ describe('HorarioSemanalService', () => {
       await expect(
         service.reemplazarMiHorarioSemanal(usuarioAutenticado, dto),
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('SUPERADMIN: Operaciones de Horario Semanal de Terceros', () => {
+    describe('obtenerHorarioSemanalDeBarbero', () => {
+      it('debe lanzar NotFoundException si el barbero objetivo no existe o no está activo', async () => {
+        barberosRepository.obtenerBarberoActivoPorId.mockResolvedValue(null);
+
+        await expect(
+          service.obtenerHorarioSemanalDeBarbero(999),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('debe retornar el horario semanal de cualquier barbero cuando existe', async () => {
+        const franjas = [
+          {
+            id: 1,
+            barberoId: 7,
+            dayOfWeek: WeekDay.MONDAY,
+            startTime: '09:00',
+            endTime: '10:00',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ];
+        horariosRepository.obtenerFranjasActivasPorBarbero.mockResolvedValue(
+          franjas as any,
+        );
+
+        const resultado = await service.obtenerHorarioSemanalDeBarbero(7);
+
+        expect(resultado.barberoId).toBe(7);
+        expect(resultado.franjas).toHaveLength(1);
+        expect(resultado.franjas[0].startTime).toBe('09:00');
+      });
+    });
+
+    describe('reemplazarHorarioSemanalDeBarbero', () => {
+      it('debe lanzar NotFoundException si el barbero objetivo no existe o no está activo', async () => {
+        barberosRepository.obtenerBarberoActivoPorId.mockResolvedValue(null);
+
+        await expect(
+          service.reemplazarHorarioSemanalDeBarbero(999, { franjas: [] }),
+        ).rejects.toThrow(NotFoundException);
+      });
+
+      it('debe reemplazar el horario semanal de cualquier barbero si las franjas son válidas y no colisionan', async () => {
+        const dto = {
+          franjas: [
+            { dayOfWeek: WeekDay.MONDAY, startTime: '10:00', endTime: '11:00' },
+          ],
+        };
+        horariosRepository.obtenerFranjasActivasPorBarbero.mockResolvedValue(
+          [],
+        );
+        horariosRepository.reemplazarFranjas.mockResolvedValue([
+          {
+            id: 10,
+            barberoId: 7,
+            dayOfWeek: WeekDay.MONDAY,
+            startTime: '10:00',
+            endTime: '11:00',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ] as any);
+
+        const resultado = await service.reemplazarHorarioSemanalDeBarbero(
+          7,
+          dto,
+        );
+
+        expect(resultado.barberoId).toBe(7);
+        expect(resultado.franjas).toHaveLength(1);
+        expect(resultado.franjas[0].startTime).toBe('10:00');
+      });
+
+      it('debe rechazar con 409 si se intenta eliminar una franja que tiene reservas activas', async () => {
+        const existentes = [
+          {
+            id: 1,
+            barberoId: 7,
+            dayOfWeek: WeekDay.MONDAY,
+            startTime: '09:00',
+            endTime: '10:00',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ];
+        horariosRepository.obtenerFranjasActivasPorBarbero.mockResolvedValue(
+          existentes as any,
+        );
+        proveedorReservas.existeReservaNoCanceladaEnFranjaSemanal.mockResolvedValue(
+          true,
+        );
+
+        const dto = { franjas: [] }; // Intenta eliminar la franja existente
+
+        await expect(
+          service.reemplazarHorarioSemanalDeBarbero(7, dto),
+        ).rejects.toThrow(ConflictException);
+      });
     });
   });
 });

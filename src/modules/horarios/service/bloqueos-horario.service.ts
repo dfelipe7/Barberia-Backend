@@ -74,37 +74,7 @@ export class BloqueosHorarioService {
     dto: CrearBloqueoHorarioDto,
   ): Promise<BloqueoHorarioAccionResponseDto> {
     const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
-    const fecha = this.validarFecha(dto.date);
-    const franjas = this.generarFranjasDelBloqueo(dto.startTime, dto.endTime);
-
-    await this.validarDentroDelHorarioSemanal(barbero.id, dto.date, franjas);
-    await this.validarSinSolapamientoConBloqueos(
-      barbero.id,
-      fecha,
-      dto.startTime,
-      dto.endTime,
-    );
-    await this.validarSinCierreGeneral(fecha, dto.startTime, dto.endTime);
-    await this.asegurarSinReservasActivas(
-      barbero.id,
-      dto.date,
-      dto.startTime,
-      dto.endTime,
-    );
-
-    const creado = await this.bloqueosRepository.crear({
-      barberoId: barbero.id,
-      date: fecha,
-      startTime: dto.startTime,
-      endTime: dto.endTime,
-      reason: dto.reason ?? null,
-      notes: dto.notes ?? null,
-    });
-
-    this.logger.log(
-      `AUDIT: bloqueo creado id=${creado.id} barberoId=${barbero.id} fecha=${dto.date} ${dto.startTime}-${dto.endTime}`,
-    );
-    return this.mapearAccion('Bloqueo creado correctamente', creado);
+    return this.ejecutarCreacionBloqueo(barbero.id, dto, false);
   }
 
   /**
@@ -116,14 +86,7 @@ export class BloqueosHorarioService {
     filtro: FiltroBloqueosHorarioDto,
   ): Promise<BloqueoHorarioResponseDto[]> {
     const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
-    const date =
-      filtro.fecha !== undefined ? this.validarFecha(filtro.fecha) : undefined;
-
-    const registros = await this.bloqueosRepository.listarPorBarbero(
-      barbero.id,
-      { date, status: filtro.status },
-    );
-    return registros.map((registro) => this.mapearBloqueo(registro));
+    return this.ejecutarListadoBloqueos(barbero.id, filtro);
   }
 
   /**
@@ -137,7 +100,173 @@ export class BloqueosHorarioService {
     dto: ActualizarBloqueoHorarioDto,
   ): Promise<BloqueoHorarioAccionResponseDto> {
     const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
-    const bloqueo = await this.obtenerBloqueoDelBarbero(barbero.id, id);
+    return this.ejecutarActualizacionBloqueo(barbero.id, id, dto, false);
+  }
+
+  /**
+   * HE08-HU-05: cancela lógicamente un bloqueo (`ACTIVE -> CANCELLED`) sin
+   * borrar la fila. Otras causas de no disponibilidad (reserva, cierre) siguen
+   * aplicando.
+   */
+  async cancelarBloqueo(
+    usuarioAutenticado: any,
+    id: number,
+  ): Promise<BloqueoHorarioAccionResponseDto> {
+    const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
+    return this.ejecutarCancelacionBloqueo(barbero.id, id, false);
+  }
+
+  /**
+   * HE08-HU-06: reactiva/libera lógicamente un bloqueo
+   * (`ACTIVE -> REACTIVATED`), registrando `reactivatedAt` y `reactivatedBy`.
+   * El bloqueo deja de excluir disponibilidad, pero se conserva el historial.
+   */
+  async reactivarBloqueo(
+    usuarioAutenticado: any,
+    id: number,
+  ): Promise<BloqueoHorarioAccionResponseDto> {
+    const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
+    return this.ejecutarReactivacionBloqueo(
+      barbero.id,
+      id,
+      usuarioAutenticado,
+      false,
+    );
+  }
+
+  /**
+   * SUPERADMIN: Crea un bloqueo para cualquier barbero objetivo por barberoId.
+   */
+  async crearBloqueoDeBarbero(
+    barberoId: number,
+    dto: CrearBloqueoHorarioDto,
+  ): Promise<BloqueoHorarioAccionResponseDto> {
+    const barbero = await this.obtenerBarberoObjetivo(barberoId);
+    return this.ejecutarCreacionBloqueo(barbero.id, dto, true);
+  }
+
+  /**
+   * SUPERADMIN: Lista los bloqueos de cualquier barbero objetivo con filtros opcionales.
+   */
+  async listarBloqueosDeBarbero(
+    barberoId: number,
+    filtro: FiltroBloqueosHorarioDto,
+  ): Promise<BloqueoHorarioResponseDto[]> {
+    const barbero = await this.obtenerBarberoObjetivo(barberoId);
+    return this.ejecutarListadoBloqueos(barbero.id, filtro);
+  }
+
+  /**
+   * SUPERADMIN: Modifica un bloqueo de cualquier barbero objetivo.
+   */
+  async actualizarBloqueoDeBarbero(
+    barberoId: number,
+    id: number,
+    dto: ActualizarBloqueoHorarioDto,
+  ): Promise<BloqueoHorarioAccionResponseDto> {
+    const barbero = await this.obtenerBarberoObjetivo(barberoId);
+    return this.ejecutarActualizacionBloqueo(barbero.id, id, dto, true);
+  }
+
+  /**
+   * SUPERADMIN: Cancela un bloqueo de cualquier barbero objetivo.
+   */
+  async cancelarBloqueoDeBarbero(
+    barberoId: number,
+    id: number,
+  ): Promise<BloqueoHorarioAccionResponseDto> {
+    const barbero = await this.obtenerBarberoObjetivo(barberoId);
+    return this.ejecutarCancelacionBloqueo(barbero.id, id, true);
+  }
+
+  /**
+   * SUPERADMIN: Reactiva un bloqueo de cualquier barbero objetivo.
+   */
+  async reactivarBloqueoDeBarbero(
+    barberoId: number,
+    id: number,
+    usuarioAutenticado: any,
+  ): Promise<BloqueoHorarioAccionResponseDto> {
+    const barbero = await this.obtenerBarberoObjetivo(barberoId);
+    return this.ejecutarReactivacionBloqueo(
+      barbero.id,
+      id,
+      usuarioAutenticado,
+      true,
+    );
+  }
+
+  private async obtenerBarberoObjetivo(barberoId: number) {
+    const barbero =
+      await this.barberosRepository.obtenerBarberoActivoPorId(barberoId);
+    if (!barbero) {
+      throw new NotFoundException(
+        `El barbero con ID ${barberoId} no existe o no está activo`,
+      );
+    }
+    return barbero;
+  }
+
+  private async ejecutarCreacionBloqueo(
+    barberoId: number,
+    dto: CrearBloqueoHorarioDto,
+    esAdmin: boolean,
+  ): Promise<BloqueoHorarioAccionResponseDto> {
+    const fecha = this.validarFecha(dto.date);
+    const franjas = this.generarFranjasDelBloqueo(dto.startTime, dto.endTime);
+
+    await this.validarDentroDelHorarioSemanal(barberoId, dto.date, franjas);
+    await this.validarSinSolapamientoConBloqueos(
+      barberoId,
+      fecha,
+      dto.startTime,
+      dto.endTime,
+    );
+    await this.validarSinCierreGeneral(fecha, dto.startTime, dto.endTime);
+    await this.asegurarSinReservasActivas(
+      barberoId,
+      dto.date,
+      dto.startTime,
+      dto.endTime,
+    );
+
+    const creado = await this.bloqueosRepository.crear({
+      barberoId,
+      date: fecha,
+      startTime: dto.startTime,
+      endTime: dto.endTime,
+      reason: dto.reason ?? null,
+      notes: dto.notes ?? null,
+    });
+
+    const prefijo = esAdmin ? '[ADMIN] ' : '';
+    this.logger.log(
+      `AUDIT: ${prefijo}bloqueo creado id=${creado.id} barberoId=${barberoId} fecha=${dto.date} ${dto.startTime}-${dto.endTime}`,
+    );
+    return this.mapearAccion('Bloqueo creado correctamente', creado);
+  }
+
+  private async ejecutarListadoBloqueos(
+    barberoId: number,
+    filtro: FiltroBloqueosHorarioDto,
+  ): Promise<BloqueoHorarioResponseDto[]> {
+    const date =
+      filtro.fecha !== undefined ? this.validarFecha(filtro.fecha) : undefined;
+
+    const registros = await this.bloqueosRepository.listarPorBarbero(
+      barberoId,
+      { date, status: filtro.status },
+    );
+    return registros.map((registro) => this.mapearBloqueo(registro));
+  }
+
+  private async ejecutarActualizacionBloqueo(
+    barberoId: number,
+    id: number,
+    dto: ActualizarBloqueoHorarioDto,
+    esAdmin: boolean,
+  ): Promise<BloqueoHorarioAccionResponseDto> {
+    const bloqueo = await this.obtenerBloqueoDelBarbero(barberoId, id);
     this.asegurarEstadoActivo(bloqueo, 'editar');
 
     const fecha =
@@ -153,13 +282,9 @@ export class BloqueosHorarioService {
 
     if (cambiaHorario) {
       const franjas = this.generarFranjasDelBloqueo(startTime, endTime);
-      await this.validarDentroDelHorarioSemanal(
-        barbero.id,
-        fechaTexto,
-        franjas,
-      );
+      await this.validarDentroDelHorarioSemanal(barberoId, fechaTexto, franjas);
       await this.validarSinSolapamientoConBloqueos(
-        barbero.id,
+        barberoId,
         fecha,
         startTime,
         endTime,
@@ -167,7 +292,7 @@ export class BloqueosHorarioService {
       );
       await this.validarSinCierreGeneral(fecha, startTime, endTime);
       await this.asegurarSinReservasActivas(
-        barbero.id,
+        barberoId,
         fechaTexto,
         startTime,
         endTime,
@@ -187,46 +312,39 @@ export class BloqueosHorarioService {
       datos,
     );
 
+    const prefijo = esAdmin ? '[ADMIN] ' : '';
     this.logger.log(
-      `AUDIT: bloqueo actualizado id=${bloqueo.id} barberoId=${barbero.id}`,
+      `AUDIT: ${prefijo}bloqueo actualizado id=${bloqueo.id} barberoId=${barberoId}`,
     );
     return this.mapearAccion('Bloqueo actualizado correctamente', actualizado);
   }
 
-  /**
-   * HE08-HU-05: cancela lógicamente un bloqueo (`ACTIVE -> CANCELLED`) sin
-   * borrar la fila. Otras causas de no disponibilidad (reserva, cierre) siguen
-   * aplicando.
-   */
-  async cancelarBloqueo(
-    usuarioAutenticado: any,
+  private async ejecutarCancelacionBloqueo(
+    barberoId: number,
     id: number,
+    esAdmin: boolean,
   ): Promise<BloqueoHorarioAccionResponseDto> {
-    const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
-    const bloqueo = await this.obtenerBloqueoDelBarbero(barbero.id, id);
+    const bloqueo = await this.obtenerBloqueoDelBarbero(barberoId, id);
     this.asegurarEstadoActivo(bloqueo, 'cancelar');
 
     const actualizado = await this.bloqueosRepository.actualizar(bloqueo.id, {
       status: ScheduleBlockStatus.CANCELLED,
     });
 
+    const prefijo = esAdmin ? '[ADMIN] ' : '';
     this.logger.log(
-      `AUDIT: bloqueo cancelado id=${bloqueo.id} barberoId=${barbero.id}`,
+      `AUDIT: ${prefijo}bloqueo cancelado id=${bloqueo.id} barberoId=${barberoId}`,
     );
     return this.mapearAccion('Bloqueo cancelado correctamente', actualizado);
   }
 
-  /**
-   * HE08-HU-06: reactiva/libera lógicamente un bloqueo
-   * (`ACTIVE -> REACTIVATED`), registrando `reactivatedAt` y `reactivatedBy`.
-   * El bloqueo deja de excluir disponibilidad, pero se conserva el historial.
-   */
-  async reactivarBloqueo(
-    usuarioAutenticado: any,
+  private async ejecutarReactivacionBloqueo(
+    barberoId: number,
     id: number,
+    usuarioAutenticado: any,
+    esAdmin: boolean,
   ): Promise<BloqueoHorarioAccionResponseDto> {
-    const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
-    const bloqueo = await this.obtenerBloqueoDelBarbero(barbero.id, id);
+    const bloqueo = await this.obtenerBloqueoDelBarbero(barberoId, id);
     this.asegurarEstadoActivo(bloqueo, 'reactivar');
 
     const usuarioId = this.resolverUsuarioId(usuarioAutenticado);
@@ -236,8 +354,9 @@ export class BloqueosHorarioService {
       reactivatedBy: usuarioId,
     });
 
+    const prefijo = esAdmin ? '[ADMIN] ' : '';
     this.logger.log(
-      `AUDIT: bloqueo reactivado id=${bloqueo.id} barberoId=${barbero.id}`,
+      `AUDIT: ${prefijo}bloqueo reactivado id=${bloqueo.id} barberoId=${barberoId}`,
     );
     return this.mapearAccion('Bloqueo reactivado correctamente', actualizado);
   }

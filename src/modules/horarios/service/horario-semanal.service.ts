@@ -3,6 +3,7 @@ import {
   Injectable,
   BadRequestException,
   ForbiddenException,
+  NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -59,9 +60,7 @@ export class HorarioSemanalService {
     usuarioAutenticado: any,
   ): Promise<HorarioSemanalResponseDto> {
     const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
-    const franjas =
-      await this.horariosRepository.obtenerFranjasActivasPorBarbero(barbero.id);
-    return this.mapearHorario(barbero.id, franjas);
+    return this.ejecutarObtenerHorario(barbero.id);
   }
 
   /**
@@ -83,23 +82,73 @@ export class HorarioSemanalService {
     dto: ReemplazarHorarioSemanalDto,
   ): Promise<HorarioSemanalResponseDto> {
     const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
-    const franjas = dto.franjas ?? [];
+    return this.ejecutarReemplazoHorario(barbero.id, dto);
+  }
 
+  /**
+   * SUPERADMIN: Consulta el horario semanal de cualquier barbero por su barberoId.
+   */
+  async obtenerHorarioSemanalDeBarbero(
+    barberoId: number,
+  ): Promise<HorarioSemanalResponseDto> {
+    const barbero =
+      await this.barberosRepository.obtenerBarberoActivoPorId(barberoId);
+    if (!barbero) {
+      throw new NotFoundException(
+        `El barbero con ID ${barberoId} no existe o no está activo`,
+      );
+    }
+
+    return this.ejecutarObtenerHorario(barbero.id);
+  }
+
+  /**
+   * SUPERADMIN: Reemplaza el horario semanal de cualquier barbero por su barberoId,
+   * respetando la regla de no afectar reservas existentes.
+   */
+  async reemplazarHorarioSemanalDeBarbero(
+    barberoId: number,
+    dto: ReemplazarHorarioSemanalDto,
+  ): Promise<HorarioSemanalResponseDto> {
+    const barbero =
+      await this.barberosRepository.obtenerBarberoActivoPorId(barberoId);
+    if (!barbero) {
+      throw new NotFoundException(
+        `El barbero con ID ${barberoId} no existe o no está activo`,
+      );
+    }
+
+    return this.ejecutarReemplazoHorario(barbero.id, dto);
+  }
+
+  private async ejecutarObtenerHorario(
+    barberoId: number,
+  ): Promise<HorarioSemanalResponseDto> {
+    const franjas =
+      await this.horariosRepository.obtenerFranjasActivasPorBarbero(barberoId);
+    return this.mapearHorario(barberoId, franjas);
+  }
+
+  private async ejecutarReemplazoHorario(
+    barberoId: number,
+    dto: ReemplazarHorarioSemanalDto,
+  ): Promise<HorarioSemanalResponseDto> {
+    const franjas = dto.franjas ?? [];
     this.validarFranjas(franjas);
 
     const existentes =
-      await this.horariosRepository.obtenerFranjasActivasPorBarbero(barbero.id);
+      await this.horariosRepository.obtenerFranjasActivasPorBarbero(barberoId);
     await this.asegurarFranjasSinReservasActivas(
-      barbero.id,
+      barberoId,
       existentes,
       franjas,
     );
 
     const guardadas = await this.horariosRepository.reemplazarFranjas(
-      barbero.id,
+      barberoId,
       franjas,
     );
-    return this.mapearHorario(barbero.id, guardadas);
+    return this.mapearHorario(barberoId, guardadas);
   }
 
   /**
