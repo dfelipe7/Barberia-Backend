@@ -18,8 +18,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "seed": "node dist/prisma/seed.js",
-    "postinstall": "prisma skills sync || exit 0"
+    "seed": "node dist/prisma/seed.js"
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^3.0.2",
@@ -32,7 +31,7 @@
     "@nestjs/swagger": "^11.4.7",
     "@nestjs/throttler": "^6.7.1",
     "@prisma/adapter-mariadb": "^7.10.0",
-    "@prisma/client": "^7.10.0",
+    "@prisma/client": "^7.10.1",
     "@whiskeysockets/baileys": "^7.0.0-rc14",
     "axios": "^1.20.0",
     "class-transformer": "^0.5.1",
@@ -87,7 +86,12 @@
     "mysql2": "^3.24.5",
     "deepmerge-ts": "^8.0.2",
     "argparse@<2": "^2.0.1",
-    "uri-js": "npm:uri-js-replace@^1.0.1"
+    "uri-js": "npm:uri-js-replace@^1.0.1",
+    "@hono/node-server": "^1.19.13",
+    "braces": "^3.0.3",
+    "lodash": "^4.17.21",
+    "valibot": "^1.4.2",
+    "js-yaml": "^5.4.1"
   },
   "jest": {
     "moduleFileExtensions": [
