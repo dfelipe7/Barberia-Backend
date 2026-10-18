@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { InternalServerErrorException } from '@nestjs/common';
 import { UsuariosController } from './usuarios.controller';
 import { UsuariosService } from '../service/usuarios.service';
 import { BarberosService } from '../service/barberos.service';
@@ -139,6 +140,14 @@ describe('UsuariosController', () => {
         req.user,
       );
       expect(result.estado).toBe('INACTIVO');
+    });
+  });
+
+  describe('simularError', () => {
+    it('debe lanzar InternalServerErrorException para probar alertas A09', () => {
+      expect(() => controller.simularError()).toThrow(
+        InternalServerErrorException,
+      );
     });
   });
 });

@@ -564,10 +564,7 @@ export class ReservasRepository {
   async obtenerReservaParaCompletar(
     id: number,
   ): Promise<ReservaCompletarRegistro | null> {
-    return this.prisma.reservation.findUnique({
-      where: { id },
-      select: SELECCION_RESERVA_PARA_COMPLETAR,
-    });
+    return this.obtenerReservaParaTransicionFinal(id);
   }
 
   /**
@@ -577,6 +574,16 @@ export class ReservasRepository {
    * información expuesta.
    */
   async obtenerReservaParaNoShow(
+    id: number,
+  ): Promise<ReservaCompletarRegistro | null> {
+    return this.obtenerReservaParaTransicionFinal(id);
+  }
+
+  /**
+   * Consulta compartida para las transiciones a estados finales (`COMPLETED`
+   * y `NO_SHOW`), que exponen la misma selección de relaciones.
+   */
+  private obtenerReservaParaTransicionFinal(
     id: number,
   ): Promise<ReservaCompletarRegistro | null> {
     return this.prisma.reservation.findUnique({
@@ -592,21 +599,7 @@ export class ReservasRepository {
    * transición real (cuenta de filas afectadas).
    */
   async completar(id: number): Promise<boolean> {
-    const resultado = await this.prisma.reservation.updateMany({
-      where: {
-        id,
-        status: {
-          in: [
-            ReservationStatus.PENDING,
-            ReservationStatus.CONFIRMED,
-            ReservationStatus.IN_PROGRESS,
-          ],
-        },
-      },
-      data: { status: ReservationStatus.COMPLETED },
-    });
-
-    return resultado.count > 0;
+    return this.transicionarEstadoFinal(id, ReservationStatus.COMPLETED);
   }
 
   /**
@@ -617,6 +610,17 @@ export class ReservasRepository {
    * (no es `CANCELLED`), por lo que no altera `slotActivo`.
    */
   async marcarNoShow(id: number): Promise<boolean> {
+    return this.transicionarEstadoFinal(id, ReservationStatus.NO_SHOW);
+  }
+
+  /**
+   * Aplica una transición condicional a un estado final solo si el estado
+   * actual está entre los permitidos. Compartida por `COMPLETED` y `NO_SHOW`.
+   */
+  private async transicionarEstadoFinal(
+    id: number,
+    status: ReservationStatus,
+  ): Promise<boolean> {
     const resultado = await this.prisma.reservation.updateMany({
       where: {
         id,
@@ -628,7 +632,7 @@ export class ReservasRepository {
           ],
         },
       },
-      data: { status: ReservationStatus.NO_SHOW },
+      data: { status },
     });
 
     return resultado.count > 0;

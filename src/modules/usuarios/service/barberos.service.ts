@@ -269,7 +269,6 @@ export class BarberosService {
     archivo: Express.Multer.File,
     usuarioAutenticado?: any,
   ) {
-    // NOSONAR
     if (!archivo) {
       throw new ConflictException(
         'No se ha proporcionado ningún archivo de imagen',
@@ -279,44 +278,23 @@ export class BarberosService {
     const barbero =
       await this.barberosRepository.obtenerBarberoPorUsuarioId(usuarioId);
     if (!barbero) {
-      try {
-        fs.unlinkSync(archivo.path);
-      } catch {}
+      this.eliminarArchivoSilencioso(archivo.path);
       throw new ConflictException(
         'El usuario no cuenta con un perfil de barbero registrado',
       );
     }
 
     if (usuarioAutenticado) {
-      const usuarioObjetivo =
-        await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
-      const usuarioActual =
-        await this.buscarUsuarioAutenticado(usuarioAutenticado);
-      if (usuarioActual && usuarioObjetivo) {
-        try {
-          this.authorizationService.verificarPermisosEdicion(
-            usuarioActual,
-            usuarioObjetivo,
-          );
-        } catch (error) {
-          try {
-            fs.unlinkSync(archivo.path);
-          } catch {}
-          throw error;
-        }
-      }
+      await this.verificarPermisoSubidaFoto(
+        usuarioId,
+        archivo,
+        usuarioAutenticado,
+      );
     }
 
     // Si ya tenía una foto previa en /uploads, la eliminamos del disco
     if (barbero.fotoUrl?.startsWith('/uploads/')) {
-      const rutaAnterior = join(process.cwd(), barbero.fotoUrl);
-      if (fs.existsSync(rutaAnterior)) {
-        try {
-          fs.unlinkSync(rutaAnterior);
-        } catch (e) {
-          console.warn('No se pudo eliminar la foto anterior:', e);
-        }
-      }
+      this.eliminarFotoAnterior(barbero.fotoUrl);
     }
 
     const nuevaFotoUrl = `/uploads/barberos/${archivo.filename}`;
@@ -328,6 +306,49 @@ export class BarberosService {
       mensaje: 'Foto de perfil actualizada correctamente',
       fotoUrl: nuevaFotoUrl,
     };
+  }
+
+  private eliminarArchivoSilencioso(ruta: string): void {
+    try {
+      fs.unlinkSync(ruta);
+    } catch {}
+  }
+
+  private async verificarPermisoSubidaFoto(
+    usuarioId: number,
+    archivo: Express.Multer.File,
+    usuarioAutenticado: any,
+  ): Promise<void> {
+    const usuarioObjetivo =
+      await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+    const usuarioActual =
+      await this.buscarUsuarioAutenticado(usuarioAutenticado);
+    if (!usuarioActual || !usuarioObjetivo) {
+      return;
+    }
+
+    try {
+      this.authorizationService.verificarPermisosEdicion(
+        usuarioActual,
+        usuarioObjetivo,
+      );
+    } catch (error) {
+      this.eliminarArchivoSilencioso(archivo.path);
+      throw error;
+    }
+  }
+
+  private eliminarFotoAnterior(fotoUrl: string): void {
+    const rutaAnterior = join(process.cwd(), fotoUrl);
+    if (!fs.existsSync(rutaAnterior)) {
+      return;
+    }
+
+    try {
+      fs.unlinkSync(rutaAnterior);
+    } catch (e) {
+      console.warn('No se pudo eliminar la foto anterior:', e);
+    }
   }
 
   /**

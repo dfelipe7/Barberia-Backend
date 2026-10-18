@@ -106,6 +106,31 @@ describe('UsuariosService', () => {
         service.obtenerMiPerfil({ id: 999, sub: '999' }),
       ).rejects.toThrow(ConflictException);
     });
+
+    it('debe resolver al usuario autenticado por su email', async () => {
+      const mockUser = {
+        id: 2,
+        nombre: 'Por Email',
+        apellido: 'User',
+        email: 'por.email@barberia.com',
+        rol: 'ADMINISTRADOR',
+        estado: 'ACTIVO',
+        administrador: null,
+        barbero: null,
+      };
+      usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue(
+        mockUser as any,
+      );
+
+      const result = await service.obtenerMiPerfil({
+        email: 'por.email@barberia.com',
+      });
+
+      expect(usuariosRepository.obtenerUsuarioPorEmail).toHaveBeenCalledWith(
+        'por.email@barberia.com',
+      );
+      expect(result).toEqual(mockUser);
+    });
   });
 
   describe('obtenerUsuarioPorId', () => {
@@ -269,6 +294,27 @@ describe('UsuariosService', () => {
       expect(
         administradoresService.cambiarEstadoAdministrador,
       ).toHaveBeenCalledWith(2, 'ACTIVO');
+    });
+
+    it('debe omitir el cambio de rol de Administrador cuando el estado solicitado coincide con el actual', async () => {
+      const mockTarget = { id: 2, rol: 'BARBERO', administrador: null };
+      const mockCaller = { id: 1, rol: 'SUPERADMIN' };
+
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
+        mockTarget as any,
+      );
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
+        mockCaller as any,
+      );
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
+        mockTarget as any,
+      );
+
+      await service.actualizarUsuario(2, { esAdministrador: false }, { id: 1 });
+
+      expect(
+        administradoresService.cambiarEstadoAdministrador,
+      ).not.toHaveBeenCalled();
     });
 
     it('debe rechazar que un barbero modifique o revoque su propio rol de barbero', async () => {

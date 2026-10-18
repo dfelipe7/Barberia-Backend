@@ -96,7 +96,6 @@ export class AdministradoresService {
    * Si es su único rol, se bloquea su cuenta global.
    */
   async cambiarEstadoAdministrador(usuarioId: number, estado: string) {
-    // NOSONAR
     const usuario =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
@@ -110,96 +109,105 @@ export class AdministradoresService {
       );
     }
 
-    const activo = estado === 'ACTIVO';
+    if (estado === 'ACTIVO') {
+      return this.promoverAdministrador(usuario);
+    }
 
-    if (activo) {
-      if (
-        usuario.administrador &&
-        (usuario.administrador as any).estado === 'ACTIVO'
-      ) {
-        throw new ConflictException(
-          'Este usuario ya tiene privilegios de Administrador',
+    return this.revocarAdministrador(usuario);
+  }
+
+  /**
+   * Promueve al usuario a ADMINISTRADOR: ajusta el rol, reactiva o crea su
+   * perfil y conserva el manejo de errores original.
+   */
+  private async promoverAdministrador(usuario: any) {
+    if (
+      usuario.administrador &&
+      (usuario.administrador as any).estado === 'ACTIVO'
+    ) {
+      throw new ConflictException(
+        'Este usuario ya tiene privilegios de Administrador',
+      );
+    }
+
+    try {
+      if (usuario.rol === 'BARBERO') {
+        await this.usuariosRepository.actualizarRol(
+          usuario.id,
+          'ADMINISTRADOR',
         );
       }
 
-      try {
-        if (usuario.rol === 'BARBERO') {
-          await this.usuariosRepository.actualizarRol(
+      const adminExistente =
+        await this.administradoresRepository.obtenerAdministradorPorUsuarioId(
+          usuario.id,
+        );
+
+      const administrador = adminExistente
+        ? await this.administradoresRepository.actualizarEstadoAdministrador(
             usuario.id,
-            'ADMINISTRADOR',
-          );
-        }
+            'ACTIVO',
+          )
+        : await this.administradoresRepository.crearAdministrador({
+            usuarioId: usuario.id,
+          });
 
-        const adminExistente =
-          await this.administradoresRepository.obtenerAdministradorPorUsuarioId(
-            usuario.id,
-          );
+      return {
+        mensaje: 'Usuario promovido a Administrador exitosamente',
+        administrador,
+      };
+    } catch (error) {
+      this.logger.error(
+        'Error promoviendo al administrador en la base de datos:',
+        error,
+      );
+      throw new ConflictException(
+        'No se pudo promover al usuario en la base de datos local',
+      );
+    }
+  }
 
-        let administrador;
-        if (adminExistente) {
-          administrador =
-            await this.administradoresRepository.actualizarEstadoAdministrador(
-              usuario.id,
-              'ACTIVO',
-            );
-        } else {
-          administrador =
-            await this.administradoresRepository.crearAdministrador({
-              usuarioId: usuario.id,
-            });
-        }
+  /**
+   * Revoca los privilegios de ADMINISTRADOR: ajusta el rol, desactiva su perfil
+   * y bloquea la cuenta global si no conserva otro rol activo.
+   */
+  private async revocarAdministrador(usuario: any) {
+    if (!usuario.administrador) {
+      throw new ConflictException(
+        'Este usuario no tiene privilegios de Administrador',
+      );
+    }
 
-        return {
-          mensaje: 'Usuario promovido a Administrador exitosamente',
-          administrador,
-        };
-      } catch (error) {
-        this.logger.error(
-          'Error promoviendo al administrador en la base de datos:',
-          error,
-        );
-        throw new ConflictException(
-          'No se pudo promover al usuario en la base de datos local',
-        );
-      }
-    } else {
-      if (!usuario.administrador) {
-        throw new ConflictException(
-          'Este usuario no tiene privilegios de Administrador',
-        );
+    try {
+      if (usuario.barbero) {
+        await this.usuariosRepository.actualizarRol(usuario.id, 'BARBERO');
       }
 
-      try {
-        if (usuario.barbero) {
-          await this.usuariosRepository.actualizarRol(usuario.id, 'BARBERO');
-        }
+      await this.administradoresRepository.actualizarEstadoAdministrador(
+        usuario.id,
+        'INACTIVO',
+      );
 
-        await this.administradoresRepository.actualizarEstadoAdministrador(
+      const esBarberoActivo = usuario.barbero?.estado === 'ACTIVO';
+      if (!esBarberoActivo) {
+        await this.usuariosRepository.actualizarEstadoUsuario(
           usuario.id,
           'INACTIVO',
         );
-
-        const esBarberoActivo = usuario.barbero?.estado === 'ACTIVO';
-        if (!esBarberoActivo) {
-          await this.usuariosRepository.actualizarEstadoUsuario(
-            usuario.id,
-            'INACTIVO',
-          );
-        }
-
-        return {
-          mensaje:
-            'Se han revocado los privilegios de Administrador exitosamente',
-        };
-      } catch (error) {
-        this.logger.error(
-          'Error degradando al administrador en la base de datos:',
-          error,
-        );
-        throw new ConflictException(
-          'No se pudo degradar al usuario en la base de datos local',
-        );
       }
+
+      return {
+        mensaje:
+          'Se han revocado los privilegios de Administrador exitosamente',
+      };
+    } catch (error) {
+      this.logger.error(
+        'Error degradando al administrador en la base de datos:',
+        error,
+      );
+      throw new ConflictException(
+        'No se pudo degradar al usuario en la base de datos local',
+      );
     }
   }
 }

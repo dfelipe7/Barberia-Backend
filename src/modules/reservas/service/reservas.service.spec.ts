@@ -222,6 +222,37 @@ describe('ReservasService', () => {
       );
     });
 
+    it('dispara la confirmación por WhatsApp desacoplada sin alterar la respuesta', async () => {
+      const whatsapp = {
+        enviarConfirmacionReserva: jest.fn().mockResolvedValue(true),
+      };
+      (
+        service as unknown as { whatsappService: typeof whatsapp }
+      ).whatsappService = whatsapp;
+
+      const resultado = await service.crearReserva({
+        ...dtoBase,
+        nombre: 'Ana',
+        apellido: 'Pérez',
+        telefono: '3001234567',
+      });
+
+      expect(resultado).toEqual(
+        expect.objectContaining({
+          mensaje: MENSAJE_RESERVA_CREADA,
+          id: 42,
+          estado: 'PENDING',
+          tokenGestion: expect.any(String),
+        }),
+      );
+
+      await new Promise((resolver) => setTimeout(resolver, 0));
+
+      expect(whatsapp.enviarConfirmacionReserva).toHaveBeenCalledWith(
+        expect.objectContaining({ telefono: '3001234567' }),
+      );
+    });
+
     it('rechaza al invitado sin nombre o sin teléfono (400) y no consulta disponibilidad', async () => {
       await expect(
         service.crearReserva({ ...dtoBase, nombre: 'Ana' }),

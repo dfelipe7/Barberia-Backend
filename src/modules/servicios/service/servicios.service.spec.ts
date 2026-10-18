@@ -104,6 +104,22 @@ describe('ServiciosService', () => {
         }),
       );
     });
+
+    it('debe omitir la validación de barberos cuando no se envían barberoIds', async () => {
+      const dto = {
+        nombre: 'Corte Simple',
+        precio: 10000,
+        duracionMinutos: 20,
+      };
+
+      repository.obtenerServicioPorNombre.mockResolvedValue(null);
+      repository.crearServicio.mockResolvedValue({ id: 5, ...dto } as any);
+
+      const resultado = await service.crearServicio(dto as any);
+
+      expect(resultado.id).toBe(5);
+      expect(repository.obtenerBarberosActivosPorIds).not.toHaveBeenCalled();
+    });
   });
 
   describe('obtenerServicioPorId', () => {
@@ -298,6 +314,48 @@ describe('ServiciosService', () => {
       expect(repository.actualizarServicio).toHaveBeenCalledWith(1, {
         fotoUrl: null,
       });
+    });
+
+    it('debe continuar y registrar un warning si falla el borrado de la foto anterior al subir', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      repository.obtenerServicioPorId.mockResolvedValue({
+        id: 1,
+        fotoUrl: '/uploads/servicios/foto-vieja.jpg',
+      } as any);
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.unlinkSync as jest.Mock).mockImplementation(() => {
+        throw new Error('permiso denegado');
+      });
+      repository.actualizarServicio.mockResolvedValue({
+        id: 1,
+        fotoUrl: '/uploads/servicios/nueva.jpg',
+      } as any);
+
+      const res = await service.subirFotoServicio(1, {
+        filename: 'nueva.jpg',
+      } as any);
+
+      expect(res.fotoUrl).toBe('/uploads/servicios/nueva.jpg');
+      expect(warnSpy).toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it('debe continuar y registrar un warning si falla el borrado físico al eliminar la foto', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      repository.obtenerServicioPorId.mockResolvedValue({
+        id: 1,
+        fotoUrl: '/uploads/servicios/foto.jpg',
+      } as any);
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.unlinkSync as jest.Mock).mockImplementation(() => {
+        throw new Error('permiso denegado');
+      });
+
+      const res = await service.eliminarFotoServicio(1);
+
+      expect(res.fotoUrl).toBeNull();
+      expect(warnSpy).toHaveBeenCalled();
+      warnSpy.mockRestore();
     });
   });
 

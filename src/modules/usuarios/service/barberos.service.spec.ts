@@ -518,6 +518,65 @@ describe('BarberosService', () => {
       ).rejects.toThrow('Forbidden');
       expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/a.jpg');
     });
+
+    it('debe omitir la verificación de permisos si no se resuelve el usuario autenticado', async () => {
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        fotoUrl: null,
+      });
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue(null);
+      usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue(null);
+      barberosRepository.actualizarPerfilBarbero.mockResolvedValue({});
+
+      const result = await service.subirFotoBarbero(
+        1,
+        { path: '/tmp/a.jpg', filename: 'x.jpg' } as any,
+        { email: 'auth@b.com' },
+      );
+
+      expect(
+        authorizationService.verificarPermisosEdicion,
+      ).not.toHaveBeenCalled();
+      expect(result.fotoUrl).toBe('/uploads/barberos/x.jpg');
+    });
+
+    it('debe omitir el borrado de la foto anterior cuando el archivo no existe en disco', async () => {
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        fotoUrl: '/uploads/barberos/old.jpg',
+      });
+      (fs.existsSync as jest.Mock).mockReturnValue(false);
+      barberosRepository.actualizarPerfilBarbero.mockResolvedValue({});
+
+      const result = await service.subirFotoBarbero(1, {
+        path: '/tmp/a.jpg',
+        filename: 'new.jpg',
+      } as any);
+
+      expect(fs.existsSync).toHaveBeenCalled();
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
+      expect(result.fotoUrl).toBe('/uploads/barberos/new.jpg');
+    });
+
+    it('debe registrar un warning y continuar si falla el borrado de la foto anterior', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        fotoUrl: '/uploads/barberos/old.jpg',
+      });
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.unlinkSync as jest.Mock).mockImplementation(() => {
+        throw new Error('EACCES');
+      });
+      barberosRepository.actualizarPerfilBarbero.mockResolvedValue({});
+
+      const result = await service.subirFotoBarbero(1, {
+        path: '/tmp/a.jpg',
+        filename: 'new.jpg',
+      } as any);
+
+      expect(warnSpy).toHaveBeenCalled();
+      expect(result.fotoUrl).toBe('/uploads/barberos/new.jpg');
+      warnSpy.mockRestore();
+      (fs.unlinkSync as jest.Mock).mockReturnValue(undefined);
+    });
   });
 
   // ───────────────────────────────────────

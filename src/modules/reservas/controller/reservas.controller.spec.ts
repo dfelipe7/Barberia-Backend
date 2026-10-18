@@ -22,6 +22,7 @@ describe('ReservasController', () => {
     modificarReservaInvitado: jest.fn(),
     cancelarReservaInvitado: jest.fn(),
     noShowReserva: jest.fn(),
+    completarReserva: jest.fn(),
     obtenerAgendaBarbero: jest.fn(),
     obtenerAgendaSemanalBarbero: jest.fn(),
   };
@@ -398,6 +399,39 @@ describe('ReservasController', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(reservasService.noShowReserva).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('completarReserva', () => {
+    const mockUser = { id: 5, rol: 'BARBERO' };
+
+    it('delega en el servicio con la identidad y el rol del usuario autenticado', async () => {
+      const mockRespuesta = {
+        id: 42,
+        mensaje: 'Reserva completada correctamente',
+        estado: 'COMPLETED',
+      };
+      reservasService.completarReserva.mockResolvedValue(mockRespuesta);
+
+      const resultado = await controller.completarReserva(
+        { user: mockUser },
+        42,
+      );
+
+      expect(resultado).toBe(mockRespuesta);
+      expect(reservasService.completarReserva).toHaveBeenCalledWith(
+        mockUser,
+        'BARBERO',
+        42,
+      );
+    });
+
+    it('rechaza un reservaId no positivo con 400', async () => {
+      await expect(
+        controller.completarReserva({ user: mockUser }, 0),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(reservasService.completarReserva).not.toHaveBeenCalled();
     });
   });
 });
