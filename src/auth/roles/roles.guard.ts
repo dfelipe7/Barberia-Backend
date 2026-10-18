@@ -32,15 +32,13 @@ export class RolesGuard implements CanActivate {
 
     const user = request.user;
 
-    const userRoles: string[] = Array.from(
-      new Set([
-        ...(Array.isArray(user?.roles) ? user.roles : []),
-        ...(user?.rol ? [user.rol] : []),
-        ...(user?.realm_access?.roles ?? []),
-      ]),
-    );
+    const userRoles = new Set<string>([
+      ...(Array.isArray(user?.roles) ? user.roles : []),
+      ...(user?.rol ? [user.rol] : []),
+      ...(user?.realm_access?.roles ?? []),
+    ]);
 
-    const tieneRol = roles.some((rol) => userRoles.includes(rol));
+    const tieneRol = roles.some((rol) => userRoles.has(rol));
 
     if (!tieneRol) {
       throw new ForbiddenException(

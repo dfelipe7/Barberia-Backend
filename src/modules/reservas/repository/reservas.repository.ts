@@ -737,9 +737,11 @@ export class ReservasRepository {
   private async conReintentos<T>(operacion: () => Promise<T>): Promise<T> {
     let intento = 0;
 
+    // Reintentos secuenciales con backoff: cada intento y su espera dependen
+    // del resultado (error) del intento anterior, por lo que no es paralelizable.
     for (;;) {
       try {
-        return await operacion();
+        return await operacion(); // NOSONAR reintento secuencial intencional (depende del intento previo)
       } catch (error) {
         intento += 1;
         if (
@@ -748,7 +750,7 @@ export class ReservasRepository {
         ) {
           throw error;
         }
-        await this.esperar(intento);
+        await this.esperar(intento); // NOSONAR backoff secuencial intencional (depende del intento previo)
       }
     }
   }

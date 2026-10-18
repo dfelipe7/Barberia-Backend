@@ -294,17 +294,24 @@ export class HorarioSemanalService {
       (franja) => !clavesNuevas.has(`${franja.dayOfWeek}|${franja.startTime}`),
     );
 
+    // Recorrido secuencial intencional: se corta en la primera franja afectada
+    // que tenga reservas activas (fail-closed). Paralelizar con Promise.all
+    // cambiaría la precedencia de errores y ejecutaría consultas innecesarias.
     for (const franja of afectadas) {
       let existeReserva: boolean;
 
       try {
-        existeReserva =
-          await this.proveedorReservas.existeReservaNoCanceladaEnFranjaSemanal({
+        const consultaReserva =
+          this.proveedorReservas.existeReservaNoCanceladaEnFranjaSemanal({
             barberoId,
             dayOfWeek: franja.dayOfWeek,
             startTime: franja.startTime,
             endTime: franja.endTime,
           });
+        // Secuencial intencional (fail-closed): se corta en la primera franja
+        // con reservas activas y no se paraleliza para preservar la precedencia
+        // de errores.
+        existeReserva = await consultaReserva; // NOSONAR bucle secuencial intencional (fail-closed)
       } catch (error) {
         if (error instanceof ReservasNoDisponiblesError) {
           throw new ServiceUnavailableException(

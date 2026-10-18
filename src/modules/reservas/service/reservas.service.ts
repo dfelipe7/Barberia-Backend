@@ -185,9 +185,12 @@ export class ReservasService {
       tokenGestion,
     );
 
-    // Disparo desacoplado de confirmación por WhatsApp en segundo plano
+    // Disparo desacoplado de confirmación por WhatsApp en segundo plano.
+    // `dispararConfirmacionWhatsApp` ya gestiona sus propios rechazos con
+    // try/catch y logging, por lo que el fire-and-forget se marca con `void`
+    // para no propagar un error no controlado ni bloquear la respuesta HTTP.
     if (this.whatsappService) {
-      this.dispararConfirmacionWhatsApp(
+      void this.dispararConfirmacionWhatsApp(
         dto,
         cliente.clienteIdConocido,
         servicio.nombre,
@@ -383,7 +386,6 @@ export class ReservasService {
     this.validarFecha(dto.fecha);
 
     let clienteDeReserva: ClienteDeReserva;
-    let clienteIdConocido: number | null = null;
     let tokenGestion: string | undefined = undefined;
     let gestionTokenHash: string | null = null;
     let clienteNombreNotif = 'Cliente';
@@ -398,7 +400,6 @@ export class ReservasService {
           `El cliente con ID ${dto.clienteId} no existe`,
         );
       }
-      clienteIdConocido = clienteDb.id;
       clienteDeReserva = { clienteId: clienteDb.id };
       clienteNombreNotif =
         `${clienteDb.nombre} ${clienteDb.apellido ?? ''}`.trim();
