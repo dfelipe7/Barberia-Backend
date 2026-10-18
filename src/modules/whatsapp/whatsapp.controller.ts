@@ -37,7 +37,8 @@ export class WhatsAppController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Estado de WhatsApp y QR',
-    description: 'Devuelve si el socket está conectado o la imagen Base64 del código QR para vincular.',
+    description:
+      'Devuelve si el socket está conectado o la imagen Base64 del código QR para vincular.',
   })
   @ApiOkResponse({
     description: 'Estado de conexión obtenido exitosamente.',
@@ -53,7 +54,9 @@ export class WhatsAppController {
       },
     },
   })
-  @ApiUnauthorizedResponse({ description: 'No autorizado o token inválido/expirado.' })
+  @ApiUnauthorizedResponse({
+    description: 'No autorizado o token inválido/expirado.',
+  })
   getStatus() {
     return this.whatsappService.getStatus();
   }
@@ -66,7 +69,8 @@ export class WhatsAppController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Iniciar / Despertar WhatsApp',
-    description: 'Reactiva el socket bajo demanda y comienza la generación de código QR para vincular.',
+    description:
+      'Reactiva el socket bajo demanda y comienza la generación de código QR para vincular.',
   })
   @ApiOkResponse({
     description: 'Conexión de WhatsApp iniciada exitosamente.',
@@ -77,7 +81,9 @@ export class WhatsAppController {
       },
     },
   })
-  @ApiUnauthorizedResponse({ description: 'No autorizado o token inválido/expirado.' })
+  @ApiUnauthorizedResponse({
+    description: 'No autorizado o token inválido/expirado.',
+  })
   iniciar() {
     return this.whatsappService.iniciar();
   }
@@ -91,7 +97,8 @@ export class WhatsAppController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Pausar WhatsApp (Modo Reposo)',
-    description: 'Cierra el socket de WhatsApp para no generar códigos QR innecesarios si no se está escaneando.',
+    description:
+      'Cierra el socket de WhatsApp para no generar códigos QR innecesarios si no se está escaneando.',
   })
   @ApiOkResponse({
     description: 'WhatsApp puesto en modo reposo.',
@@ -102,7 +109,9 @@ export class WhatsAppController {
       },
     },
   })
-  @ApiUnauthorizedResponse({ description: 'No autorizado o token inválido/expirado.' })
+  @ApiUnauthorizedResponse({
+    description: 'No autorizado o token inválido/expirado.',
+  })
   pausar() {
     return this.whatsappService.pausar();
   }
@@ -115,9 +124,12 @@ export class WhatsAppController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Obtener plantillas de mensajes',
-    description: 'Retorna las plantillas activas de confirmación y recordatorio.',
+    description:
+      'Retorna las plantillas activas de confirmación y recordatorio.',
   })
-  @ApiUnauthorizedResponse({ description: 'No autorizado o token inválido/expirado.' })
+  @ApiUnauthorizedResponse({
+    description: 'No autorizado o token inválido/expirado.',
+  })
   async obtenerPlantillas() {
     return await this.whatsappService.obtenerPlantillas();
   }
@@ -130,9 +142,12 @@ export class WhatsAppController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Guardar plantillas de mensajes',
-    description: 'Actualiza los textos de las plantillas de confirmación y recordatorio.',
+    description:
+      'Actualiza los textos de las plantillas de confirmación y recordatorio.',
   })
-  @ApiUnauthorizedResponse({ description: 'No autorizado o token inválido/expirado.' })
+  @ApiUnauthorizedResponse({
+    description: 'No autorizado o token inválido/expirado.',
+  })
   async guardarPlantillas(@Body() dto: ActualizarPlantillasDto) {
     return await this.whatsappService.guardarPlantillas(dto);
   }
@@ -145,9 +160,12 @@ export class WhatsAppController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Restablecer plantillas por defecto',
-    description: 'Borra las personalizaciones y restaura los mensajes predeterminados.',
+    description:
+      'Borra las personalizaciones y restaura los mensajes predeterminados.',
   })
-  @ApiUnauthorizedResponse({ description: 'No autorizado o token inválido/expirado.' })
+  @ApiUnauthorizedResponse({
+    description: 'No autorizado o token inválido/expirado.',
+  })
   async resetPlantillas() {
     return await this.whatsappService.resetPlantillas();
   }
@@ -160,20 +178,25 @@ export class WhatsAppController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Desvincular WhatsApp',
-    description: 'Cierra sesión activa de WhatsApp y reinicia el servicio para generar un nuevo código QR.',
+    description:
+      'Cierra sesión activa de WhatsApp y reinicia el servicio para generar un nuevo código QR.',
   })
   @ApiOkResponse({
     description: 'Sesión de WhatsApp desvinculada exitosamente.',
     schema: {
       type: 'object',
       properties: {
-        mensaje: { type: 'string', example: 'WhatsApp desvinculado con éxito. Se generará un nuevo QR.' },
+        mensaje: {
+          type: 'string',
+          example: 'WhatsApp desvinculado con éxito. Se generará un nuevo QR.',
+        },
       },
     },
   })
-  @ApiUnauthorizedResponse({ description: 'No autorizado o token inválido/expirado.' })
+  @ApiUnauthorizedResponse({
+    description: 'No autorizado o token inválido/expirado.',
+  })
   async desconectar() {
     return await this.whatsappService.desconectar();
   }
 }
-

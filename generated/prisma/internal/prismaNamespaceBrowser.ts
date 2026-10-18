@@ -61,7 +61,8 @@ export const ModelName = {
   BarberScheduleBlock: 'BarberScheduleBlock',
   GeneralClosure: 'GeneralClosure',
   Reservation: 'Reservation',
-  WhatsAppPlantilla: 'WhatsAppPlantilla'
+  WhatsAppPlantilla: 'WhatsAppPlantilla',
+  ConfiguracionSistema: 'ConfiguracionSistema'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -231,6 +232,20 @@ export const WhatsAppPlantillaScalarFieldEnum = {
 export type WhatsAppPlantillaScalarFieldEnum = (typeof WhatsAppPlantillaScalarFieldEnum)[keyof typeof WhatsAppPlantillaScalarFieldEnum]
 
 
+export const ConfiguracionSistemaScalarFieldEnum = {
+  id: 'id',
+  clave: 'clave',
+  valor: 'valor',
+  tipo: 'tipo',
+  descripcion: 'descripcion',
+  editable: 'editable',
+  creadoEn: 'creadoEn',
+  actualizadoEn: 'actualizadoEn'
+} as const
+
+export type ConfiguracionSistemaScalarFieldEnum = (typeof ConfiguracionSistemaScalarFieldEnum)[keyof typeof ConfiguracionSistemaScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -326,4 +341,13 @@ export const WhatsAppPlantillaOrderByRelevanceFieldEnum = {
 } as const
 
 export type WhatsAppPlantillaOrderByRelevanceFieldEnum = (typeof WhatsAppPlantillaOrderByRelevanceFieldEnum)[keyof typeof WhatsAppPlantillaOrderByRelevanceFieldEnum]
+
+
+export const ConfiguracionSistemaOrderByRelevanceFieldEnum = {
+  clave: 'clave',
+  valor: 'valor',
+  descripcion: 'descripcion'
+} as const
+
+export type ConfiguracionSistemaOrderByRelevanceFieldEnum = (typeof ConfiguracionSistemaOrderByRelevanceFieldEnum)[keyof typeof ConfiguracionSistemaOrderByRelevanceFieldEnum]
 

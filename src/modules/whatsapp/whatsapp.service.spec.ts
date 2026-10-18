@@ -89,7 +89,8 @@ describe('WhatsAppService', () => {
     });
 
     it('reemplazarVariables debe sustituir adecuadamente todas las etiquetas {cliente}, {fecha}, etc.', () => {
-      const template = 'Hola {cliente}, cita el {fecha} a las {hora} con {barbero} para {servicio}.';
+      const template =
+        'Hola {cliente}, cita el {fecha} a las {hora} con {barbero} para {servicio}.';
       const resultado = service.reemplazarVariables(template, {
         telefono: '3001234567',
         clienteNombre: 'Felipe',
@@ -99,7 +100,9 @@ describe('WhatsAppService', () => {
         hora: '15:00',
       });
 
-      expect(resultado).toBe('Hola Felipe, cita el 2026-10-19 a las 15:00 con Duvan para Corte.');
+      expect(resultado).toBe(
+        'Hola Felipe, cita el 2026-10-19 a las 15:00 con Duvan para Corte.',
+      );
     });
 
     it('enviarConfirmacionReserva debe invocar enviarMensaje con la plantilla formateada', async () => {
@@ -156,7 +159,9 @@ describe('WhatsAppService', () => {
     });
 
     it('debe enmascarar correctamente un JID de WhatsApp preservando el dominio', () => {
-      expect(enmascararTelefono('573187594854@s.whatsapp.net')).toBe('573****854@s.whatsapp.net');
+      expect(enmascararTelefono('573187594854@s.whatsapp.net')).toBe(
+        '573****854@s.whatsapp.net',
+      );
     });
 
     it('debe responder de forma segura ante cadenas cortas, nulas o vacías', () => {

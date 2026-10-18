@@ -26,21 +26,33 @@ describe('MulterConfig', () => {
   it('should accept valid images (jpeg)', () => {
     const config = crearMulterOptions('test');
     const mockCallback = jest.fn();
-    config.fileFilter(null as any, { mimetype: 'image/jpeg' } as any, mockCallback);
+    config.fileFilter(
+      null as any,
+      { mimetype: 'image/jpeg' } as any,
+      mockCallback,
+    );
     expect(mockCallback).toHaveBeenCalledWith(null, true);
   });
 
   it('should accept valid images (png)', () => {
     const config = crearMulterOptions('test');
     const mockCallback = jest.fn();
-    config.fileFilter(null as any, { mimetype: 'image/png' } as any, mockCallback);
+    config.fileFilter(
+      null as any,
+      { mimetype: 'image/png' } as any,
+      mockCallback,
+    );
     expect(mockCallback).toHaveBeenCalledWith(null, true);
   });
 
   it('should reject invalid files (pdf)', () => {
     const config = crearMulterOptions('test');
     const mockCallback = jest.fn();
-    config.fileFilter(null as any, { mimetype: 'application/pdf' } as any, mockCallback);
+    config.fileFilter(
+      null as any,
+      { mimetype: 'application/pdf' } as any,
+      mockCallback,
+    );
     expect(mockCallback).toHaveBeenCalledWith(expect.any(Error), false);
   });
 
@@ -49,10 +61,17 @@ describe('MulterConfig', () => {
     const mockCallback = jest.fn();
     const mockDateNow = jest.spyOn(Date, 'now').mockReturnValue(1234567890);
 
-    (config.storage as any).getFilename(null, { originalname: 'test.png' }, mockCallback);
+    (config.storage as any).getFilename(
+      null,
+      { originalname: 'test.png' },
+      mockCallback,
+    );
 
     expect(crypto.randomBytes).toHaveBeenCalledWith(8);
-    expect(mockCallback).toHaveBeenCalledWith(null, 'test-1234567890-mocked-hex.png');
+    expect(mockCallback).toHaveBeenCalledWith(
+      null,
+      'test-1234567890-mocked-hex.png',
+    );
 
     mockDateNow.mockRestore();
   });
@@ -62,8 +81,15 @@ describe('MulterConfig', () => {
     const mockCallback = jest.fn();
     const mockDateNow = jest.spyOn(Date, 'now').mockReturnValue(9999);
 
-    (config.storage as any).getFilename(null, { originalname: 'foto.jpg' }, mockCallback);
-    expect(mockCallback).toHaveBeenCalledWith(null, 'barbero-9999-mocked-hex.jpg');
+    (config.storage as any).getFilename(
+      null,
+      { originalname: 'foto.jpg' },
+      mockCallback,
+    );
+    expect(mockCallback).toHaveBeenCalledWith(
+      null,
+      'barbero-9999-mocked-hex.jpg',
+    );
 
     mockDateNow.mockRestore();
   });
@@ -77,7 +103,10 @@ describe('MulterConfig', () => {
 
     expect(fs.existsSync).toHaveBeenCalled();
     expect(fs.mkdirSync).not.toHaveBeenCalled();
-    expect(mockCallback).toHaveBeenCalledWith(null, expect.stringContaining('barberos'));
+    expect(mockCallback).toHaveBeenCalledWith(
+      null,
+      expect.stringContaining('barberos'),
+    );
   });
 
   it('should create directory and call callback when directory does not exist', () => {
@@ -88,7 +117,13 @@ describe('MulterConfig', () => {
     (config.storage as any).getDestination(null, null, mockCallback);
 
     expect(fs.existsSync).toHaveBeenCalled();
-    expect(fs.mkdirSync).toHaveBeenCalledWith(expect.stringContaining('servicios'), { recursive: true });
-    expect(mockCallback).toHaveBeenCalledWith(null, expect.stringContaining('servicios'));
+    expect(fs.mkdirSync).toHaveBeenCalledWith(
+      expect.stringContaining('servicios'),
+      { recursive: true },
+    );
+    expect(mockCallback).toHaveBeenCalledWith(
+      null,
+      expect.stringContaining('servicios'),
+    );
   });
 });

@@ -266,7 +266,8 @@ describe('GoogleAuthService', () => {
         barbero: null,
       });
 
-      const googlePhoto = 'https://lh3.googleusercontent.com/a/google-avatar.jpg';
+      const googlePhoto =
+        'https://lh3.googleusercontent.com/a/google-avatar.jpg';
       const result = await service.refrescarSesion(11, googlePhoto);
 
       expect(result.usuario.fotoUrl).toBe(googlePhoto);

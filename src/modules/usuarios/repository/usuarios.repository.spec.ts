@@ -34,7 +34,13 @@ describe('UsuariosRepository', () => {
 
   describe('crearUsuario', () => {
     it('should create a user', async () => {
-      const data = { googleId: 'g-1', email: 'a@a.com', nombre: 'Juan', apellido: 'P', rol: 'BARBERO' as const };
+      const data = {
+        googleId: 'g-1',
+        email: 'a@a.com',
+        nombre: 'Juan',
+        apellido: 'P',
+        rol: 'BARBERO' as const,
+      };
       mockPrisma.usuario.create.mockResolvedValue({ id: 1, ...data });
       const result = await repository.crearUsuario(data);
       expect(mockPrisma.usuario.create).toHaveBeenCalledWith({ data });
@@ -56,7 +62,10 @@ describe('UsuariosRepository', () => {
 
   describe('obtenerUsuarioPorGoogleId', () => {
     it('should find a user by googleId', async () => {
-      mockPrisma.usuario.findUnique.mockResolvedValue({ id: 2, googleId: 'g-1' });
+      mockPrisma.usuario.findUnique.mockResolvedValue({
+        id: 2,
+        googleId: 'g-1',
+      });
       const result = await repository.obtenerUsuarioPorGoogleId('g-1');
       expect(mockPrisma.usuario.findUnique).toHaveBeenCalledWith({
         where: { googleId: 'g-1' },
@@ -68,7 +77,10 @@ describe('UsuariosRepository', () => {
 
   describe('obtenerUsuarioPorEmail', () => {
     it('should find a user by email', async () => {
-      mockPrisma.usuario.findUnique.mockResolvedValue({ id: 3, email: 'test@test.com' });
+      mockPrisma.usuario.findUnique.mockResolvedValue({
+        id: 3,
+        email: 'test@test.com',
+      });
       const result = await repository.obtenerUsuarioPorEmail('test@test.com');
       expect(mockPrisma.usuario.findUnique).toHaveBeenCalledWith({
         where: { email: 'test@test.com' },
@@ -81,7 +93,9 @@ describe('UsuariosRepository', () => {
   describe('actualizarUsuario', () => {
     it('should update a user', async () => {
       mockPrisma.usuario.update.mockResolvedValue({ id: 1, nombre: 'Carlos' });
-      const result = await repository.actualizarUsuario(1, { nombre: 'Carlos' });
+      const result = await repository.actualizarUsuario(1, {
+        nombre: 'Carlos',
+      });
       expect(mockPrisma.usuario.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { nombre: 'Carlos' },
@@ -92,8 +106,11 @@ describe('UsuariosRepository', () => {
 
   describe('actualizarEstadoUsuario', () => {
     it('should update user status', async () => {
-      mockPrisma.usuario.update.mockResolvedValue({ id: 1, estado: 'INACTIVO' });
-      const result = await repository.actualizarEstadoUsuario(1, 'INACTIVO' as any);
+      mockPrisma.usuario.update.mockResolvedValue({
+        id: 1,
+        estado: 'INACTIVO',
+      });
+      const result = await repository.actualizarEstadoUsuario(1, 'INACTIVO');
       expect(mockPrisma.usuario.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { estado: 'INACTIVO' },
@@ -104,7 +121,10 @@ describe('UsuariosRepository', () => {
 
   describe('actualizarRol', () => {
     it('should update user rol', async () => {
-      mockPrisma.usuario.update.mockResolvedValue({ id: 1, rol: 'ADMINISTRADOR' });
+      mockPrisma.usuario.update.mockResolvedValue({
+        id: 1,
+        rol: 'ADMINISTRADOR',
+      });
       const result = await repository.actualizarRol(1, 'ADMINISTRADOR');
       expect(mockPrisma.usuario.update).toHaveBeenCalledWith({
         where: { id: 1 },

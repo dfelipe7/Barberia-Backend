@@ -27,6 +27,7 @@ export const ESTADOS_QUE_OCUPAN_AGENDA: readonly ReservationStatus[] = [
   ReservationStatus.CONFIRMED,
   ReservationStatus.IN_PROGRESS,
   ReservationStatus.COMPLETED,
+  ReservationStatus.NO_SHOW,
 ];
 
 /**
@@ -157,6 +158,81 @@ export interface ReservaAgendaRegistro {
     nombre: string;
     duracionMinutos: number;
     precio: Prisma.Decimal;
+  };
+}
+
+/**
+ * Selección para marcar una reserva como completada: incluye la identidad del
+ * barbero (para verificar propiedad), los datos de contacto del cliente y el
+ * nombre del servicio (para la notificación por WhatsApp).
+ */
+export const SELECCION_RESERVA_PARA_COMPLETAR = {
+  id: true,
+  barberoId: true,
+  servicioId: true,
+  clienteId: true,
+  date: true,
+  dayOfWeek: true,
+  startTime: true,
+  endTime: true,
+  status: true,
+  precioReservado: true,
+  createdAt: true,
+  updatedAt: true,
+  cliente: {
+    select: {
+      nombre: true,
+      apellido: true,
+      telefono: true,
+    },
+  },
+  servicio: {
+    select: {
+      id: true,
+      nombre: true,
+    },
+  },
+  barbero: {
+    select: {
+      id: true,
+      usuario: {
+        select: {
+          nombre: true,
+          apellido: true,
+        },
+      },
+    },
+  },
+} as const;
+
+export interface ReservaCompletarRegistro {
+  id: number;
+  barberoId: number;
+  servicioId: number;
+  clienteId: number;
+  date: Date;
+  dayOfWeek: WeekDay;
+  startTime: string;
+  endTime: string;
+  status: ReservationStatus;
+  precioReservado: Prisma.Decimal | null;
+  createdAt: Date;
+  updatedAt: Date;
+  cliente: {
+    nombre: string;
+    apellido: string | null;
+    telefono: string | null;
+  };
+  servicio: {
+    id: number;
+    nombre: string;
+  };
+  barbero: {
+    id: number;
+    usuario: {
+      nombre: string;
+      apellido: string;
+    };
   };
 }
 
@@ -457,7 +533,9 @@ export class ReservasRepository {
    */
   async obtenerReservaParaGestionInvitado(
     reservaId: number,
-  ): Promise<(ReservaConRelaciones & { gestionTokenHash: string | null }) | null> {
+  ): Promise<
+    (ReservaConRelaciones & { gestionTokenHash: string | null }) | null
+  > {
     return this.prisma.reservation.findUnique({
       where: { id: reservaId },
       select: {
@@ -477,6 +555,87 @@ export class ReservasRepository {
       where: { id },
       select: SELECCION_RESERVA_CON_RELACIONES,
     });
+  }
+
+  /**
+   * Obtiene la reserva con datos de cliente, servicio y barbero para la
+   * transición a `COMPLETED` (verificación de propiedad y notificación).
+   */
+  async obtenerReservaParaCompletar(
+    id: number,
+  ): Promise<ReservaCompletarRegistro | null> {
+    return this.obtenerReservaParaTransicionFinal(id);
+  }
+
+  /**
+   * Obtiene la reserva con datos de cliente, servicio y barbero para la
+   * transición a `NO_SHOW` (verificación de propiedad). Reutiliza la misma
+   * selección que `COMPLETED`: ambos son estados finales con la misma
+   * información expuesta.
+   */
+  async obtenerReservaParaNoShow(
+    id: number,
+  ): Promise<ReservaCompletarRegistro | null> {
+    return this.obtenerReservaParaTransicionFinal(id);
+  }
+
+  /**
+   * Consulta compartida para las transiciones a estados finales (`COMPLETED`
+   * y `NO_SHOW`), que exponen la misma selección de relaciones.
+   */
+  private obtenerReservaParaTransicionFinal(
+    id: number,
+  ): Promise<ReservaCompletarRegistro | null> {
+    return this.prisma.reservation.findUnique({
+      where: { id },
+      select: SELECCION_RESERVA_PARA_COMPLETAR,
+    });
+  }
+
+  /**
+   * Marca la reserva como `COMPLETED` únicamente si su estado lo permite
+   * (`PENDING`/`CONFIRMED`/`IN_PROGRESS`). El `updateMany` condicional evita
+   * dobles efectos ante peticiones concurrentes y permite detectar la
+   * transición real (cuenta de filas afectadas).
+   */
+  async completar(id: number): Promise<boolean> {
+    return this.transicionarEstadoFinal(id, ReservationStatus.COMPLETED);
+  }
+
+  /**
+   * Marca la reserva como `NO_SHOW` únicamente si su estado lo permite
+   * (`PENDING`/`CONFIRMED`/`IN_PROGRESS`). El `updateMany` condicional evita
+   * dobles efectos ante peticiones concurrentes y permite detectar la
+   * transición real (cuenta de filas afectadas). `NO_SHOW` ocupa la franja
+   * (no es `CANCELLED`), por lo que no altera `slotActivo`.
+   */
+  async marcarNoShow(id: number): Promise<boolean> {
+    return this.transicionarEstadoFinal(id, ReservationStatus.NO_SHOW);
+  }
+
+  /**
+   * Aplica una transición condicional a un estado final solo si el estado
+   * actual está entre los permitidos. Compartida por `COMPLETED` y `NO_SHOW`.
+   */
+  private async transicionarEstadoFinal(
+    id: number,
+    status: ReservationStatus,
+  ): Promise<boolean> {
+    const resultado = await this.prisma.reservation.updateMany({
+      where: {
+        id,
+        status: {
+          in: [
+            ReservationStatus.PENDING,
+            ReservationStatus.CONFIRMED,
+            ReservationStatus.IN_PROGRESS,
+          ],
+        },
+      },
+      data: { status },
+    });
+
+    return resultado.count > 0;
   }
 
   /**
@@ -582,9 +741,11 @@ export class ReservasRepository {
   private async conReintentos<T>(operacion: () => Promise<T>): Promise<T> {
     let intento = 0;
 
+    // Reintentos secuenciales con backoff: cada intento y su espera dependen
+    // del resultado (error) del intento anterior, por lo que no es paralelizable.
     for (;;) {
       try {
-        return await operacion();
+        return await operacion(); // NOSONAR reintento secuencial intencional (depende del intento previo)
       } catch (error) {
         intento += 1;
         if (
@@ -593,7 +754,7 @@ export class ReservasRepository {
         ) {
           throw error;
         }
-        await this.esperar(intento);
+        await this.esperar(intento); // NOSONAR backoff secuencial intencional (depende del intento previo)
       }
     }
   }
@@ -672,7 +833,9 @@ export class ReservasRepository {
     return this.prisma.reservation.findMany({
       where: {
         date: fecha,
-        status: { in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED] },
+        status: {
+          in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED],
+        },
         recordatorioEnviado: false,
       },
       select: {
@@ -769,4 +932,3 @@ export class ReservasRepository {
     });
   }
 }
-

@@ -34,6 +34,7 @@ const mockPrismaService = {
     findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
   },
   $transaction: jest.fn(),
 };
@@ -66,6 +67,7 @@ describe('ReservasRepository', () => {
         ReservationStatus.CONFIRMED,
         ReservationStatus.IN_PROGRESS,
         ReservationStatus.COMPLETED,
+        ReservationStatus.NO_SHOW,
       ]);
       expect(ESTADOS_QUE_OCUPAN_AGENDA).not.toContain(
         ReservationStatus.CANCELLED,
@@ -95,6 +97,7 @@ describe('ReservasRepository', () => {
               ReservationStatus.CONFIRMED,
               ReservationStatus.IN_PROGRESS,
               ReservationStatus.COMPLETED,
+              ReservationStatus.NO_SHOW,
             ],
           },
           startTime: { lt: '10:00' },
@@ -139,6 +142,7 @@ describe('ReservasRepository', () => {
               ReservationStatus.CONFIRMED,
               ReservationStatus.IN_PROGRESS,
               ReservationStatus.COMPLETED,
+              ReservationStatus.NO_SHOW,
             ],
           },
           startTime: { lt: '10:00' },
@@ -172,6 +176,7 @@ describe('ReservasRepository', () => {
               ReservationStatus.CONFIRMED,
               ReservationStatus.IN_PROGRESS,
               ReservationStatus.COMPLETED,
+              ReservationStatus.NO_SHOW,
             ],
           },
           startTime: { lt: '10:00' },
@@ -416,6 +421,7 @@ describe('ReservasRepository', () => {
               ReservationStatus.CONFIRMED,
               ReservationStatus.IN_PROGRESS,
               ReservationStatus.COMPLETED,
+              ReservationStatus.NO_SHOW,
             ],
           },
         },
@@ -718,6 +724,98 @@ describe('ReservasRepository', () => {
         id: 5,
         status: ReservationStatus.CANCELLED,
       });
+    });
+  });
+
+  describe('completar', () => {
+    it('debe pasar la reserva a COMPLETED solo si su estado lo permite', async () => {
+      mockPrismaService.reservation.updateMany.mockResolvedValue({ count: 1 });
+
+      const resultado = await repository.completar(5);
+
+      expect(mockPrismaService.reservation.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: 5,
+          status: {
+            in: [
+              ReservationStatus.PENDING,
+              ReservationStatus.CONFIRMED,
+              ReservationStatus.IN_PROGRESS,
+            ],
+          },
+        },
+        data: { status: ReservationStatus.COMPLETED },
+      });
+      expect(resultado).toBe(true);
+    });
+
+    it('devuelve false cuando ninguna fila se actualiza (estado no completable)', async () => {
+      mockPrismaService.reservation.updateMany.mockResolvedValue({ count: 0 });
+
+      const resultado = await repository.completar(5);
+
+      expect(resultado).toBe(false);
+    });
+  });
+
+  describe('obtenerReservaParaCompletar', () => {
+    it('debe consultar la reserva por id con cliente, servicio y barbero', async () => {
+      const mockRes = { id: 42, barberoId: 3, cliente: { telefono: '300' } };
+      mockPrismaService.reservation.findUnique.mockResolvedValue(mockRes);
+
+      const res = await repository.obtenerReservaParaCompletar(42);
+
+      expect(mockPrismaService.reservation.findUnique).toHaveBeenCalledWith({
+        where: { id: 42 },
+        select: expect.any(Object),
+      });
+      expect(res).toBe(mockRes);
+    });
+  });
+
+  describe('marcarNoShow', () => {
+    it('debe pasar la reserva a NO_SHOW solo si su estado lo permite', async () => {
+      mockPrismaService.reservation.updateMany.mockResolvedValue({ count: 1 });
+
+      const resultado = await repository.marcarNoShow(5);
+
+      expect(mockPrismaService.reservation.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: 5,
+          status: {
+            in: [
+              ReservationStatus.PENDING,
+              ReservationStatus.CONFIRMED,
+              ReservationStatus.IN_PROGRESS,
+            ],
+          },
+        },
+        data: { status: ReservationStatus.NO_SHOW },
+      });
+      expect(resultado).toBe(true);
+    });
+
+    it('devuelve false cuando ninguna fila se actualiza (estado no elegible)', async () => {
+      mockPrismaService.reservation.updateMany.mockResolvedValue({ count: 0 });
+
+      const resultado = await repository.marcarNoShow(5);
+
+      expect(resultado).toBe(false);
+    });
+  });
+
+  describe('obtenerReservaParaNoShow', () => {
+    it('debe consultar la reserva por id con cliente, servicio y barbero', async () => {
+      const mockRes = { id: 42, barberoId: 3, cliente: { telefono: '300' } };
+      mockPrismaService.reservation.findUnique.mockResolvedValue(mockRes);
+
+      const res = await repository.obtenerReservaParaNoShow(42);
+
+      expect(mockPrismaService.reservation.findUnique).toHaveBeenCalledWith({
+        where: { id: 42 },
+        select: expect.any(Object),
+      });
+      expect(res).toBe(mockRes);
     });
   });
 

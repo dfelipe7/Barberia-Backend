@@ -6,17 +6,21 @@ import { ApiProperty } from '@nestjs/swagger';
  * sin exponer información sensible (email, comisión, etc.).
  */
 export class BarberoEnServicioDto {
-    @ApiProperty({ example: 3, description: 'ID del usuario (barbero)' })
-    id: number;
+  @ApiProperty({ example: 3, description: 'ID del usuario (barbero)' })
+  id: number;
 
-    @ApiProperty({ example: 'Carlos', description: 'Nombre del barbero' })
-    nombre: string;
+  @ApiProperty({ example: 'Carlos', description: 'Nombre del barbero' })
+  nombre: string;
 
-    @ApiProperty({ example: 'Gómez', description: 'Apellido del barbero' })
-    apellido: string;
+  @ApiProperty({ example: 'Gómez', description: 'Apellido del barbero' })
+  apellido: string;
 
-    @ApiProperty({ example: '/uploads/barberos/carlos.jpg', description: 'Foto del barbero', required: false })
-    fotoUrl?: string | null;
+  @ApiProperty({
+    example: '/uploads/barberos/carlos.jpg',
+    description: 'Foto del barbero',
+    required: false,
+  })
+  fotoUrl?: string | null;
 }
 
 /**
@@ -31,27 +35,44 @@ export class BarberoEnServicioDto {
  * para que el Frontend reciba una lista limpia de barberos por servicio.
  */
 export class ServicioResponseDto {
-    @ApiProperty({ example: 1, description: 'ID único del servicio' })
-    id: number;
+  @ApiProperty({ example: 1, description: 'ID único del servicio' })
+  id: number;
 
-    @ApiProperty({ example: 'Corte de cabello', description: 'Nombre del servicio' })
-    nombre: string;
+  @ApiProperty({
+    example: 'Corte de cabello',
+    description: 'Nombre del servicio',
+  })
+  nombre: string;
 
-    @ApiProperty({ example: 'Corte clásico con tijera y máquina', description: 'Descripción del servicio', required: false })
-    descripcion?: string | null;
+  @ApiProperty({
+    example: 'Corte clásico con tijera y máquina',
+    description: 'Descripción del servicio',
+    required: false,
+  })
+  descripcion?: string | null;
 
-    @ApiProperty({ example: 15000, description: 'Precio del servicio en pesos' })
-    precio: number;
+  @ApiProperty({ example: 15000, description: 'Precio del servicio en pesos' })
+  precio: number;
 
-    @ApiProperty({ example: 30, description: 'Duración del servicio en minutos' })
-    duracionMinutos: number;
+  @ApiProperty({ example: 30, description: 'Duración del servicio en minutos' })
+  duracionMinutos: number;
 
-    @ApiProperty({ example: '/uploads/servicios/corte.jpg', description: 'URL de la foto del servicio', required: false })
-    fotoUrl?: string | null;
+  @ApiProperty({
+    example: '/uploads/servicios/corte.jpg',
+    description: 'URL de la foto del servicio',
+    required: false,
+  })
+  fotoUrl?: string | null;
 
-    @ApiProperty({ example: 'ACTIVO', description: 'Estado del servicio (ACTIVO o INACTIVO)' })
-    estado: string;
+  @ApiProperty({
+    example: 'ACTIVO',
+    description: 'Estado del servicio (ACTIVO o INACTIVO)',
+  })
+  estado: string;
 
-    @ApiProperty({ type: [BarberoEnServicioDto], description: 'Barberos que prestan este servicio' })
-    barberos: BarberoEnServicioDto[];
+  @ApiProperty({
+    type: [BarberoEnServicioDto],
+    description: 'Barberos que prestan este servicio',
+  })
+  barberos: BarberoEnServicioDto[];
 }

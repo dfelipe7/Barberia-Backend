@@ -133,3 +133,13 @@ export type Reservation = Prisma.ReservationModel
  * 
  */
 export type WhatsAppPlantilla = Prisma.WhatsAppPlantillaModel
+/**
+ * Model ConfiguracionSistema
+ * Parámetro funcional de la aplicación almacenado en base de datos.
+ * 
+ * `valor` se guarda como texto para poder representar configuraciones de
+ * cualquier tipo sin perder la capacidad de validarlas: `tipo` indica cómo
+ * interpretar y validar el contenido al leerlo. Los secretos y credenciales NO
+ * se migran aquí: permanecen en variables de entorno.
+ */
+export type ConfiguracionSistema = Prisma.ConfiguracionSistemaModel

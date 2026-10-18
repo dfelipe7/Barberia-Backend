@@ -70,10 +70,7 @@ export class UsuariosRepository {
     });
   }
 
-  async actualizarEstadoUsuario(
-    usuarioId: number,
-    estado: EstadoUsuario,
-  ) {
+  async actualizarEstadoUsuario(usuarioId: number, estado: EstadoUsuario) {
     return this.prisma.usuario.update({
       where: {
         id: usuarioId,

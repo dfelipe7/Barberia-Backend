@@ -1,7 +1,18 @@
-import { BadRequestException, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as crypto from 'node:crypto';
 import { ReservationStatus, WeekDay } from '../../../../generated/prisma/enums';
-import { ReservasService, MENSAJE_RESERVA_MODIFICADA, MENSAJE_RESERVA_CANCELADA, MENSAJE_HORARIO_NO_DISPONIBLE, MENSAJE_RESERVA_NO_DISPONIBLE } from './reservas.service';
+import {
+  ReservasService,
+  MENSAJE_RESERVA_MODIFICADA,
+  MENSAJE_RESERVA_CANCELADA,
+  MENSAJE_HORARIO_NO_DISPONIBLE,
+  MENSAJE_RESERVA_NO_DISPONIBLE,
+} from './reservas.service';
 import { EstadoFranja } from '../../horarios/common/estado-franja';
 
 describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
@@ -35,10 +46,18 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
     obtenerDiaSemana: jest.fn().mockReturnValue(WeekDay.SUNDAY),
     obtenerFechaHoyBogota: jest.fn().mockReturnValue('2026-10-31'),
     obtenerHoraActualBogota: jest.fn().mockReturnValue('10:00'),
+    obtenerFechaBogota: jest.fn().mockReturnValue('2026-10-31'),
+    obtenerHoraBogota: jest.fn().mockReturnValue('10:00'),
   };
 
   const mockBarberosRepository = {
     obtenerBarberoActivoPorId: jest.fn(),
+  };
+
+  const mockConfiguracionService = {
+    obtenerNumero: jest.fn((_clave: string, porDefecto: number) =>
+      Promise.resolve(porDefecto),
+    ),
   };
 
   const FECHA = '2026-11-01';
@@ -67,12 +86,19 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
       mockServiciosRepository as any,
       mockFechaBogotaService as any,
       mockBarberosRepository as any,
+      mockConfiguracionService as any,
     );
 
-    mockServiciosRepository.obtenerServicioActivoPorId.mockResolvedValue(servicioMock);
-    mockServiciosRepository.listarBarberosActivosPorServicio.mockResolvedValue([barberoMock]);
+    mockServiciosRepository.obtenerServicioActivoPorId.mockResolvedValue(
+      servicioMock,
+    );
+    mockServiciosRepository.listarBarberosActivosPorServicio.mockResolvedValue([
+      barberoMock,
+    ]);
     mockServiciosRepository.existeAsignacionBarbero.mockResolvedValue(true);
-    mockBarberosRepository.obtenerBarberoActivoPorId.mockResolvedValue(barberoMock);
+    mockBarberosRepository.obtenerBarberoActivoPorId.mockResolvedValue(
+      barberoMock,
+    );
     mockDisponibilidadService.calcularDisponibilidad.mockResolvedValue([
       { startTime: HORA, endTime: HORA_FIN, estado: EstadoFranja.AVAILABLE },
       { startTime: '16:00', endTime: '17:00', estado: EstadoFranja.AVAILABLE },
@@ -115,22 +141,24 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
   it('2. La base de datos guarda el hash SHA-256 y nunca el token original', async () => {
     let hashEnviadoARepo: string | undefined;
 
-    mockReservasRepository.crearConBloqueo.mockImplementation(async (datos: any) => {
-      hashEnviadoARepo = datos.gestionTokenHash;
-      return {
-        id: 42,
-        barberoId: 3,
-        servicioId: 2,
-        clienteId: 99,
-        date: new Date(`${FECHA}T00:00:00.000Z`),
-        dayOfWeek: WeekDay.SUNDAY,
-        startTime: HORA,
-        endTime: HORA_FIN,
-        status: ReservationStatus.PENDING,
-        precioReservado: 50000,
-        gestionTokenHash: hashEnviadoARepo,
-      };
-    });
+    mockReservasRepository.crearConBloqueo.mockImplementation(
+      async (datos: any) => {
+        hashEnviadoARepo = datos.gestionTokenHash;
+        return {
+          id: 42,
+          barberoId: 3,
+          servicioId: 2,
+          clienteId: 99,
+          date: new Date(`${FECHA}T00:00:00.000Z`),
+          dayOfWeek: WeekDay.SUNDAY,
+          startTime: HORA,
+          endTime: HORA_FIN,
+          status: ReservationStatus.PENDING,
+          precioReservado: 50000,
+          gestionTokenHash: hashEnviadoARepo,
+        };
+      },
+    );
 
     const respuesta = await service.crearReserva({
       barberoId: 3,
@@ -146,14 +174,20 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
     // El hash NO es igual al token original
     expect(hashEnviadoARepo).not.toBe(tokenOriginal);
     // El hash coincide con el SHA-256 del token original
-    const hashEsperado = crypto.createHash('sha256').update(tokenOriginal).digest('hex');
+    const hashEsperado = crypto
+      .createHash('sha256')
+      .update(tokenOriginal)
+      .digest('hex');
     expect(hashEnviadoARepo).toBe(hashEsperado);
   });
 
   // 3. El invitado puede modificar su reserva con el token correcto.
   it('3. El invitado puede modificar su reserva con el token correcto', async () => {
     const tokenValido = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(tokenValido).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(tokenValido)
+      .digest('hex');
 
     const reservaExistente = {
       id: 42,
@@ -171,8 +205,12 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
       servicio: servicioMock,
     };
 
-    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(reservaExistente);
-    mockReservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(false);
+    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(
+      reservaExistente,
+    );
+    mockReservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(
+      false,
+    );
     mockReservasRepository.modificarConBloqueo.mockResolvedValue({
       ...reservaExistente,
       startTime: '16:00',
@@ -198,7 +236,10 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
   // 4. El invitado puede cancelar su reserva con el token correcto.
   it('4. El invitado puede cancelar su reserva con el token correcto', async () => {
     const tokenValido = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(tokenValido).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(tokenValido)
+      .digest('hex');
 
     const reservaExistente = {
       id: 42,
@@ -216,7 +257,9 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
       servicio: servicioMock,
     };
 
-    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(reservaExistente);
+    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(
+      reservaExistente,
+    );
     mockReservasRepository.cancelar.mockResolvedValue({
       ...reservaExistente,
       status: ReservationStatus.CANCELLED,
@@ -233,7 +276,10 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
   // 5. La modificación conserva la reserva original cuando falla la validación o la disponibilidad.
   it('5. La modificación conserva la reserva original cuando falla la disponibilidad', async () => {
     const tokenValido = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(tokenValido).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(tokenValido)
+      .digest('hex');
 
     const reservaExistente = {
       id: 42,
@@ -251,7 +297,9 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
       servicio: servicioMock,
     };
 
-    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(reservaExistente);
+    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(
+      reservaExistente,
+    );
     // Simular que el horario solicitado está ocupado en DisponibilidadService
     mockDisponibilidadService.calcularDisponibilidad.mockResolvedValue([
       { startTime: '16:00', endTime: '17:00', estado: EstadoFranja.RESERVED },
@@ -268,7 +316,10 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
   // 6. Un token incorrecto o ausente no permite modificar ni cancelar (404 idéntico a inexistente).
   it('6. Un token incorrecto o ausente produce exactamente el mismo error 404 que una reserva inexistente', async () => {
     const tokenReal = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(tokenReal).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(tokenReal)
+      .digest('hex');
 
     const reservaExistente = {
       id: 42,
@@ -286,16 +337,18 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
       servicio: servicioMock,
     };
 
-    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(reservaExistente);
+    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(
+      reservaExistente,
+    );
 
     // Token ausente / vacío -> 404 (La reserva no se encuentra disponible)
     await expect(
       service.modificarReservaInvitado(42, '', { hora: '16:00' }),
     ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
 
-    await expect(
-      service.cancelarReservaInvitado(42, ''),
-    ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
+    await expect(service.cancelarReservaInvitado(42, '')).rejects.toThrow(
+      new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE),
+    );
 
     // Token incorrecto -> 404 (La reserva no se encuentra disponible)
     const tokenFalso = crypto.randomBytes(32).toString('hex');
@@ -314,10 +367,16 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
   // 7. El token de una reserva no permite gestionar otra (responde 404 idéntico a inexistente).
   it('7. El token de una reserva A no permite gestionar una reserva B (responde 404 idéntico a inexistente)', async () => {
     const tokenReservaA = crypto.randomBytes(32).toString('hex');
-    const hashReservaA = crypto.createHash('sha256').update(tokenReservaA).digest('hex');
+    const hashReservaA = crypto
+      .createHash('sha256')
+      .update(tokenReservaA)
+      .digest('hex');
 
     const tokenReservaB = crypto.randomBytes(32).toString('hex');
-    const hashReservaB = crypto.createHash('sha256').update(tokenReservaB).digest('hex');
+    const hashReservaB = crypto
+      .createHash('sha256')
+      .update(tokenReservaB)
+      .digest('hex');
 
     // Reserva B en base de datos
     mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue({
@@ -353,7 +412,9 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
   // 8. Un cliente autenticado sigue utilizando los endpoints existentes y no necesita un token de invitado.
   it('8. Un cliente autenticado sigue utilizando endpoints /me y no genera ni requiere token de gestión', async () => {
     mockClientesRepository.obtenerPorId.mockResolvedValue({ id: 55 });
-    mockReservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(false);
+    mockReservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(
+      false,
+    );
     mockReservasRepository.crearConBloqueo.mockResolvedValue({
       id: 50,
       barberoId: 3,
@@ -396,21 +457,24 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
       servicio: servicioMock,
     };
 
-    mockReservasRepository.obtenerReservaDeCliente.mockResolvedValue(reservaClienteAutenticado);
+    mockReservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+      reservaClienteAutenticado,
+    );
     mockReservasRepository.modificarConBloqueo.mockResolvedValue({
       ...reservaClienteAutenticado,
       startTime: '16:00',
       endTime: '17:00',
     });
 
-    const respuestaMod = await service.modificarReserva(
-      { clienteId: 55 },
-      50,
-      { hora: '16:00' },
-    );
+    const respuestaMod = await service.modificarReserva({ clienteId: 55 }, 50, {
+      hora: '16:00',
+    });
 
     expect(respuestaMod.mensaje).toBe(MENSAJE_RESERVA_MODIFICADA);
-    expect(mockReservasRepository.obtenerReservaDeCliente).toHaveBeenCalledWith(55, 50);
+    expect(mockReservasRepository.obtenerReservaDeCliente).toHaveBeenCalledWith(
+      55,
+      50,
+    );
   });
 
   // 9. Un invitado no puede acceder a las reservas privadas de un cliente autenticado mediante token de gestión.
@@ -449,7 +513,10 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
   // 10. Cancelar libera correctamente la franja y conserva el historial.
   it('10. Cancelar transiciona a CANCELLED (sin borrado físico) y es idempotente', async () => {
     const tokenValido = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(tokenValido).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(tokenValido)
+      .digest('hex');
 
     const reservaExistente = {
       id: 42,
@@ -467,7 +534,9 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
       servicio: servicioMock,
     };
 
-    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(reservaExistente);
+    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(
+      reservaExistente,
+    );
     mockReservasRepository.cancelar.mockResolvedValue({
       ...reservaExistente,
       status: ReservationStatus.CANCELLED,
@@ -493,7 +562,10 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
   // 11. La concurrencia continúa protegida por los mecanismos existentes.
   it('11. Traduce colisiones de concurrencia P2002 a 409 con el mensaje de negocio', async () => {
     const tokenValido = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(tokenValido).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(tokenValido)
+      .digest('hex');
 
     const reservaExistente = {
       id: 42,
@@ -511,8 +583,12 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
       servicio: servicioMock,
     };
 
-    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(reservaExistente);
-    mockReservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(false);
+    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(
+      reservaExistente,
+    );
+    mockReservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(
+      false,
+    );
 
     // Simula fallo P2002 en base de datos al competir con otra transacción
     mockReservasRepository.modificarConBloqueo.mockRejectedValue({
@@ -530,7 +606,10 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
     const loggerSpy = jest.spyOn((service as any).logger, 'log');
 
     const tokenValido = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(tokenValido).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(tokenValido)
+      .digest('hex');
 
     const reservaExistente = {
       id: 42,
@@ -548,7 +627,9 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
       servicio: servicioMock,
     };
 
-    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(reservaExistente);
+    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(
+      reservaExistente,
+    );
     mockReservasRepository.cancelar.mockResolvedValue({
       ...reservaExistente,
       status: ReservationStatus.CANCELLED,
@@ -576,7 +657,10 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
   // 13. Prevención de oráculo de inferencia: reserva inexistente vs reserva con credencial incorrecta
   it('13. Prevención de canal encubierto: reserva inexistente y reserva con credencial incorrecta devuelven respuesta idéntica (404 Not Found)', async () => {
     const tokenValido = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(tokenValido).digest('hex');
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(tokenValido)
+      .digest('hex');
     const tokenIncorrecto = crypto.randomBytes(32).toString('hex');
 
     const reservaReal = {
@@ -596,11 +680,15 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
     };
 
     // Caso A: Reserva inexistente (id 9999)
-    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(null);
+    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(
+      null,
+    );
 
     let errorModificarInexistente: any;
     try {
-      await service.modificarReservaInvitado(9999, tokenIncorrecto, { hora: '16:00' });
+      await service.modificarReservaInvitado(9999, tokenIncorrecto, {
+        hora: '16:00',
+      });
     } catch (err) {
       errorModificarInexistente = err;
     }
@@ -613,11 +701,15 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
     }
 
     // Caso B: Reserva existente (id 77) con token incorrecto
-    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(reservaReal);
+    mockReservasRepository.obtenerReservaParaGestionInvitado.mockResolvedValue(
+      reservaReal,
+    );
 
     let errorModificarExistenteTokenMalo: any;
     try {
-      await service.modificarReservaInvitado(77, tokenIncorrecto, { hora: '16:00' });
+      await service.modificarReservaInvitado(77, tokenIncorrecto, {
+        hora: '16:00',
+      });
     } catch (err) {
       errorModificarExistenteTokenMalo = err;
     }
@@ -644,19 +736,35 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
     expect(errorModificarInexistente.getStatus()).toBe(404);
     expect(errorModificarExistenteTokenMalo.getStatus()).toBe(404);
     expect(errorModificarExistenteTokenVacio.getStatus()).toBe(404);
-    expect(errorModificarInexistente.message).toBe(MENSAJE_RESERVA_NO_DISPONIBLE);
-    expect(errorModificarExistenteTokenMalo.message).toBe(MENSAJE_RESERVA_NO_DISPONIBLE);
-    expect(errorModificarExistenteTokenVacio.message).toBe(MENSAJE_RESERVA_NO_DISPONIBLE);
-    expect(errorModificarInexistente.getResponse()).toEqual(errorModificarExistenteTokenMalo.getResponse());
-    expect(errorModificarInexistente.getResponse()).toEqual(errorModificarExistenteTokenVacio.getResponse());
+    expect(errorModificarInexistente.message).toBe(
+      MENSAJE_RESERVA_NO_DISPONIBLE,
+    );
+    expect(errorModificarExistenteTokenMalo.message).toBe(
+      MENSAJE_RESERVA_NO_DISPONIBLE,
+    );
+    expect(errorModificarExistenteTokenVacio.message).toBe(
+      MENSAJE_RESERVA_NO_DISPONIBLE,
+    );
+    expect(errorModificarInexistente.getResponse()).toEqual(
+      errorModificarExistenteTokenMalo.getResponse(),
+    );
+    expect(errorModificarInexistente.getResponse()).toEqual(
+      errorModificarExistenteTokenVacio.getResponse(),
+    );
 
     // Validar equivalencia estricta para CANCELACIÓN
     expect(errorCancelarInexistente).toBeInstanceOf(NotFoundException);
     expect(errorCancelarExistenteTokenMalo).toBeInstanceOf(NotFoundException);
     expect(errorCancelarInexistente.getStatus()).toBe(404);
     expect(errorCancelarExistenteTokenMalo.getStatus()).toBe(404);
-    expect(errorCancelarInexistente.message).toBe(MENSAJE_RESERVA_NO_DISPONIBLE);
-    expect(errorCancelarExistenteTokenMalo.message).toBe(MENSAJE_RESERVA_NO_DISPONIBLE);
-    expect(errorCancelarInexistente.getResponse()).toEqual(errorCancelarExistenteTokenMalo.getResponse());
+    expect(errorCancelarInexistente.message).toBe(
+      MENSAJE_RESERVA_NO_DISPONIBLE,
+    );
+    expect(errorCancelarExistenteTokenMalo.message).toBe(
+      MENSAJE_RESERVA_NO_DISPONIBLE,
+    );
+    expect(errorCancelarInexistente.getResponse()).toEqual(
+      errorCancelarExistenteTokenMalo.getResponse(),
+    );
   });
 });

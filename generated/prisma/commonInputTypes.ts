@@ -375,6 +375,23 @@ export type DecimalNullableWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedDecimalNullableFilter<$PrismaModel>
 }
 
+export type EnumTipoConfiguracionFilter<$PrismaModel = never> = {
+  equals?: $Enums.TipoConfiguracion | Prisma.EnumTipoConfiguracionFieldRefInput<$PrismaModel>
+  in?: $Enums.TipoConfiguracion[]
+  notIn?: $Enums.TipoConfiguracion[]
+  not?: Prisma.NestedEnumTipoConfiguracionFilter<$PrismaModel> | $Enums.TipoConfiguracion
+}
+
+export type EnumTipoConfiguracionWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TipoConfiguracion | Prisma.EnumTipoConfiguracionFieldRefInput<$PrismaModel>
+  in?: $Enums.TipoConfiguracion[]
+  notIn?: $Enums.TipoConfiguracion[]
+  not?: Prisma.NestedEnumTipoConfiguracionWithAggregatesFilter<$PrismaModel> | $Enums.TipoConfiguracion
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTipoConfiguracionFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTipoConfiguracionFilter<$PrismaModel>
+}
+
 export type NestedIntFilter<$PrismaModel = never> = {
   equals?: number | Prisma.IntFieldRefInput<$PrismaModel>
   in?: number[]
@@ -751,6 +768,23 @@ export type NestedDecimalNullableWithAggregatesFilter<$PrismaModel = never> = {
   _sum?: Prisma.NestedDecimalNullableFilter<$PrismaModel>
   _min?: Prisma.NestedDecimalNullableFilter<$PrismaModel>
   _max?: Prisma.NestedDecimalNullableFilter<$PrismaModel>
+}
+
+export type NestedEnumTipoConfiguracionFilter<$PrismaModel = never> = {
+  equals?: $Enums.TipoConfiguracion | Prisma.EnumTipoConfiguracionFieldRefInput<$PrismaModel>
+  in?: $Enums.TipoConfiguracion[]
+  notIn?: $Enums.TipoConfiguracion[]
+  not?: Prisma.NestedEnumTipoConfiguracionFilter<$PrismaModel> | $Enums.TipoConfiguracion
+}
+
+export type NestedEnumTipoConfiguracionWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TipoConfiguracion | Prisma.EnumTipoConfiguracionFieldRefInput<$PrismaModel>
+  in?: $Enums.TipoConfiguracion[]
+  notIn?: $Enums.TipoConfiguracion[]
+  not?: Prisma.NestedEnumTipoConfiguracionWithAggregatesFilter<$PrismaModel> | $Enums.TipoConfiguracion
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTipoConfiguracionFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTipoConfiguracionFilter<$PrismaModel>
 }
 
 

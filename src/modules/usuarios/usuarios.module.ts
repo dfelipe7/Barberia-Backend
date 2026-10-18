@@ -30,10 +30,6 @@ import { BarberosRepository } from './repository/barberos.repository';
     BarberosController,
     UsuariosController,
   ],
-  exports: [
-    UsuariosRepository,
-    AdministradoresRepository,
-    BarberosRepository,
-  ],
+  exports: [UsuariosRepository, AdministradoresRepository, BarberosRepository],
 })
 export class UsuariosModule {}

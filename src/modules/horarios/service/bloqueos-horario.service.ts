@@ -411,7 +411,7 @@ export class BloqueosHorarioService {
   ): Promise<BloqueoHorarioRegistro> {
     const bloqueo = await this.bloqueosRepository.obtenerPorId(id);
 
-    if (!bloqueo || bloqueo.barberoId !== barberoId) {
+    if (bloqueo?.barberoId !== barberoId) {
       throw new NotFoundException(
         'El bloqueo no existe o no pertenece al barbero autenticado',
       );

@@ -128,6 +128,37 @@ async function main() {
   }
   console.log('✅ Servicios de la barbería listos.');
 
+  // Configuración funcional del sistema (parámetros editables en base de datos).
+  // El upsert con `update: {}` es idempotente: crea la clave si falta y, si ya
+  // existe, respeta el valor editado (no lo sobrescribe).
+  const configuracionesPorDefecto = [
+    {
+      clave: 'reserva_cancelacion_antelacion_minutos',
+      valor: '120',
+      tipo: 'NUMERO' as const,
+      descripcion:
+        'Minutos mínimos de antelación para que un cliente cancele su reserva en línea.',
+      editable: true,
+    },
+    {
+      clave: 'reserva_no_show_tolerancia_minutos',
+      valor: '15',
+      tipo: 'NUMERO' as const,
+      descripcion:
+        'Minutos de tolerancia tras la hora de inicio antes de poder marcar una reserva como NO_SHOW.',
+      editable: true,
+    },
+  ];
+
+  for (const configuracion of configuracionesPorDefecto) {
+    await prisma.configuracionSistema.upsert({
+      where: { clave: configuracion.clave },
+      update: {},
+      create: configuracion,
+    });
+  }
+  console.log('✅ Parámetros de configuración del sistema listos.');
+
   console.log('🎉 Siembra completada con éxito.');
 }
 

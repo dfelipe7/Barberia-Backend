@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ReservasController } from './reservas.controller';
-import { MENSAJE_RESERVA_NO_DISPONIBLE, ReservasService } from '../service/reservas.service';
+import {
+  MENSAJE_RESERVA_NO_DISPONIBLE,
+  ReservasService,
+} from '../service/reservas.service';
 import { ClienteJwtAuthGuard } from '../../../auth/clientes/guards/cliente-jwt-auth.guard';
 import { ClienteOpcionalJwtAuthGuard } from '../../../auth/clientes/guards/cliente-opcional-jwt-auth.guard';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
@@ -18,6 +21,8 @@ describe('ReservasController', () => {
     cancelarReserva: jest.fn(),
     modificarReservaInvitado: jest.fn(),
     cancelarReservaInvitado: jest.fn(),
+    noShowReserva: jest.fn(),
+    completarReserva: jest.fn(),
     obtenerAgendaBarbero: jest.fn(),
     obtenerAgendaSemanalBarbero: jest.fn(),
   };
@@ -149,7 +154,10 @@ describe('ReservasController', () => {
     const modDto = { fecha: '2026-11-02', hora: '15:00' };
 
     it('modifica la reserva delegando al servicio con la identidad autenticada', async () => {
-      const mockRespuesta = { id: 42, mensaje: 'Reserva modificada correctamente' };
+      const mockRespuesta = {
+        id: 42,
+        mensaje: 'Reserva modificada correctamente',
+      };
       reservasService.modificarReserva.mockResolvedValue(mockRespuesta);
 
       const resultado = await controller.modificarMiReserva(
@@ -181,7 +189,10 @@ describe('ReservasController', () => {
 
   describe('cancelarMiReserva', () => {
     it('cancela la reserva delegando al servicio con la identidad autenticada', async () => {
-      const mockRespuesta = { id: 42, mensaje: 'Reserva cancelada correctamente' };
+      const mockRespuesta = {
+        id: 42,
+        mensaje: 'Reserva cancelada correctamente',
+      };
       reservasService.cancelarReserva.mockResolvedValue(mockRespuesta);
 
       const resultado = await controller.cancelarMiReserva(
@@ -211,7 +222,10 @@ describe('ReservasController', () => {
     const tokenIncorrecto = 'token-falso-456';
 
     it('1. Un token válido en el encabezado autoriza la modificación', async () => {
-      const mockRespuesta = { id: 42, mensaje: 'Reserva modificada correctamente' };
+      const mockRespuesta = {
+        id: 42,
+        mensaje: 'Reserva modificada correctamente',
+      };
       reservasService.modificarReservaInvitado.mockResolvedValue(mockRespuesta);
 
       const resultado = await controller.modificarReservaInvitado(
@@ -234,7 +248,11 @@ describe('ReservasController', () => {
       const cuerpoConTokenInyectado = { ...modDto, token: tokenValido } as any;
 
       await expect(
-        controller.modificarReservaInvitado(42, undefined, cuerpoConTokenInyectado),
+        controller.modificarReservaInvitado(
+          42,
+          undefined,
+          cuerpoConTokenInyectado,
+        ),
       ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
 
       await expect(
@@ -252,7 +270,11 @@ describe('ReservasController', () => {
       const cuerpoConTokenInyectado = { ...modDto, token: tokenValido } as any;
 
       await expect(
-        controller.modificarReservaInvitado(42, tokenIncorrecto, cuerpoConTokenInyectado),
+        controller.modificarReservaInvitado(
+          42,
+          tokenIncorrecto,
+          cuerpoConTokenInyectado,
+        ),
       ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
 
       expect(reservasService.modificarReservaInvitado).toHaveBeenCalledWith(
@@ -286,7 +308,10 @@ describe('ReservasController', () => {
     const tokenIncorrecto = 'token-falso-456';
 
     it('1. Un token válido en el encabezado autoriza la cancelación', async () => {
-      const mockRespuesta = { id: 42, mensaje: 'Reserva cancelada correctamente' };
+      const mockRespuesta = {
+        id: 42,
+        mensaje: 'Reserva cancelada correctamente',
+      };
       reservasService.cancelarReservaInvitado.mockResolvedValue(mockRespuesta);
 
       const resultado = await controller.cancelarReservaInvitado(
@@ -344,6 +369,69 @@ describe('ReservasController', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(reservasService.cancelarReservaInvitado).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('marcarNoShow', () => {
+    const mockUser = { id: 5, rol: 'BARBERO' };
+
+    it('delega en el servicio con la identidad y el rol del usuario autenticado', async () => {
+      const mockRespuesta = {
+        id: 42,
+        mensaje: 'Reserva marcada como no asistida',
+        estado: 'NO_SHOW',
+      };
+      reservasService.noShowReserva.mockResolvedValue(mockRespuesta);
+
+      const resultado = await controller.marcarNoShow({ user: mockUser }, 42);
+
+      expect(resultado).toBe(mockRespuesta);
+      expect(reservasService.noShowReserva).toHaveBeenCalledWith(
+        mockUser,
+        'BARBERO',
+        42,
+      );
+    });
+
+    it('rechaza un reservaId no positivo con 400', async () => {
+      await expect(
+        controller.marcarNoShow({ user: mockUser }, 0),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(reservasService.noShowReserva).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('completarReserva', () => {
+    const mockUser = { id: 5, rol: 'BARBERO' };
+
+    it('delega en el servicio con la identidad y el rol del usuario autenticado', async () => {
+      const mockRespuesta = {
+        id: 42,
+        mensaje: 'Reserva completada correctamente',
+        estado: 'COMPLETED',
+      };
+      reservasService.completarReserva.mockResolvedValue(mockRespuesta);
+
+      const resultado = await controller.completarReserva(
+        { user: mockUser },
+        42,
+      );
+
+      expect(resultado).toBe(mockRespuesta);
+      expect(reservasService.completarReserva).toHaveBeenCalledWith(
+        mockUser,
+        'BARBERO',
+        42,
+      );
+    });
+
+    it('rechaza un reservaId no positivo con 400', async () => {
+      await expect(
+        controller.completarReserva({ user: mockUser }, 0),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(reservasService.completarReserva).not.toHaveBeenCalled();
     });
   });
 });

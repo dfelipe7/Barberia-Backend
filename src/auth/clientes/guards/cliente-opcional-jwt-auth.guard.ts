@@ -19,11 +19,14 @@ export class ClienteOpcionalJwtAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const token = extraerBearer(request.headers?.authorization);
 
-    if (!token) {
-      return true;
+    // Sin token: la reserva continúa como invitado. Con token: se verifica la
+    // identidad del cliente y, si es inválido, `verificar` lanza 401 (nunca se
+    // degrada silenciosamente a invitado). En ambos casos autorizados se
+    // permite el paso, por lo que el retorno se expresa una sola vez.
+    if (token) {
+      request.cliente = await this.clienteJwtService.verificar(token);
     }
 
-    request.cliente = await this.clienteJwtService.verificar(token);
     return true;
   }
 }

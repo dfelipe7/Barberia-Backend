@@ -1,16 +1,12 @@
-import {
-  Injectable,
-  OnModuleInit,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { UsuariosRepository } from '../modules/usuarios/repository/usuarios.repository';
 
 /**
  * Servicio de Arranque (Bootstrap)
- * 
+ *
  * Este servicio utiliza el ciclo de vida `OnModuleInit` de NestJS.
  * Se ejecuta automáticamente UNA SOLA VEZ cada vez que el servidor backend se enciende.
- * 
+ *
  * Su propósito principal es garantizar que siempre existan los superadministradores fundadores
  * en la base de datos MySQL local para que el sistema esté listo para operar con Google OAuth.
  */
@@ -18,9 +14,7 @@ import { UsuariosRepository } from '../modules/usuarios/repository/usuarios.repo
 export class BootstrapService implements OnModuleInit {
   private readonly logger = new Logger(BootstrapService.name);
 
-  constructor(
-    private readonly usuariosRepository: UsuariosRepository,
-  ) {}
+  constructor(private readonly usuariosRepository: UsuariosRepository) {}
 
   async onModuleInit() {
     await this.asegurarSuperadminsFundadores();
@@ -57,10 +51,13 @@ export class BootstrapService implements OnModuleInit {
     await Promise.all(
       superadmins.map(async (admin) => {
         try {
-          const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorEmail(admin.email);
+          const usuarioExistente =
+            await this.usuariosRepository.obtenerUsuarioPorEmail(admin.email);
           if (usuarioExistente) {
             // Conservar los cambios realizados desde la app (rol, estado, nombre)
-            this.logger.log(`Usuario fundador verificado: ${usuarioExistente.nombre} (${admin.email}) - Rol actual: ${usuarioExistente.rol}, Estado: ${usuarioExistente.estado}`);
+            this.logger.log(
+              `Usuario fundador verificado: ${usuarioExistente.nombre} (${admin.email}) - Rol actual: ${usuarioExistente.rol}, Estado: ${usuarioExistente.estado}`,
+            );
           } else {
             // Si no existe, se crea por primera vez como SUPERADMIN y ACTIVO
             await this.usuariosRepository.crearUsuario({
@@ -69,12 +66,16 @@ export class BootstrapService implements OnModuleInit {
               apellido: admin.apellido,
               rol: 'SUPERADMIN',
             });
-            this.logger.log(`Superadmin fundador creado: ${admin.nombre} (${admin.email})`);
+            this.logger.log(
+              `Superadmin fundador creado: ${admin.nombre} (${admin.email})`,
+            );
           }
         } catch (err: any) {
-          this.logger.error(`Error asegurando superadmin ${admin.email}: ${err?.message || err}`);
+          this.logger.error(
+            `Error asegurando superadmin ${admin.email}: ${err?.message || err}`,
+          );
         }
       }),
     );
   }
-}
+}

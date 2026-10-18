@@ -62,12 +62,18 @@ export class AdminHorariosController {
     description:
       'Obtiene las franjas activas del horario semanal del barbero identificado por barberoId.',
   })
-  @ApiParam({ name: 'barberoId', example: 2, description: 'ID del barbero objetivo' })
+  @ApiParam({
+    name: 'barberoId',
+    example: 2,
+    description: 'ID del barbero objetivo',
+  })
   @ApiOkResponse({
     description: 'Horario semanal vigente del barbero.',
     type: HorarioSemanalResponseDto,
   })
-  @ApiNotFoundResponse({ description: 'El barbero especificado no existe o no está activo.' })
+  @ApiNotFoundResponse({
+    description: 'El barbero especificado no existe o no está activo.',
+  })
   @ApiUnauthorizedResponse({ description: 'No autenticado o token inválido.' })
   @ApiForbiddenResponse({ description: 'Acceso restringido a SUPERADMIN.' })
   async obtenerHorarioSemanal(
@@ -83,16 +89,29 @@ export class AdminHorariosController {
     description:
       'Actualiza de forma completa el horario semanal del barbero objetivo. Rechaza la operación si alguna franja reducida o eliminada colisiona con reservas no canceladas.',
   })
-  @ApiParam({ name: 'barberoId', example: 2, description: 'ID del barbero objetivo' })
+  @ApiParam({
+    name: 'barberoId',
+    example: 2,
+    description: 'ID del barbero objetivo',
+  })
   @ApiBody({ type: ReemplazarHorarioSemanalDto })
   @ApiOkResponse({
     description: 'Horario semanal actualizado correctamente.',
     type: HorarioSemanalResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Franjas inválidas o formato incorrecto.' })
-  @ApiNotFoundResponse({ description: 'El barbero especificado no existe o no está activo.' })
-  @ApiConflictResponse({ description: 'Una franja modificada contiene reservas activas (SCHEDULE_CHANGE_AFFECTS_RESERVATIONS).' })
-  @ApiServiceUnavailableResponse({ description: 'El proveedor de reservas no está disponible (fail-closed).' })
+  @ApiBadRequestResponse({
+    description: 'Franjas inválidas o formato incorrecto.',
+  })
+  @ApiNotFoundResponse({
+    description: 'El barbero especificado no existe o no está activo.',
+  })
+  @ApiConflictResponse({
+    description:
+      'Una franja modificada contiene reservas activas (SCHEDULE_CHANGE_AFFECTS_RESERVATIONS).',
+  })
+  @ApiServiceUnavailableResponse({
+    description: 'El proveedor de reservas no está disponible (fail-closed).',
+  })
   @ApiForbiddenResponse({ description: 'Acceso restringido a SUPERADMIN.' })
   async reemplazarHorarioSemanal(
     @Param('barberoId', ParseIntPipe) barberoId: number,
@@ -108,14 +127,21 @@ export class AdminHorariosController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Listar bloqueos de horario de cualquier barbero (SUPERADMIN)',
-    description: 'Lista los periodos de no disponibilidad y bloqueos temporales del barbero objetivo.',
+    description:
+      'Lista los periodos de no disponibilidad y bloqueos temporales del barbero objetivo.',
   })
-  @ApiParam({ name: 'barberoId', example: 2, description: 'ID del barbero objetivo' })
+  @ApiParam({
+    name: 'barberoId',
+    example: 2,
+    description: 'ID del barbero objetivo',
+  })
   @ApiOkResponse({
     description: 'Listado de bloqueos de horario del barbero.',
     type: [BloqueoHorarioResponseDto],
   })
-  @ApiNotFoundResponse({ description: 'El barbero especificado no existe o no está activo.' })
+  @ApiNotFoundResponse({
+    description: 'El barbero especificado no existe o no está activo.',
+  })
   @ApiForbiddenResponse({ description: 'Acceso restringido a SUPERADMIN.' })
   async listarBloqueos(
     @Param('barberoId', ParseIntPipe) barberoId: number,
@@ -134,16 +160,28 @@ export class AdminHorariosController {
     description:
       'Registra un bloqueo temporal ACTIVE validando horario semanal, ausencia de solapamientos, cierres generales y ausencia de reservas activas.',
   })
-  @ApiParam({ name: 'barberoId', example: 2, description: 'ID del barbero objetivo' })
+  @ApiParam({
+    name: 'barberoId',
+    example: 2,
+    description: 'ID del barbero objetivo',
+  })
   @ApiBody({ type: CrearBloqueoHorarioDto })
   @ApiCreatedResponse({
     description: 'Bloqueo creado correctamente.',
     type: BloqueoHorarioAccionResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Datos inválidos o fuera del horario semanal del barbero.' })
-  @ApiNotFoundResponse({ description: 'El barbero especificado no existe o no está activo.' })
-  @ApiConflictResponse({ description: 'El rango contiene una reserva no cancelada.' })
-  @ApiServiceUnavailableResponse({ description: 'El proveedor de reservas no está disponible (fail-closed).' })
+  @ApiBadRequestResponse({
+    description: 'Datos inválidos o fuera del horario semanal del barbero.',
+  })
+  @ApiNotFoundResponse({
+    description: 'El barbero especificado no existe o no está activo.',
+  })
+  @ApiConflictResponse({
+    description: 'El rango contiene una reserva no cancelada.',
+  })
+  @ApiServiceUnavailableResponse({
+    description: 'El proveedor de reservas no está disponible (fail-closed).',
+  })
   @ApiForbiddenResponse({ description: 'Acceso restringido a SUPERADMIN.' })
   async crearBloqueo(
     @Param('barberoId', ParseIntPipe) barberoId: number,
@@ -155,18 +193,31 @@ export class AdminHorariosController {
   @Patch(':barberoId/bloqueos-horario/:id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Modificar un bloqueo de horario de cualquier barbero (SUPERADMIN)',
-    description: 'Actualiza parcialmente un bloqueo ACTIVE del barbero objetivo.',
+    summary:
+      'Modificar un bloqueo de horario de cualquier barbero (SUPERADMIN)',
+    description:
+      'Actualiza parcialmente un bloqueo ACTIVE del barbero objetivo.',
   })
-  @ApiParam({ name: 'barberoId', example: 2, description: 'ID del barbero objetivo' })
-  @ApiParam({ name: 'id', example: 10, description: 'ID del bloqueo a modificar' })
+  @ApiParam({
+    name: 'barberoId',
+    example: 2,
+    description: 'ID del barbero objetivo',
+  })
+  @ApiParam({
+    name: 'id',
+    example: 10,
+    description: 'ID del bloqueo a modificar',
+  })
   @ApiBody({ type: ActualizarBloqueoHorarioDto })
   @ApiOkResponse({
     description: 'Bloqueo actualizado correctamente.',
     type: BloqueoHorarioAccionResponseDto,
   })
   @ApiNotFoundResponse({ description: 'El barbero o el bloqueo no existe.' })
-  @ApiConflictResponse({ description: 'El bloqueo no está ACTIVE o el nuevo horario colisiona con reservas.' })
+  @ApiConflictResponse({
+    description:
+      'El bloqueo no está ACTIVE o el nuevo horario colisiona con reservas.',
+  })
   @ApiForbiddenResponse({ description: 'Acceso restringido a SUPERADMIN.' })
   async actualizarBloqueo(
     @Param('barberoId', ParseIntPipe) barberoId: number,
@@ -184,10 +235,19 @@ export class AdminHorariosController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Cancelar un bloqueo de horario de cualquier barbero (SUPERADMIN)',
-    description: 'Transiciona el bloqueo a CANCELLED sin borrar el registro ni el historial.',
+    description:
+      'Transiciona el bloqueo a CANCELLED sin borrar el registro ni el historial.',
   })
-  @ApiParam({ name: 'barberoId', example: 2, description: 'ID del barbero objetivo' })
-  @ApiParam({ name: 'id', example: 10, description: 'ID del bloqueo a cancelar' })
+  @ApiParam({
+    name: 'barberoId',
+    example: 2,
+    description: 'ID del barbero objetivo',
+  })
+  @ApiParam({
+    name: 'id',
+    example: 10,
+    description: 'ID del bloqueo a cancelar',
+  })
   @ApiOkResponse({
     description: 'Bloqueo cancelado correctamente.',
     type: BloqueoHorarioAccionResponseDto,
@@ -205,11 +265,21 @@ export class AdminHorariosController {
   @Patch(':barberoId/bloqueos-horario/:id/reactivar')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Reactivar/liberar un bloqueo de horario de cualquier barbero (SUPERADMIN)',
-    description: 'Transiciona el bloqueo a REACTIVATED registrando la auditoría de reactivación.',
+    summary:
+      'Reactivar/liberar un bloqueo de horario de cualquier barbero (SUPERADMIN)',
+    description:
+      'Transiciona el bloqueo a REACTIVATED registrando la auditoría de reactivación.',
   })
-  @ApiParam({ name: 'barberoId', example: 2, description: 'ID del barbero objetivo' })
-  @ApiParam({ name: 'id', example: 10, description: 'ID del bloqueo a reactivar' })
+  @ApiParam({
+    name: 'barberoId',
+    example: 2,
+    description: 'ID del barbero objetivo',
+  })
+  @ApiParam({
+    name: 'id',
+    example: 10,
+    description: 'ID del bloqueo a reactivar',
+  })
   @ApiOkResponse({
     description: 'Bloqueo reactivado correctamente.',
     type: BloqueoHorarioAccionResponseDto,

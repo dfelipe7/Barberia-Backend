@@ -30,9 +30,12 @@ export class BarberosService {
    * Crea el usuario en MySQL con rol BARBERO y su perfil asociado.
    */
   async crearBarbero(dto: CrearBarberoDto) {
-    const usuarioExistente = await this.usuariosRepository.obtenerUsuarioPorEmail(dto.email);
+    const usuarioExistente =
+      await this.usuariosRepository.obtenerUsuarioPorEmail(dto.email);
     if (usuarioExistente) {
-      throw new ConflictException('Ya existe un usuario en el sistema con este correo electrónico.');
+      throw new ConflictException(
+        'Ya existe un usuario en el sistema con este correo electrónico.',
+      );
     }
 
     try {
@@ -62,13 +65,17 @@ export class BarberosService {
       };
     } catch (error) {
       this.logger.error('Error guardando barbero en la base de datos:', error);
-      throw new ConflictException('El barbero no pudo registrarse. Intente nuevamente.');
+      throw new ConflictException(
+        'El barbero no pudo registrarse. Intente nuevamente.',
+      );
     }
   }
 
   private async buscarUsuarioAutenticado(usuarioAutenticado: any) {
     if (usuarioAutenticado?.email) {
-      const u = await this.usuariosRepository.obtenerUsuarioPorEmail(usuarioAutenticado.email);
+      const u = await this.usuariosRepository.obtenerUsuarioPorEmail(
+        usuarioAutenticado.email,
+      );
       if (u) return u;
     }
     const idNum = Number(usuarioAutenticado?.id || usuarioAutenticado?.sub);
@@ -93,7 +100,9 @@ export class BarberosService {
   async configurarBarbero(identificador: string, dto: ConfigurarBarberoDto) {
     const idNum = Number(identificador);
     const usuario =
-      (!Number.isNaN(idNum) && idNum > 0 ? await this.usuariosRepository.obtenerUsuarioPorId(idNum) : null) ??
+      (!Number.isNaN(idNum) && idNum > 0
+        ? await this.usuariosRepository.obtenerUsuarioPorId(idNum)
+        : null) ??
       (await this.usuariosRepository.obtenerUsuarioPorEmail(identificador));
 
     if (!usuario) {
@@ -102,9 +111,14 @@ export class BarberosService {
 
     if (usuario.barbero) {
       if ((usuario.barbero as any).estado === 'ACTIVO') {
-        throw new ConflictException('El usuario ya está configurado como barbero');
+        throw new ConflictException(
+          'El usuario ya está configurado como barbero',
+        );
       } else {
-        await this.barberosRepository.actualizarEstadoBarbero(usuario.id, EstadoUsuario.ACTIVO);
+        await this.barberosRepository.actualizarEstadoBarbero(
+          usuario.id,
+          EstadoUsuario.ACTIVO,
+        );
         return this.barberosRepository.actualizarPerfilBarbero(usuario.id, {
           telefono: dto.telefono,
           porcentajeComision: dto.porcentajeComision,
@@ -124,7 +138,8 @@ export class BarberosService {
    * Restringido a administradores.
    */
   async configurarBarberoPorId(usuarioId: number, dto: ConfigurarBarberoDto) {
-    const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+    const usuario =
+      await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
     if (!usuario) {
       throw new ConflictException('El usuario no existe');
@@ -132,10 +147,15 @@ export class BarberosService {
 
     if (usuario.barbero) {
       if ((usuario.barbero as any).estado === 'ACTIVO') {
-        throw new ConflictException('El usuario ya está configurado como barbero');
+        throw new ConflictException(
+          'El usuario ya está configurado como barbero',
+        );
       } else {
-        await this.barberosRepository.actualizarEstadoBarbero(usuario.id, EstadoUsuario.ACTIVO);
-        
+        await this.barberosRepository.actualizarEstadoBarbero(
+          usuario.id,
+          EstadoUsuario.ACTIVO,
+        );
+
         return this.barberosRepository.actualizarPerfilBarbero(usuario.id, {
           telefono: dto.telefono,
           porcentajeComision: dto.porcentajeComision,
@@ -144,7 +164,9 @@ export class BarberosService {
     }
 
     if (!usuario.administrador && usuario.rol !== 'SUPERADMIN') {
-      throw new ConflictException('El usuario no es un administrador ni superadmin');
+      throw new ConflictException(
+        'El usuario no es un administrador ni superadmin',
+      );
     }
 
     return this.barberosRepository.crearPerfilBarbero({
@@ -157,8 +179,13 @@ export class BarberosService {
   /**
    * Actualiza el porcentaje de comisión que gana un barbero por sus servicios.
    */
-  async actualizarComision(usuarioId: number, dto: ActualizarComisionDto, usuarioAutenticado: any) {
-    const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+  async actualizarComision(
+    usuarioId: number,
+    dto: ActualizarComisionDto,
+    usuarioAutenticado: any,
+  ) {
+    const usuario =
+      await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
     if (!usuario) {
       throw new ConflictException('El usuario no existe');
@@ -168,21 +195,30 @@ export class BarberosService {
       throw new ConflictException('El usuario no es un barbero');
     }
 
-    const usuarioActual = await this.buscarUsuarioAutenticado(usuarioAutenticado);
+    const usuarioActual =
+      await this.buscarUsuarioAutenticado(usuarioAutenticado);
 
     if (!usuarioActual) {
-      throw new ConflictException('El usuario autenticado no existe en la base de datos');
+      throw new ConflictException(
+        'El usuario autenticado no existe en la base de datos',
+      );
     }
     this.authorizationService.verificarPermisosComision(usuarioActual, usuario);
-    return this.barberosRepository.actualizarComision(usuarioId, dto.porcentajeComision);
+    return this.barberosRepository.actualizarComision(
+      usuarioId,
+      dto.porcentajeComision,
+    );
   }
 
   /**
    * Obtiene la lista de barberos para el catálogo público.
    * Filtra barberos inactivos y oculta datos sensibles (comisión, email).
    */
-  async obtenerBarberosCatalogo(filtro?: FiltroBarberosDto): Promise<BarberoCatalogoDto[]> {
-    const barberos = await this.barberosRepository.obtenerBarberosCatalogo(filtro);
+  async obtenerBarberosCatalogo(
+    filtro?: FiltroBarberosDto,
+  ): Promise<BarberoCatalogoDto[]> {
+    const barberos =
+      await this.barberosRepository.obtenerBarberosCatalogo(filtro);
 
     return barberos.map((barbero) => ({
       id: barbero.id,
@@ -197,8 +233,11 @@ export class BarberosService {
    * Obtiene la lista completa de barberos para la gestión interna.
    * Incluye datos sensibles como la comisión y el correo.
    */
-  async obtenerBarberosGestion(filtro?: FiltroBarberosDto): Promise<BarberoGestionDto[]> {
-    const barberos = await this.barberosRepository.obtenerBarberosGestion(filtro);
+  async obtenerBarberosGestion(
+    filtro?: FiltroBarberosDto,
+  ): Promise<BarberoGestionDto[]> {
+    const barberos =
+      await this.barberosRepository.obtenerBarberosGestion(filtro);
 
     return barberos.map((barbero) => ({
       id: barbero.usuario.id,
@@ -209,9 +248,14 @@ export class BarberosService {
       porcentajeComision: Number(barbero.porcentajeComision),
       estado: barbero.estado,
       fotoUrl: barbero.fotoUrl,
-      esAdministrador: Boolean(barbero.usuario.administrador && (barbero.usuario.administrador as any).estado === 'ACTIVO'),
+      esAdministrador: Boolean(
+        barbero.usuario.administrador &&
+        (barbero.usuario.administrador as any).estado === 'ACTIVO',
+      ),
       esSuperAdmin: barbero.usuario.rol === 'SUPERADMIN',
-      estadoAdmin: barbero.usuario.administrador ? (barbero.usuario.administrador as any).estado : undefined,
+      estadoAdmin: barbero.usuario.administrador
+        ? (barbero.usuario.administrador as any).estado
+        : undefined,
       estadoGlobal: barbero.usuario.estado,
     }));
   }
@@ -220,44 +264,37 @@ export class BarberosService {
    * Sube y actualiza la foto de perfil de un barbero.
    * Si ya tenía una foto previa en /uploads, la elimina para evitar acumular archivos huérfanos.
    */
-  async subirFotoBarbero(usuarioId: number, archivo: Express.Multer.File, usuarioAutenticado?: any) { // NOSONAR
+  async subirFotoBarbero(
+    usuarioId: number,
+    archivo: Express.Multer.File,
+    usuarioAutenticado?: any,
+  ) {
     if (!archivo) {
-      throw new ConflictException('No se ha proporcionado ningún archivo de imagen');
+      throw new ConflictException(
+        'No se ha proporcionado ningún archivo de imagen',
+      );
     }
 
-    const barbero = await this.barberosRepository.obtenerBarberoPorUsuarioId(usuarioId);
+    const barbero =
+      await this.barberosRepository.obtenerBarberoPorUsuarioId(usuarioId);
     if (!barbero) {
-      try {
-        fs.unlinkSync(archivo.path);
-      } catch {}
-      throw new ConflictException('El usuario no cuenta con un perfil de barbero registrado');
+      this.eliminarArchivoSilencioso(archivo.path);
+      throw new ConflictException(
+        'El usuario no cuenta con un perfil de barbero registrado',
+      );
     }
 
     if (usuarioAutenticado) {
-      const usuarioObjetivo = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
-      const usuarioActual = await this.buscarUsuarioAutenticado(usuarioAutenticado);
-      if (usuarioActual && usuarioObjetivo) {
-        try {
-          this.authorizationService.verificarPermisosEdicion(usuarioActual, usuarioObjetivo);
-        } catch (error) {
-          try {
-            fs.unlinkSync(archivo.path);
-          } catch {}
-          throw error;
-        }
-      }
+      await this.verificarPermisoSubidaFoto(
+        usuarioId,
+        archivo,
+        usuarioAutenticado,
+      );
     }
 
     // Si ya tenía una foto previa en /uploads, la eliminamos del disco
     if (barbero.fotoUrl?.startsWith('/uploads/')) {
-      const rutaAnterior = join(process.cwd(), barbero.fotoUrl);
-      if (fs.existsSync(rutaAnterior)) {
-        try {
-          fs.unlinkSync(rutaAnterior);
-        } catch (e) {
-          console.warn('No se pudo eliminar la foto anterior:', e);
-        }
-      }
+      this.eliminarFotoAnterior(barbero.fotoUrl);
     }
 
     const nuevaFotoUrl = `/uploads/barberos/${archivo.filename}`;
@@ -271,13 +308,59 @@ export class BarberosService {
     };
   }
 
+  private eliminarArchivoSilencioso(ruta: string): void {
+    try {
+      fs.unlinkSync(ruta);
+    } catch {}
+  }
+
+  private async verificarPermisoSubidaFoto(
+    usuarioId: number,
+    archivo: Express.Multer.File,
+    usuarioAutenticado: any,
+  ): Promise<void> {
+    const usuarioObjetivo =
+      await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+    const usuarioActual =
+      await this.buscarUsuarioAutenticado(usuarioAutenticado);
+    if (!usuarioActual || !usuarioObjetivo) {
+      return;
+    }
+
+    try {
+      this.authorizationService.verificarPermisosEdicion(
+        usuarioActual,
+        usuarioObjetivo,
+      );
+    } catch (error) {
+      this.eliminarArchivoSilencioso(archivo.path);
+      throw error;
+    }
+  }
+
+  private eliminarFotoAnterior(fotoUrl: string): void {
+    const rutaAnterior = join(process.cwd(), fotoUrl);
+    if (!fs.existsSync(rutaAnterior)) {
+      return;
+    }
+
+    try {
+      fs.unlinkSync(rutaAnterior);
+    } catch (e) {
+      console.warn('No se pudo eliminar la foto anterior:', e);
+    }
+  }
+
   /**
    * Elimina la foto de perfil del barbero y borra el archivo físico.
    */
   async eliminarFotoBarbero(usuarioId: number) {
-    const barbero = await this.barberosRepository.obtenerBarberoPorUsuarioId(usuarioId);
+    const barbero =
+      await this.barberosRepository.obtenerBarberoPorUsuarioId(usuarioId);
     if (!barbero) {
-      throw new ConflictException('El usuario no cuenta con un perfil de barbero');
+      throw new ConflictException(
+        'El usuario no cuenta con un perfil de barbero',
+      );
     }
 
     if (barbero.fotoUrl?.startsWith('/uploads/')) {
@@ -306,8 +389,13 @@ export class BarberosService {
    * Si se inactiva, se oculta del catálogo público,
    * pero su cuenta global sigue funcionando si tiene otros roles.
    */
-  async cambiarEstadoBarbero(usuarioId: number, dto: CambiarEstadoUsuarioDto, usuarioAutenticado: any) {
-    const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+  async cambiarEstadoBarbero(
+    usuarioId: number,
+    dto: CambiarEstadoUsuarioDto,
+    usuarioAutenticado: any,
+  ) {
+    const usuario =
+      await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
     if (!usuario) {
       throw new ConflictException('El usuario no existe');
@@ -317,26 +405,39 @@ export class BarberosService {
       throw new ConflictException('El usuario no es un barbero');
     }
 
-    const usuarioActual = await this.buscarUsuarioAutenticado(usuarioAutenticado);
+    const usuarioActual =
+      await this.buscarUsuarioAutenticado(usuarioAutenticado);
 
     if (!usuarioActual) {
-      throw new ConflictException('El usuario autenticado no existe en la base de datos');
+      throw new ConflictException(
+        'El usuario autenticado no existe en la base de datos',
+      );
     }
 
-    this.authorizationService.verificarPermisosCambioEstadoBarbero(usuarioActual, usuario);
+    this.authorizationService.verificarPermisosCambioEstadoBarbero(
+      usuarioActual,
+      usuario,
+    );
 
     const nuevoEstado = dto.estado;
     const activo = nuevoEstado === EstadoUsuario.ACTIVO;
 
     if (!activo) {
-      const esAdminActivo = usuario.administrador?.estado === EstadoUsuario.ACTIVO || usuario.rol === 'ADMINISTRADOR';
+      const esAdminActivo =
+        usuario.administrador?.estado === EstadoUsuario.ACTIVO ||
+        usuario.rol === 'ADMINISTRADOR';
       const esSuperAdmin = usuario.rol === 'SUPERADMIN';
       if (!esSuperAdmin && !esAdminActivo) {
-        await this.usuariosRepository.actualizarEstadoUsuario(usuarioId, EstadoUsuario.INACTIVO);
+        await this.usuariosRepository.actualizarEstadoUsuario(
+          usuarioId,
+          EstadoUsuario.INACTIVO,
+        );
       }
     }
 
-    return this.barberosRepository.actualizarEstadoBarbero(usuarioId, nuevoEstado);
+    return this.barberosRepository.actualizarEstadoBarbero(
+      usuarioId,
+      nuevoEstado,
+    );
   }
 }
-

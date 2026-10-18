@@ -17,6 +17,7 @@ describe('ReservasService - Administración (HU-13 y SUPERADMIN)', () => {
   let fechaBogotaService: any;
   let barberosRepo: any;
   let whatsappService: any;
+  let configuracionService: any;
 
   beforeEach(() => {
     reservasRepo = {
@@ -65,13 +66,17 @@ describe('ReservasService - Administración (HU-13 y SUPERADMIN)', () => {
     serviciosRepo = {
       obtenerServicioActivoPorId: jest.fn(),
       existeAsignacionBarbero: jest.fn(),
-      listarBarberosActivosPorServicio: jest.fn().mockResolvedValue([
-        { id: 2, usuario: { nombre: 'Duvan', apellido: 'Armero' } },
-      ]),
+      listarBarberosActivosPorServicio: jest
+        .fn()
+        .mockResolvedValue([
+          { id: 2, usuario: { nombre: 'Duvan', apellido: 'Armero' } },
+        ]),
     };
 
     fechaBogotaService = {
-      esFechaCalendarioValida: jest.fn().mockImplementation((f: string) => /^\d{4}-\d{2}-\d{2}$/.test(f)),
+      esFechaCalendarioValida: jest
+        .fn()
+        .mockImplementation((f: string) => /^\d{4}-\d{2}-\d{2}$/.test(f)),
       obtenerDiaSemana: jest.fn().mockReturnValue('FRIDAY'),
     };
 
@@ -83,6 +88,12 @@ describe('ReservasService - Administración (HU-13 y SUPERADMIN)', () => {
       enviarConfirmacionReserva: jest.fn().mockResolvedValue(true),
     };
 
+    configuracionService = {
+      obtenerNumero: jest.fn((_clave: string, porDefecto: number) =>
+        Promise.resolve(porDefecto),
+      ),
+    };
+
     service = new ReservasService(
       reservasRepo,
       clientesRepo,
@@ -90,6 +101,7 @@ describe('ReservasService - Administración (HU-13 y SUPERADMIN)', () => {
       serviciosRepo,
       fechaBogotaService,
       barberosRepo,
+      configuracionService,
       whatsappService,
     );
   });
@@ -354,7 +366,9 @@ describe('ReservasService - Administración (HU-13 y SUPERADMIN)', () => {
     it('debe lanzar 404 si la reserva no existe', async () => {
       reservasRepo.obtenerReservaAdminPorId.mockResolvedValue(null);
 
-      await expect(service.obtenerReservaAdmin(999)).rejects.toThrow(NotFoundException);
+      await expect(service.obtenerReservaAdmin(999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -402,21 +416,27 @@ describe('ReservasService - Administración (HU-13 y SUPERADMIN)', () => {
     });
 
     it('debe modificar la reserva de cualquier barbero respetando disponibilidad', async () => {
-      reservasRepo.obtenerReservaConRelaciones.mockResolvedValue(mockReservaConRel);
+      reservasRepo.obtenerReservaConRelaciones.mockResolvedValue(
+        mockReservaConRel,
+      );
       reservasRepo.modificarConBloqueo.mockResolvedValue({
         ...mockReservaConRel,
         startTime: '16:00',
         endTime: '17:00',
       });
 
-      const resultado = await service.modificarReservaAdmin(50, { hora: '16:00' });
+      const resultado = await service.modificarReservaAdmin(50, {
+        hora: '16:00',
+      });
 
       expect(resultado.mensaje).toBe('Reserva modificada correctamente');
       expect(resultado.hora).toBe('16:00');
     });
 
     it('debe cancelar cualquier reserva de forma administrativa', async () => {
-      reservasRepo.obtenerReservaConRelaciones.mockResolvedValue(mockReservaConRel);
+      reservasRepo.obtenerReservaConRelaciones.mockResolvedValue(
+        mockReservaConRel,
+      );
       reservasRepo.cancelar.mockResolvedValue({
         ...mockReservaConRel,
         status: ReservationStatus.CANCELLED,

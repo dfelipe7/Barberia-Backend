@@ -37,18 +37,23 @@ export class UsuariosService {
   async sincronizarSuperadmin() {
     return [
       {
-        mensaje: 'Superadministradores verificados correctamente en la base de datos MySQL local.',
+        mensaje:
+          'Superadministradores verificados correctamente en la base de datos MySQL local.',
       },
     ];
   }
 
   private async buscarUsuarioAutenticado(usuarioAutenticado: any) {
     if (usuarioAutenticado?.email) {
-      const u = await this.usuariosRepository.obtenerUsuarioPorEmail(usuarioAutenticado.email);
+      const u = await this.usuariosRepository.obtenerUsuarioPorEmail(
+        usuarioAutenticado.email,
+      );
       if (u) return u;
     }
     if (usuarioAutenticado?.id) {
-      const u = await this.usuariosRepository.obtenerUsuarioPorId(Number(usuarioAutenticado.id));
+      const u = await this.usuariosRepository.obtenerUsuarioPorId(
+        Number(usuarioAutenticado.id),
+      );
       if (u) return u;
     }
     if (usuarioAutenticado?.sub) {
@@ -65,10 +70,13 @@ export class UsuariosService {
    * Obtiene el perfil del usuario autenticado en base a su token.
    */
   async obtenerMiPerfil(usuarioAutenticado: any): Promise<UsuarioPerfilDto> {
-    const usuarioActual = await this.buscarUsuarioAutenticado(usuarioAutenticado);
+    const usuarioActual =
+      await this.buscarUsuarioAutenticado(usuarioAutenticado);
 
     if (!usuarioActual) {
-      throw new ConflictException('El usuario autenticado no existe en la base de datos');
+      throw new ConflictException(
+        'El usuario autenticado no existe en la base de datos',
+      );
     }
 
     return this.mapearUsuarioPerfil(usuarioActual);
@@ -78,17 +86,24 @@ export class UsuariosService {
    * Obtiene los datos de un usuario específico por su ID numérico.
    * Valida que el usuario que realiza la petición tenga permisos para verlo.
    */
-  async obtenerUsuarioPorId(usuarioId: number, usuarioAutenticado: any): Promise<UsuarioPerfilDto> {
-    const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+  async obtenerUsuarioPorId(
+    usuarioId: number,
+    usuarioAutenticado: any,
+  ): Promise<UsuarioPerfilDto> {
+    const usuario =
+      await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
     if (!usuario) {
       throw new ConflictException('El usuario no existe');
     }
 
-    const usuarioActual = await this.buscarUsuarioAutenticado(usuarioAutenticado);
+    const usuarioActual =
+      await this.buscarUsuarioAutenticado(usuarioAutenticado);
 
     if (!usuarioActual) {
-      throw new ConflictException('El usuario autenticado no existe en la base de datos');
+      throw new ConflictException(
+        'El usuario autenticado no existe en la base de datos',
+      );
     }
 
     this.authorizationService.verificarPermisosConsulta(usuarioActual, usuario);
@@ -101,22 +116,54 @@ export class UsuariosService {
    * Refleja los cambios en la base de datos local.
    * Si el usuario es un barbero y se envían datos extra, actualiza el perfil de barbero.
    */
-  async actualizarUsuario(usuarioId: number, dto: ActualizarUsuarioDto, usuarioAutenticado: any) { // NOSONAR
-    const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+  async actualizarUsuario(
+    usuarioId: number,
+    dto: ActualizarUsuarioDto,
+    usuarioAutenticado: any,
+  ) {
+    const usuario =
+      await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
     if (!usuario) {
       throw new ConflictException('El usuario no existe');
     }
 
-    const usuarioActual = await this.buscarUsuarioAutenticado(usuarioAutenticado);
+    const usuarioActual =
+      await this.buscarUsuarioAutenticado(usuarioAutenticado);
 
     if (!usuarioActual) {
-      throw new ConflictException('El usuario autenticado no existe en la base de datos');
+      throw new ConflictException(
+        'El usuario autenticado no existe en la base de datos',
+      );
     }
 
     this.authorizationService.verificarPermisosEdicion(usuarioActual, usuario);
 
-    // 1. Actualizar datos personales en MySQL (si se enviaron)
+    await this.actualizarDatosPersonales(usuarioId, dto);
+    await this.gestionarRolAdministrador(
+      usuarioId,
+      dto,
+      usuario,
+      usuarioActual,
+    );
+    await this.gestionarRolBarbero(
+      usuarioId,
+      dto,
+      usuario,
+      usuarioActual,
+      usuarioAutenticado,
+    );
+
+    return this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+  }
+
+  /**
+   * 1. Actualiza los datos personales del usuario en MySQL (solo si se enviaron).
+   */
+  private async actualizarDatosPersonales(
+    usuarioId: number,
+    dto: ActualizarUsuarioDto,
+  ): Promise<void> {
     if (dto.email || dto.nombre || dto.apellido) {
       await this.usuariosRepository.actualizarUsuario(usuarioId, {
         email: dto.email,
@@ -124,79 +171,140 @@ export class UsuariosService {
         apellido: dto.apellido,
       });
     }
+  }
 
-    // 2. Gestionar Rol de Administrador
-    if (dto.esAdministrador !== undefined && usuario.rol !== 'SUPERADMIN') {
-      const estadoAdminActual = usuario.administrador?.estado === 'ACTIVO';
-      if (dto.esAdministrador !== estadoAdminActual) {
-        if (usuarioActual.rol !== 'SUPERADMIN') {
-          throw new ForbiddenException(
-            'Solo el Superadministrador puede otorgar o revocar el rol de Administrador',
-          );
-        }
-        if (usuarioActual.id === usuario.id && !dto.esAdministrador) {
-          throw new ConflictException('No puedes remover tu propio rol de Administrador');
-        }
-        await this.administradoresService.cambiarEstadoAdministrador(
-          usuarioId,
-          dto.esAdministrador ? 'ACTIVO' : 'INACTIVO',
-        );
-      }
+  /**
+   * 2. Otorga o revoca el rol de Administrador. Conserva el orden de las
+   * validaciones de autorización y sus excepciones.
+   */
+  private async gestionarRolAdministrador(
+    usuarioId: number,
+    dto: ActualizarUsuarioDto,
+    usuario: any,
+    usuarioActual: any,
+  ): Promise<void> {
+    if (dto.esAdministrador === undefined || usuario.rol === 'SUPERADMIN') {
+      return;
     }
 
-    // 3. Gestionar Rol de Barbero
-    if (dto.esBarbero !== undefined) {
-      const estadoBarberoActual = usuario.barbero?.estado === 'ACTIVO';
-      if (dto.esBarbero !== estadoBarberoActual) {
-        if (usuarioActual.rol === 'BARBERO') {
-          throw new ForbiddenException('Un barbero no puede modificar ni revocar su propio rol de Barbero');
-        }
-        this.authorizationService.verificarPermisosCambioEstadoBarbero(usuarioActual, usuario);
+    const estadoAdminActual = usuario.administrador?.estado === 'ACTIVO';
+    if (dto.esAdministrador === estadoAdminActual) {
+      return;
+    }
 
-        if (dto.esBarbero) {
-          await this.barberosService.configurarBarberoPorId(usuarioId, {
-            telefono: dto.telefono || usuario.barbero?.telefono || '',
-            porcentajeComision:
-              dto.porcentajeComision ??
-              (usuario.barbero?.porcentajeComision
-                ? Number(usuario.barbero.porcentajeComision)
-                : 50),
-          });
-        } else {
-          await this.barberosService.cambiarEstadoBarbero(
-            usuarioId,
-            { estado: EstadoUsuario.INACTIVO },
-            usuarioAutenticado,
-          );
-        }
-      } else if (
-        usuario.barbero &&
-        (dto.telefono || dto.porcentajeComision !== undefined || dto.fotoUrl !== undefined)
-      ) {
-        if (dto.porcentajeComision !== undefined) {
-          this.authorizationService.verificarPermisosComision(usuarioActual, usuario);
-        }
-        await this.barberosRepository.actualizarPerfilBarbero(usuarioId, {
-          telefono: dto.telefono,
-          porcentajeComision: dto.porcentajeComision,
-          fotoUrl: dto.fotoUrl,
-        });
-      }
-    } else if (
-      usuario.barbero &&
-      (dto.telefono || dto.porcentajeComision !== undefined || dto.fotoUrl !== undefined)
-    ) {
-      if (dto.porcentajeComision !== undefined) {
-        this.authorizationService.verificarPermisosComision(usuarioActual, usuario);
-      }
-      await this.barberosRepository.actualizarPerfilBarbero(usuarioId, {
-        telefono: dto.telefono,
-        porcentajeComision: dto.porcentajeComision,
-        fotoUrl: dto.fotoUrl,
+    if (usuarioActual.rol !== 'SUPERADMIN') {
+      throw new ForbiddenException(
+        'Solo el Superadministrador puede otorgar o revocar el rol de Administrador',
+      );
+    }
+    if (usuarioActual.id === usuario.id && !dto.esAdministrador) {
+      throw new ConflictException(
+        'No puedes remover tu propio rol de Administrador',
+      );
+    }
+    await this.administradoresService.cambiarEstadoAdministrador(
+      usuarioId,
+      dto.esAdministrador ? 'ACTIVO' : 'INACTIVO',
+    );
+  }
+
+  /**
+   * 3. Gestiona el rol de Barbero: si cambia el estado respecto al actual
+   * delega en `cambiarEstadoRolBarbero`; si no, actualiza su perfil.
+   */
+  private async gestionarRolBarbero(
+    usuarioId: number,
+    dto: ActualizarUsuarioDto,
+    usuario: any,
+    usuarioActual: any,
+    usuarioAutenticado: any,
+  ): Promise<void> {
+    const estadoBarberoActual = usuario.barbero?.estado === 'ACTIVO';
+    const requiereCambioEstado =
+      dto.esBarbero !== undefined && dto.esBarbero !== estadoBarberoActual;
+
+    if (requiereCambioEstado) {
+      await this.cambiarEstadoRolBarbero(
+        usuarioId,
+        dto,
+        usuario,
+        usuarioActual,
+        usuarioAutenticado,
+      );
+      return;
+    }
+
+    await this.actualizarPerfilBarberoSiAplica(
+      usuarioId,
+      dto,
+      usuario,
+      usuarioActual,
+    );
+  }
+
+  private async cambiarEstadoRolBarbero(
+    usuarioId: number,
+    dto: ActualizarUsuarioDto,
+    usuario: any,
+    usuarioActual: any,
+    usuarioAutenticado: any,
+  ): Promise<void> {
+    if (usuarioActual.rol === 'BARBERO') {
+      throw new ForbiddenException(
+        'Un barbero no puede modificar ni revocar su propio rol de Barbero',
+      );
+    }
+    this.authorizationService.verificarPermisosCambioEstadoBarbero(
+      usuarioActual,
+      usuario,
+    );
+
+    if (dto.esBarbero) {
+      await this.barberosService.configurarBarberoPorId(usuarioId, {
+        telefono: dto.telefono || usuario.barbero?.telefono || '',
+        porcentajeComision:
+          dto.porcentajeComision ??
+          (usuario.barbero?.porcentajeComision
+            ? Number(usuario.barbero.porcentajeComision)
+            : 50),
       });
+      return;
     }
 
-    return this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+    await this.barberosService.cambiarEstadoBarbero(
+      usuarioId,
+      { estado: EstadoUsuario.INACTIVO },
+      usuarioAutenticado,
+    );
+  }
+
+  private async actualizarPerfilBarberoSiAplica(
+    usuarioId: number,
+    dto: ActualizarUsuarioDto,
+    usuario: any,
+    usuarioActual: any,
+  ): Promise<void> {
+    const enviaDatosPerfil =
+      dto.telefono ||
+      dto.porcentajeComision !== undefined ||
+      dto.fotoUrl !== undefined;
+
+    if (!usuario.barbero || !enviaDatosPerfil) {
+      return;
+    }
+
+    if (dto.porcentajeComision !== undefined) {
+      this.authorizationService.verificarPermisosComision(
+        usuarioActual,
+        usuario,
+      );
+    }
+
+    await this.barberosRepository.actualizarPerfilBarbero(usuarioId, {
+      telefono: dto.telefono,
+      porcentajeComision: dto.porcentajeComision,
+      fotoUrl: dto.fotoUrl,
+    });
   }
 
   /**
@@ -206,23 +314,37 @@ export class UsuariosService {
    * mantienen su propio estado independiente. Si el usuario queda sin roles
    * activos al desbloquear, el administrador deberá restaurarlos manualmente.
    */
-  async cambiarEstadoUsuario(usuarioId: number, dto: CambiarEstadoUsuarioDto, usuarioAutenticado: any) {
-    const usuario = await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+  async cambiarEstadoUsuario(
+    usuarioId: number,
+    dto: CambiarEstadoUsuarioDto,
+    usuarioAutenticado: any,
+  ) {
+    const usuario =
+      await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
     if (!usuario) {
       throw new ConflictException('El usuario no existe');
     }
 
-    const usuarioActual = await this.buscarUsuarioAutenticado(usuarioAutenticado);
+    const usuarioActual =
+      await this.buscarUsuarioAutenticado(usuarioAutenticado);
 
     if (!usuarioActual) {
-      throw new ConflictException('El usuario autenticado no existe en la base de datos');
+      throw new ConflictException(
+        'El usuario autenticado no existe en la base de datos',
+      );
     }
 
-    this.authorizationService.verificarPermisosCambioEstadoCuenta(usuarioActual, usuario);
+    this.authorizationService.verificarPermisosCambioEstadoCuenta(
+      usuarioActual,
+      usuario,
+    );
 
     const nuevoEstado = dto.estado;
-    return this.usuariosRepository.actualizarEstadoUsuario(usuarioId, nuevoEstado);
+    return this.usuariosRepository.actualizarEstadoUsuario(
+      usuarioId,
+      nuevoEstado,
+    );
   }
 
   /**

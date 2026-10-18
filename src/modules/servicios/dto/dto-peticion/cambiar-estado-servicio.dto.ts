@@ -7,16 +7,16 @@ import { EstadoServicio } from '../../../../../generated/prisma/enums';
  * Se utiliza para operaciones de borrado lógico (soft delete).
  */
 export class CambiarEstadoServicioDto {
-    @ApiProperty({
-        description: 'Nuevo estado para el servicio',
-        enum: EstadoServicio,
-        example: 'INACTIVO',
-    })
-    @IsEnum(EstadoServicio, {
-        message: 'El estado debe ser ACTIVO o INACTIVO',
-    })
-    @IsNotEmpty({
-        message: 'El estado es obligatorio',
-    })
-    estado: EstadoServicio;
+  @ApiProperty({
+    description: 'Nuevo estado para el servicio',
+    enum: EstadoServicio,
+    example: 'INACTIVO',
+  })
+  @IsEnum(EstadoServicio, {
+    message: 'El estado debe ser ACTIVO o INACTIVO',
+  })
+  @IsNotEmpty({
+    message: 'El estado es obligatorio',
+  })
+  estado: EstadoServicio;
 }

@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Post,
-  Body,
-  UseGuards,
-  Req,
-} from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { GoogleAuthService } from './google/google-auth.service';
 import { GoogleLoginDto } from './google/dto/google-login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -20,9 +14,7 @@ import {
 @ApiTags('Autenticación')
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly googleAuthService: GoogleAuthService,
-  ) {}
+  constructor(private readonly googleAuthService: GoogleAuthService) {}
 
   @Post('google')
   @ApiOperation({
@@ -63,7 +55,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Renueva el JWT de sesión con los roles y perfiles vigentes en la base de datos',
+    summary:
+      'Renueva el JWT de sesión con los roles y perfiles vigentes en la base de datos',
     description:
       'Permite actualizar los permisos de sesión de inmediato cuando a un usuario se le asigna o revoca un rol, sin obligarlo a cerrar sesión.',
   })

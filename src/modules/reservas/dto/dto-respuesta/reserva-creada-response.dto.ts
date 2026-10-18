@@ -36,7 +36,10 @@ export class ReservaCreadaResponseDto {
   @ApiProperty({ example: 'Reserva creada exitosamente' })
   mensaje: string;
 
-  @ApiProperty({ example: 42, description: 'Identificador único de la reserva' })
+  @ApiProperty({
+    example: 42,
+    description: 'Identificador único de la reserva',
+  })
   id: number;
 
   @ApiProperty({
@@ -46,13 +49,22 @@ export class ReservaCreadaResponseDto {
   })
   estado: ReservationStatus;
 
-  @ApiProperty({ example: '2026-11-01', description: 'Fecha de la cita (YYYY-MM-DD)' })
+  @ApiProperty({
+    example: '2026-11-01',
+    description: 'Fecha de la cita (YYYY-MM-DD)',
+  })
   fecha: string;
 
-  @ApiProperty({ example: '14:00', description: 'Hora de inicio de la franja (HH:mm)' })
+  @ApiProperty({
+    example: '14:00',
+    description: 'Hora de inicio de la franja (HH:mm)',
+  })
   hora: string;
 
-  @ApiProperty({ example: '15:00', description: 'Hora de fin de la franja (HH:mm)' })
+  @ApiProperty({
+    example: '15:00',
+    description: 'Hora de fin de la franja (HH:mm)',
+  })
   horaFin: string;
 
   @ApiProperty({ type: BarberoReservaDto })

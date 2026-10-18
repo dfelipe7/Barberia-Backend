@@ -74,11 +74,15 @@ describe('BootstrapService', () => {
 
       expect(mockUsuariosRepository.crearUsuario).not.toHaveBeenCalled();
       expect(mockUsuariosRepository.actualizarRol).not.toHaveBeenCalled();
-      expect(mockUsuariosRepository.actualizarEstadoUsuario).not.toHaveBeenCalled();
+      expect(
+        mockUsuariosRepository.actualizarEstadoUsuario,
+      ).not.toHaveBeenCalled();
     });
 
     it('debe manejar errores de base de datos sin lanzar excepción no controlada', async () => {
-      mockUsuariosRepository.obtenerUsuarioPorEmail.mockRejectedValue(new Error('DB connection lost'));
+      mockUsuariosRepository.obtenerUsuarioPorEmail.mockRejectedValue(
+        new Error('DB connection lost'),
+      );
 
       await expect(service.onModuleInit()).resolves.not.toThrow();
     });

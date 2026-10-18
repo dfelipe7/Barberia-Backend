@@ -24,7 +24,9 @@ import { ActualizarPlantillasDto } from './dto/actualizar-plantillas.dto';
 
 // Filtro para silenciar logs internos ruidosos de libsignal (mensajes históricos entrantes o estados no relevantes para notificaciones salientes)
 const esLogRuidosoLibsignal = (...args: any[]): boolean => {
-  const text = args.map((a) => (typeof a === 'string' ? a : a?.message || '')).join(' ');
+  const text = args
+    .map((a) => (typeof a === 'string' ? a : a?.message || ''))
+    .join(' ');
   return (
     text.includes('Closing session:') ||
     text.includes('Closing open session') ||
@@ -162,10 +164,14 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
-    this.logger.log(`Servicio de WhatsApp inicializado (Directorio: ${this.sessionDir})`);
+    this.logger.log(
+      `Servicio de WhatsApp inicializado (Directorio: ${this.sessionDir})`,
+    );
     if (this.tieneSesionGuardada()) {
       this.enReposo = false;
-      this.logger.log('Sesión previa encontrada en disco. Conectando automáticamente con WhatsApp Web...');
+      this.logger.log(
+        'Sesión previa encontrada en disco. Conectando automáticamente con WhatsApp Web...',
+      );
       await this.iniciarSocket();
     } else {
       this.enReposo = true;
@@ -213,13 +219,15 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       const { state, saveCreds } = await useMultiFileAuthState(this.sessionDir);
 
       if (this.enReposo) {
-        this.logger.log('Cancelando inicio de socket porque WhatsApp está en REPOSO.');
+        this.logger.log(
+          'Cancelando inicio de socket porque WhatsApp está en REPOSO.',
+        );
         return;
       }
 
       const socket = makeWASocket({
         auth: state,
-        logger: pino({ level: 'silent' }) as any,
+        logger: pino({ level: 'silent' }),
         printQRInTerminal: false,
         browser: ['Kyrios Barber Studio', 'Chrome', '1.0.0'],
         connectTimeoutMs: 60_000,
@@ -228,7 +236,9 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         shouldIgnoreJid: (jid) =>
           isJidBroadcast(jid) ||
           isJidStatusBroadcast(jid) ||
-          (typeof isJidNewsletter === 'function' ? isJidNewsletter(jid) : false) ||
+          (typeof isJidNewsletter === 'function'
+            ? isJidNewsletter(jid)
+            : false) ||
           jid.includes('broadcast'),
         getMessage: async () => undefined,
         markOnlineOnConnect: false,
@@ -262,7 +272,9 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
             });
             this.isConnected = false;
             this.reiniciarTimerInactividad();
-            this.logger.log('Nuevo código QR de WhatsApp generado bajo demanda.');
+            this.logger.log(
+              'Nuevo código QR de WhatsApp generado bajo demanda.',
+            );
           } catch (err) {
             this.logger.error('Error convirtiendo QR a imagen DataURL', err);
           }
@@ -280,7 +292,8 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         if (connection === 'close') {
           this.isConnected = false;
           this.limpiarTimerInactividad();
-          const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+          const statusCode = (lastDisconnect?.error as Boom)?.output
+            ?.statusCode;
           const hasSavedSession = this.tieneSesionGuardada();
 
           this.logger.warn(
@@ -296,8 +309,13 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
             return;
           }
 
-          if (statusCode === DisconnectReason.loggedOut || this.isIntentionalDisconnect) {
-            this.logger.log('Sesión cerrada o desvinculada. Limpiando credenciales locales...');
+          if (
+            statusCode === DisconnectReason.loggedOut ||
+            this.isIntentionalDisconnect
+          ) {
+            this.logger.log(
+              'Sesión cerrada o desvinculada. Limpiando credenciales locales...',
+            );
             this.qrDataUrl = null;
             this.destruirSocket();
             this.limpiarCarpetaSesion();
@@ -311,8 +329,11 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
           // Si ya teníamos una sesión autenticada guardada, reconectar automáticamente para seguir despachando citas
           if (hasSavedSession) {
             this.qrDataUrl = null;
-            const delay = statusCode === DisconnectReason.restartRequired ? 1500 : 4000;
-            this.logger.log(`Reconectando sesión guardada de WhatsApp en ${delay / 1000}s...`);
+            const delay =
+              statusCode === DisconnectReason.restartRequired ? 1500 : 4000;
+            this.logger.log(
+              `Reconectando sesión guardada de WhatsApp en ${delay / 1000}s...`,
+            );
             setTimeout(() => {
               if (this.tieneSesionGuardada()) {
                 void this.iniciarSocket();
@@ -323,12 +344,20 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
 
           // Si NO tenía sesión autenticada (estaba esperando escaneo de QR):
           // El código 515 (restartRequired) es una solicitud normal de WhatsApp para reiniciar el stream
-          if (!this.enReposo && (statusCode === DisconnectReason.restartRequired || statusCode === 515)) {
+          if (
+            !this.enReposo &&
+            (statusCode === DisconnectReason.restartRequired ||
+              statusCode === 515)
+          ) {
             this.logger.log(
               'WhatsApp solicitó reinicio del socket (515) durante la generación de QR. Regenerando socket y QR en 1s...',
             );
             setTimeout(() => {
-              if (!this.enReposo && !this.isConnected && !this.tieneSesionGuardada()) {
+              if (
+                !this.enReposo &&
+                !this.isConnected &&
+                !this.tieneSesionGuardada()
+              ) {
                 void this.iniciarSocket();
               }
             }, 1000);
@@ -345,7 +374,10 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         }
       });
     } catch (error) {
-      this.logger.error('Error fatal inicializando Baileys WhatsApp Socket:', error);
+      this.logger.error(
+        'Error fatal inicializando Baileys WhatsApp Socket:',
+        error,
+      );
     } finally {
       this.isConnecting = false;
     }
@@ -355,7 +387,9 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     try {
       if (fs.existsSync(this.sessionDir)) {
         fs.rmSync(this.sessionDir, { recursive: true, force: true });
-        this.logger.log(`Carpeta de sesión eliminada con éxito: ${this.sessionDir}`);
+        this.logger.log(
+          `Carpeta de sesión eliminada con éxito: ${this.sessionDir}`,
+        );
       }
     } catch (err) {
       this.logger.error('Error eliminando carpeta de sesión de WhatsApp:', err);
@@ -366,7 +400,9 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     try {
       if (!this.tieneSesionGuardada() && fs.existsSync(this.sessionDir)) {
         fs.rmSync(this.sessionDir, { recursive: true, force: true });
-        this.logger.log('Archivos de sesión preliminar no autenticada limpiados de disco.');
+        this.logger.log(
+          'Archivos de sesión preliminar no autenticada limpiados de disco.',
+        );
       }
     } catch (err) {
       this.logger.warn(`Error limpiando sesión incompleta: ${err}`);
@@ -409,7 +445,9 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       this.destruirSocket();
       this.qrDataUrl = null;
       this.limpiarCarpetaSesionIncompleta();
-      this.logger.log('WhatsApp puesto en modo REPOSO (socket cerrado y timer cancelado).');
+      this.logger.log(
+        'WhatsApp puesto en modo REPOSO (socket cerrado y timer cancelado).',
+      );
       return { mensaje: 'WhatsApp en modo reposo.' };
     }
     return { mensaje: 'WhatsApp activo con sesión guardada.' };
@@ -469,16 +507,23 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
 
     const jid = this.formatearNumeroAJid(telefono);
     if (!jid) {
-      this.logger.warn(`Teléfono inválido para WhatsApp: ${enmascararTelefono(telefono)}`);
+      this.logger.warn(
+        `Teléfono inválido para WhatsApp: ${enmascararTelefono(telefono)}`,
+      );
       return false;
     }
 
     try {
       await this.sock.sendMessage(jid, { text: texto });
-      this.logger.log(`Mensaje de WhatsApp enviado exitosamente a ${enmascararTelefono(jid)}`);
+      this.logger.log(
+        `Mensaje de WhatsApp enviado exitosamente a ${enmascararTelefono(jid)}`,
+      );
       return true;
     } catch (error) {
-      this.logger.error(`Error enviando mensaje por WhatsApp a ${enmascararTelefono(jid)}:`, error);
+      this.logger.error(
+        `Error enviando mensaje por WhatsApp a ${enmascararTelefono(jid)}:`,
+        error,
+      );
       return false;
     }
   }
@@ -557,7 +602,9 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
 
       return { confirmacion, recordatorio, minutosAnticipacion };
     } catch (err) {
-      this.logger.warn(`Error leyendo plantillas de BD, usando valores por defecto: ${err}`);
+      this.logger.warn(
+        `Error leyendo plantillas de BD, usando valores por defecto: ${err}`,
+      );
       return {
         confirmacion: PLANTILLA_CONFIRMACION_DEFAULT,
         recordatorio: PLANTILLA_RECORDATORIO_DEFAULT,
@@ -569,15 +616,21 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   /**
    * Actualiza o crea las plantillas de mensajes y configuración en la base de datos.
    */
-  async guardarPlantillas(
-    dto: ActualizarPlantillasDto,
-  ): Promise<{ confirmacion: string; recordatorio: string; minutosAnticipacion: number }> {
+  async guardarPlantillas(dto: ActualizarPlantillasDto): Promise<{
+    confirmacion: string;
+    recordatorio: string;
+    minutosAnticipacion: number;
+  }> {
     if (this.prisma) {
       if (dto.confirmacion !== undefined && dto.confirmacion.trim() !== '') {
         await this.prisma.whatsAppPlantilla.upsert({
           where: { tipo: 'CONFIRMACION' },
           update: { mensaje: dto.confirmacion.trim(), activo: true },
-          create: { tipo: 'CONFIRMACION', mensaje: dto.confirmacion.trim(), activo: true },
+          create: {
+            tipo: 'CONFIRMACION',
+            mensaje: dto.confirmacion.trim(),
+            activo: true,
+          },
         });
       }
 
@@ -585,11 +638,18 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         await this.prisma.whatsAppPlantilla.upsert({
           where: { tipo: 'RECORDATORIO' },
           update: { mensaje: dto.recordatorio.trim(), activo: true },
-          create: { tipo: 'RECORDATORIO', mensaje: dto.recordatorio.trim(), activo: true },
+          create: {
+            tipo: 'RECORDATORIO',
+            mensaje: dto.recordatorio.trim(),
+            activo: true,
+          },
         });
       }
 
-      if (dto.minutosAnticipacion !== undefined && dto.minutosAnticipacion > 0) {
+      if (
+        dto.minutosAnticipacion !== undefined &&
+        dto.minutosAnticipacion > 0
+      ) {
         await this.prisma.whatsAppPlantilla.upsert({
           where: { tipo: 'CONFIG_RECORDATORIO_MINUTOS' },
           update: { mensaje: String(dto.minutosAnticipacion), activo: true },
@@ -615,7 +675,11 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }> {
     if (this.prisma) {
       await this.prisma.whatsAppPlantilla.deleteMany({
-        where: { tipo: { in: ['CONFIRMACION', 'RECORDATORIO', 'CONFIG_RECORDATORIO_MINUTOS'] } },
+        where: {
+          tipo: {
+            in: ['CONFIRMACION', 'RECORDATORIO', 'CONFIG_RECORDATORIO_MINUTOS'],
+          },
+        },
       });
     }
 
@@ -629,7 +693,9 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   /**
    * Envía la confirmación inmediata de reserva al cliente usando la plantilla configurada.
    */
-  async enviarConfirmacionReserva(datos: DatosConfirmacionWhatsApp): Promise<boolean> {
+  async enviarConfirmacionReserva(
+    datos: DatosConfirmacionWhatsApp,
+  ): Promise<boolean> {
     const { confirmacion } = await this.obtenerPlantillas();
     const mensaje = this.reemplazarVariables(confirmacion, datos);
     return this.enviarMensaje(datos.telefono, mensaje);
@@ -638,7 +704,9 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   /**
    * Envía el recordatorio automático 2 horas antes de la cita usando la plantilla configurada.
    */
-  async enviarRecordatorioReserva(datos: DatosConfirmacionWhatsApp): Promise<boolean> {
+  async enviarRecordatorioReserva(
+    datos: DatosConfirmacionWhatsApp,
+  ): Promise<boolean> {
     const { recordatorio } = await this.obtenerPlantillas();
     const mensaje = this.reemplazarVariables(recordatorio, datos);
     return this.enviarMensaje(datos.telefono, mensaje);
@@ -647,7 +715,9 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   /**
    * Envía notificación cuando la cita es cancelada.
    */
-  async enviarCancelacionReserva(datos: DatosConfirmacionWhatsApp): Promise<boolean> {
+  async enviarCancelacionReserva(
+    datos: DatosConfirmacionWhatsApp,
+  ): Promise<boolean> {
     const mensaje =
       `❌ *CITA CANCELADA - KYRIOS BARBER*\n` +
       `Hola ${datos.clienteNombre}, te confirmamos que tu cita de ${datos.servicioNombre} para el día *${datos.fecha}* a las *${datos.hora}* ha sido cancelada.\n\n` +
@@ -657,9 +727,25 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Envía notificación cuando la cita es marcada como completada.
+   */
+  async enviarCompletadoReserva(
+    datos: DatosConfirmacionWhatsApp,
+  ): Promise<boolean> {
+    const mensaje =
+      `✅ *CITA COMPLETADA - KYRIOS BARBER*\n` +
+      `¡Hola ${datos.clienteNombre}! Tu cita de ${datos.servicioNombre} del día *${datos.fecha}* a las *${datos.hora}* ha sido marcada como completada.\n\n` +
+      `¡Gracias por tu visita! Esperamos verte de nuevo pronto en Kyrios Barber Studio.`;
+
+    return this.enviarMensaje(datos.telefono, mensaje);
+  }
+
+  /**
    * Envía notificación cuando la cita es reprogramada/modificada.
    */
-  async enviarReprogramacionReserva(datos: DatosConfirmacionWhatsApp): Promise<boolean> {
+  async enviarReprogramacionReserva(
+    datos: DatosConfirmacionWhatsApp,
+  ): Promise<boolean> {
     const mensaje =
       `🔄 *CITA REPROGRAMADA - KYRIOS BARBER*\n` +
       `¡Hola ${datos.clienteNombre}! Tu cita ha sido actualizada con éxito:\n\n` +

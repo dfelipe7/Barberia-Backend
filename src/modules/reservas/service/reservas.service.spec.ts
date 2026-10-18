@@ -10,10 +10,12 @@ import {
   MENSAJE_FRANJA_OCUPADA,
   MENSAJE_HORARIO_NO_DISPONIBLE,
   MENSAJE_RESERVA_CANCELADA,
+  MENSAJE_RESERVA_COMPLETADA,
   MENSAJE_RESERVA_CREADA,
   MENSAJE_RESERVA_DUPLICADA,
   MENSAJE_RESERVA_MODIFICADA,
   MENSAJE_RESERVA_NO_DISPONIBLE,
+  MENSAJE_RESERVA_NO_SHOW,
   MENSAJE_SIN_RESERVAS,
   ReservasService,
 } from './reservas.service';
@@ -24,7 +26,11 @@ import { ServiciosRepository } from '../../servicios/repository/servicios.reposi
 import { FechaBogotaService } from '../../horarios/common/fecha-bogota.service';
 import { EstadoFranja } from '../../horarios/common/estado-franja';
 import { BarberosRepository } from '../../usuarios/repository/barberos.repository';
-import { EstadoUsuario, ReservationStatus } from '../../../../generated/prisma/enums';
+import { ConfiguracionService } from '../../configuracion/service/configuracion.service';
+import {
+  EstadoUsuario,
+  ReservationStatus,
+} from '../../../../generated/prisma/enums';
 
 const FECHA = '2026-11-01';
 const HORA = '14:00';
@@ -48,6 +54,11 @@ describe('ReservasService', () => {
     listarReservasDeBarberoEnRango: jest.fn(),
     modificarConBloqueo: jest.fn(),
     cancelar: jest.fn(),
+    obtenerReservaParaCompletar: jest.fn(),
+    completar: jest.fn(),
+    obtenerReservaConRelaciones: jest.fn(),
+    obtenerReservaParaNoShow: jest.fn(),
+    marcarNoShow: jest.fn(),
   };
   const clientesRepository = {
     obtenerPorId: jest.fn(),
@@ -69,6 +80,12 @@ describe('ReservasService', () => {
   const barberosRepository = {
     obtenerBarberoPorUsuarioId: jest.fn(),
     obtenerBarberoActivoPorId: jest.fn(),
+  };
+
+  const configuracionService = {
+    obtenerNumero: jest.fn((_clave: string, porDefecto: number) =>
+      Promise.resolve(porDefecto),
+    ),
   };
 
   const franjaDisponible = {
@@ -128,6 +145,7 @@ describe('ReservasService', () => {
         { provide: ServiciosRepository, useValue: serviciosRepository },
         { provide: FechaBogotaService, useValue: fechaBogotaService },
         { provide: BarberosRepository, useValue: barberosRepository },
+        { provide: ConfiguracionService, useValue: configuracionService },
       ],
     }).compile();
 
@@ -209,6 +227,37 @@ describe('ReservasService', () => {
             },
           },
         }),
+      );
+    });
+
+    it('dispara la confirmación por WhatsApp desacoplada sin alterar la respuesta', async () => {
+      const whatsapp = {
+        enviarConfirmacionReserva: jest.fn().mockResolvedValue(true),
+      };
+      (
+        service as unknown as { whatsappService: typeof whatsapp }
+      ).whatsappService = whatsapp;
+
+      const resultado = await service.crearReserva({
+        ...dtoBase,
+        nombre: 'Ana',
+        apellido: 'Pérez',
+        telefono: '3001234567',
+      });
+
+      expect(resultado).toEqual(
+        expect.objectContaining({
+          mensaje: MENSAJE_RESERVA_CREADA,
+          id: 42,
+          estado: 'PENDING',
+          tokenGestion: expect.any(String),
+        }),
+      );
+
+      await new Promise((resolver) => setTimeout(resolver, 0));
+
+      expect(whatsapp.enviarConfirmacionReserva).toHaveBeenCalledWith(
+        expect.objectContaining({ telefono: '3001234567' }),
       );
     });
 
@@ -536,12 +585,16 @@ describe('ReservasService', () => {
     };
 
     beforeEach(() => {
-      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue(barberoActivo);
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue(
+        barberoActivo,
+      );
       reservasRepository.listarReservasDeBarberoEnFecha = jest.fn();
     });
 
     it('devuelve las reservas del barbero para la fecha solicitada con datos de cliente y servicio', async () => {
-      reservasRepository.listarReservasDeBarberoEnFecha.mockResolvedValue([citaMock]);
+      reservasRepository.listarReservasDeBarberoEnFecha.mockResolvedValue([
+        citaMock,
+      ]);
 
       const resultado = await service.obtenerAgendaBarbero(usuarioBarbero, {
         fecha: '2026-11-01',
@@ -571,11 +624,12 @@ describe('ReservasService', () => {
         ],
       });
 
-      expect(barberosRepository.obtenerBarberoPorUsuarioId).toHaveBeenCalledWith(7);
-      expect(reservasRepository.listarReservasDeBarberoEnFecha).toHaveBeenCalledWith(
-        3,
-        new Date('2026-11-01T00:00:00.000Z'),
-      );
+      expect(
+        barberosRepository.obtenerBarberoPorUsuarioId,
+      ).toHaveBeenCalledWith(7);
+      expect(
+        reservasRepository.listarReservasDeBarberoEnFecha,
+      ).toHaveBeenCalledWith(3, new Date('2026-11-01T00:00:00.000Z'));
     });
 
     it('resuelve reservas de cliente invitado con datos opcionales en null', async () => {
@@ -592,7 +646,9 @@ describe('ReservasService', () => {
         },
       };
 
-      reservasRepository.listarReservasDeBarberoEnFecha.mockResolvedValue([citaInvitado]);
+      reservasRepository.listarReservasDeBarberoEnFecha.mockResolvedValue([
+        citaInvitado,
+      ]);
 
       const resultado = await service.obtenerAgendaBarbero(usuarioBarbero, {
         fecha: '2026-11-01',
@@ -638,7 +694,9 @@ describe('ReservasService', () => {
         service.obtenerAgendaBarbero(usuarioBarbero, { fecha: 'invalida' }),
       ).rejects.toBeInstanceOf(BadRequestException);
 
-      expect(barberosRepository.obtenerBarberoPorUsuarioId).not.toHaveBeenCalled();
+      expect(
+        barberosRepository.obtenerBarberoPorUsuarioId,
+      ).not.toHaveBeenCalled();
     });
 
     it('rechaza si no se puede identificar al usuario autenticado (401)', async () => {
@@ -673,12 +731,11 @@ describe('ReservasService', () => {
     it('soporta resolver el id de usuario desde la propiedad sub del token', async () => {
       reservasRepository.listarReservasDeBarberoEnFecha.mockResolvedValue([]);
 
-      await service.obtenerAgendaBarbero(
-        { sub: '7' },
-        { fecha: '2026-11-01' },
-      );
+      await service.obtenerAgendaBarbero({ sub: '7' }, { fecha: '2026-11-01' });
 
-      expect(barberosRepository.obtenerBarberoPorUsuarioId).toHaveBeenCalledWith(7);
+      expect(
+        barberosRepository.obtenerBarberoPorUsuarioId,
+      ).toHaveBeenCalledWith(7);
     });
   });
 
@@ -745,7 +802,9 @@ describe('ReservasService', () => {
     };
 
     beforeEach(() => {
-      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue(barberoActivo);
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue(
+        barberoActivo,
+      );
       reservasRepository.listarReservasDeBarberoEnRango = jest.fn();
     });
 
@@ -755,10 +814,13 @@ describe('ReservasService', () => {
         citaMiercoles,
       ]);
 
-      const resultado = await service.obtenerAgendaSemanalBarbero(usuarioBarbero, {
-        desde: '2026-11-02',
-        hasta: '2026-11-08',
-      });
+      const resultado = await service.obtenerAgendaSemanalBarbero(
+        usuarioBarbero,
+        {
+          desde: '2026-11-02',
+          hasta: '2026-11-08',
+        },
+      );
 
       expect(resultado).toEqual({
         desde: '2026-11-02',
@@ -803,8 +865,12 @@ describe('ReservasService', () => {
         ],
       });
 
-      expect(barberosRepository.obtenerBarberoPorUsuarioId).toHaveBeenCalledWith(7);
-      expect(reservasRepository.listarReservasDeBarberoEnRango).toHaveBeenCalledWith(
+      expect(
+        barberosRepository.obtenerBarberoPorUsuarioId,
+      ).toHaveBeenCalledWith(7);
+      expect(
+        reservasRepository.listarReservasDeBarberoEnRango,
+      ).toHaveBeenCalledWith(
         3,
         new Date('2026-11-02T00:00:00.000Z'),
         new Date('2026-11-08T00:00:00.000Z'),
@@ -814,10 +880,13 @@ describe('ReservasService', () => {
     it('devuelve lista vacía cuando no hay reservas en el rango', async () => {
       reservasRepository.listarReservasDeBarberoEnRango.mockResolvedValue([]);
 
-      const resultado = await service.obtenerAgendaSemanalBarbero(usuarioBarbero, {
-        desde: '2026-11-02',
-        hasta: '2026-11-08',
-      });
+      const resultado = await service.obtenerAgendaSemanalBarbero(
+        usuarioBarbero,
+        {
+          desde: '2026-11-02',
+          hasta: '2026-11-08',
+        },
+      );
 
       expect(resultado).toEqual({
         desde: '2026-11-02',
@@ -827,7 +896,9 @@ describe('ReservasService', () => {
     });
 
     it('rechaza si la fecha "desde" es inválida con 400', async () => {
-      fechaBogotaService.esFechaCalendarioValida.mockImplementation((f) => f !== 'invalida');
+      fechaBogotaService.esFechaCalendarioValida.mockImplementation(
+        (f) => f !== 'invalida',
+      );
 
       await expect(
         service.obtenerAgendaSemanalBarbero(usuarioBarbero, {
@@ -838,7 +909,9 @@ describe('ReservasService', () => {
     });
 
     it('rechaza si la fecha "hasta" es inválida con 400', async () => {
-      fechaBogotaService.esFechaCalendarioValida.mockImplementation((f) => f !== 'invalida');
+      fechaBogotaService.esFechaCalendarioValida.mockImplementation(
+        (f) => f !== 'invalida',
+      );
 
       await expect(
         service.obtenerAgendaSemanalBarbero(usuarioBarbero, {
@@ -856,7 +929,9 @@ describe('ReservasService', () => {
           desde: '2026-11-08',
           hasta: '2026-11-02',
         }),
-      ).rejects.toThrow('La fecha inicial ("desde") no puede ser posterior a la fecha final ("hasta")');
+      ).rejects.toThrow(
+        'La fecha inicial ("desde") no puede ser posterior a la fecha final ("hasta")',
+      );
     });
 
     it('rechaza un rango superior a 7 días consecutivos con 400', async () => {
@@ -868,7 +943,9 @@ describe('ReservasService', () => {
           desde: '2026-11-02',
           hasta: '2026-11-10',
         }),
-      ).rejects.toThrow('El rango de consulta no puede superar los 7 días consecutivos');
+      ).rejects.toThrow(
+        'El rango de consulta no puede superar los 7 días consecutivos',
+      );
     });
 
     it('rechaza a un usuario que no tiene perfil de barbero asociado (403)', async () => {
@@ -876,10 +953,13 @@ describe('ReservasService', () => {
       barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue(null);
 
       await expect(
-        service.obtenerAgendaSemanalBarbero({ id: 99 }, {
-          desde: '2026-11-02',
-          hasta: '2026-11-08',
-        }),
+        service.obtenerAgendaSemanalBarbero(
+          { id: 99 },
+          {
+            desde: '2026-11-02',
+            hasta: '2026-11-08',
+          },
+        ),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
@@ -915,12 +995,22 @@ describe('ReservasService', () => {
       clientesRepository.obtenerPorId.mockResolvedValue({ id: 77 });
       fechaBogotaService.esFechaCalendarioValida.mockReturnValue(true);
       fechaBogotaService.obtenerDiaSemana.mockReturnValue('TUESDAY');
-      serviciosRepository.obtenerServicioActivoPorId.mockResolvedValue(servicioActivo);
-      barberosRepository.obtenerBarberoActivoPorId.mockResolvedValue(barberoDestinoActivo);
+      serviciosRepository.obtenerServicioActivoPorId.mockResolvedValue(
+        servicioActivo,
+      );
+      barberosRepository.obtenerBarberoActivoPorId.mockResolvedValue(
+        barberoDestinoActivo,
+      );
       serviciosRepository.existeAsignacionBarbero.mockResolvedValue(true);
-      reservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(false);
+      reservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(
+        false,
+      );
       disponibilidadService.calcularDisponibilidad.mockResolvedValue([
-        { startTime: '15:00', endTime: '16:00', estado: EstadoFranja.AVAILABLE },
+        {
+          startTime: '15:00',
+          endTime: '16:00',
+          estado: EstadoFranja.AVAILABLE,
+        },
       ]);
     });
 
@@ -931,7 +1021,9 @@ describe('ReservasService', () => {
         status: ReservationStatus.PENDING,
         precioReservado: 50000,
       });
-      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(reservaOriginal);
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        reservaOriginal,
+      );
 
       const reservaActualizada = crearReservaRelacion({
         id: 42,
@@ -942,7 +1034,9 @@ describe('ReservasService', () => {
         precioReservado: 50000,
         barbero: { id: 5, usuario: { nombre: 'Pedro', apellido: 'López' } },
       });
-      reservasRepository.modificarConBloqueo.mockResolvedValue(reservaActualizada);
+      reservasRepository.modificarConBloqueo.mockResolvedValue(
+        reservaActualizada,
+      );
 
       const respuesta = await service.modificarReserva(identidad, 42, {
         fecha: '2026-11-03',
@@ -1017,7 +1111,9 @@ describe('ReservasService', () => {
 
       await expect(
         service.modificarReserva(identidad, 42, { hora: '15:00' }),
-      ).rejects.toThrow('No es posible modificar una reserva en estado COMPLETED');
+      ).rejects.toThrow(
+        'No es posible modificar una reserva en estado COMPLETED',
+      );
 
       reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
         crearReservaRelacion({ status: ReservationStatus.IN_PROGRESS }),
@@ -1025,7 +1121,9 @@ describe('ReservasService', () => {
 
       await expect(
         service.modificarReserva(identidad, 42, { hora: '15:00' }),
-      ).rejects.toThrow('No es posible modificar una reserva en estado IN_PROGRESS');
+      ).rejects.toThrow(
+        'No es posible modificar una reserva en estado IN_PROGRESS',
+      );
     });
 
     it('rechaza con NotFoundException si el nuevo barbero no existe o está inactivo', async () => {
@@ -1041,7 +1139,10 @@ describe('ReservasService', () => {
 
     it('rechaza con BadRequestException si el barbero destino no presta el servicio', async () => {
       reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
-        crearReservaRelacion({ status: ReservationStatus.PENDING, servicioId: 2 }),
+        crearReservaRelacion({
+          status: ReservationStatus.PENDING,
+          servicioId: 2,
+        }),
       );
       serviciosRepository.existeAsignacionBarbero.mockResolvedValue(false);
 
@@ -1059,7 +1160,9 @@ describe('ReservasService', () => {
           status: ReservationStatus.PENDING,
         }),
       );
-      reservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(true);
+      reservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(
+        true,
+      );
 
       await expect(
         service.modificarReserva(identidad, 42, { hora: '15:00' }),
@@ -1095,7 +1198,11 @@ describe('ReservasService', () => {
         }),
       );
       disponibilidadService.calcularDisponibilidad.mockResolvedValue([
-        { startTime: '14:00', endTime: '15:00', estado: EstadoFranja.AVAILABLE },
+        {
+          startTime: '14:00',
+          endTime: '15:00',
+          estado: EstadoFranja.AVAILABLE,
+        },
       ]);
       barberosRepository.obtenerBarberoActivoPorId.mockResolvedValue({
         id: 3,
@@ -1123,7 +1230,9 @@ describe('ReservasService', () => {
       reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
         crearReservaRelacion({ id: 42, status: ReservationStatus.PENDING }),
       );
-      reservasRepository.modificarConBloqueo.mockRejectedValue({ code: 'P2002' });
+      reservasRepository.modificarConBloqueo.mockRejectedValue({
+        code: 'P2002',
+      });
 
       await expect(
         service.modificarReserva(identidad, 42, { hora: '15:00' }),
@@ -1132,7 +1241,11 @@ describe('ReservasService', () => {
 
     it('conserva el precio histórico de la reserva original aunque el servicio actual haya subido de precio', async () => {
       reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
-        crearReservaRelacion({ id: 42, precioReservado: 45000, status: ReservationStatus.PENDING }),
+        crearReservaRelacion({
+          id: 42,
+          precioReservado: 45000,
+          status: ReservationStatus.PENDING,
+        }),
       );
       serviciosRepository.obtenerServicioActivoPorId.mockResolvedValue({
         ...servicioActivo,
@@ -1140,15 +1253,19 @@ describe('ReservasService', () => {
       });
 
       let precioEnviadoARepo: number | null | undefined;
-      reservasRepository.modificarConBloqueo.mockImplementation(async (datos) => {
-        precioEnviadoARepo = datos.precioReservado;
-        return crearReservaRelacion({
-          id: 42,
-          precioReservado: datos.precioReservado,
-        });
-      });
+      reservasRepository.modificarConBloqueo.mockImplementation(
+        async (datos) => {
+          precioEnviadoARepo = datos.precioReservado;
+          return crearReservaRelacion({
+            id: 42,
+            precioReservado: datos.precioReservado,
+          });
+        },
+      );
 
-      const respuesta = await service.modificarReserva(identidad, 42, { hora: '15:00' });
+      const respuesta = await service.modificarReserva(identidad, 42, {
+        hora: '15:00',
+      });
 
       expect(precioEnviadoARepo).toBe(45000);
       expect(respuesta.precio).toBe(45000);
@@ -1251,11 +1368,360 @@ describe('ReservasService', () => {
     it('rechaza con UnauthorizedException si la sesión del cliente no es válida', async () => {
       clientesRepository.obtenerPorId.mockResolvedValue(null);
 
-      await expect(service.cancelarReserva(identidad, 42)).rejects.toBeInstanceOf(
-        UnauthorizedException,
+      await expect(
+        service.cancelarReserva(identidad, 42),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+
+      expect(reservasRepository.cancelar).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con 409 si el cliente cancela dentro de la ventana de antelación', async () => {
+      // Faltan 30 minutos para la cita (< 120 de antelación configurada).
+      fechaBogotaService.obtenerHoraBogota.mockReturnValue('13:30');
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ id: 42, status: ReservationStatus.CONFIRMED }),
+      );
+
+      await expect(service.cancelarReserva(identidad, 42)).rejects.toThrow(
+        'faltan menos de 120 minutos',
       );
 
       expect(reservasRepository.cancelar).not.toHaveBeenCalled();
+    });
+
+    it('permite al staff (admin) cancelar dentro de la ventana de antelación', async () => {
+      fechaBogotaService.obtenerHoraBogota.mockReturnValue('13:30');
+      reservasRepository.obtenerReservaConRelaciones.mockResolvedValue(
+        crearReservaRelacion({ id: 42, status: ReservationStatus.CONFIRMED }),
+      );
+      reservasRepository.cancelar.mockResolvedValue({
+        id: 42,
+        status: ReservationStatus.CANCELLED,
+      });
+
+      const respuesta = await service.cancelarReservaAdmin(42);
+
+      expect(respuesta.estado).toBe(ReservationStatus.CANCELLED);
+      expect(reservasRepository.cancelar).toHaveBeenCalledWith(42);
+    });
+  });
+
+  describe('completarReserva (SCRUM-277)', () => {
+    const usuarioBarbero = { id: 9, sub: '9', rol: 'BARBERO' };
+    const usuarioSuperadmin = { id: 1, sub: '1', rol: 'SUPERADMIN' };
+
+    const reservaCompletarBase = (over: Record<string, unknown> = {}) => ({
+      id: 42,
+      barberoId: 3,
+      servicioId: 2,
+      clienteId: 77,
+      date: new Date('2026-11-01T00:00:00.000Z'),
+      dayOfWeek: 'SUNDAY',
+      startTime: '14:00',
+      endTime: '15:00',
+      status: ReservationStatus.CONFIRMED,
+      precioReservado: 50000,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      cliente: { nombre: 'Ana', apellido: 'Pérez', telefono: '3001234567' },
+      servicio: { id: 2, nombre: 'Corte de cabello' },
+      barbero: { id: 3, usuario: { nombre: 'Carlos', apellido: 'Gómez' } },
+      ...over,
+    });
+
+    beforeEach(() => {
+      // Instante de Bogotá posterior a la hora de finalización de la reserva.
+      fechaBogotaService.obtenerFechaBogota.mockReturnValue('2026-11-01');
+      fechaBogotaService.obtenerHoraBogota.mockReturnValue('16:00');
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        id: 3,
+        estado: EstadoUsuario.ACTIVO,
+      });
+    });
+
+    it('completa una reserva propia del barbero después de la hora de finalización', async () => {
+      reservasRepository.obtenerReservaParaCompletar.mockResolvedValue(
+        reservaCompletarBase(),
+      );
+      reservasRepository.completar.mockResolvedValue(true);
+
+      const respuesta = await service.completarReserva(
+        usuarioBarbero,
+        'BARBERO',
+        42,
+      );
+
+      expect(respuesta.mensaje).toBe(MENSAJE_RESERVA_COMPLETADA);
+      expect(respuesta.id).toBe(42);
+      expect(respuesta.estado).toBe(ReservationStatus.COMPLETED);
+      expect(reservasRepository.completar).toHaveBeenCalledWith(42);
+    });
+
+    it('permite a SUPERADMIN completar cualquier reserva', async () => {
+      reservasRepository.obtenerReservaParaCompletar.mockResolvedValue(
+        reservaCompletarBase({ barberoId: 99 }),
+      );
+      reservasRepository.completar.mockResolvedValue(true);
+
+      const respuesta = await service.completarReserva(
+        usuarioSuperadmin,
+        'SUPERADMIN',
+        42,
+      );
+
+      expect(respuesta.estado).toBe(ReservationStatus.COMPLETED);
+      expect(
+        barberosRepository.obtenerBarberoPorUsuarioId,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('responde 404 uniforme si el barbero intenta completar una reserva ajena', async () => {
+      reservasRepository.obtenerReservaParaCompletar.mockResolvedValue(
+        reservaCompletarBase({ barberoId: 99 }),
+      );
+
+      await expect(
+        service.completarReserva(usuarioBarbero, 'BARBERO', 42),
+      ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
+
+      expect(reservasRepository.completar).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con 409 si la reserva está cancelada', async () => {
+      reservasRepository.obtenerReservaParaCompletar.mockResolvedValue(
+        reservaCompletarBase({ status: ReservationStatus.CANCELLED }),
+      );
+
+      await expect(
+        service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+      ).rejects.toThrow('No es posible completar una reserva cancelada');
+
+      expect(reservasRepository.completar).not.toHaveBeenCalled();
+    });
+
+    it('es idempotente si la reserva ya está COMPLETED y no vuelve a completar', async () => {
+      reservasRepository.obtenerReservaParaCompletar.mockResolvedValue(
+        reservaCompletarBase({ status: ReservationStatus.COMPLETED }),
+      );
+
+      const respuesta = await service.completarReserva(
+        usuarioSuperadmin,
+        'SUPERADMIN',
+        42,
+      );
+
+      expect(respuesta.estado).toBe(ReservationStatus.COMPLETED);
+      expect(reservasRepository.completar).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con 409 si aún no ha finalizado la franja horaria', async () => {
+      fechaBogotaService.obtenerHoraBogota.mockReturnValue('14:30');
+      reservasRepository.obtenerReservaParaCompletar.mockResolvedValue(
+        reservaCompletarBase(),
+      );
+
+      await expect(
+        service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+      ).rejects.toThrow(
+        'No es posible completar una reserva antes de su hora de finalización',
+      );
+
+      expect(reservasRepository.completar).not.toHaveBeenCalled();
+    });
+
+    it('responde 404 si la reserva no existe', async () => {
+      reservasRepository.obtenerReservaParaCompletar.mockResolvedValue(null);
+
+      await expect(
+        service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 999),
+      ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
+
+      expect(reservasRepository.completar).not.toHaveBeenCalled();
+    });
+
+    it('notifica al cliente por WhatsApp solo cuando la transición se concreta', async () => {
+      reservasRepository.obtenerReservaParaCompletar.mockResolvedValue(
+        reservaCompletarBase(),
+      );
+      reservasRepository.completar.mockResolvedValue(true);
+      const whatsapp = {
+        enviarCompletadoReserva: jest.fn().mockResolvedValue(true),
+      };
+      (
+        service as unknown as { whatsappService: typeof whatsapp }
+      ).whatsappService = whatsapp;
+
+      await service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 42);
+
+      expect(whatsapp.enviarCompletadoReserva).toHaveBeenCalledWith(
+        expect.objectContaining({
+          telefono: '3001234567',
+          servicioNombre: 'Corte de cabello',
+        }),
+      );
+    });
+
+    it('no notifica si la transición no se concreta (updateMany sin filas)', async () => {
+      reservasRepository.obtenerReservaParaCompletar.mockResolvedValue(
+        reservaCompletarBase(),
+      );
+      reservasRepository.completar.mockResolvedValue(false);
+      const whatsapp = {
+        enviarCompletadoReserva: jest.fn().mockResolvedValue(true),
+      };
+      (
+        service as unknown as { whatsappService: typeof whatsapp }
+      ).whatsappService = whatsapp;
+
+      await service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 42);
+
+      expect(whatsapp.enviarCompletadoReserva).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('noShowReserva (NO_SHOW)', () => {
+    const usuarioBarbero = { id: 9, sub: '9', rol: 'BARBERO' };
+    const usuarioSuperadmin = { id: 1, sub: '1', rol: 'SUPERADMIN' };
+
+    const reservaNoShowBase = (over: Record<string, unknown> = {}) => ({
+      id: 42,
+      barberoId: 3,
+      servicioId: 2,
+      clienteId: 77,
+      date: new Date('2026-11-01T00:00:00.000Z'),
+      dayOfWeek: 'SUNDAY',
+      startTime: '14:00',
+      endTime: '15:00',
+      status: ReservationStatus.CONFIRMED,
+      precioReservado: 50000,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      cliente: { nombre: 'Ana', apellido: 'Pérez', telefono: '3001234567' },
+      servicio: { id: 2, nombre: 'Corte de cabello' },
+      barbero: { id: 3, usuario: { nombre: 'Carlos', apellido: 'Gómez' } },
+      ...over,
+    });
+
+    beforeEach(() => {
+      // La tolerancia por defecto es 15 min; 20 min tras el inicio permite marcar.
+      fechaBogotaService.obtenerFechaBogota.mockReturnValue('2026-11-01');
+      fechaBogotaService.obtenerHoraBogota.mockReturnValue('14:20');
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        id: 3,
+        estado: EstadoUsuario.ACTIVO,
+      });
+    });
+
+    it('marca como no asistida una reserva propia del barbero tras la tolerancia', async () => {
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(
+        reservaNoShowBase(),
+      );
+      reservasRepository.marcarNoShow.mockResolvedValue(true);
+
+      const respuesta = await service.noShowReserva(usuarioBarbero, 'BARBERO', 42);
+
+      expect(respuesta.mensaje).toBe(MENSAJE_RESERVA_NO_SHOW);
+      expect(respuesta.id).toBe(42);
+      expect(respuesta.estado).toBe(ReservationStatus.NO_SHOW);
+      expect(reservasRepository.marcarNoShow).toHaveBeenCalledWith(42);
+    });
+
+    it('permite a SUPERADMIN marcar cualquier reserva', async () => {
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(
+        reservaNoShowBase({ barberoId: 99 }),
+      );
+      reservasRepository.marcarNoShow.mockResolvedValue(true);
+
+      const respuesta = await service.noShowReserva(
+        usuarioSuperadmin,
+        'SUPERADMIN',
+        42,
+      );
+
+      expect(respuesta.estado).toBe(ReservationStatus.NO_SHOW);
+      expect(
+        barberosRepository.obtenerBarberoPorUsuarioId,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('responde 404 uniforme si el barbero intenta marcar una reserva ajena', async () => {
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(
+        reservaNoShowBase({ barberoId: 99 }),
+      );
+
+      await expect(
+        service.noShowReserva(usuarioBarbero, 'BARBERO', 42),
+      ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
+
+      expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con 409 si la reserva está cancelada', async () => {
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(
+        reservaNoShowBase({ status: ReservationStatus.CANCELLED }),
+      );
+
+      await expect(
+        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+      ).rejects.toThrow(
+        'No es posible marcar como no asistida una reserva cancelada',
+      );
+
+      expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con 409 si la reserva ya está completada', async () => {
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(
+        reservaNoShowBase({ status: ReservationStatus.COMPLETED }),
+      );
+
+      await expect(
+        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+      ).rejects.toThrow(
+        'No es posible marcar como no asistida una reserva completada',
+      );
+
+      expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
+    });
+
+    it('es idempotente si la reserva ya está NO_SHOW', async () => {
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(
+        reservaNoShowBase({ status: ReservationStatus.NO_SHOW }),
+      );
+
+      const respuesta = await service.noShowReserva(
+        usuarioSuperadmin,
+        'SUPERADMIN',
+        42,
+      );
+
+      expect(respuesta.estado).toBe(ReservationStatus.NO_SHOW);
+      expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con 409 si aún no transcurrió la tolerancia', async () => {
+      fechaBogotaService.obtenerHoraBogota.mockReturnValue('14:10');
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(
+        reservaNoShowBase(),
+      );
+
+      await expect(
+        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+      ).rejects.toThrow(
+        'No es posible marcar la reserva como no asistida antes de 15 minutos',
+      );
+
+      expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
+    });
+
+    it('responde 404 si la reserva no existe', async () => {
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(null);
+
+      await expect(
+        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 999),
+      ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
+
+      expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
     });
   });
 });

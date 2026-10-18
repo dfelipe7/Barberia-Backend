@@ -8,7 +8,10 @@ export class ReservaCanceladaResponseDto {
   @ApiProperty({ example: 'Reserva cancelada correctamente' })
   mensaje: string;
 
-  @ApiProperty({ example: 42, description: 'Identificador único de la reserva' })
+  @ApiProperty({
+    example: 42,
+    description: 'Identificador único de la reserva',
+  })
   id: number;
 
   @ApiProperty({

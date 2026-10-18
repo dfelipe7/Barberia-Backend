@@ -5,9 +5,9 @@ import { ServiciosService } from './service/servicios.service';
 import { ServiciosController } from './controller/servicios.controller';
 
 @Module({
-    imports: [AuthModule],
-    controllers: [ServiciosController],
-    providers: [ServiciosRepository, ServiciosService],
-    exports: [ServiciosService, ServiciosRepository],
+  imports: [AuthModule],
+  controllers: [ServiciosController],
+  providers: [ServiciosRepository, ServiciosService],
+  exports: [ServiciosService, ServiciosRepository],
 })
-export class ServiciosModule { }
+export class ServiciosModule {}

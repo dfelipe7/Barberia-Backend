@@ -41,6 +41,8 @@ import { ConsultaAgendaSemanalDto } from '../dto/dto-peticion/consulta-agenda-se
 import { ReservaCreadaResponseDto } from '../dto/dto-respuesta/reserva-creada-response.dto';
 import { ReservaModificadaResponseDto } from '../dto/dto-respuesta/reserva-modificada-response.dto';
 import { ReservaCanceladaResponseDto } from '../dto/dto-respuesta/reserva-cancelada-response.dto';
+import { ReservaCompletadaResponseDto } from '../dto/dto-respuesta/reserva-completada-response.dto';
+import { ReservaNoShowResponseDto } from '../dto/dto-respuesta/reserva-no-show-response.dto';
 import { ReservaClienteDto } from '../dto/dto-respuesta/reserva-cliente.dto';
 import { ReservaAdminDetalleDto } from '../dto/dto-respuesta/reserva-admin-detalle.dto';
 import { MisReservasResponseDto } from '../dto/dto-respuesta/mis-reservas-response.dto';
@@ -62,6 +64,11 @@ import { Roles } from '../../../auth/roles/roles.decorator';
 /** Petición con la identidad de cliente que publica el guard de cliente. */
 interface PeticionConCliente {
   cliente?: { clienteId: number };
+}
+
+/** Petición con la identidad del personal autenticado (rol e id del token). */
+interface PeticionPersonal {
+  user?: { id?: number; sub?: string; rol?: string };
 }
 
 /**
@@ -142,12 +149,21 @@ export class ReservasController {
     type: ReservaCreadaResponseDto,
   })
   @ApiBadRequestResponse({
-    description: 'Datos obligatorios inválidos o ausentes para cliente ocasional o reserva',
+    description:
+      'Datos obligatorios inválidos o ausentes para cliente ocasional o reserva',
   })
-  @ApiUnauthorizedResponse({ description: 'No autenticado o token de personal inválido' })
-  @ApiForbiddenResponse({ description: 'Rol no autorizado (requiere ADMINISTRADOR o SUPERADMIN)' })
-  @ApiNotFoundResponse({ description: 'Servicio, barbero o cliente registrado no encontrado' })
-  @ApiConflictResponse({ description: 'Horario ocupado o cliente ya cuenta con reserva duplicada' })
+  @ApiUnauthorizedResponse({
+    description: 'No autenticado o token de personal inválido',
+  })
+  @ApiForbiddenResponse({
+    description: 'Rol no autorizado (requiere ADMINISTRADOR o SUPERADMIN)',
+  })
+  @ApiNotFoundResponse({
+    description: 'Servicio, barbero o cliente registrado no encontrado',
+  })
+  @ApiConflictResponse({
+    description: 'Horario ocupado o cliente ya cuenta con reserva duplicada',
+  })
   async crearReservaAdmin(
     @Body() dto: CrearReservaAdminDto,
   ): Promise<ReservaCreadaResponseDto> {
@@ -160,8 +176,10 @@ export class ReservasController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Buscar clientes registrados para creación administrativa (HU-13-CA-02)',
-    description: 'Busca clientes por coincidencia en nombre, apellido, teléfono o correo.',
+    summary:
+      'Buscar clientes registrados para creación administrativa (HU-13-CA-02)',
+    description:
+      'Busca clientes por coincidencia en nombre, apellido, teléfono o correo.',
   })
   @ApiOkResponse({ description: 'Lista de clientes coincidentes' })
   async buscarClientesAdmin(@Query('termino') termino?: string) {
@@ -183,7 +201,9 @@ export class ReservasController {
     type: [ReservaAdminDetalleDto],
   })
   @ApiUnauthorizedResponse({ description: 'No autenticado o token inválido' })
-  @ApiForbiddenResponse({ description: 'Acceso restringido exclusivamente a SUPERADMIN' })
+  @ApiForbiddenResponse({
+    description: 'Acceso restringido exclusivamente a SUPERADMIN',
+  })
   async listarReservasAdmin(
     @Query() filtro: FiltroReservasAdminDto,
   ): Promise<ReservaAdminDetalleDto[]> {
@@ -196,7 +216,8 @@ export class ReservasController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Consultar el detalle de cualquier reserva de la barbería (SUPERADMIN)',
+    summary:
+      'Consultar el detalle de cualquier reserva de la barbería (SUPERADMIN)',
     description:
       'Devuelve la información completa de la reserva, cliente, barbero y servicio sin importar a quién pertenezca.',
   })
@@ -212,7 +233,9 @@ export class ReservasController {
     @Param('reservaId', ParseIntPipe) reservaId: number,
   ): Promise<ReservaAdminDetalleDto> {
     if (reservaId <= 0) {
-      throw new BadRequestException('El identificador de la reserva debe ser un entero positivo');
+      throw new BadRequestException(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
     }
     return this.reservasService.obtenerReservaAdmin(reservaId);
   }
@@ -233,7 +256,10 @@ export class ReservasController {
     description: 'Reserva modificada correctamente',
     type: ReservaModificadaResponseDto,
   })
-  @ApiConflictResponse({ description: 'El horario seleccionado no está disponible o el estado no es modificable' })
+  @ApiConflictResponse({
+    description:
+      'El horario seleccionado no está disponible o el estado no es modificable',
+  })
   @ApiNotFoundResponse({ description: 'La reserva no se encuentra disponible' })
   @ApiForbiddenResponse({ description: 'Acceso restringido a SUPERADMIN' })
   async modificarReservaAdmin(
@@ -241,7 +267,9 @@ export class ReservasController {
     @Body() dto: ModificarReservaDto,
   ): Promise<ReservaModificadaResponseDto> {
     if (reservaId <= 0) {
-      throw new BadRequestException('El identificador de la reserva debe ser un entero positivo');
+      throw new BadRequestException(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
     }
     return this.reservasService.modificarReservaAdmin(reservaId, dto);
   }
@@ -262,15 +290,113 @@ export class ReservasController {
     type: ReservaCanceladaResponseDto,
   })
   @ApiNotFoundResponse({ description: 'La reserva no se encuentra disponible' })
-  @ApiConflictResponse({ description: 'El estado actual no permite cancelación' })
+  @ApiConflictResponse({
+    description: 'El estado actual no permite cancelación',
+  })
   @ApiForbiddenResponse({ description: 'Acceso restringido a SUPERADMIN' })
   async cancelarReservaAdmin(
     @Param('reservaId', ParseIntPipe) reservaId: number,
   ): Promise<ReservaCanceladaResponseDto> {
     if (reservaId <= 0) {
-      throw new BadRequestException('El identificador de la reserva debe ser un entero positivo');
+      throw new BadRequestException(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
     }
     return this.reservasService.cancelarReservaAdmin(reservaId);
+  }
+
+  @Patch(':reservaId/completar')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('BARBERO', 'ADMINISTRADOR', 'SUPERADMIN')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Marcar una reserva como completada (SCRUM-277)',
+    description:
+      'Transiciona la reserva al estado COMPLETED. Disponible para BARBERO (solo sus propias reservas), ADMINISTRADOR y SUPERADMIN. Solo se permite cuando ya pasó la hora de finalización de la cita; es idempotente si la reserva ya está completada y rechaza reservas canceladas. Al completarse, notifica al cliente por WhatsApp.',
+  })
+  @ApiParam({ name: 'reservaId', example: 42, description: 'ID de la reserva' })
+  @ApiOkResponse({
+    description: 'Reserva completada correctamente',
+    type: ReservaCompletadaResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'Identificador de reserva inválido' })
+  @ApiUnauthorizedResponse({
+    description: 'No autenticado o token de personal inválido/expirado',
+  })
+  @ApiForbiddenResponse({
+    description:
+      'El usuario no tiene rol autorizado o no posee perfil de barbero activo',
+  })
+  @ApiNotFoundResponse({
+    description: 'La reserva no se encuentra disponible',
+  })
+  @ApiConflictResponse({
+    description:
+      'La reserva está cancelada o aún no ha finalizado su franja horaria',
+  })
+  async completarReserva(
+    @Req() request: PeticionPersonal,
+    @Param('reservaId', ParseIntPipe) reservaId: number,
+  ): Promise<ReservaCompletadaResponseDto> {
+    if (reservaId <= 0) {
+      throw new BadRequestException(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
+    }
+
+    return this.reservasService.completarReserva(
+      request.user,
+      request.user?.rol,
+      reservaId,
+    );
+  }
+
+  @Patch(':reservaId/no-show')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('BARBERO', 'ADMINISTRADOR', 'SUPERADMIN')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Marcar una reserva como no asistida (NO_SHOW)',
+    description:
+      'Transiciona la reserva al estado NO_SHOW cuando el cliente no asistió. Disponible para BARBERO (solo sus propias reservas), ADMINISTRADOR y SUPERADMIN. Solo se permite una vez transcurrida la tolerancia configurada desde la hora de inicio; es idempotente si la reserva ya está en NO_SHOW y rechaza reservas canceladas o completadas.',
+  })
+  @ApiParam({ name: 'reservaId', example: 42, description: 'ID de la reserva' })
+  @ApiOkResponse({
+    description: 'Reserva marcada como no asistida correctamente',
+    type: ReservaNoShowResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'Identificador de reserva inválido' })
+  @ApiUnauthorizedResponse({
+    description: 'No autenticado o token de personal inválido/expirado',
+  })
+  @ApiForbiddenResponse({
+    description:
+      'El usuario no tiene rol autorizado o no posee perfil de barbero activo',
+  })
+  @ApiNotFoundResponse({
+    description: 'La reserva no se encuentra disponible',
+  })
+  @ApiConflictResponse({
+    description:
+      'La reserva está cancelada/completada o aún no ha transcurrido la tolerancia desde su hora de inicio',
+  })
+  async marcarNoShow(
+    @Req() request: PeticionPersonal,
+    @Param('reservaId', ParseIntPipe) reservaId: number,
+  ): Promise<ReservaNoShowResponseDto> {
+    if (reservaId <= 0) {
+      throw new BadRequestException(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
+    }
+
+    return this.reservasService.noShowReserva(
+      request.user,
+      request.user?.rol,
+      reservaId,
+    );
   }
 
   @Get('barbero/me/agenda')
@@ -336,10 +462,7 @@ export class ReservasController {
     @Req() request: any,
     @Query() consulta: ConsultaAgendaBarberoDto,
   ): Promise<AgendaBarberoResponseDto> {
-    return this.reservasService.obtenerAgendaBarbero(
-      request.user,
-      consulta,
-    );
+    return this.reservasService.obtenerAgendaBarbero(request.user, consulta);
   }
 
   @Get('me')

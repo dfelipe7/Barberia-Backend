@@ -12,7 +12,9 @@ describe('WhatsAppController', () => {
     whatsappService = {
       getStatus: jest.fn().mockReturnValue({ conectado: true, qr: null }),
       iniciar: jest.fn().mockReturnValue({ mensaje: 'Iniciando WhatsApp...' }),
-      pausar: jest.fn().mockReturnValue({ mensaje: 'WhatsApp en modo reposo.' }),
+      pausar: jest
+        .fn()
+        .mockReturnValue({ mensaje: 'WhatsApp en modo reposo.' }),
       desconectar: jest
         .fn()
         .mockResolvedValue({ mensaje: 'WhatsApp desvinculado con éxito.' }),

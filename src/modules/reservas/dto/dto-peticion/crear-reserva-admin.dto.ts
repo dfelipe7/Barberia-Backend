@@ -97,10 +97,13 @@ export class CrearReservaAdminDto {
 
   @ApiPropertyOptional({
     example: 'juan.perez@example.com',
-    description: 'Correo electrónico de contacto del cliente ocasional (opcional)',
+    description:
+      'Correo electrónico de contacto del cliente ocasional (opcional)',
   })
   @IsOptional()
   @IsEmail({}, { message: 'El correo electrónico no es válido' })
-  @MaxLength(150, { message: 'El correo electrónico no puede exceder 150 caracteres' })
+  @MaxLength(150, {
+    message: 'El correo electrónico no puede exceder 150 caracteres',
+  })
   email?: string;
 }
