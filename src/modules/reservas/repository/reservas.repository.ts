@@ -160,6 +160,81 @@ export interface ReservaAgendaRegistro {
   };
 }
 
+/**
+ * Selección para marcar una reserva como completada: incluye la identidad del
+ * barbero (para verificar propiedad), los datos de contacto del cliente y el
+ * nombre del servicio (para la notificación por WhatsApp).
+ */
+export const SELECCION_RESERVA_PARA_COMPLETAR = {
+  id: true,
+  barberoId: true,
+  servicioId: true,
+  clienteId: true,
+  date: true,
+  dayOfWeek: true,
+  startTime: true,
+  endTime: true,
+  status: true,
+  precioReservado: true,
+  createdAt: true,
+  updatedAt: true,
+  cliente: {
+    select: {
+      nombre: true,
+      apellido: true,
+      telefono: true,
+    },
+  },
+  servicio: {
+    select: {
+      id: true,
+      nombre: true,
+    },
+  },
+  barbero: {
+    select: {
+      id: true,
+      usuario: {
+        select: {
+          nombre: true,
+          apellido: true,
+        },
+      },
+    },
+  },
+} as const;
+
+export interface ReservaCompletarRegistro {
+  id: number;
+  barberoId: number;
+  servicioId: number;
+  clienteId: number;
+  date: Date;
+  dayOfWeek: WeekDay;
+  startTime: string;
+  endTime: string;
+  status: ReservationStatus;
+  precioReservado: Prisma.Decimal | null;
+  createdAt: Date;
+  updatedAt: Date;
+  cliente: {
+    nombre: string;
+    apellido: string | null;
+    telefono: string | null;
+  };
+  servicio: {
+    id: number;
+    nombre: string;
+  };
+  barbero: {
+    id: number;
+    usuario: {
+      nombre: string;
+      apellido: string;
+    };
+  };
+}
+
 export interface ConsultaOcupacionPorFecha {
   barberoId: number;
   fecha: Date;
@@ -457,7 +532,9 @@ export class ReservasRepository {
    */
   async obtenerReservaParaGestionInvitado(
     reservaId: number,
-  ): Promise<(ReservaConRelaciones & { gestionTokenHash: string | null }) | null> {
+  ): Promise<
+    (ReservaConRelaciones & { gestionTokenHash: string | null }) | null
+  > {
     return this.prisma.reservation.findUnique({
       where: { id: reservaId },
       select: {
@@ -477,6 +554,43 @@ export class ReservasRepository {
       where: { id },
       select: SELECCION_RESERVA_CON_RELACIONES,
     });
+  }
+
+  /**
+   * Obtiene la reserva con datos de cliente, servicio y barbero para la
+   * transición a `COMPLETED` (verificación de propiedad y notificación).
+   */
+  async obtenerReservaParaCompletar(
+    id: number,
+  ): Promise<ReservaCompletarRegistro | null> {
+    return this.prisma.reservation.findUnique({
+      where: { id },
+      select: SELECCION_RESERVA_PARA_COMPLETAR,
+    });
+  }
+
+  /**
+   * Marca la reserva como `COMPLETED` únicamente si su estado lo permite
+   * (`PENDING`/`CONFIRMED`/`IN_PROGRESS`). El `updateMany` condicional evita
+   * dobles efectos ante peticiones concurrentes y permite detectar la
+   * transición real (cuenta de filas afectadas).
+   */
+  async completar(id: number): Promise<boolean> {
+    const resultado = await this.prisma.reservation.updateMany({
+      where: {
+        id,
+        status: {
+          in: [
+            ReservationStatus.PENDING,
+            ReservationStatus.CONFIRMED,
+            ReservationStatus.IN_PROGRESS,
+          ],
+        },
+      },
+      data: { status: ReservationStatus.COMPLETED },
+    });
+
+    return resultado.count > 0;
   }
 
   /**
@@ -672,7 +786,9 @@ export class ReservasRepository {
     return this.prisma.reservation.findMany({
       where: {
         date: fecha,
-        status: { in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED] },
+        status: {
+          in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED],
+        },
         recordatorioEnviado: false,
       },
       select: {
@@ -769,4 +885,3 @@ export class ReservasRepository {
     });
   }
 }
-

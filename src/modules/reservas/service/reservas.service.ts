@@ -9,7 +9,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as crypto from 'node:crypto';
-import { EstadoUsuario, ReservationStatus } from '../../../../generated/prisma/enums';
+import {
+  EstadoUsuario,
+  ReservationStatus,
+} from '../../../../generated/prisma/enums';
 import { WhatsAppService } from '../../whatsapp/whatsapp.service';
 import { CrearReservaDto } from '../dto/dto-peticion/crear-reserva.dto';
 import { ModificarReservaDto } from '../dto/dto-peticion/modificar-reserva.dto';
@@ -18,6 +21,7 @@ import { ConsultaAgendaSemanalDto } from '../dto/dto-peticion/consulta-agenda-se
 import { ReservaCreadaResponseDto } from '../dto/dto-respuesta/reserva-creada-response.dto';
 import { ReservaModificadaResponseDto } from '../dto/dto-respuesta/reserva-modificada-response.dto';
 import { ReservaCanceladaResponseDto } from '../dto/dto-respuesta/reserva-cancelada-response.dto';
+import { ReservaCompletadaResponseDto } from '../dto/dto-respuesta/reserva-completada-response.dto';
 import { ReservaClienteDto } from '../dto/dto-respuesta/reserva-cliente.dto';
 import { MisReservasResponseDto } from '../dto/dto-respuesta/mis-reservas-response.dto';
 import { CrearReservaAdminDto } from '../dto/dto-peticion/crear-reserva-admin.dto';
@@ -35,6 +39,7 @@ import {
   ModificarReservaDatos,
   ReservaAdminRegistro,
   ReservaAgendaRegistro,
+  ReservaCompletarRegistro,
   ReservaConRelaciones,
   ReservaRegistro,
   ReservasRepository,
@@ -51,6 +56,7 @@ import { BarberosRepository } from '../../usuarios/repository/barberos.repositor
 export const MENSAJE_RESERVA_CREADA = 'Reserva creada exitosamente';
 export const MENSAJE_RESERVA_MODIFICADA = 'Reserva modificada correctamente';
 export const MENSAJE_RESERVA_CANCELADA = 'Reserva cancelada correctamente';
+export const MENSAJE_RESERVA_COMPLETADA = 'Reserva completada correctamente';
 export const MENSAJE_FRANJA_OCUPADA =
   'El horario seleccionado ya no está disponible. Por favor selecciona otro horario';
 export { MENSAJE_HORARIO_NO_DISPONIBLE };
@@ -168,7 +174,12 @@ export class ReservasService {
 
     // Disparo desacoplado de confirmación por WhatsApp en segundo plano
     if (this.whatsappService) {
-      this.dispararConfirmacionWhatsApp(dto, cliente.clienteIdConocido, servicio.nombre, respuesta);
+      this.dispararConfirmacionWhatsApp(
+        dto,
+        cliente.clienteIdConocido,
+        servicio.nombre,
+        respuesta,
+      );
     }
 
     return respuesta;
@@ -190,11 +201,13 @@ export class ReservasService {
         : null;
 
       if (clienteIdConocido) {
-        const clienteDb = await this.clientesRepository.obtenerPorId(clienteIdConocido);
+        const clienteDb =
+          await this.clientesRepository.obtenerPorId(clienteIdConocido);
         if (clienteDb) {
           if (!telefono && clienteDb.telefono) telefono = clienteDb.telefono;
           if (!clienteNombre) {
-            clienteNombre = `${clienteDb.nombre} ${clienteDb.apellido ?? ''}`.trim();
+            clienteNombre =
+              `${clienteDb.nombre} ${clienteDb.apellido ?? ''}`.trim();
           }
         }
       }
@@ -204,14 +217,17 @@ export class ReservasService {
           telefono,
           clienteNombre: clienteNombre || 'Cliente',
           servicioNombre,
-          barberoNombre: `${respuesta.barbero.nombre} ${respuesta.barbero.apellido}`.trim(),
+          barberoNombre:
+            `${respuesta.barbero.nombre} ${respuesta.barbero.apellido}`.trim(),
           fecha: respuesta.fecha,
           hora: respuesta.hora,
           precio: respuesta.servicio.precio,
         });
       }
     } catch (err: any) {
-      this.logger.warn(`No se pudo enviar confirmación por WhatsApp: ${err?.message ?? err}`);
+      this.logger.warn(
+        `No se pudo enviar confirmación por WhatsApp: ${err?.message ?? err}`,
+      );
     }
   }
 
@@ -361,13 +377,18 @@ export class ReservasService {
     let clienteTelefonoNotif: string | null = null;
 
     if (dto.clienteId !== undefined && dto.clienteId !== null) {
-      const clienteDb = await this.clientesRepository.obtenerPorId(dto.clienteId);
+      const clienteDb = await this.clientesRepository.obtenerPorId(
+        dto.clienteId,
+      );
       if (!clienteDb) {
-        throw new NotFoundException(`El cliente con ID ${dto.clienteId} no existe`);
+        throw new NotFoundException(
+          `El cliente con ID ${dto.clienteId} no existe`,
+        );
       }
       clienteIdConocido = clienteDb.id;
       clienteDeReserva = { clienteId: clienteDb.id };
-      clienteNombreNotif = `${clienteDb.nombre} ${clienteDb.apellido ?? ''}`.trim();
+      clienteNombreNotif =
+        `${clienteDb.nombre} ${clienteDb.apellido ?? ''}`.trim();
       clienteTelefonoNotif = dto.telefono ?? clienteDb.telefono ?? null;
 
       // CA-04: el mismo cliente no puede duplicar la reserva de la franja.
@@ -405,7 +426,8 @@ export class ReservasService {
           usuarioId: null,
         },
       };
-      clienteNombreNotif = `${nombreLimpio} ${dto.apellido?.trim() ?? ''}`.trim();
+      clienteNombreNotif =
+        `${nombreLimpio} ${dto.apellido?.trim() ?? ''}`.trim();
       clienteTelefonoNotif = telefonoLimpio;
     }
 
@@ -463,17 +485,22 @@ export class ReservasService {
 
     // Disparo desacoplado de confirmación por WhatsApp en segundo plano
     if (this.whatsappService && clienteTelefonoNotif) {
-      this.whatsappService.enviarConfirmacionReserva({
-        telefono: clienteTelefonoNotif,
-        clienteNombre: clienteNombreNotif,
-        servicioNombre: servicio.nombre,
-        barberoNombre: `${respuesta.barbero.nombre} ${respuesta.barbero.apellido}`.trim(),
-        fecha: respuesta.fecha,
-        hora: respuesta.hora,
-        precio: respuesta.servicio.precio,
-      }).catch((err) =>
-        this.logger.warn(`No se pudo enviar confirmación por WhatsApp en admin: ${err?.message ?? err}`),
-      );
+      this.whatsappService
+        .enviarConfirmacionReserva({
+          telefono: clienteTelefonoNotif,
+          clienteNombre: clienteNombreNotif,
+          servicioNombre: servicio.nombre,
+          barberoNombre:
+            `${respuesta.barbero.nombre} ${respuesta.barbero.apellido}`.trim(),
+          fecha: respuesta.fecha,
+          hora: respuesta.hora,
+          precio: respuesta.servicio.precio,
+        })
+        .catch((err) =>
+          this.logger.warn(
+            `No se pudo enviar confirmación por WhatsApp en admin: ${err?.message ?? err}`,
+          ),
+        );
     }
 
     return respuesta;
@@ -525,8 +552,11 @@ export class ReservasService {
   /**
    * SUPERADMIN: Consulta el detalle completo de cualquier reserva de la barbería.
    */
-  async obtenerReservaAdmin(reservaId: number): Promise<ReservaAdminDetalleDto> {
-    const reserva = await this.reservasRepository.obtenerReservaAdminPorId(reservaId);
+  async obtenerReservaAdmin(
+    reservaId: number,
+  ): Promise<ReservaAdminDetalleDto> {
+    const reserva =
+      await this.reservasRepository.obtenerReservaAdminPorId(reservaId);
     if (!reserva) {
       throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
     }
@@ -542,7 +572,8 @@ export class ReservasService {
   ): Promise<ReservaModificadaResponseDto> {
     this.validarDatosModificacion(dto);
 
-    const reserva = await this.reservasRepository.obtenerReservaConRelaciones(reservaId);
+    const reserva =
+      await this.reservasRepository.obtenerReservaConRelaciones(reservaId);
     if (!reserva) {
       throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
     }
@@ -556,12 +587,126 @@ export class ReservasService {
   async cancelarReservaAdmin(
     reservaId: number,
   ): Promise<ReservaCanceladaResponseDto> {
-    const reserva = await this.reservasRepository.obtenerReservaConRelaciones(reservaId);
+    const reserva =
+      await this.reservasRepository.obtenerReservaConRelaciones(reservaId);
     if (!reserva) {
       throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
     }
 
     return this.ejecutarCancelacionReserva(reserva, 'admin');
+  }
+
+  /**
+   * SCRUM-277: Marca una reserva como COMPLETED.
+   *
+   * Permitido a BARBERO (solo su propia reserva), ADMINISTRADOR y SUPERADMIN.
+   * Solo se puede completar cuando ya pasó la hora de finalización de la cita;
+   * es idempotente si la reserva ya está COMPLETED y rechaza reservas CANCELLED.
+   * Al concretarse la transición, notifica al cliente por WhatsApp de forma
+   * desacoplada (best-effort, no afecta la respuesta HTTP).
+   */
+  async completarReserva(
+    usuarioAutenticado: unknown,
+    rol: string | undefined,
+    reservaId: number,
+  ): Promise<ReservaCompletadaResponseDto> {
+    const reserva =
+      await this.reservasRepository.obtenerReservaParaCompletar(reservaId);
+
+    if (!reserva) {
+      throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+    }
+
+    // Anti-BOLA/IDOR: un BARBERO solo puede completar sus propias reservas. Se
+    // responde 404 uniforme para no revelar la existencia de reservas ajenas.
+    if (rol === 'BARBERO') {
+      const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
+
+      if (reserva.barberoId !== barbero.id) {
+        throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+      }
+    }
+
+    if (reserva.status === ReservationStatus.CANCELLED) {
+      throw new ConflictException(
+        'No es posible completar una reserva cancelada',
+      );
+    }
+
+    // Idempotencia: repetir la petición no duplica efectos ni notificaciones.
+    if (reserva.status === ReservationStatus.COMPLETED) {
+      return {
+        mensaje: MENSAJE_RESERVA_COMPLETADA,
+        id: reserva.id,
+        estado: ReservationStatus.COMPLETED,
+      };
+    }
+
+    this.validarHoraDeFinalizacion(reserva);
+
+    const transiciono = await this.reservasRepository.completar(reserva.id);
+
+    if (transiciono) {
+      this.logger.log(
+        `AUDIT: reserva completada id=${reserva.id} barberoId=${reserva.barberoId} rol=${rol ?? 'desconocido'}`,
+      );
+      this.dispararCompletadoWhatsApp(reserva);
+    }
+
+    return {
+      mensaje: MENSAJE_RESERVA_COMPLETADA,
+      id: reserva.id,
+      estado: ReservationStatus.COMPLETED,
+    };
+  }
+
+  /**
+   * Exige que la hora de finalización de la reserva ya haya pasado (en Bogotá)
+   * para poder marcarla como completada.
+   */
+  private validarHoraDeFinalizacion(reserva: ReservaCompletarRegistro): void {
+    const ahora = new Date();
+    const claveAhora = `${this.fechaBogotaService.obtenerFechaBogota(ahora)}T${this.fechaBogotaService.obtenerHoraBogota(ahora)}`;
+    const claveFin = `${this.aFechaCalendario(reserva.date)}T${reserva.endTime}`;
+
+    if (claveAhora < claveFin) {
+      throw new ConflictException(
+        'No es posible completar una reserva antes de su hora de finalización',
+      );
+    }
+  }
+
+  /**
+   * Notifica al cliente, en segundo plano, que su cita fue completada.
+   */
+  private dispararCompletadoWhatsApp(reserva: ReservaCompletarRegistro): void {
+    if (!this.whatsappService || !reserva.cliente.telefono) {
+      return;
+    }
+
+    const clienteNombre =
+      `${reserva.cliente.nombre} ${reserva.cliente.apellido ?? ''}`.trim() ||
+      'Cliente';
+
+    this.whatsappService
+      .enviarCompletadoReserva({
+        telefono: reserva.cliente.telefono,
+        clienteNombre,
+        servicioNombre: reserva.servicio.nombre,
+        barberoNombre:
+          `${reserva.barbero.usuario.nombre} ${reserva.barbero.usuario.apellido}`.trim(),
+        fecha: this.aFechaCalendario(reserva.date),
+        hora: reserva.startTime,
+        precio:
+          reserva.precioReservado !== null
+            ? Number(reserva.precioReservado)
+            : null,
+      })
+      .catch((err) =>
+        this.logger.warn(
+          `No se pudo enviar notificación de completado por WhatsApp: ${err?.message ?? err}`,
+        ),
+      );
   }
 
   /**
@@ -621,7 +766,9 @@ export class ReservasService {
     modalidad: 'autenticado' | 'invitado' | 'admin',
   ): Promise<ReservaModificadaResponseDto> {
     if (reserva.status === ReservationStatus.CANCELLED) {
-      throw new ConflictException('No es posible modificar una reserva cancelada');
+      throw new ConflictException(
+        'No es posible modificar una reserva cancelada',
+      );
     }
 
     if (
@@ -800,7 +947,9 @@ export class ReservasService {
     }
 
     const reserva =
-      await this.reservasRepository.obtenerReservaParaGestionInvitado(reservaId);
+      await this.reservasRepository.obtenerReservaParaGestionInvitado(
+        reservaId,
+      );
 
     if (!reserva) {
       throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
