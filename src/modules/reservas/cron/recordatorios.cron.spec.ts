@@ -51,16 +51,26 @@ describe('RecordatoriosCron (HU-11 - WhatsApp Recordatorios)', () => {
   });
 
   it('debe salir sin procesar si WhatsApp no está conectado', async () => {
-    whatsappService.getStatus.mockReturnValue({ conectado: false, qr: null, telefonoConectado: null });
+    whatsappService.getStatus.mockReturnValue({
+      conectado: false,
+      qr: null,
+      telefonoConectado: null,
+    });
 
     await cron.procesarRecordatorios();
 
-    expect(reservasRepo.obtenerCitasPendientesRecordatorio).not.toHaveBeenCalled();
+    expect(
+      reservasRepo.obtenerCitasPendientesRecordatorio,
+    ).not.toHaveBeenCalled();
     expect(whatsappService.enviarRecordatorioReserva).not.toHaveBeenCalled();
   });
 
   it('debe procesar citas dentro de la ventana de 120 minutos y marcar recordatorioEnviado', async () => {
-    whatsappService.getStatus.mockReturnValue({ conectado: true, qr: null, telefonoConectado: '573001234567' });
+    whatsappService.getStatus.mockReturnValue({
+      conectado: true,
+      qr: null,
+      telefonoConectado: '573001234567',
+    });
     fechaBogotaService.obtenerComponentesBogota.mockReturnValue({
       fecha: '2026-11-20',
       hora24: 10,

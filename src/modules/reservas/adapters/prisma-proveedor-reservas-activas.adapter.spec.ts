@@ -130,15 +130,19 @@ describe('PrismaProveedorReservasActivas (adaptador del puerto HE-08)', () => {
     it('traduce el día de la semana al enum WeekDay y delega en el repositorio', async () => {
       repository.existeReservaQueOcupaEnFranjaSemanal.mockResolvedValue(true);
 
-      const resultado = await adaptador.existeReservaNoCanceladaEnFranjaSemanal({
-        barberoId: 3,
-        dayOfWeek: 'MONDAY',
-        startTime: '09:00',
-        endTime: '10:00',
-      });
+      const resultado = await adaptador.existeReservaNoCanceladaEnFranjaSemanal(
+        {
+          barberoId: 3,
+          dayOfWeek: 'MONDAY',
+          startTime: '09:00',
+          endTime: '10:00',
+        },
+      );
 
       expect(resultado).toBe(true);
-      expect(repository.existeReservaQueOcupaEnFranjaSemanal).toHaveBeenCalledWith({
+      expect(
+        repository.existeReservaQueOcupaEnFranjaSemanal,
+      ).toHaveBeenCalledWith({
         barberoId: 3,
         dayOfWeek: WeekDay.MONDAY,
         startTime: '09:00',

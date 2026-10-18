@@ -26,10 +26,7 @@ export class BarberosRepository {
     return this.crearBarberoNuevo(data);
   }
 
-  async actualizarComision(
-    usuarioId: number,
-    porcentajeComision: number,
-  ) {
+  async actualizarComision(usuarioId: number, porcentajeComision: number) {
     return this.prisma.barbero.update({
       where: {
         usuarioId,
@@ -119,7 +116,10 @@ export class BarberosRepository {
     });
   }
 
-  async obtenerBarberosGestion(filtro?: { nombre?: string; estado?: EstadoUsuario }) {
+  async obtenerBarberosGestion(filtro?: {
+    nombre?: string;
+    estado?: EstadoUsuario;
+  }) {
     const whereCondition: any = {};
 
     if (filtro?.estado) {
@@ -157,10 +157,7 @@ export class BarberosRepository {
     });
   }
 
-  async actualizarEstadoBarbero(
-    usuarioId: number,
-    estado: EstadoUsuario,
-  ) {
+  async actualizarEstadoBarbero(usuarioId: number, estado: EstadoUsuario) {
     return this.prisma.barbero.update({
       where: {
         usuarioId,

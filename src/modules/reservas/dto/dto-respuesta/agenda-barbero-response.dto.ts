@@ -32,7 +32,10 @@ export class ServicioAgendaDto {
   @ApiProperty({ example: 2, description: 'ID del servicio' })
   id: number;
 
-  @ApiProperty({ example: 'Corte de cabello', description: 'Nombre del servicio' })
+  @ApiProperty({
+    example: 'Corte de cabello',
+    description: 'Nombre del servicio',
+  })
   nombre: string;
 
   @ApiProperty({
@@ -109,7 +112,8 @@ export class AgendaBarberoResponseDto {
 
   @ApiProperty({
     type: [CitaAgendaBarberoDto],
-    description: 'Lista de reservas activas del barbero para la fecha solicitada, ordenadas cronológicamente',
+    description:
+      'Lista de reservas activas del barbero para la fecha solicitada, ordenadas cronológicamente',
   })
   reservas: CitaAgendaBarberoDto[];
 }

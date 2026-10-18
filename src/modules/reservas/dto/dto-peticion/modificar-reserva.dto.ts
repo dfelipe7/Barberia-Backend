@@ -1,11 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsInt,
-  IsOptional,
-  IsString,
-  Matches,
-  Min,
-} from 'class-validator';
+import { IsInt, IsOptional, IsString, Matches, Min } from 'class-validator';
 
 /** Fecha de calendario del negocio (America/Bogota). */
 const REGEX_FECHA = /^\d{4}-\d{2}-\d{2}$/;

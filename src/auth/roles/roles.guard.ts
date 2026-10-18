@@ -9,34 +9,26 @@ import { ROLES_KEY } from './roles.decorator';
 
 /**
  * Guard de Autorización Basado en Roles (RolesGuard)
- * 
+ *
  * Este guardia actúa DESPUÉS de que el JwtAuthGuard validó el token.
  * Su trabajo es leer qué roles pide la ruta (usando el decorador @Roles) y
  * compararlos contra los roles que el usuario trae dentro de su token JWT.
  */
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(
-    private readonly reflector: Reflector,
-  ) {}
+  constructor(private readonly reflector: Reflector) {}
 
-  canActivate(
-    context: ExecutionContext,
-  ): boolean {
-    const roles = this.reflector.getAllAndOverride<string[]>(
-      ROLES_KEY,
-      [
-        context.getHandler(),
-        context.getClass(),
-      ],
-    );
+  canActivate(context: ExecutionContext): boolean {
+    const roles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
     if (!roles) {
       return true;
     }
 
-    const request =
-      context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest();
 
     const user = request.user;
 
@@ -48,9 +40,7 @@ export class RolesGuard implements CanActivate {
       ]),
     );
 
-    const tieneRol = roles.some(
-      (rol) => userRoles.includes(rol),
-    );
+    const tieneRol = roles.some((rol) => userRoles.includes(rol));
 
     if (!tieneRol) {
       throw new ForbiddenException(

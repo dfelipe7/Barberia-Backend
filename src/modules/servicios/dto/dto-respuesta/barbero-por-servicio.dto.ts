@@ -9,24 +9,24 @@ import { ApiProperty } from '@nestjs/swagger';
  * traducir identificadores. No expone datos sensibles (email, comisión).
  */
 export class BarberoPorServicioDto {
-    @ApiProperty({
-        example: 3,
-        description:
-            'ID del barbero (Barbero.id). Es el valor que consume el endpoint de disponibilidad.',
-    })
-    id: number;
+  @ApiProperty({
+    example: 3,
+    description:
+      'ID del barbero (Barbero.id). Es el valor que consume el endpoint de disponibilidad.',
+  })
+  id: number;
 
-    @ApiProperty({ example: 'Carlos', description: 'Nombre del barbero' })
-    nombre: string;
+  @ApiProperty({ example: 'Carlos', description: 'Nombre del barbero' })
+  nombre: string;
 
-    @ApiProperty({ example: 'Gómez', description: 'Apellido del barbero' })
-    apellido: string;
+  @ApiProperty({ example: 'Gómez', description: 'Apellido del barbero' })
+  apellido: string;
 
-    @ApiProperty({
-        example: '/uploads/barberos/carlos.jpg',
-        description: 'Foto de perfil del barbero',
-        required: false,
-        nullable: true,
-    })
-    fotoUrl?: string | null;
+  @ApiProperty({
+    example: '/uploads/barberos/carlos.jpg',
+    description: 'Foto de perfil del barbero',
+    required: false,
+    nullable: true,
+  })
+  fotoUrl?: string | null;
 }

@@ -5,15 +5,16 @@ import { PrismaService } from '../../../prisma/prisma.service';
 export class AdministradoresRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async crearAdministrador(data: {
-    usuarioId: number;
-  }) {
+  async crearAdministrador(data: { usuarioId: number }) {
     return this.prisma.administrador.create({
       data,
     });
   }
 
-  async obtenerAdministradores(filtro?: { nombre?: string; estado?: 'ACTIVO' | 'INACTIVO' }) {
+  async obtenerAdministradores(filtro?: {
+    nombre?: string;
+    estado?: 'ACTIVO' | 'INACTIVO';
+  }) {
     const whereCondition: any = {
       usuario: {
         rol: {
@@ -54,7 +55,10 @@ export class AdministradoresRepository {
     });
   }
 
-  async actualizarEstadoAdministrador(usuarioId: number, estado: 'ACTIVO' | 'INACTIVO') {
+  async actualizarEstadoAdministrador(
+    usuarioId: number,
+    estado: 'ACTIVO' | 'INACTIVO',
+  ) {
     return this.prisma.administrador.update({
       where: {
         usuarioId,

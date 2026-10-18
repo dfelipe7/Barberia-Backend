@@ -8,7 +8,9 @@ describe('PrismaService', () => {
 
   beforeEach(async () => {
     const mockConfigService = {
-      getOrThrow: jest.fn().mockReturnValue('mysql://root:secret@127.0.0.1:3306/barberia'),
+      getOrThrow: jest
+        .fn()
+        .mockReturnValue('mysql://root:secret@127.0.0.1:3306/barberia'),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -28,13 +30,17 @@ describe('PrismaService', () => {
   });
 
   it('debe llamar a $connect en onModuleInit', async () => {
-    const spyConnect = jest.spyOn(service, '$connect').mockResolvedValue(undefined as any);
+    const spyConnect = jest
+      .spyOn(service, '$connect')
+      .mockResolvedValue(undefined);
     await service.onModuleInit();
     expect(spyConnect).toHaveBeenCalledTimes(1);
   });
 
   it('debe llamar a $disconnect en onModuleDestroy', async () => {
-    const spyDisconnect = jest.spyOn(service, '$disconnect').mockResolvedValue(undefined as any);
+    const spyDisconnect = jest
+      .spyOn(service, '$disconnect')
+      .mockResolvedValue(undefined);
     await service.onModuleDestroy();
     expect(spyDisconnect).toHaveBeenCalledTimes(1);
   });

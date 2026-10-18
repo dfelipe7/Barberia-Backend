@@ -8,27 +8,43 @@ import { ApiProperty } from '@nestjs/swagger';
  * para que el Frontend pueda renderizar la tabla de gestión de administradores.
  */
 export class AdministradorResponseDto {
-    @ApiProperty({ example: 3, description: 'ID del usuario' })
-    id: number;
+  @ApiProperty({ example: 3, description: 'ID del usuario' })
+  id: number;
 
-    @ApiProperty({ example: 'María', description: 'Nombre del administrador' })
-    nombre: string;
+  @ApiProperty({ example: 'María', description: 'Nombre del administrador' })
+  nombre: string;
 
-    @ApiProperty({ example: 'López', description: 'Apellido del administrador' })
-    apellido: string;
+  @ApiProperty({ example: 'López', description: 'Apellido del administrador' })
+  apellido: string;
 
-    @ApiProperty({ example: 'maria@barberia.com', description: 'Correo electrónico' })
-    email: string;
+  @ApiProperty({
+    example: 'maria@barberia.com',
+    description: 'Correo electrónico',
+  })
+  email: string;
 
-    @ApiProperty({ example: 'ACTIVO', description: 'Estado global de la cuenta del usuario' })
-    estado: string;
+  @ApiProperty({
+    example: 'ACTIVO',
+    description: 'Estado global de la cuenta del usuario',
+  })
+  estado: string;
 
-    @ApiProperty({ example: 'ACTIVO', description: 'Estado del rol de administrador' })
-    estadoAdmin: string;
+  @ApiProperty({
+    example: 'ACTIVO',
+    description: 'Estado del rol de administrador',
+  })
+  estadoAdmin: string;
 
-    @ApiProperty({ example: true, description: 'Indica si el usuario también tiene rol de Barbero' })
-    esBarbero: boolean;
+  @ApiProperty({
+    example: true,
+    description: 'Indica si el usuario también tiene rol de Barbero',
+  })
+  esBarbero: boolean;
 
-    @ApiProperty({ example: 'ACTIVO', description: 'Estado del rol de barbero (si aplica)', required: false })
-    estadoBarbero?: string;
+  @ApiProperty({
+    example: 'ACTIVO',
+    description: 'Estado del rol de barbero (si aplica)',
+    required: false,
+  })
+  estadoBarbero?: string;
 }

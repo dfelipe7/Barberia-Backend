@@ -9,8 +9,9 @@ export class AlertsService {
 
   async sendSecurityAlert(statusCode: number, contextInfo: any) {
     try {
-      const adminEmail = process.env.SUPERADMIN_EMAIL || 'armeroduvan8@gmail.com';
-      
+      const adminEmail =
+        process.env.SUPERADMIN_EMAIL || 'armeroduvan8@gmail.com';
+
       await this.mailerService.sendMail({
         to: adminEmail,
         subject: `⚠️ ALERTA DE SEGURIDAD - Barbería VIP [Error ${statusCode}]`,
@@ -30,9 +31,14 @@ export class AlertsService {
           <p><small>Este es un mensaje automático del Sistema de Auditoría OWASP (A09).</small></p>
         `,
       });
-      this.logger.log('Correo electrónico de alerta de seguridad enviado con éxito.');
+      this.logger.log(
+        'Correo electrónico de alerta de seguridad enviado con éxito.',
+      );
     } catch (error) {
-      this.logger.error('No se pudo enviar el correo de alerta de seguridad. Revisa las credenciales de Nodemailer en el .env', error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        'No se pudo enviar el correo de alerta de seguridad. Revisa las credenciales de Nodemailer en el .env',
+        error instanceof Error ? error.stack : String(error),
+      );
     }
   }
 }

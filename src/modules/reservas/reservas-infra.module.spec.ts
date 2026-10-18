@@ -20,7 +20,9 @@ describe('ReservasInfraModule', () => {
       .useValue({ reservation: {} })
       .compile();
 
-    expect(moduleRef.get(ReservasRepository)).toBeInstanceOf(ReservasRepository);
+    expect(moduleRef.get(ReservasRepository)).toBeInstanceOf(
+      ReservasRepository,
+    );
     expect(moduleRef.get(PROVEEDOR_RESERVAS_ACTIVAS)).toBeInstanceOf(
       PrismaProveedorReservasActivas,
     );

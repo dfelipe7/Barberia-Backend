@@ -87,11 +87,15 @@ export class GoogleAuthService {
     });
 
     if (!usuario) {
-      throw new UnauthorizedException('El usuario no existe en la base de datos.');
+      throw new UnauthorizedException(
+        'El usuario no existe en la base de datos.',
+      );
     }
 
     if (usuario.estado === 'INACTIVO') {
-      throw new ForbiddenException('Tu cuenta ha sido desactivada por un administrador.');
+      throw new ForbiddenException(
+        'Tu cuenta ha sido desactivada por un administrador.',
+      );
     }
 
     const sesion = this.construirSesion(usuario, fotoUrlActual);
@@ -109,7 +113,9 @@ export class GoogleAuthService {
     const esBarberoActivo = usuario.barbero?.estado === 'ACTIVO';
 
     if (!esSuperAdmin && !esAdminActivo && !esBarberoActivo) {
-      this.logger.warn(`Acceso denegado: ${usuario.email} no tiene roles activos.`);
+      this.logger.warn(
+        `Acceso denegado: ${usuario.email} no tiene roles activos.`,
+      );
       throw new ForbiddenException(
         'Tu cuenta no tiene ningún rol activo asignado.',
       );
@@ -120,7 +126,10 @@ export class GoogleAuthService {
     if (esSuperAdmin) {
       roles.push('SUPERADMIN');
     }
-    if (esAdminActivo || (usuario.rol === 'ADMINISTRADOR' && !usuario.administrador)) {
+    if (
+      esAdminActivo ||
+      (usuario.rol === 'ADMINISTRADOR' && !usuario.administrador)
+    ) {
       if (!roles.includes('ADMINISTRADOR')) {
         roles.push('ADMINISTRADOR');
       }

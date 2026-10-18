@@ -26,13 +26,15 @@ describe('AdministradoresController', () => {
         },
       ],
     })
-    .overrideGuard(JwtAuthGuard)
-    .useValue({ canActivate: jest.fn(() => true) })
-    .overrideGuard(RolesGuard)
-    .useValue({ canActivate: jest.fn(() => true) })
-    .compile();
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .compile();
 
-    controller = module.get<AdministradoresController>(AdministradoresController);
+    controller = module.get<AdministradoresController>(
+      AdministradoresController,
+    );
     service = module.get<AdministradoresService>(AdministradoresService);
     jest.clearAllMocks();
   });
@@ -43,9 +45,15 @@ describe('AdministradoresController', () => {
 
   describe('crearAdministrador', () => {
     it('should create an administrator', async () => {
-      const dto: CrearAdministradorDto = { email: 'test@test.com', nombre: 'Test', apellido: 'User' };
+      const dto: CrearAdministradorDto = {
+        email: 'test@test.com',
+        nombre: 'Test',
+        apellido: 'User',
+      };
       const expectedResult = { mensaje: 'Administrador creado correctamente' };
-      mockAdministradoresService.crearAdministrador.mockResolvedValue(expectedResult);
+      mockAdministradoresService.crearAdministrador.mockResolvedValue(
+        expectedResult,
+      );
 
       const result = await controller.crearAdministrador(dto);
       expect(result).toEqual(expectedResult);
@@ -57,7 +65,9 @@ describe('AdministradoresController', () => {
     it('should return a list of administrators', async () => {
       const filtro = { nombre: 'Test' };
       const expectedResult = [{ id: 1, nombre: 'Test' }];
-      mockAdministradoresService.obtenerAdministradores.mockResolvedValue(expectedResult);
+      mockAdministradoresService.obtenerAdministradores.mockResolvedValue(
+        expectedResult,
+      );
 
       const result = await controller.obtenerAdministradores(filtro);
       expect(result).toEqual(expectedResult);
@@ -67,13 +77,18 @@ describe('AdministradoresController', () => {
 
   describe('cambiarEstadoAdministrador', () => {
     it('should update administrator state', async () => {
-      const dto: CambiarEstadoUsuarioDto = { estado: 'INACTIVO' as any };
+      const dto: CambiarEstadoUsuarioDto = { estado: 'INACTIVO' };
       const expectedResult = { usuarioId: 1, estado: 'INACTIVO' };
-      mockAdministradoresService.cambiarEstadoAdministrador.mockResolvedValue(expectedResult);
+      mockAdministradoresService.cambiarEstadoAdministrador.mockResolvedValue(
+        expectedResult,
+      );
 
       const result = await controller.cambiarEstadoAdministrador(1, dto);
       expect(result).toEqual(expectedResult);
-      expect(service.cambiarEstadoAdministrador).toHaveBeenCalledWith(1, dto.estado);
+      expect(service.cambiarEstadoAdministrador).toHaveBeenCalledWith(
+        1,
+        dto.estado,
+      );
     });
   });
 });

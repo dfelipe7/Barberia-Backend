@@ -8,7 +8,10 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CrearAdministradorDto {
-  @ApiProperty({ example: 'admin@barberia.com', description: 'Correo electrónico del administrador' })
+  @ApiProperty({
+    example: 'admin@barberia.com',
+    description: 'Correo electrónico del administrador',
+  })
   @IsEmail()
   @IsNotEmpty()
   email: string;
@@ -18,7 +21,11 @@ export class CrearAdministradorDto {
   @IsNotEmpty()
   nombre: string;
 
-  @ApiProperty({ example: 'Pérez', description: 'Apellido del administrador', required: false })
+  @ApiProperty({
+    example: 'Pérez',
+    description: 'Apellido del administrador',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   apellido?: string;

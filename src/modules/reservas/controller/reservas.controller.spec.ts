@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ReservasController } from './reservas.controller';
-import { MENSAJE_RESERVA_NO_DISPONIBLE, ReservasService } from '../service/reservas.service';
+import {
+  MENSAJE_RESERVA_NO_DISPONIBLE,
+  ReservasService,
+} from '../service/reservas.service';
 import { ClienteJwtAuthGuard } from '../../../auth/clientes/guards/cliente-jwt-auth.guard';
 import { ClienteOpcionalJwtAuthGuard } from '../../../auth/clientes/guards/cliente-opcional-jwt-auth.guard';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
@@ -149,7 +152,10 @@ describe('ReservasController', () => {
     const modDto = { fecha: '2026-11-02', hora: '15:00' };
 
     it('modifica la reserva delegando al servicio con la identidad autenticada', async () => {
-      const mockRespuesta = { id: 42, mensaje: 'Reserva modificada correctamente' };
+      const mockRespuesta = {
+        id: 42,
+        mensaje: 'Reserva modificada correctamente',
+      };
       reservasService.modificarReserva.mockResolvedValue(mockRespuesta);
 
       const resultado = await controller.modificarMiReserva(
@@ -181,7 +187,10 @@ describe('ReservasController', () => {
 
   describe('cancelarMiReserva', () => {
     it('cancela la reserva delegando al servicio con la identidad autenticada', async () => {
-      const mockRespuesta = { id: 42, mensaje: 'Reserva cancelada correctamente' };
+      const mockRespuesta = {
+        id: 42,
+        mensaje: 'Reserva cancelada correctamente',
+      };
       reservasService.cancelarReserva.mockResolvedValue(mockRespuesta);
 
       const resultado = await controller.cancelarMiReserva(
@@ -211,7 +220,10 @@ describe('ReservasController', () => {
     const tokenIncorrecto = 'token-falso-456';
 
     it('1. Un token válido en el encabezado autoriza la modificación', async () => {
-      const mockRespuesta = { id: 42, mensaje: 'Reserva modificada correctamente' };
+      const mockRespuesta = {
+        id: 42,
+        mensaje: 'Reserva modificada correctamente',
+      };
       reservasService.modificarReservaInvitado.mockResolvedValue(mockRespuesta);
 
       const resultado = await controller.modificarReservaInvitado(
@@ -234,7 +246,11 @@ describe('ReservasController', () => {
       const cuerpoConTokenInyectado = { ...modDto, token: tokenValido } as any;
 
       await expect(
-        controller.modificarReservaInvitado(42, undefined, cuerpoConTokenInyectado),
+        controller.modificarReservaInvitado(
+          42,
+          undefined,
+          cuerpoConTokenInyectado,
+        ),
       ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
 
       await expect(
@@ -252,7 +268,11 @@ describe('ReservasController', () => {
       const cuerpoConTokenInyectado = { ...modDto, token: tokenValido } as any;
 
       await expect(
-        controller.modificarReservaInvitado(42, tokenIncorrecto, cuerpoConTokenInyectado),
+        controller.modificarReservaInvitado(
+          42,
+          tokenIncorrecto,
+          cuerpoConTokenInyectado,
+        ),
       ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
 
       expect(reservasService.modificarReservaInvitado).toHaveBeenCalledWith(
@@ -286,7 +306,10 @@ describe('ReservasController', () => {
     const tokenIncorrecto = 'token-falso-456';
 
     it('1. Un token válido en el encabezado autoriza la cancelación', async () => {
-      const mockRespuesta = { id: 42, mensaje: 'Reserva cancelada correctamente' };
+      const mockRespuesta = {
+        id: 42,
+        mensaje: 'Reserva cancelada correctamente',
+      };
       reservasService.cancelarReservaInvitado.mockResolvedValue(mockRespuesta);
 
       const resultado = await controller.cancelarReservaInvitado(

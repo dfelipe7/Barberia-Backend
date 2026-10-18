@@ -32,7 +32,10 @@ describe('RolesGuard', () => {
   });
 
   it('debe permitir acceso si el usuario tiene rol único coincidente (user.rol)', () => {
-    reflector.getAllAndOverride.mockReturnValue(['ADMINISTRADOR', 'SUPERADMIN']);
+    reflector.getAllAndOverride.mockReturnValue([
+      'ADMINISTRADOR',
+      'SUPERADMIN',
+    ]);
     const context = createMockContext({ rol: 'ADMINISTRADOR' });
 
     expect(guard.canActivate(context)).toBe(true);
@@ -57,7 +60,9 @@ describe('RolesGuard', () => {
 
   it('debe permitir acceso si el usuario tiene roles en realm_access', () => {
     reflector.getAllAndOverride.mockReturnValue(['SUPERADMIN']);
-    const context = createMockContext({ realm_access: { roles: ['SUPERADMIN'] } });
+    const context = createMockContext({
+      realm_access: { roles: ['SUPERADMIN'] },
+    });
 
     expect(guard.canActivate(context)).toBe(true);
   });
@@ -67,7 +72,9 @@ describe('RolesGuard', () => {
     const context = createMockContext({ rol: 'BARBERO' });
 
     expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-    expect(() => guard.canActivate(context)).toThrow('No tienes permisos para realizar esta operación');
+    expect(() => guard.canActivate(context)).toThrow(
+      'No tienes permisos para realizar esta operación',
+    );
   });
 
   it('debe lanzar ForbiddenException si no hay usuario autenticado en la petición', () => {

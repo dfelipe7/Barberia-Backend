@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ReservasRepository } from '../repository/reservas.repository';
-import { WhatsAppService, enmascararTelefono } from '../../whatsapp/whatsapp.service';
+import {
+  WhatsAppService,
+  enmascararTelefono,
+} from '../../whatsapp/whatsapp.service';
 import { FechaBogotaService } from '../../horarios/common/fecha-bogota.service';
 
 @Injectable()
@@ -28,13 +31,17 @@ export class RecordatoriosCron {
         return;
       }
 
-      const componentes = this.fechaBogotaService.obtenerComponentesBogota(new Date());
+      const componentes = this.fechaBogotaService.obtenerComponentesBogota(
+        new Date(),
+      );
       const fechaBogotaStr = componentes.fecha;
       const fechaDate = new Date(`${fechaBogotaStr}T00:00:00.000Z`);
       const ahoraMinutos = componentes.hora24 * 60 + componentes.minuto;
 
       const reservasPendientes =
-        await this.reservasRepository.obtenerCitasPendientesRecordatorio(fechaDate);
+        await this.reservasRepository.obtenerCitasPendientesRecordatorio(
+          fechaDate,
+        );
 
       if (!reservasPendientes || reservasPendientes.length === 0) {
         return;
@@ -55,7 +62,10 @@ export class RecordatoriosCron {
         const diferenciaMinutos = citaMinutos - ahoraMinutos;
 
         // Si la cita está dentro de la ventana de anticipación configurada (0 a N minutos)
-        if (diferenciaMinutos >= 0 && diferenciaMinutos <= minutosAnticipacion) {
+        if (
+          diferenciaMinutos >= 0 &&
+          diferenciaMinutos <= minutosAnticipacion
+        ) {
           const telefono = reserva.cliente?.telefono;
           const clienteNombre =
             `${reserva.cliente?.nombre ?? ''} ${reserva.cliente?.apellido ?? ''}`.trim() ||
@@ -90,7 +100,10 @@ export class RecordatoriosCron {
         }
       }
     } catch (error) {
-      this.logger.error('[CRON RECORDATORIOS] Error durante la ejecución del cron de WhatsApp:', error);
+      this.logger.error(
+        '[CRON RECORDATORIOS] Error durante la ejecución del cron de WhatsApp:',
+        error,
+      );
     }
   }
 }

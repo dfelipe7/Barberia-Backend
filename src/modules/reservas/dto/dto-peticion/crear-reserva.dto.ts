@@ -25,7 +25,8 @@ const REGEX_HORA = /^([01]\d|2[0-3]):([0-5]\d)$/;
 export class CrearReservaDto {
   @ApiProperty({
     example: 3,
-    description: 'ID del barbero (Barbero.id), tal como lo devuelve GET /servicios/:servicioId/barberos',
+    description:
+      'ID del barbero (Barbero.id), tal como lo devuelve GET /servicios/:servicioId/barberos',
   })
   @IsInt()
   @Min(1)
@@ -38,7 +39,8 @@ export class CrearReservaDto {
 
   @ApiProperty({
     example: '2026-11-01',
-    description: 'Fecha de calendario de la cita en formato YYYY-MM-DD (America/Bogota)',
+    description:
+      'Fecha de calendario de la cita en formato YYYY-MM-DD (America/Bogota)',
   })
   @IsString()
   @Matches(REGEX_FECHA, {
@@ -78,8 +80,7 @@ export class CrearReservaDto {
 
   @ApiPropertyOptional({
     example: '3001234567',
-    description:
-      'Número de contacto. Obligatorio para reservar como invitado.',
+    description: 'Número de contacto. Obligatorio para reservar como invitado.',
   })
   @IsOptional()
   @IsString()

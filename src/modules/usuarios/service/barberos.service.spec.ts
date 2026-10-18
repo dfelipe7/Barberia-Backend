@@ -54,16 +54,24 @@ describe('BarberosService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BarberosService,
-        { provide: PrismaService, useValue: { $transaction: jest.fn(async (cb) => {
-          const tx = {
-            usuario: { create: jest.fn().mockResolvedValue({ id: 1 }) },
-            barbero: { create: jest.fn().mockResolvedValue({ id: 1 }) },
-          };
-          return cb(tx);
-        }) } },
+        {
+          provide: PrismaService,
+          useValue: {
+            $transaction: jest.fn(async (cb) => {
+              const tx = {
+                usuario: { create: jest.fn().mockResolvedValue({ id: 1 }) },
+                barbero: { create: jest.fn().mockResolvedValue({ id: 1 }) },
+              };
+              return cb(tx);
+            }),
+          },
+        },
         { provide: UsuariosRepository, useValue: mockUsuariosRepository },
         { provide: BarberosRepository, useValue: mockBarberosRepository },
-        { provide: UsuariosAuthorizationService, useValue: mockAuthorizationService },
+        {
+          provide: UsuariosAuthorizationService,
+          useValue: mockAuthorizationService,
+        },
       ],
     }).compile();
 
@@ -80,7 +88,13 @@ describe('BarberosService', () => {
   // ───────────────────────────────────────
   describe('crearBarbero', () => {
     it('debe crear barbero correctamente', async () => {
-      const dto: any = { email: 'b@b.com', nombre: 'B', apellido: 'P', telefono: '300', porcentajeComision: 50 };
+      const dto: any = {
+        email: 'b@b.com',
+        nombre: 'B',
+        apellido: 'P',
+        telefono: '300',
+        porcentajeComision: 50,
+      };
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue(null);
       usuariosRepository.crearUsuario.mockResolvedValue({ id: 1 });
       barberosRepository.crearBarberoNuevo.mockResolvedValue({ id: 1 });
@@ -92,14 +106,24 @@ describe('BarberosService', () => {
 
     it('debe lanzar ConflictException si el email ya existe', async () => {
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 1 });
-      await expect(service.crearBarbero({ email: 'b@b.com' } as any)).rejects.toThrow(ConflictException);
+      await expect(
+        service.crearBarbero({ email: 'b@b.com' } as any),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('debe lanzar ConflictException si falla el guardado en DB', async () => {
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue(null);
-      jest.spyOn(prismaService, '$transaction').mockRejectedValueOnce(new Error('DB error'));
+      jest
+        .spyOn(prismaService, '$transaction')
+        .mockRejectedValueOnce(new Error('DB error'));
 
-      await expect(service.crearBarbero({ email: 'b@b.com', nombre: 'a', apellido: 'b' } as any)).rejects.toThrow(ConflictException);
+      await expect(
+        service.crearBarbero({
+          email: 'b@b.com',
+          nombre: 'a',
+          apellido: 'b',
+        } as any),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
@@ -108,29 +132,51 @@ describe('BarberosService', () => {
   // ───────────────────────────────────────
   describe('configurarBarbero', () => {
     it('debe crear perfil de barbero nuevo', async () => {
-      usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 1, barbero: null });
+      usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({
+        id: 1,
+        barbero: null,
+      });
       barberosRepository.crearPerfilBarbero.mockResolvedValue({ id: 1 });
 
-      const result = await service.configurarBarbero('b@b.com', { telefono: '300', porcentajeComision: 50 } as any);
+      const result = await service.configurarBarbero('b@b.com', {
+        telefono: '300',
+        porcentajeComision: 50,
+      });
       expect(barberosRepository.crearPerfilBarbero).toHaveBeenCalled();
     });
 
     it('debe lanzar ConflictException si el usuario no existe', async () => {
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue(null);
-      await expect(service.configurarBarbero('b@b.com', {} as any)).rejects.toThrow('El usuario no existe');
+      await expect(
+        service.configurarBarbero('b@b.com', {} as any),
+      ).rejects.toThrow('El usuario no existe');
     });
 
     it('debe lanzar ConflictException si ya es barbero ACTIVO', async () => {
-      usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 1, barbero: { estado: 'ACTIVO' } });
-      await expect(service.configurarBarbero('b@b.com', {} as any)).rejects.toThrow('ya está configurado como barbero');
+      usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({
+        id: 1,
+        barbero: { estado: 'ACTIVO' },
+      });
+      await expect(
+        service.configurarBarbero('b@b.com', {} as any),
+      ).rejects.toThrow('ya está configurado como barbero');
     });
 
     it('debe reactivar barbero INACTIVO', async () => {
-      usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 1, barbero: { estado: 'INACTIVO' } });
+      usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({
+        id: 1,
+        barbero: { estado: 'INACTIVO' },
+      });
       barberosRepository.actualizarPerfilBarbero.mockResolvedValue({});
 
-      await service.configurarBarbero('b@b.com', { telefono: '300', porcentajeComision: 50 } as any);
-      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(1, 'ACTIVO');
+      await service.configurarBarbero('b@b.com', {
+        telefono: '300',
+        porcentajeComision: 50,
+      });
+      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(
+        1,
+        'ACTIVO',
+      );
     });
   });
 
@@ -139,33 +185,64 @@ describe('BarberosService', () => {
   // ───────────────────────────────────────
   describe('configurarBarberoPorId', () => {
     it('debe crear perfil de barbero para admin', async () => {
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, barbero: null, administrador: { estado: 'ACTIVO' }, rol: 'ADMINISTRADOR' });
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barbero: null,
+        administrador: { estado: 'ACTIVO' },
+        rol: 'ADMINISTRADOR',
+      });
       barberosRepository.crearPerfilBarbero.mockResolvedValue({ id: 1 });
 
-      await service.configurarBarberoPorId(1, { telefono: '300', porcentajeComision: 50 } as any);
+      await service.configurarBarberoPorId(1, {
+        telefono: '300',
+        porcentajeComision: 50,
+      });
       expect(barberosRepository.crearPerfilBarbero).toHaveBeenCalled();
     });
 
     it('debe lanzar ConflictException si el usuario no existe', async () => {
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValue(null);
-      await expect(service.configurarBarberoPorId(1, {} as any)).rejects.toThrow('El usuario no existe');
+      await expect(
+        service.configurarBarberoPorId(1, {} as any),
+      ).rejects.toThrow('El usuario no existe');
     });
 
     it('debe lanzar ConflictException si ya es barbero ACTIVO', async () => {
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, barbero: { estado: 'ACTIVO' } });
-      await expect(service.configurarBarberoPorId(1, {} as any)).rejects.toThrow('ya está configurado como barbero');
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barbero: { estado: 'ACTIVO' },
+      });
+      await expect(
+        service.configurarBarberoPorId(1, {} as any),
+      ).rejects.toThrow('ya está configurado como barbero');
     });
 
     it('debe reactivar barbero INACTIVO por id', async () => {
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, barbero: { estado: 'INACTIVO' } });
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barbero: { estado: 'INACTIVO' },
+      });
       barberosRepository.actualizarPerfilBarbero.mockResolvedValue({});
-      await service.configurarBarberoPorId(1, { telefono: '300', porcentajeComision: 50 } as any);
-      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(1, 'ACTIVO');
+      await service.configurarBarberoPorId(1, {
+        telefono: '300',
+        porcentajeComision: 50,
+      });
+      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(
+        1,
+        'ACTIVO',
+      );
     });
 
     it('debe lanzar ConflictException si usuario no es admin ni superadmin', async () => {
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, barbero: null, administrador: null, rol: 'BARBERO' });
-      await expect(service.configurarBarberoPorId(1, {} as any)).rejects.toThrow('El usuario no es un administrador ni superadmin');
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barbero: null,
+        administrador: null,
+        rol: 'BARBERO',
+      });
+      await expect(
+        service.configurarBarberoPorId(1, {} as any),
+      ).rejects.toThrow('El usuario no es un administrador ni superadmin');
     });
   });
 
@@ -174,29 +251,53 @@ describe('BarberosService', () => {
   // ───────────────────────────────────────
   describe('actualizarComision', () => {
     it('debe actualizar comisión exitosamente', async () => {
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, barbero: { id: 1 } });
-      usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 2, rol: 'ADMINISTRADOR' });
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barbero: { id: 1 },
+      });
+      usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({
+        id: 2,
+        rol: 'ADMINISTRADOR',
+      });
       barberosRepository.actualizarComision.mockResolvedValue({});
 
-      await service.actualizarComision(1, { porcentajeComision: 60 } as any, { email: 'admin@b.com' });
+      await service.actualizarComision(
+        1,
+        { porcentajeComision: 60 },
+        {
+          email: 'admin@b.com',
+        },
+      );
       expect(authorizationService.verificarPermisosComision).toHaveBeenCalled();
       expect(barberosRepository.actualizarComision).toHaveBeenCalledWith(1, 60);
     });
 
     it('debe lanzar si usuario no existe', async () => {
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValue(null);
-      await expect(service.actualizarComision(1, {} as any, { email: 'admin@b.com' })).rejects.toThrow('El usuario no existe');
+      await expect(
+        service.actualizarComision(1, {} as any, { email: 'admin@b.com' }),
+      ).rejects.toThrow('El usuario no existe');
     });
 
     it('debe lanzar si usuario no es barbero', async () => {
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, barbero: null });
-      await expect(service.actualizarComision(1, {} as any, { email: 'admin@b.com' })).rejects.toThrow('El usuario no es un barbero');
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barbero: null,
+      });
+      await expect(
+        service.actualizarComision(1, {} as any, { email: 'admin@b.com' }),
+      ).rejects.toThrow('El usuario no es un barbero');
     });
 
     it('debe lanzar si usuario autenticado no existe', async () => {
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, barbero: { id: 1 } });
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barbero: { id: 1 },
+      });
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue(null);
-      await expect(service.actualizarComision(1, {} as any, { email: 'admin@b.com' })).rejects.toThrow('El usuario autenticado no existe');
+      await expect(
+        service.actualizarComision(1, {} as any, { email: 'admin@b.com' }),
+      ).rejects.toThrow('El usuario autenticado no existe');
     });
   });
 
@@ -206,9 +307,14 @@ describe('BarberosService', () => {
   describe('obtenerBarberosCatalogo', () => {
     it('debe retornar barberos en formato catálogo', async () => {
       barberosRepository.obtenerBarberosCatalogo.mockResolvedValue([
-        { id: 1, telefono: '300', fotoUrl: '/foto.jpg', usuario: { nombre: 'Juan', apellido: 'P' } },
+        {
+          id: 1,
+          telefono: '300',
+          fotoUrl: '/foto.jpg',
+          usuario: { nombre: 'Juan', apellido: 'P' },
+        },
       ]);
-      const result = await service.obtenerBarberosCatalogo({} as FiltroBarberosDto);
+      const result = await service.obtenerBarberosCatalogo({});
       expect(result).toHaveLength(1);
       expect(result[0].nombre).toBe('Juan');
     });
@@ -219,39 +325,95 @@ describe('BarberosService', () => {
   // ───────────────────────────────────────
   describe('obtenerBarberosGestion', () => {
     it('debe mapear barbero con administrador ACTIVO', async () => {
-      barberosRepository.obtenerBarberosGestion.mockResolvedValue([{
-        id: 1, telefono: '300', porcentajeComision: 40, estado: 'ACTIVO', fotoUrl: null,
-        usuario: { id: 10, nombre: 'Carlos', apellido: 'G', email: 'c@c.com', rol: 'BARBERO', estado: 'ACTIVO', administrador: { estado: 'ACTIVO' } },
-      }]);
+      barberosRepository.obtenerBarberosGestion.mockResolvedValue([
+        {
+          id: 1,
+          telefono: '300',
+          porcentajeComision: 40,
+          estado: 'ACTIVO',
+          fotoUrl: null,
+          usuario: {
+            id: 10,
+            nombre: 'Carlos',
+            apellido: 'G',
+            email: 'c@c.com',
+            rol: 'BARBERO',
+            estado: 'ACTIVO',
+            administrador: { estado: 'ACTIVO' },
+          },
+        },
+      ]);
       const result = await service.obtenerBarberosGestion();
       expect(result[0].esAdministrador).toBe(true);
       expect(result[0].estadoAdmin).toBe('ACTIVO');
     });
 
     it('debe mapear barbero SIN administrador (null)', async () => {
-      barberosRepository.obtenerBarberosGestion.mockResolvedValue([{
-        id: 1, telefono: '300', porcentajeComision: 40, estado: 'ACTIVO', fotoUrl: null,
-        usuario: { id: 10, nombre: 'Carlos', apellido: 'G', email: 'c@c.com', rol: 'BARBERO', estado: 'ACTIVO', administrador: null },
-      }]);
+      barberosRepository.obtenerBarberosGestion.mockResolvedValue([
+        {
+          id: 1,
+          telefono: '300',
+          porcentajeComision: 40,
+          estado: 'ACTIVO',
+          fotoUrl: null,
+          usuario: {
+            id: 10,
+            nombre: 'Carlos',
+            apellido: 'G',
+            email: 'c@c.com',
+            rol: 'BARBERO',
+            estado: 'ACTIVO',
+            administrador: null,
+          },
+        },
+      ]);
       const result = await service.obtenerBarberosGestion();
       expect(result[0].esAdministrador).toBe(false);
       expect(result[0].estadoAdmin).toBeUndefined();
     });
 
     it('debe mapear barbero que es SUPERADMIN', async () => {
-      barberosRepository.obtenerBarberosGestion.mockResolvedValue([{
-        id: 1, telefono: '300', porcentajeComision: 50, estado: 'ACTIVO', fotoUrl: null,
-        usuario: { id: 10, nombre: 'Super', apellido: 'Admin', email: 's@s.com', rol: 'SUPERADMIN', estado: 'ACTIVO', administrador: null },
-      }]);
+      barberosRepository.obtenerBarberosGestion.mockResolvedValue([
+        {
+          id: 1,
+          telefono: '300',
+          porcentajeComision: 50,
+          estado: 'ACTIVO',
+          fotoUrl: null,
+          usuario: {
+            id: 10,
+            nombre: 'Super',
+            apellido: 'Admin',
+            email: 's@s.com',
+            rol: 'SUPERADMIN',
+            estado: 'ACTIVO',
+            administrador: null,
+          },
+        },
+      ]);
       const result = await service.obtenerBarberosGestion();
       expect(result[0].esSuperAdmin).toBe(true);
     });
 
     it('debe mapear barbero con administrador INACTIVO', async () => {
-      barberosRepository.obtenerBarberosGestion.mockResolvedValue([{
-        id: 1, telefono: '300', porcentajeComision: 40, estado: 'ACTIVO', fotoUrl: null,
-        usuario: { id: 10, nombre: 'C', apellido: 'G', email: 'c@c.com', rol: 'BARBERO', estado: 'ACTIVO', administrador: { estado: 'INACTIVO' } },
-      }]);
+      barberosRepository.obtenerBarberosGestion.mockResolvedValue([
+        {
+          id: 1,
+          telefono: '300',
+          porcentajeComision: 40,
+          estado: 'ACTIVO',
+          fotoUrl: null,
+          usuario: {
+            id: 10,
+            nombre: 'C',
+            apellido: 'G',
+            email: 'c@c.com',
+            rol: 'BARBERO',
+            estado: 'ACTIVO',
+            administrador: { estado: 'INACTIVO' },
+          },
+        },
+      ]);
       const result = await service.obtenerBarberosGestion();
       expect(result[0].esAdministrador).toBe(false);
       expect(result[0].estadoAdmin).toBe('INACTIVO');
@@ -263,59 +425,97 @@ describe('BarberosService', () => {
   // ───────────────────────────────────────
   describe('subirFotoBarbero', () => {
     it('debe lanzar si no se proporciona archivo', async () => {
-      await expect(service.subirFotoBarbero(1, null as any)).rejects.toThrow('No se ha proporcionado ningún archivo de imagen');
+      await expect(service.subirFotoBarbero(1, null as any)).rejects.toThrow(
+        'No se ha proporcionado ningún archivo de imagen',
+      );
     });
 
     it('debe lanzar si el barbero no existe (y limpiar archivo)', async () => {
       barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue(null);
-      await expect(service.subirFotoBarbero(1, { path: '/tmp/a.jpg', filename: 'a.jpg' } as any)).rejects.toThrow('perfil de barbero');
+      await expect(
+        service.subirFotoBarbero(1, {
+          path: '/tmp/a.jpg',
+          filename: 'a.jpg',
+        } as any),
+      ).rejects.toThrow('perfil de barbero');
       expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/a.jpg');
     });
 
     it('debe subir foto eliminando la anterior', async () => {
-      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({ fotoUrl: '/uploads/barberos/old.jpg' });
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        fotoUrl: '/uploads/barberos/old.jpg',
+      });
       (fs.existsSync as jest.Mock).mockReturnValue(true);
       barberosRepository.actualizarPerfilBarbero.mockResolvedValue({});
 
-      const result = await service.subirFotoBarbero(1, { path: '/tmp/a.jpg', filename: 'new.jpg' } as any);
+      const result = await service.subirFotoBarbero(1, {
+        path: '/tmp/a.jpg',
+        filename: 'new.jpg',
+      } as any);
       expect(fs.unlinkSync).toHaveBeenCalled();
       expect(result.fotoUrl).toBe('/uploads/barberos/new.jpg');
     });
 
     it('debe subir foto sin eliminar anterior si no tiene foto previa', async () => {
-      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({ fotoUrl: null });
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        fotoUrl: null,
+      });
       barberosRepository.actualizarPerfilBarbero.mockResolvedValue({});
 
-      const result = await service.subirFotoBarbero(1, { path: '/tmp/a.jpg', filename: 'new.jpg' } as any);
+      const result = await service.subirFotoBarbero(1, {
+        path: '/tmp/a.jpg',
+        filename: 'new.jpg',
+      } as any);
       expect(result.fotoUrl).toBe('/uploads/barberos/new.jpg');
     });
 
     it('debe subir foto sin eliminar anterior si fotoUrl es externa', async () => {
-      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({ fotoUrl: 'https://example.com/old.jpg' });
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        fotoUrl: 'https://example.com/old.jpg',
+      });
       barberosRepository.actualizarPerfilBarbero.mockResolvedValue({});
 
-      const result = await service.subirFotoBarbero(1, { path: '/tmp/a.jpg', filename: 'new.jpg' } as any);
+      const result = await service.subirFotoBarbero(1, {
+        path: '/tmp/a.jpg',
+        filename: 'new.jpg',
+      } as any);
       expect(fs.existsSync).not.toHaveBeenCalled();
       expect(result.fotoUrl).toBe('/uploads/barberos/new.jpg');
     });
 
     it('debe verificar permisos si hay usuario autenticado', async () => {
-      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({ fotoUrl: null });
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        fotoUrl: null,
+      });
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1 });
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 2 });
       barberosRepository.actualizarPerfilBarbero.mockResolvedValue({});
 
-      await service.subirFotoBarbero(1, { path: '/tmp/a.jpg', filename: 'x.jpg' } as any, { email: 'auth@b.com' });
+      await service.subirFotoBarbero(
+        1,
+        { path: '/tmp/a.jpg', filename: 'x.jpg' } as any,
+        { email: 'auth@b.com' },
+      );
       expect(authorizationService.verificarPermisosEdicion).toHaveBeenCalled();
     });
 
     it('debe limpiar archivo si falla la autorización', async () => {
-      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({ fotoUrl: null });
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        fotoUrl: null,
+      });
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1 });
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 2 });
-      authorizationService.verificarPermisosEdicion.mockImplementation(() => { throw new Error('Forbidden'); });
+      authorizationService.verificarPermisosEdicion.mockImplementation(() => {
+        throw new Error('Forbidden');
+      });
 
-      await expect(service.subirFotoBarbero(1, { path: '/tmp/a.jpg', filename: 'x.jpg' } as any, { email: 'auth@b.com' })).rejects.toThrow('Forbidden');
+      await expect(
+        service.subirFotoBarbero(
+          1,
+          { path: '/tmp/a.jpg', filename: 'x.jpg' } as any,
+          { email: 'auth@b.com' },
+        ),
+      ).rejects.toThrow('Forbidden');
       expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/a.jpg');
     });
   });
@@ -326,11 +526,15 @@ describe('BarberosService', () => {
   describe('eliminarFotoBarbero', () => {
     it('debe lanzar si barbero no existe', async () => {
       barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue(null);
-      await expect(service.eliminarFotoBarbero(1)).rejects.toThrow('perfil de barbero');
+      await expect(service.eliminarFotoBarbero(1)).rejects.toThrow(
+        'perfil de barbero',
+      );
     });
 
     it('debe eliminar foto del disco y de la DB', async () => {
-      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({ fotoUrl: '/uploads/barberos/old.jpg' });
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        fotoUrl: '/uploads/barberos/old.jpg',
+      });
       (fs.existsSync as jest.Mock).mockReturnValue(true);
       barberosRepository.actualizarPerfilBarbero.mockResolvedValue({});
 
@@ -340,7 +544,9 @@ describe('BarberosService', () => {
     });
 
     it('debe eliminar de DB sin borrar del disco si fotoUrl es externa', async () => {
-      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({ fotoUrl: 'https://cdn.example.com/a.jpg' });
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        fotoUrl: 'https://cdn.example.com/a.jpg',
+      });
       barberosRepository.actualizarPerfilBarbero.mockResolvedValue({});
 
       const result = await service.eliminarFotoBarbero(1);
@@ -349,9 +555,13 @@ describe('BarberosService', () => {
     });
 
     it('debe manejar gracefully si unlinkSync falla', async () => {
-      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({ fotoUrl: '/uploads/barberos/old.jpg' });
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        fotoUrl: '/uploads/barberos/old.jpg',
+      });
       (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.unlinkSync as jest.Mock).mockImplementation(() => { throw new Error('EPERM'); });
+      (fs.unlinkSync as jest.Mock).mockImplementation(() => {
+        throw new Error('EPERM');
+      });
       barberosRepository.actualizarPerfilBarbero.mockResolvedValue({});
 
       const result = await service.eliminarFotoBarbero(1);
@@ -359,7 +569,9 @@ describe('BarberosService', () => {
     });
 
     it('debe no intentar borrar archivo si existsSync retorna false', async () => {
-      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({ fotoUrl: '/uploads/barberos/old.jpg' });
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        fotoUrl: '/uploads/barberos/old.jpg',
+      });
       (fs.existsSync as jest.Mock).mockReturnValue(false);
       barberosRepository.actualizarPerfilBarbero.mockResolvedValue({});
 
@@ -374,67 +586,148 @@ describe('BarberosService', () => {
   describe('cambiarEstadoBarbero', () => {
     it('debe lanzar si usuario no existe', async () => {
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValue(null);
-      await expect(service.cambiarEstadoBarbero(1, { estado: 'INACTIVO' } as any, { sub: 'x' })).rejects.toThrow('El usuario no existe');
+      await expect(
+        service.cambiarEstadoBarbero(1, { estado: 'INACTIVO' } as any, {
+          sub: 'x',
+        }),
+      ).rejects.toThrow('El usuario no existe');
     });
 
     it('debe lanzar si usuario no es barbero', async () => {
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, barbero: null });
-      await expect(service.cambiarEstadoBarbero(1, { estado: 'INACTIVO' } as any, { sub: 'x' })).rejects.toThrow('no es un barbero');
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barbero: null,
+      });
+      await expect(
+        service.cambiarEstadoBarbero(1, { estado: 'INACTIVO' } as any, {
+          sub: 'x',
+        }),
+      ).rejects.toThrow('no es un barbero');
     });
 
     it('debe lanzar si usuario autenticado no existe', async () => {
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, barbero: {} });
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barbero: {},
+      });
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue(null);
-      await expect(service.cambiarEstadoBarbero(1, { estado: 'INACTIVO' } as any, { email: 'auth@b.com' })).rejects.toThrow('usuario autenticado no existe');
+      await expect(
+        service.cambiarEstadoBarbero(1, { estado: 'INACTIVO' } as any, {
+          email: 'auth@b.com',
+        }),
+      ).rejects.toThrow('usuario autenticado no existe');
     });
 
     it('debe ACTIVAR barbero', async () => {
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, barbero: { estado: 'INACTIVO' }, administrador: null, rol: 'BARBERO' });
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barbero: { estado: 'INACTIVO' },
+        administrador: null,
+        rol: 'BARBERO',
+      });
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 2 });
       barberosRepository.actualizarEstadoBarbero.mockResolvedValue({});
 
-      await service.cambiarEstadoBarbero(1, { estado: EstadoUsuario.ACTIVO } as any, { email: 'auth@b.com' });
-      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(1, EstadoUsuario.ACTIVO);
+      await service.cambiarEstadoBarbero(
+        1,
+        { estado: EstadoUsuario.ACTIVO },
+        { email: 'auth@b.com' },
+      );
+      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(
+        1,
+        EstadoUsuario.ACTIVO,
+      );
     });
 
     it('debe INACTIVAR barbero puro (bloquear cuenta global)', async () => {
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, barbero: { estado: 'ACTIVO' }, administrador: null, rol: 'BARBERO' });
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barbero: { estado: 'ACTIVO' },
+        administrador: null,
+        rol: 'BARBERO',
+      });
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 2 });
       barberosRepository.actualizarEstadoBarbero.mockResolvedValue({});
 
-      await service.cambiarEstadoBarbero(1, { estado: EstadoUsuario.INACTIVO } as any, { email: 'auth@b.com' });
-      expect(usuariosRepository.actualizarEstadoUsuario).toHaveBeenCalledWith(1, 'INACTIVO');
-      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(1, EstadoUsuario.INACTIVO);
+      await service.cambiarEstadoBarbero(
+        1,
+        { estado: EstadoUsuario.INACTIVO },
+        { email: 'auth@b.com' },
+      );
+      expect(usuariosRepository.actualizarEstadoUsuario).toHaveBeenCalledWith(
+        1,
+        'INACTIVO',
+      );
+      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(
+        1,
+        EstadoUsuario.INACTIVO,
+      );
     });
 
     it('debe INACTIVAR barbero que es admin ACTIVO (NO bloquear cuenta global)', async () => {
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, barbero: { estado: 'ACTIVO' }, administrador: { estado: 'ACTIVO' }, rol: 'BARBERO' });
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barbero: { estado: 'ACTIVO' },
+        administrador: { estado: 'ACTIVO' },
+        rol: 'BARBERO',
+      });
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 2 });
       barberosRepository.actualizarEstadoBarbero.mockResolvedValue({});
 
-      await service.cambiarEstadoBarbero(1, { estado: EstadoUsuario.INACTIVO } as any, { email: 'auth@b.com' });
+      await service.cambiarEstadoBarbero(
+        1,
+        { estado: EstadoUsuario.INACTIVO },
+        { email: 'auth@b.com' },
+      );
       expect(usuariosRepository.actualizarEstadoUsuario).not.toHaveBeenCalled();
-      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(1, EstadoUsuario.INACTIVO);
+      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(
+        1,
+        EstadoUsuario.INACTIVO,
+      );
     });
 
     it('debe INACTIVAR barbero que es SUPERADMIN (NO bloquear cuenta global)', async () => {
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, barbero: { estado: 'ACTIVO' }, administrador: null, rol: 'SUPERADMIN' });
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barbero: { estado: 'ACTIVO' },
+        administrador: null,
+        rol: 'SUPERADMIN',
+      });
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 2 });
       barberosRepository.actualizarEstadoBarbero.mockResolvedValue({});
 
-      await service.cambiarEstadoBarbero(1, { estado: EstadoUsuario.INACTIVO } as any, { email: 'auth@b.com' });
+      await service.cambiarEstadoBarbero(
+        1,
+        { estado: EstadoUsuario.INACTIVO },
+        { email: 'auth@b.com' },
+      );
       expect(usuariosRepository.actualizarEstadoUsuario).not.toHaveBeenCalled();
-      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(1, EstadoUsuario.INACTIVO);
+      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(
+        1,
+        EstadoUsuario.INACTIVO,
+      );
     });
 
     it('debe INACTIVAR barbero con rol ADMINISTRADOR (NO bloquear cuenta global)', async () => {
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 1, barbero: { estado: 'ACTIVO' }, administrador: null, rol: 'ADMINISTRADOR' });
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barbero: { estado: 'ACTIVO' },
+        administrador: null,
+        rol: 'ADMINISTRADOR',
+      });
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 2 });
       barberosRepository.actualizarEstadoBarbero.mockResolvedValue({});
 
-      await service.cambiarEstadoBarbero(1, { estado: EstadoUsuario.INACTIVO } as any, { email: 'auth@b.com' });
+      await service.cambiarEstadoBarbero(
+        1,
+        { estado: EstadoUsuario.INACTIVO },
+        { email: 'auth@b.com' },
+      );
       expect(usuariosRepository.actualizarEstadoUsuario).not.toHaveBeenCalled();
-      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(1, EstadoUsuario.INACTIVO);
+      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(
+        1,
+        EstadoUsuario.INACTIVO,
+      );
     });
   });
 });

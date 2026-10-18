@@ -19,8 +19,13 @@ export class FiltroReservasAdminDto {
     description: 'Filtra reservas para una fecha puntual (YYYY-MM-DD)',
   })
   @IsOptional()
-  @IsISO8601({ strict: true }, { message: 'La fecha debe tener formato YYYY-MM-DD' })
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'La fecha debe tener formato YYYY-MM-DD' })
+  @IsISO8601(
+    { strict: true },
+    { message: 'La fecha debe tener formato YYYY-MM-DD' },
+  )
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'La fecha debe tener formato YYYY-MM-DD',
+  })
   fecha?: string;
 
   @ApiPropertyOptional({
@@ -28,8 +33,13 @@ export class FiltroReservasAdminDto {
     description: 'Fecha inicial del rango de búsqueda (YYYY-MM-DD)',
   })
   @IsOptional()
-  @IsISO8601({ strict: true }, { message: 'La fecha "desde" debe tener formato YYYY-MM-DD' })
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'La fecha "desde" debe tener formato YYYY-MM-DD' })
+  @IsISO8601(
+    { strict: true },
+    { message: 'La fecha "desde" debe tener formato YYYY-MM-DD' },
+  )
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'La fecha "desde" debe tener formato YYYY-MM-DD',
+  })
   desde?: string;
 
   @ApiPropertyOptional({
@@ -37,8 +47,13 @@ export class FiltroReservasAdminDto {
     description: 'Fecha final del rango de búsqueda (YYYY-MM-DD)',
   })
   @IsOptional()
-  @IsISO8601({ strict: true }, { message: 'La fecha "hasta" debe tener formato YYYY-MM-DD' })
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'La fecha "hasta" debe tener formato YYYY-MM-DD' })
+  @IsISO8601(
+    { strict: true },
+    { message: 'La fecha "hasta" debe tener formato YYYY-MM-DD' },
+  )
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'La fecha "hasta" debe tener formato YYYY-MM-DD',
+  })
   hasta?: string;
 
   @ApiPropertyOptional({
@@ -54,15 +69,19 @@ export class FiltroReservasAdminDto {
   @ApiPropertyOptional({
     enum: ReservationStatus,
     example: ReservationStatus.CONFIRMED,
-    description: 'Estado de la reserva a filtrar (PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED)',
+    description:
+      'Estado de la reserva a filtrar (PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED)',
   })
   @IsOptional()
-  @IsEnum(ReservationStatus, { message: 'El estado de la reserva no es válido' })
+  @IsEnum(ReservationStatus, {
+    message: 'El estado de la reserva no es válido',
+  })
   estado?: ReservationStatus;
 
   @ApiPropertyOptional({
     example: 7,
-    description: 'Identificador del cliente para consultar su historial de reservas',
+    description:
+      'Identificador del cliente para consultar su historial de reservas',
   })
   @IsOptional()
   @Type(() => Number)

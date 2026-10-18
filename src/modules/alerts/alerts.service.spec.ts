@@ -31,12 +31,19 @@ describe('AlertsService', () => {
 
   it('debe enviar alerta de seguridad exitosamente', async () => {
     mailerService.sendMail.mockResolvedValue(true);
-    
-    await service.sendSecurityAlert(403, { ip: '127.0.0.1', path: '/test', method: 'GET', timestamp: '2026' });
-    
-    expect(mailerService.sendMail).toHaveBeenCalledWith(expect.objectContaining({
-      subject: '⚠️ ALERTA DE SEGURIDAD - Barbería VIP [Error 403]',
-    }));
+
+    await service.sendSecurityAlert(403, {
+      ip: '127.0.0.1',
+      path: '/test',
+      method: 'GET',
+      timestamp: '2026',
+    });
+
+    expect(mailerService.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: '⚠️ ALERTA DE SEGURIDAD - Barbería VIP [Error 403]',
+      }),
+    );
   });
 
   it('no debe explotar si enviar correo falla (manejo de excepciones interno)', async () => {

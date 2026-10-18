@@ -33,8 +33,10 @@ describe('BarberosController', () => {
         { provide: UsuariosRepository, useValue: mockUsuariosRepository },
       ],
     })
-      .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
-      .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
       .compile();
 
     controller = module.get<BarberosController>(BarberosController);
@@ -47,8 +49,16 @@ describe('BarberosController', () => {
 
   describe('crearBarbero', () => {
     it('should call barberosService.crearBarbero', async () => {
-      const dto: any = { email: 'b@b.com', nombre: 'Juan', apellido: 'P', telefono: '300', porcentajeComision: 50 };
-      mockBarberosService.crearBarbero.mockResolvedValue({ mensaje: 'Barbero creado correctamente' });
+      const dto: any = {
+        email: 'b@b.com',
+        nombre: 'Juan',
+        apellido: 'P',
+        telefono: '300',
+        porcentajeComision: 50,
+      };
+      mockBarberosService.crearBarbero.mockResolvedValue({
+        mensaje: 'Barbero creado correctamente',
+      });
       const result = await controller.crearBarbero(dto);
       expect(result.mensaje).toContain('creado');
       expect(mockBarberosService.crearBarbero).toHaveBeenCalledWith(dto);
@@ -58,15 +68,17 @@ describe('BarberosController', () => {
   describe('obtenerBarberosGestion', () => {
     it('should return gestion list', async () => {
       mockBarberosService.obtenerBarberosGestion.mockResolvedValue([{ id: 1 }]);
-      const result = await controller.obtenerBarberosGestion({} as any);
+      const result = await controller.obtenerBarberosGestion({});
       expect(result).toHaveLength(1);
     });
   });
 
   describe('obtenerBarberosCatalogo', () => {
     it('should return catalogo list', async () => {
-      mockBarberosService.obtenerBarberosCatalogo.mockResolvedValue([{ id: 1 }]);
-      const result = await controller.obtenerBarberosCatalogo({} as any);
+      mockBarberosService.obtenerBarberosCatalogo.mockResolvedValue([
+        { id: 1 },
+      ]);
+      const result = await controller.obtenerBarberosCatalogo({});
       expect(result).toHaveLength(1);
     });
   });
@@ -77,7 +89,11 @@ describe('BarberosController', () => {
       const req = { user: { sub: 'uuid' } };
       mockBarberosService.actualizarComision.mockResolvedValue({});
       await controller.actualizarComision('1', dto, req);
-      expect(mockBarberosService.actualizarComision).toHaveBeenCalledWith(1, dto, req.user);
+      expect(mockBarberosService.actualizarComision).toHaveBeenCalledWith(
+        1,
+        dto,
+        req.user,
+      );
     });
   });
 
@@ -87,25 +103,42 @@ describe('BarberosController', () => {
       const req = { user: { sub: 'uuid' } };
       mockBarberosService.cambiarEstadoBarbero.mockResolvedValue({});
       await controller.cambiarEstadoBarbero('2', dto, req);
-      expect(mockBarberosService.cambiarEstadoBarbero).toHaveBeenCalledWith(2, dto, req.user);
+      expect(mockBarberosService.cambiarEstadoBarbero).toHaveBeenCalledWith(
+        2,
+        dto,
+        req.user,
+      );
     });
   });
 
   describe('subirMiFoto', () => {
     it('should throw BadRequestException if no file', async () => {
-      await expect(controller.subirMiFoto(undefined as any, { user: { sub: 'x' } })).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.subirMiFoto(undefined as any, { user: { sub: 'x' } }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException if user not found', async () => {
       mockUsuariosRepository.obtenerUsuarioPorId.mockResolvedValue(null);
-      await expect(controller.subirMiFoto({ filename: 'a.jpg' } as any, { user: { id: 5 } })).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.subirMiFoto({ filename: 'a.jpg' } as any, {
+          user: { id: 5 },
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should call subirFotoBarbero when file and user are valid', async () => {
       mockUsuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 5 });
-      mockBarberosService.subirFotoBarbero.mockResolvedValue({ fotoUrl: '/uploads/foto.jpg' });
-      const result = await controller.subirMiFoto({ filename: 'a.jpg' } as any, { user: { id: 5 } });
-      expect(mockBarberosService.subirFotoBarbero).toHaveBeenCalledWith(5, { filename: 'a.jpg' });
+      mockBarberosService.subirFotoBarbero.mockResolvedValue({
+        fotoUrl: '/uploads/foto.jpg',
+      });
+      const result = await controller.subirMiFoto(
+        { filename: 'a.jpg' } as any,
+        { user: { id: 5 } },
+      );
+      expect(mockBarberosService.subirFotoBarbero).toHaveBeenCalledWith(5, {
+        filename: 'a.jpg',
+      });
       expect(result.fotoUrl).toBe('/uploads/foto.jpg');
     });
   });
@@ -113,12 +146,16 @@ describe('BarberosController', () => {
   describe('eliminarMiFoto', () => {
     it('should throw BadRequestException if user not found', async () => {
       mockUsuariosRepository.obtenerUsuarioPorId.mockResolvedValue(null);
-      await expect(controller.eliminarMiFoto({ user: { id: 5 } })).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.eliminarMiFoto({ user: { id: 5 } }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should call eliminarFotoBarbero when user is valid', async () => {
       mockUsuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 5 });
-      mockBarberosService.eliminarFotoBarbero.mockResolvedValue({ mensaje: 'Eliminada' });
+      mockBarberosService.eliminarFotoBarbero.mockResolvedValue({
+        mensaje: 'Eliminada',
+      });
       const result = await controller.eliminarMiFoto({ user: { id: 5 } });
       expect(mockBarberosService.eliminarFotoBarbero).toHaveBeenCalledWith(5);
       expect(result.mensaje).toBe('Eliminada');
@@ -127,13 +164,25 @@ describe('BarberosController', () => {
 
   describe('subirFotoBarberoPorId', () => {
     it('should throw BadRequestException if no file', async () => {
-      await expect(controller.subirFotoBarberoPorId('1', undefined as any, { user: {} })).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.subirFotoBarberoPorId('1', undefined as any, { user: {} }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should call subirFotoBarbero with numeric id', async () => {
-      mockBarberosService.subirFotoBarbero.mockResolvedValue({ fotoUrl: '/uploads/x.jpg' });
-      const result = await controller.subirFotoBarberoPorId('3', { filename: 'x.jpg' } as any, { user: { sub: 'uuid' } });
-      expect(mockBarberosService.subirFotoBarbero).toHaveBeenCalledWith(3, { filename: 'x.jpg' }, { sub: 'uuid' });
+      mockBarberosService.subirFotoBarbero.mockResolvedValue({
+        fotoUrl: '/uploads/x.jpg',
+      });
+      const result = await controller.subirFotoBarberoPorId(
+        '3',
+        { filename: 'x.jpg' } as any,
+        { user: { sub: 'uuid' } },
+      );
+      expect(mockBarberosService.subirFotoBarbero).toHaveBeenCalledWith(
+        3,
+        { filename: 'x.jpg' },
+        { sub: 'uuid' },
+      );
       expect(result.fotoUrl).toBe('/uploads/x.jpg');
     });
   });

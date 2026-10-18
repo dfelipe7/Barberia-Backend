@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
-import { WinstonModule, utilities as nestWinstonModuleUtilities } from 'nest-winston';
+import {
+  WinstonModule,
+  utilities as nestWinstonModuleUtilities,
+} from 'nest-winston';
 import * as winston from 'winston';
 import 'winston-daily-rotate-file';
 
@@ -11,7 +14,10 @@ import 'winston-daily-rotate-file';
         new winston.transports.Console({
           format: winston.format.combine(
             winston.format.timestamp(),
-            nestWinstonModuleUtilities.format.nestLike('Barberia', { colors: true, prettyPrint: true }),
+            nestWinstonModuleUtilities.format.nestLike('Barberia', {
+              colors: true,
+              prettyPrint: true,
+            }),
           ),
         }),
         // Archivo físico de errores graves (500, etc)
@@ -22,7 +28,7 @@ import 'winston-daily-rotate-file';
           maxFiles: '30d', // Se borran solos al pasar 30 días
           format: winston.format.combine(
             winston.format.timestamp(),
-            winston.format.json()
+            winston.format.json(),
           ),
         }),
         // Archivo físico de seguridad (Intrusiones, 401, 403)
@@ -33,7 +39,7 @@ import 'winston-daily-rotate-file';
           maxFiles: '30d',
           format: winston.format.combine(
             winston.format.timestamp(),
-            winston.format.json()
+            winston.format.json(),
           ),
         }),
         // Archivo físico de Auditoría (Transacciones de alto valor)
@@ -44,7 +50,7 @@ import 'winston-daily-rotate-file';
           maxFiles: '30d',
           format: winston.format.combine(
             winston.format.timestamp(),
-            winston.format.json()
+            winston.format.json(),
           ),
         }),
       ],

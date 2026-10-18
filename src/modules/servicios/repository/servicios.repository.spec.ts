@@ -52,9 +52,14 @@ describe('ServiciosRepository', () => {
 
   describe('obtenerServicioPorNombre', () => {
     it('should return a service by name', async () => {
-      mockPrisma.servicio.findUnique.mockResolvedValue({ id: 1, nombre: 'Corte' });
+      mockPrisma.servicio.findUnique.mockResolvedValue({
+        id: 1,
+        nombre: 'Corte',
+      });
       const result = await repository.obtenerServicioPorNombre('Corte');
-      expect(mockPrisma.servicio.findUnique).toHaveBeenCalledWith({ where: { nombre: 'Corte' } });
+      expect(mockPrisma.servicio.findUnique).toHaveBeenCalledWith({
+        where: { nombre: 'Corte' },
+      });
       expect(result).toEqual({ id: 1, nombre: 'Corte' });
     });
   });
@@ -63,7 +68,9 @@ describe('ServiciosRepository', () => {
     it('should return a service by id with barberos', async () => {
       mockPrisma.servicio.findUnique.mockResolvedValue({ id: 1 });
       const result = await repository.obtenerServicioPorId(1);
-      expect(mockPrisma.servicio.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 1 } }));
+      expect(mockPrisma.servicio.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 1 } }),
+      );
       expect(result).toEqual({ id: 1 });
     });
   });
@@ -140,7 +147,9 @@ describe('ServiciosRepository', () => {
 
     it('should filter by estado', async () => {
       mockPrisma.servicio.findMany.mockResolvedValue([]);
-      await repository.listarServiciosGestion({ estado: EstadoServicio.ACTIVO });
+      await repository.listarServiciosGestion({
+        estado: EstadoServicio.ACTIVO,
+      });
       expect(mockPrisma.servicio.findMany).toHaveBeenCalledWith({
         where: { estado: EstadoServicio.ACTIVO },
         include: expect.any(Object),
@@ -168,12 +177,14 @@ describe('ServiciosRepository', () => {
     it('should return active services for a barbero', async () => {
       mockPrisma.servicio.findMany.mockResolvedValue([{ id: 1 }]);
       const result = await repository.listarServiciosPorBarbero(5);
-      expect(mockPrisma.servicio.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({
-          estado: EstadoServicio.ACTIVO,
-          barberos: { some: { barbero: { usuarioId: 5 } } },
+      expect(mockPrisma.servicio.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            estado: EstadoServicio.ACTIVO,
+            barberos: { some: { barbero: { usuarioId: 5 } } },
+          }),
         }),
-      }));
+      );
       expect(result).toEqual([{ id: 1 }]);
     });
   });
@@ -238,14 +249,23 @@ describe('ServiciosRepository', () => {
   describe('crearServicio', () => {
     it('should create a service without barberos', async () => {
       mockPrisma.servicio.create.mockResolvedValue({ id: 1, nombre: 'Corte' });
-      const result = await repository.crearServicio({ nombre: 'Corte', precio: 20000, duracionMinutos: 30 });
+      const result = await repository.crearServicio({
+        nombre: 'Corte',
+        precio: 20000,
+        duracionMinutos: 30,
+      });
       expect(mockPrisma.servicio.create).toHaveBeenCalled();
       expect(result).toEqual({ id: 1, nombre: 'Corte' });
     });
 
     it('should create a service with barberos', async () => {
       mockPrisma.servicio.create.mockResolvedValue({ id: 1 });
-      await repository.crearServicio({ nombre: 'Corte', precio: 20000, duracionMinutos: 30, barberoIds: [1, 2] });
+      await repository.crearServicio({
+        nombre: 'Corte',
+        precio: 20000,
+        duracionMinutos: 30,
+        barberoIds: [1, 2],
+      });
       const call = mockPrisma.servicio.create.mock.calls[0][0];
       expect(call.data.barberos).toBeDefined();
       expect(call.data.barberos.create).toHaveLength(2);
@@ -254,9 +274,16 @@ describe('ServiciosRepository', () => {
 
   describe('actualizarServicio', () => {
     it('should update a service without touching barberos', async () => {
-      mockPrisma.servicio.update.mockResolvedValue({ id: 1, nombre: 'Corte Actualizado' });
-      const result = await repository.actualizarServicio(1, { nombre: 'Corte Actualizado' });
-      expect(mockPrisma.servicio.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 1 } }));
+      mockPrisma.servicio.update.mockResolvedValue({
+        id: 1,
+        nombre: 'Corte Actualizado',
+      });
+      const result = await repository.actualizarServicio(1, {
+        nombre: 'Corte Actualizado',
+      });
+      expect(mockPrisma.servicio.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 1 } }),
+      );
       expect(result).toEqual({ id: 1, nombre: 'Corte Actualizado' });
     });
 
@@ -271,12 +298,17 @@ describe('ServiciosRepository', () => {
 
   describe('cambiarEstado', () => {
     it('should change service status', async () => {
-      mockPrisma.servicio.update.mockResolvedValue({ id: 1, estado: EstadoServicio.INACTIVO });
+      mockPrisma.servicio.update.mockResolvedValue({
+        id: 1,
+        estado: EstadoServicio.INACTIVO,
+      });
       const result = await repository.cambiarEstado(1, EstadoServicio.INACTIVO);
-      expect(mockPrisma.servicio.update).toHaveBeenCalledWith(expect.objectContaining({
-        where: { id: 1 },
-        data: { estado: EstadoServicio.INACTIVO },
-      }));
+      expect(mockPrisma.servicio.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: { estado: EstadoServicio.INACTIVO },
+        }),
+      );
       expect(result.estado).toBe(EstadoServicio.INACTIVO);
     });
   });

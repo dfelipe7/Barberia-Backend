@@ -50,9 +50,13 @@ describe('AuthController', () => {
 
     googleAuthService.loginConGoogle.mockResolvedValue(mockResponse as any);
 
-    const result = await controller.loginConGoogle({ idToken: 'google-test-token' });
+    const result = await controller.loginConGoogle({
+      idToken: 'google-test-token',
+    });
 
-    expect(googleAuthService.loginConGoogle).toHaveBeenCalledWith('google-test-token');
+    expect(googleAuthService.loginConGoogle).toHaveBeenCalledWith(
+      'google-test-token',
+    );
     expect(result).toEqual(mockResponse);
   });
 
@@ -71,7 +75,7 @@ describe('AuthController', () => {
       },
     };
 
-    googleAuthService.refrescarSesion.mockResolvedValue(mockResponse as any);
+    googleAuthService.refrescarSesion.mockResolvedValue(mockResponse);
 
     const result = await controller.refrescarToken({
       user: { id: 5, fotoUrl: 'https://lh3.google.com/avatar.jpg' },

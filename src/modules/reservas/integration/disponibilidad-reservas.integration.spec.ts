@@ -120,12 +120,17 @@ describe('Integración HE-08 ↔ HE-04 (disponibilidad sobre reservas reales)', 
           useValue: {
             obtenerFranjasActivasPorBarberoYDia: jest
               .fn()
-              .mockResolvedValue([{ startTime: '09:00' }, { startTime: '10:00' }]),
+              .mockResolvedValue([
+                { startTime: '09:00' },
+                { startTime: '10:00' },
+              ]),
           },
         },
         {
           provide: BloqueosHorarioRepository,
-          useValue: { listarActivosPorBarberoYFecha: jest.fn().mockResolvedValue([]) },
+          useValue: {
+            listarActivosPorBarberoYFecha: jest.fn().mockResolvedValue([]),
+          },
         },
         {
           provide: CierresGeneralesRepository,
@@ -198,7 +203,9 @@ describe('Integración HE-08 ↔ HE-04 (disponibilidad sobre reservas reales)', 
   });
 
   it('no degrada a franja libre si la consulta de reservas falla (fail-closed)', async () => {
-    prisma.reservation.findFirst.mockRejectedValue(new Error('DB connection lost'));
+    prisma.reservation.findFirst.mockRejectedValue(
+      new Error('DB connection lost'),
+    );
 
     await expect(
       service.obtenerDisponibilidadPublica({ barberoId: 7, fecha: FECHA }),
@@ -207,7 +214,9 @@ describe('Integración HE-08 ↔ HE-04 (disponibilidad sobre reservas reales)', 
 
   it('permite consultar disponibilidad excluyendo una reserva (revalidación para modificación HU-08)', async () => {
     prisma.reservation.findFirst.mockImplementation(
-      (args: { where: { startTime: { lt: string }; id?: { not: number } } }) => {
+      (args: {
+        where: { startTime: { lt: string }; id?: { not: number } };
+      }) => {
         if (args.where.id?.not === 42) {
           return Promise.resolve(null);
         }

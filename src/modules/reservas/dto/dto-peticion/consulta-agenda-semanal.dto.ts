@@ -13,7 +13,8 @@ const REGEX_FECHA = /^\d{4}-\d{2}-\d{2}$/;
 export class ConsultaAgendaSemanalDto {
   @ApiProperty({
     example: '2026-11-02',
-    description: 'Fecha inicial del rango en formato YYYY-MM-DD (America/Bogota)',
+    description:
+      'Fecha inicial del rango en formato YYYY-MM-DD (America/Bogota)',
   })
   @IsNotEmpty({ message: 'La fecha "desde" es obligatoria' })
   @IsString({ message: 'La fecha "desde" debe ser un texto' })
