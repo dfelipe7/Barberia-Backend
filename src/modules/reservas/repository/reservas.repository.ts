@@ -27,6 +27,7 @@ export const ESTADOS_QUE_OCUPAN_AGENDA: readonly ReservationStatus[] = [
   ReservationStatus.CONFIRMED,
   ReservationStatus.IN_PROGRESS,
   ReservationStatus.COMPLETED,
+  ReservationStatus.NO_SHOW,
 ];
 
 /**
@@ -570,6 +571,21 @@ export class ReservasRepository {
   }
 
   /**
+   * Obtiene la reserva con datos de cliente, servicio y barbero para la
+   * transición a `NO_SHOW` (verificación de propiedad). Reutiliza la misma
+   * selección que `COMPLETED`: ambos son estados finales con la misma
+   * información expuesta.
+   */
+  async obtenerReservaParaNoShow(
+    id: number,
+  ): Promise<ReservaCompletarRegistro | null> {
+    return this.prisma.reservation.findUnique({
+      where: { id },
+      select: SELECCION_RESERVA_PARA_COMPLETAR,
+    });
+  }
+
+  /**
    * Marca la reserva como `COMPLETED` únicamente si su estado lo permite
    * (`PENDING`/`CONFIRMED`/`IN_PROGRESS`). El `updateMany` condicional evita
    * dobles efectos ante peticiones concurrentes y permite detectar la
@@ -588,6 +604,31 @@ export class ReservasRepository {
         },
       },
       data: { status: ReservationStatus.COMPLETED },
+    });
+
+    return resultado.count > 0;
+  }
+
+  /**
+   * Marca la reserva como `NO_SHOW` únicamente si su estado lo permite
+   * (`PENDING`/`CONFIRMED`/`IN_PROGRESS`). El `updateMany` condicional evita
+   * dobles efectos ante peticiones concurrentes y permite detectar la
+   * transición real (cuenta de filas afectadas). `NO_SHOW` ocupa la franja
+   * (no es `CANCELLED`), por lo que no altera `slotActivo`.
+   */
+  async marcarNoShow(id: number): Promise<boolean> {
+    const resultado = await this.prisma.reservation.updateMany({
+      where: {
+        id,
+        status: {
+          in: [
+            ReservationStatus.PENDING,
+            ReservationStatus.CONFIRMED,
+            ReservationStatus.IN_PROGRESS,
+          ],
+        },
+      },
+      data: { status: ReservationStatus.NO_SHOW },
     });
 
     return resultado.count > 0;

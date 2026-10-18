@@ -46,6 +46,8 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
     obtenerDiaSemana: jest.fn().mockReturnValue(WeekDay.SUNDAY),
     obtenerFechaHoyBogota: jest.fn().mockReturnValue('2026-10-31'),
     obtenerHoraActualBogota: jest.fn().mockReturnValue('10:00'),
+    obtenerFechaBogota: jest.fn().mockReturnValue('2026-10-31'),
+    obtenerHoraBogota: jest.fn().mockReturnValue('10:00'),
   };
 
   const mockBarberosRepository = {

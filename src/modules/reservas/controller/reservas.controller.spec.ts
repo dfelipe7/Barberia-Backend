@@ -21,6 +21,7 @@ describe('ReservasController', () => {
     cancelarReserva: jest.fn(),
     modificarReservaInvitado: jest.fn(),
     cancelarReservaInvitado: jest.fn(),
+    noShowReserva: jest.fn(),
     obtenerAgendaBarbero: jest.fn(),
     obtenerAgendaSemanalBarbero: jest.fn(),
   };
@@ -367,6 +368,36 @@ describe('ReservasController', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(reservasService.cancelarReservaInvitado).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('marcarNoShow', () => {
+    const mockUser = { id: 5, rol: 'BARBERO' };
+
+    it('delega en el servicio con la identidad y el rol del usuario autenticado', async () => {
+      const mockRespuesta = {
+        id: 42,
+        mensaje: 'Reserva marcada como no asistida',
+        estado: 'NO_SHOW',
+      };
+      reservasService.noShowReserva.mockResolvedValue(mockRespuesta);
+
+      const resultado = await controller.marcarNoShow({ user: mockUser }, 42);
+
+      expect(resultado).toBe(mockRespuesta);
+      expect(reservasService.noShowReserva).toHaveBeenCalledWith(
+        mockUser,
+        'BARBERO',
+        42,
+      );
+    });
+
+    it('rechaza un reservaId no positivo con 400', async () => {
+      await expect(
+        controller.marcarNoShow({ user: mockUser }, 0),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(reservasService.noShowReserva).not.toHaveBeenCalled();
     });
   });
 });

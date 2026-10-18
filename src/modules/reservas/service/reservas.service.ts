@@ -22,6 +22,7 @@ import { ReservaCreadaResponseDto } from '../dto/dto-respuesta/reserva-creada-re
 import { ReservaModificadaResponseDto } from '../dto/dto-respuesta/reserva-modificada-response.dto';
 import { ReservaCanceladaResponseDto } from '../dto/dto-respuesta/reserva-cancelada-response.dto';
 import { ReservaCompletadaResponseDto } from '../dto/dto-respuesta/reserva-completada-response.dto';
+import { ReservaNoShowResponseDto } from '../dto/dto-respuesta/reserva-no-show-response.dto';
 import { ReservaClienteDto } from '../dto/dto-respuesta/reserva-cliente.dto';
 import { MisReservasResponseDto } from '../dto/dto-respuesta/mis-reservas-response.dto';
 import { CrearReservaAdminDto } from '../dto/dto-peticion/crear-reserva-admin.dto';
@@ -57,6 +58,7 @@ export const MENSAJE_RESERVA_CREADA = 'Reserva creada exitosamente';
 export const MENSAJE_RESERVA_MODIFICADA = 'Reserva modificada correctamente';
 export const MENSAJE_RESERVA_CANCELADA = 'Reserva cancelada correctamente';
 export const MENSAJE_RESERVA_COMPLETADA = 'Reserva completada correctamente';
+export const MENSAJE_RESERVA_NO_SHOW = 'Reserva marcada como no asistida';
 export const MENSAJE_FRANJA_OCUPADA =
   'El horario seleccionado ya no está disponible. Por favor selecciona otro horario';
 export { MENSAJE_HORARIO_NO_DISPONIBLE };
@@ -65,6 +67,17 @@ export const MENSAJE_RESERVA_DUPLICADA =
 export const MENSAJE_SIN_RESERVAS = 'No tienes reservas registradas';
 export const MENSAJE_RESERVA_NO_DISPONIBLE =
   'La reserva no se encuentra disponible';
+
+/**
+ * Reglas de agenda configurables por entorno (HE-04).
+ *
+ * - `MINUTOS_CANCELACION_ANTELACION_DEFAULT`: antelación mínima con la que un
+ *   cliente puede cancelar su reserva en línea. El personal queda exento.
+ * - `MINUTOS_NO_SHOW_TOLERANCIA_DEFAULT`: minutos de tolerancia tras la hora de
+ *   inicio antes de poder marcar la reserva como `NO_SHOW`.
+ */
+export const MINUTOS_CANCELACION_ANTELACION_DEFAULT = 120;
+export const MINUTOS_NO_SHOW_TOLERANCIA_DEFAULT = 15;
 
 /**
  * Identidad de un cliente autenticado resuelta desde su token de cliente. Es el
@@ -661,6 +674,157 @@ export class ReservasService {
   }
 
   /**
+   * Marca una reserva como `NO_SHOW` (el cliente no asistió).
+   *
+   * Permitido a BARBERO (solo su propia reserva), ADMINISTRADOR y SUPERADMIN.
+   * Solo se puede marcar una vez transcurrida la tolerancia configurada desde la
+   * hora de inicio; es idempotente si ya está en `NO_SHOW` y rechaza reservas
+   * canceladas o completadas. `NO_SHOW` ocupa la franja, igual que `COMPLETED`.
+   */
+  async noShowReserva(
+    usuarioAutenticado: unknown,
+    rol: string | undefined,
+    reservaId: number,
+  ): Promise<ReservaNoShowResponseDto> {
+    const reserva =
+      await this.reservasRepository.obtenerReservaParaNoShow(reservaId);
+
+    if (!reserva) {
+      throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+    }
+
+    // Anti-BOLA/IDOR: un BARBERO solo puede marcar sus propias reservas. Se
+    // responde 404 uniforme para no revelar la existencia de reservas ajenas.
+    if (rol === 'BARBERO') {
+      const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
+
+      if (reserva.barberoId !== barbero.id) {
+        throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+      }
+    }
+
+    if (reserva.status === ReservationStatus.CANCELLED) {
+      throw new ConflictException(
+        'No es posible marcar como no asistida una reserva cancelada',
+      );
+    }
+
+    if (reserva.status === ReservationStatus.COMPLETED) {
+      throw new ConflictException(
+        'No es posible marcar como no asistida una reserva completada',
+      );
+    }
+
+    // Idempotencia: repetir la petición no duplica efectos.
+    if (reserva.status === ReservationStatus.NO_SHOW) {
+      return {
+        mensaje: MENSAJE_RESERVA_NO_SHOW,
+        id: reserva.id,
+        estado: ReservationStatus.NO_SHOW,
+      };
+    }
+
+    this.validarToleranciaNoShow(reserva);
+
+    const transiciono = await this.reservasRepository.marcarNoShow(reserva.id);
+
+    if (transiciono) {
+      this.logger.log(
+        `AUDIT: reserva marcada como no asistida id=${reserva.id} barberoId=${reserva.barberoId} rol=${rol ?? 'desconocido'}`,
+      );
+    }
+
+    return {
+      mensaje: MENSAJE_RESERVA_NO_SHOW,
+      id: reserva.id,
+      estado: ReservationStatus.NO_SHOW,
+    };
+  }
+
+  /**
+   * Exige que haya transcurrido la tolerancia configurada desde la hora de
+   * inicio (en Bogotá) para poder marcar la reserva como `NO_SHOW`.
+   */
+  private validarToleranciaNoShow(reserva: ReservaCompletarRegistro): void {
+    const tolerancia = this.obtenerMinutosToleranciaNoShow();
+
+    if (this.minutosHastaInicioEnBogota(reserva) > -tolerancia) {
+      throw new ConflictException(
+        `No es posible marcar la reserva como no asistida antes de ${tolerancia} minutos desde su hora de inicio`,
+      );
+    }
+  }
+
+  /**
+   * Minutos (con signo) que faltan para la hora de inicio de la reserva, en la
+   * zona horaria de Bogotá. Positivo si la cita es futura, negativo si su inicio
+   * ya pasó. Tanto la reserva como el instante actual se expresan como fecha de
+   * calendario + hora Bogotá, de modo que la diferencia es real (Bogotá no tiene
+   * horario de verano: el desplazamiento UTC-5 se cancela).
+   */
+  private minutosHastaInicioEnBogota(
+    reserva: { date: Date; startTime: string },
+    ahora: Date = new Date(),
+  ): number {
+    const ahoraMs = this.aInstanteCalendarioMs(
+      this.fechaBogotaService.obtenerFechaBogota(ahora),
+      this.fechaBogotaService.obtenerHoraBogota(ahora),
+    );
+    const inicioMs = this.aInstanteCalendarioMs(
+      this.aFechaCalendario(reserva.date),
+      reserva.startTime,
+    );
+
+    return Math.round((inicioMs - ahoraMs) / 60_000);
+  }
+
+  /**
+   * Convierte una fecha de calendario (`YYYY-MM-DD`) y una hora (`HH:mm`) en
+   * milisegundos UTC. Es una escala neutra común para comparar horas de Bogotá.
+   */
+  private aInstanteCalendarioMs(fecha: string, hora: string): number {
+    const [anio, mes, dia] = fecha.split('-').map(Number);
+    const [horas, minutos] = hora.split(':').map(Number);
+
+    return Date.UTC(anio, mes - 1, dia, horas, minutos);
+  }
+
+  /**
+   * Minutos de antelación mínima para cancelar en línea (configurable).
+   */
+  private obtenerMinutosCancelacion(): number {
+    return this.leerMinutosPositivos(
+      process.env.RESERVA_CANCELACION_ANTELACION_MINUTOS,
+      MINUTOS_CANCELACION_ANTELACION_DEFAULT,
+    );
+  }
+
+  /**
+   * Minutos de tolerancia antes de poder marcar `NO_SHOW` (configurable).
+   */
+  private obtenerMinutosToleranciaNoShow(): number {
+    return this.leerMinutosPositivos(
+      process.env.RESERVA_NO_SHOW_TOLERANCIA_MINUTOS,
+      MINUTOS_NO_SHOW_TOLERANCIA_DEFAULT,
+    );
+  }
+
+  /**
+   * Lee un valor de minutos desde el entorno; usa el valor por defecto si el
+   * texto está ausente, no es numérico o no es un entero positivo.
+   */
+  private leerMinutosPositivos(
+    valor: string | undefined,
+    porDefecto: number,
+  ): number {
+    const parseado = Number(valor);
+
+    return Number.isFinite(parseado) && parseado > 0
+      ? Math.floor(parseado)
+      : porDefecto;
+  }
+
+  /**
    * Exige que la hora de finalización de la reserva ya haya pasado (en Bogotá)
    * para poder marcarla como completada.
    */
@@ -897,6 +1061,17 @@ export class ReservasService {
         id: reserva.id,
         estado: ReservationStatus.CANCELLED,
       };
+    }
+
+    // D-10: el cliente solo puede cancelar con una antelación mínima. Dentro de
+    // la ventana debe contactar a la barbería; el personal (admin) queda exento.
+    if (modalidad !== 'admin') {
+      const antelacion = this.obtenerMinutosCancelacion();
+      if (this.minutosHastaInicioEnBogota(reserva) < antelacion) {
+        throw new ConflictException(
+          `No es posible cancelar la reserva: faltan menos de ${antelacion} minutos para la cita. Contacta directamente a la barbería.`,
+        );
+      }
     }
 
     await this.reservasRepository.cancelar(reserva.id);

@@ -15,6 +15,7 @@ import {
   MENSAJE_RESERVA_DUPLICADA,
   MENSAJE_RESERVA_MODIFICADA,
   MENSAJE_RESERVA_NO_DISPONIBLE,
+  MENSAJE_RESERVA_NO_SHOW,
   MENSAJE_SIN_RESERVAS,
   ReservasService,
 } from './reservas.service';
@@ -54,6 +55,9 @@ describe('ReservasService', () => {
     cancelar: jest.fn(),
     obtenerReservaParaCompletar: jest.fn(),
     completar: jest.fn(),
+    obtenerReservaConRelaciones: jest.fn(),
+    obtenerReservaParaNoShow: jest.fn(),
+    marcarNoShow: jest.fn(),
   };
   const clientesRepository = {
     obtenerPorId: jest.fn(),
@@ -1331,6 +1335,36 @@ describe('ReservasService', () => {
 
       expect(reservasRepository.cancelar).not.toHaveBeenCalled();
     });
+
+    it('rechaza con 409 si el cliente cancela dentro de la ventana de antelación', async () => {
+      // Faltan 30 minutos para la cita (< 120 de antelación configurada).
+      fechaBogotaService.obtenerHoraBogota.mockReturnValue('13:30');
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ id: 42, status: ReservationStatus.CONFIRMED }),
+      );
+
+      await expect(service.cancelarReserva(identidad, 42)).rejects.toThrow(
+        'faltan menos de 120 minutos',
+      );
+
+      expect(reservasRepository.cancelar).not.toHaveBeenCalled();
+    });
+
+    it('permite al staff (admin) cancelar dentro de la ventana de antelación', async () => {
+      fechaBogotaService.obtenerHoraBogota.mockReturnValue('13:30');
+      reservasRepository.obtenerReservaConRelaciones.mockResolvedValue(
+        crearReservaRelacion({ id: 42, status: ReservationStatus.CONFIRMED }),
+      );
+      reservasRepository.cancelar.mockResolvedValue({
+        id: 42,
+        status: ReservationStatus.CANCELLED,
+      });
+
+      const respuesta = await service.cancelarReservaAdmin(42);
+
+      expect(respuesta.estado).toBe(ReservationStatus.CANCELLED);
+      expect(reservasRepository.cancelar).toHaveBeenCalledWith(42);
+    });
   });
 
   describe('completarReserva (SCRUM-277)', () => {
@@ -1503,6 +1537,152 @@ describe('ReservasService', () => {
       await service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 42);
 
       expect(whatsapp.enviarCompletadoReserva).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('noShowReserva (NO_SHOW)', () => {
+    const usuarioBarbero = { id: 9, sub: '9', rol: 'BARBERO' };
+    const usuarioSuperadmin = { id: 1, sub: '1', rol: 'SUPERADMIN' };
+
+    const reservaNoShowBase = (over: Record<string, unknown> = {}) => ({
+      id: 42,
+      barberoId: 3,
+      servicioId: 2,
+      clienteId: 77,
+      date: new Date('2026-11-01T00:00:00.000Z'),
+      dayOfWeek: 'SUNDAY',
+      startTime: '14:00',
+      endTime: '15:00',
+      status: ReservationStatus.CONFIRMED,
+      precioReservado: 50000,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      cliente: { nombre: 'Ana', apellido: 'Pérez', telefono: '3001234567' },
+      servicio: { id: 2, nombre: 'Corte de cabello' },
+      barbero: { id: 3, usuario: { nombre: 'Carlos', apellido: 'Gómez' } },
+      ...over,
+    });
+
+    beforeEach(() => {
+      // La tolerancia por defecto es 15 min; 20 min tras el inicio permite marcar.
+      fechaBogotaService.obtenerFechaBogota.mockReturnValue('2026-11-01');
+      fechaBogotaService.obtenerHoraBogota.mockReturnValue('14:20');
+      barberosRepository.obtenerBarberoPorUsuarioId.mockResolvedValue({
+        id: 3,
+        estado: EstadoUsuario.ACTIVO,
+      });
+    });
+
+    it('marca como no asistida una reserva propia del barbero tras la tolerancia', async () => {
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(
+        reservaNoShowBase(),
+      );
+      reservasRepository.marcarNoShow.mockResolvedValue(true);
+
+      const respuesta = await service.noShowReserva(usuarioBarbero, 'BARBERO', 42);
+
+      expect(respuesta.mensaje).toBe(MENSAJE_RESERVA_NO_SHOW);
+      expect(respuesta.id).toBe(42);
+      expect(respuesta.estado).toBe(ReservationStatus.NO_SHOW);
+      expect(reservasRepository.marcarNoShow).toHaveBeenCalledWith(42);
+    });
+
+    it('permite a SUPERADMIN marcar cualquier reserva', async () => {
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(
+        reservaNoShowBase({ barberoId: 99 }),
+      );
+      reservasRepository.marcarNoShow.mockResolvedValue(true);
+
+      const respuesta = await service.noShowReserva(
+        usuarioSuperadmin,
+        'SUPERADMIN',
+        42,
+      );
+
+      expect(respuesta.estado).toBe(ReservationStatus.NO_SHOW);
+      expect(
+        barberosRepository.obtenerBarberoPorUsuarioId,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('responde 404 uniforme si el barbero intenta marcar una reserva ajena', async () => {
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(
+        reservaNoShowBase({ barberoId: 99 }),
+      );
+
+      await expect(
+        service.noShowReserva(usuarioBarbero, 'BARBERO', 42),
+      ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
+
+      expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con 409 si la reserva está cancelada', async () => {
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(
+        reservaNoShowBase({ status: ReservationStatus.CANCELLED }),
+      );
+
+      await expect(
+        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+      ).rejects.toThrow(
+        'No es posible marcar como no asistida una reserva cancelada',
+      );
+
+      expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con 409 si la reserva ya está completada', async () => {
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(
+        reservaNoShowBase({ status: ReservationStatus.COMPLETED }),
+      );
+
+      await expect(
+        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+      ).rejects.toThrow(
+        'No es posible marcar como no asistida una reserva completada',
+      );
+
+      expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
+    });
+
+    it('es idempotente si la reserva ya está NO_SHOW', async () => {
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(
+        reservaNoShowBase({ status: ReservationStatus.NO_SHOW }),
+      );
+
+      const respuesta = await service.noShowReserva(
+        usuarioSuperadmin,
+        'SUPERADMIN',
+        42,
+      );
+
+      expect(respuesta.estado).toBe(ReservationStatus.NO_SHOW);
+      expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con 409 si aún no transcurrió la tolerancia', async () => {
+      fechaBogotaService.obtenerHoraBogota.mockReturnValue('14:10');
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(
+        reservaNoShowBase(),
+      );
+
+      await expect(
+        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+      ).rejects.toThrow(
+        'No es posible marcar la reserva como no asistida antes de 15 minutos',
+      );
+
+      expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
+    });
+
+    it('responde 404 si la reserva no existe', async () => {
+      reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(null);
+
+      await expect(
+        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 999),
+      ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
+
+      expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
     });
   });
 });

@@ -210,6 +210,7 @@ model GeneralClosure {
 /// Ciclo de vida de una reserva. Política de ocupación compartida con HE-08
 /// (ver `src/modules/horarios/ports/proveedor-reservas-activas.port.ts`): todo
 /// estado distinto de `CANCELLED` ocupa la franja; `CANCELLED` la libera.
+/// `NO_SHOW` (cliente que no asistió) también ocupa, igual que `COMPLETED`.
 /// Los valores definitivos quedan sujetos a D-04 (política de estados con HE-06).
 enum ReservationStatus {
   PENDING
@@ -217,6 +218,7 @@ enum ReservationStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+  NO_SHOW
 }
 
 /// Una fila por reserva. Sin borrado físico: se cambia de estado, igual que

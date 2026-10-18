@@ -42,6 +42,7 @@ import { ReservaCreadaResponseDto } from '../dto/dto-respuesta/reserva-creada-re
 import { ReservaModificadaResponseDto } from '../dto/dto-respuesta/reserva-modificada-response.dto';
 import { ReservaCanceladaResponseDto } from '../dto/dto-respuesta/reserva-cancelada-response.dto';
 import { ReservaCompletadaResponseDto } from '../dto/dto-respuesta/reserva-completada-response.dto';
+import { ReservaNoShowResponseDto } from '../dto/dto-respuesta/reserva-no-show-response.dto';
 import { ReservaClienteDto } from '../dto/dto-respuesta/reserva-cliente.dto';
 import { ReservaAdminDetalleDto } from '../dto/dto-respuesta/reserva-admin-detalle.dto';
 import { MisReservasResponseDto } from '../dto/dto-respuesta/mis-reservas-response.dto';
@@ -345,6 +346,53 @@ export class ReservasController {
     }
 
     return this.reservasService.completarReserva(
+      request.user,
+      request.user?.rol,
+      reservaId,
+    );
+  }
+
+  @Patch(':reservaId/no-show')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('BARBERO', 'ADMINISTRADOR', 'SUPERADMIN')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Marcar una reserva como no asistida (NO_SHOW)',
+    description:
+      'Transiciona la reserva al estado NO_SHOW cuando el cliente no asistió. Disponible para BARBERO (solo sus propias reservas), ADMINISTRADOR y SUPERADMIN. Solo se permite una vez transcurrida la tolerancia configurada desde la hora de inicio; es idempotente si la reserva ya está en NO_SHOW y rechaza reservas canceladas o completadas.',
+  })
+  @ApiParam({ name: 'reservaId', example: 42, description: 'ID de la reserva' })
+  @ApiOkResponse({
+    description: 'Reserva marcada como no asistida correctamente',
+    type: ReservaNoShowResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'Identificador de reserva inválido' })
+  @ApiUnauthorizedResponse({
+    description: 'No autenticado o token de personal inválido/expirado',
+  })
+  @ApiForbiddenResponse({
+    description:
+      'El usuario no tiene rol autorizado o no posee perfil de barbero activo',
+  })
+  @ApiNotFoundResponse({
+    description: 'La reserva no se encuentra disponible',
+  })
+  @ApiConflictResponse({
+    description:
+      'La reserva está cancelada/completada o aún no ha transcurrido la tolerancia desde su hora de inicio',
+  })
+  async marcarNoShow(
+    @Req() request: PeticionPersonal,
+    @Param('reservaId', ParseIntPipe) reservaId: number,
+  ): Promise<ReservaNoShowResponseDto> {
+    if (reservaId <= 0) {
+      throw new BadRequestException(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
+    }
+
+    return this.reservasService.noShowReserva(
       request.user,
       request.user?.rol,
       reservaId,
