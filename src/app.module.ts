@@ -11,6 +11,7 @@ import { BootstrapService } from './bootstrap/bootstrap.service';
 import { ServiciosModule } from './modules/servicios/servicios.module';
 import { HorariosModule } from './modules/horarios/horarios.module';
 import { ReservasModule } from './modules/reservas/reservas.module';
+import { ConfiguracionModule } from './modules/configuracion/configuracion.module';
 import { AppLoggerModule } from './logger/logger.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { AllExceptionsFilter } from './logger/all-exceptions.filter';
@@ -55,6 +56,7 @@ import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
     ReservasModule,
     WhatsAppModule,
     PrismaModule,
+    ConfiguracionModule,
     AppLoggerModule,
     AlertsModule,
   ],

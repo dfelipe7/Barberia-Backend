@@ -52,6 +52,8 @@ import type { FranjaEvaluada } from '../../horarios/common/estado-franja';
 import { FechaBogotaService } from '../../horarios/common/fecha-bogota.service';
 import { ServiciosRepository } from '../../servicios/repository/servicios.repository';
 import { BarberosRepository } from '../../usuarios/repository/barberos.repository';
+import { ConfiguracionService } from '../../configuracion/service/configuracion.service';
+import { CLAVES_CONFIGURACION } from '../../configuracion/configuracion.constants';
 
 /** Mensajes de dominio exigidos por los criterios de aceptación (Excel HE-04). */
 export const MENSAJE_RESERVA_CREADA = 'Reserva creada exitosamente';
@@ -69,7 +71,11 @@ export const MENSAJE_RESERVA_NO_DISPONIBLE =
   'La reserva no se encuentra disponible';
 
 /**
- * Reglas de agenda configurables por entorno (HE-04).
+ * Reglas de agenda configurables en base de datos (HE-04).
+ *
+ * Los valores se leen de la tabla `configuraciones_sistema` a través de
+ * `ConfiguracionService`. Estas constantes son los valores por defecto que se
+ * aplican de forma segura si la configuración falta o es inválida.
  *
  * - `MINUTOS_CANCELACION_ANTELACION_DEFAULT`: antelación mínima con la que un
  *   cliente puede cancelar su reserva en línea. El personal queda exento.
@@ -114,6 +120,7 @@ export class ReservasService {
     private readonly serviciosRepository: ServiciosRepository,
     private readonly fechaBogotaService: FechaBogotaService,
     private readonly barberosRepository: BarberosRepository,
+    private readonly configuracionService: ConfiguracionService,
     @Optional() private readonly whatsappService?: WhatsAppService,
   ) {}
 
@@ -725,7 +732,7 @@ export class ReservasService {
       };
     }
 
-    this.validarToleranciaNoShow(reserva);
+    await this.validarToleranciaNoShow(reserva);
 
     const transiciono = await this.reservasRepository.marcarNoShow(reserva.id);
 
@@ -746,8 +753,10 @@ export class ReservasService {
    * Exige que haya transcurrido la tolerancia configurada desde la hora de
    * inicio (en Bogotá) para poder marcar la reserva como `NO_SHOW`.
    */
-  private validarToleranciaNoShow(reserva: ReservaCompletarRegistro): void {
-    const tolerancia = this.obtenerMinutosToleranciaNoShow();
+  private async validarToleranciaNoShow(
+    reserva: ReservaCompletarRegistro,
+  ): Promise<void> {
+    const tolerancia = await this.obtenerMinutosToleranciaNoShow();
 
     if (this.minutosHastaInicioEnBogota(reserva) > -tolerancia) {
       throw new ConflictException(
@@ -791,38 +800,43 @@ export class ReservasService {
   }
 
   /**
-   * Minutos de antelación mínima para cancelar en línea (configurable).
+   * Minutos de antelación mínima para cancelar en línea. Se leen de la
+   * configuración en base de datos vía `ConfiguracionService`; si faltan o son
+   * inválidos, se aplica el valor por defecto.
    */
-  private obtenerMinutosCancelacion(): number {
-    return this.leerMinutosPositivos(
-      process.env.RESERVA_CANCELACION_ANTELACION_MINUTOS,
+  private async obtenerMinutosCancelacion(): Promise<number> {
+    const valor = await this.configuracionService.obtenerNumero(
+      CLAVES_CONFIGURACION.RESERVA_CANCELACION_ANTELACION_MINUTOS,
+      MINUTOS_CANCELACION_ANTELACION_DEFAULT,
+    );
+
+    return this.normalizarMinutos(
+      valor,
       MINUTOS_CANCELACION_ANTELACION_DEFAULT,
     );
   }
 
   /**
-   * Minutos de tolerancia antes de poder marcar `NO_SHOW` (configurable).
+   * Minutos de tolerancia antes de poder marcar `NO_SHOW`. Se leen de la
+   * configuración en base de datos vía `ConfiguracionService`; si faltan o son
+   * inválidos, se aplica el valor por defecto.
    */
-  private obtenerMinutosToleranciaNoShow(): number {
-    return this.leerMinutosPositivos(
-      process.env.RESERVA_NO_SHOW_TOLERANCIA_MINUTOS,
+  private async obtenerMinutosToleranciaNoShow(): Promise<number> {
+    const valor = await this.configuracionService.obtenerNumero(
+      CLAVES_CONFIGURACION.RESERVA_NO_SHOW_TOLERANCIA_MINUTOS,
       MINUTOS_NO_SHOW_TOLERANCIA_DEFAULT,
     );
+
+    return this.normalizarMinutos(valor, MINUTOS_NO_SHOW_TOLERANCIA_DEFAULT);
   }
 
   /**
-   * Lee un valor de minutos desde el entorno; usa el valor por defecto si el
-   * texto está ausente, no es numérico o no es un entero positivo.
+   * Normaliza los minutos configurados: exige un entero positivo y, en caso
+   * contrario, aplica el valor por defecto. Conserva el comportamiento previo
+   * (no se aceptan 0 ni valores negativos).
    */
-  private leerMinutosPositivos(
-    valor: string | undefined,
-    porDefecto: number,
-  ): number {
-    const parseado = Number(valor);
-
-    return Number.isFinite(parseado) && parseado > 0
-      ? Math.floor(parseado)
-      : porDefecto;
+  private normalizarMinutos(valor: number, porDefecto: number): number {
+    return Number.isFinite(valor) && valor > 0 ? Math.floor(valor) : porDefecto;
   }
 
   /**
@@ -1067,7 +1081,7 @@ export class ReservasService {
     // D-10: el cliente solo puede cancelar con una antelación mínima. Dentro de
     // la ventana debe contactar a la barbería; el personal (admin) queda exento.
     if (modalidad !== 'admin') {
-      const antelacion = this.obtenerMinutosCancelacion();
+      const antelacion = await this.obtenerMinutosCancelacion();
       if (this.minutosHastaInicioEnBogota(reserva) < antelacion) {
         throw new ConflictException(
           `No es posible cancelar la reserva: faltan menos de ${antelacion} minutos para la cita. Contacta directamente a la barbería.`,

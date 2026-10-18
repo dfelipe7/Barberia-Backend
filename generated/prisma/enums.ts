@@ -76,3 +76,13 @@ export const ReservationStatus = {
 } as const
 
 export type ReservationStatus = (typeof ReservationStatus)[keyof typeof ReservationStatus]
+
+
+export const TipoConfiguracion = {
+  TEXTO: 'TEXTO',
+  NUMERO: 'NUMERO',
+  BOOLEANO: 'BOOLEANO',
+  JSON: 'JSON'
+} as const
+
+export type TipoConfiguracion = (typeof TipoConfiguracion)[keyof typeof TipoConfiguracion]

@@ -301,3 +301,36 @@ model WhatsAppPlantilla {
   @@map("whatsapp_plantillas")
 }
 
+// ---------------------------------------------------------------------------
+// Configuración funcional del sistema (parámetros almacenados en base de datos)
+// ---------------------------------------------------------------------------
+
+/// Tipos soportados por una configuración funcional. El contenido se guarda como
+/// texto (`valor`) y se valida/parsea según este tipo al leerlo, sin `eval` ni
+/// conversiones inseguras.
+enum TipoConfiguracion {
+  TEXTO
+  NUMERO
+  BOOLEANO
+  JSON
+}
+
+/// Parámetro funcional de la aplicación almacenado en base de datos.
+///
+/// `valor` se guarda como texto para poder representar configuraciones de
+/// cualquier tipo sin perder la capacidad de validarlas: `tipo` indica cómo
+/// interpretar y validar el contenido al leerlo. Los secretos y credenciales NO
+/// se migran aquí: permanecen en variables de entorno.
+model ConfiguracionSistema {
+  id            Int               @id @default(autoincrement())
+  clave         String            @unique @db.VarChar(100)
+  valor         String            @db.Text
+  tipo          TipoConfiguracion @default(TEXTO)
+  descripcion   String?           @db.VarChar(255)
+  editable      Boolean           @default(true)
+  creadoEn      DateTime          @default(now())
+  actualizadoEn DateTime          @updatedAt
+
+  @@map("configuraciones_sistema")
+}
+

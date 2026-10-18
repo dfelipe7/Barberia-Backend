@@ -17,6 +17,7 @@ describe('ReservasService - Administración (HU-13 y SUPERADMIN)', () => {
   let fechaBogotaService: any;
   let barberosRepo: any;
   let whatsappService: any;
+  let configuracionService: any;
 
   beforeEach(() => {
     reservasRepo = {
@@ -87,6 +88,12 @@ describe('ReservasService - Administración (HU-13 y SUPERADMIN)', () => {
       enviarConfirmacionReserva: jest.fn().mockResolvedValue(true),
     };
 
+    configuracionService = {
+      obtenerNumero: jest.fn((_clave: string, porDefecto: number) =>
+        Promise.resolve(porDefecto),
+      ),
+    };
+
     service = new ReservasService(
       reservasRepo,
       clientesRepo,
@@ -94,6 +101,7 @@ describe('ReservasService - Administración (HU-13 y SUPERADMIN)', () => {
       serviciosRepo,
       fechaBogotaService,
       barberosRepo,
+      configuracionService,
       whatsappService,
     );
   });

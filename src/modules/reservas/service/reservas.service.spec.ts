@@ -26,6 +26,7 @@ import { ServiciosRepository } from '../../servicios/repository/servicios.reposi
 import { FechaBogotaService } from '../../horarios/common/fecha-bogota.service';
 import { EstadoFranja } from '../../horarios/common/estado-franja';
 import { BarberosRepository } from '../../usuarios/repository/barberos.repository';
+import { ConfiguracionService } from '../../configuracion/service/configuracion.service';
 import {
   EstadoUsuario,
   ReservationStatus,
@@ -79,6 +80,12 @@ describe('ReservasService', () => {
   const barberosRepository = {
     obtenerBarberoPorUsuarioId: jest.fn(),
     obtenerBarberoActivoPorId: jest.fn(),
+  };
+
+  const configuracionService = {
+    obtenerNumero: jest.fn((_clave: string, porDefecto: number) =>
+      Promise.resolve(porDefecto),
+    ),
   };
 
   const franjaDisponible = {
@@ -138,6 +145,7 @@ describe('ReservasService', () => {
         { provide: ServiciosRepository, useValue: serviciosRepository },
         { provide: FechaBogotaService, useValue: fechaBogotaService },
         { provide: BarberosRepository, useValue: barberosRepository },
+        { provide: ConfiguracionService, useValue: configuracionService },
       ],
     }).compile();
 

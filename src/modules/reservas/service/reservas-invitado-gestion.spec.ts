@@ -54,6 +54,12 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
     obtenerBarberoActivoPorId: jest.fn(),
   };
 
+  const mockConfiguracionService = {
+    obtenerNumero: jest.fn((_clave: string, porDefecto: number) =>
+      Promise.resolve(porDefecto),
+    ),
+  };
+
   const FECHA = '2026-11-01';
   const HORA = '14:00';
   const HORA_FIN = '15:00';
@@ -80,6 +86,7 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
       mockServiciosRepository as any,
       mockFechaBogotaService as any,
       mockBarberosRepository as any,
+      mockConfiguracionService as any,
     );
 
     mockServiciosRepository.obtenerServicioActivoPorId.mockResolvedValue(

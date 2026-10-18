@@ -407,7 +407,8 @@ export const ModelName = {
   BarberScheduleBlock: 'BarberScheduleBlock',
   GeneralClosure: 'GeneralClosure',
   Reservation: 'Reservation',
-  WhatsAppPlantilla: 'WhatsAppPlantilla'
+  WhatsAppPlantilla: 'WhatsAppPlantilla',
+  ConfiguracionSistema: 'ConfiguracionSistema'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -423,7 +424,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "usuario" | "administrador" | "barbero" | "cliente" | "servicio" | "barberoServicio" | "barberWeeklySlot" | "barberScheduleBlock" | "generalClosure" | "reservation" | "whatsAppPlantilla"
+    modelProps: "usuario" | "administrador" | "barbero" | "cliente" | "servicio" | "barberoServicio" | "barberWeeklySlot" | "barberScheduleBlock" | "generalClosure" | "reservation" | "whatsAppPlantilla" | "configuracionSistema"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1153,6 +1154,72 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ConfiguracionSistema: {
+      payload: Prisma.$ConfiguracionSistemaPayload<ExtArgs>
+      fields: Prisma.ConfiguracionSistemaFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ConfiguracionSistemaFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConfiguracionSistemaPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ConfiguracionSistemaFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConfiguracionSistemaPayload>
+        }
+        findFirst: {
+          args: Prisma.ConfiguracionSistemaFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConfiguracionSistemaPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ConfiguracionSistemaFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConfiguracionSistemaPayload>
+        }
+        findMany: {
+          args: Prisma.ConfiguracionSistemaFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConfiguracionSistemaPayload>[]
+        }
+        create: {
+          args: Prisma.ConfiguracionSistemaCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConfiguracionSistemaPayload>
+        }
+        createMany: {
+          args: Prisma.ConfiguracionSistemaCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        delete: {
+          args: Prisma.ConfiguracionSistemaDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConfiguracionSistemaPayload>
+        }
+        update: {
+          args: Prisma.ConfiguracionSistemaUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConfiguracionSistemaPayload>
+        }
+        deleteMany: {
+          args: Prisma.ConfiguracionSistemaDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ConfiguracionSistemaUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        upsert: {
+          args: Prisma.ConfiguracionSistemaUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConfiguracionSistemaPayload>
+        }
+        aggregate: {
+          args: Prisma.ConfiguracionSistemaAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateConfiguracionSistema>
+        }
+        groupBy: {
+          args: Prisma.ConfiguracionSistemaGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ConfiguracionSistemaGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ConfiguracionSistemaCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ConfiguracionSistemaCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1343,6 +1410,20 @@ export const WhatsAppPlantillaScalarFieldEnum = {
 export type WhatsAppPlantillaScalarFieldEnum = (typeof WhatsAppPlantillaScalarFieldEnum)[keyof typeof WhatsAppPlantillaScalarFieldEnum]
 
 
+export const ConfiguracionSistemaScalarFieldEnum = {
+  id: 'id',
+  clave: 'clave',
+  valor: 'valor',
+  tipo: 'tipo',
+  descripcion: 'descripcion',
+  editable: 'editable',
+  creadoEn: 'creadoEn',
+  actualizadoEn: 'actualizadoEn'
+} as const
+
+export type ConfiguracionSistemaScalarFieldEnum = (typeof ConfiguracionSistemaScalarFieldEnum)[keyof typeof ConfiguracionSistemaScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -1440,6 +1521,15 @@ export const WhatsAppPlantillaOrderByRelevanceFieldEnum = {
 export type WhatsAppPlantillaOrderByRelevanceFieldEnum = (typeof WhatsAppPlantillaOrderByRelevanceFieldEnum)[keyof typeof WhatsAppPlantillaOrderByRelevanceFieldEnum]
 
 
+export const ConfiguracionSistemaOrderByRelevanceFieldEnum = {
+  clave: 'clave',
+  valor: 'valor',
+  descripcion: 'descripcion'
+} as const
+
+export type ConfiguracionSistemaOrderByRelevanceFieldEnum = (typeof ConfiguracionSistemaOrderByRelevanceFieldEnum)[keyof typeof ConfiguracionSistemaOrderByRelevanceFieldEnum]
+
+
 
 /**
  * Field references
@@ -1527,6 +1617,13 @@ export type EnumScheduleBlockStatusFieldRefInput<$PrismaModel> = FieldRefInputTy
  * Reference to a field of type 'ReservationStatus'
  */
 export type EnumReservationStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ReservationStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'TipoConfiguracion'
+ */
+export type EnumTipoConfiguracionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TipoConfiguracion'>
     
 
 
@@ -1698,6 +1795,7 @@ export type GlobalOmitConfig = {
   generalClosure?: Prisma.GeneralClosureOmit
   reservation?: Prisma.ReservationOmit
   whatsAppPlantilla?: Prisma.WhatsAppPlantillaOmit
+  configuracionSistema?: Prisma.ConfiguracionSistemaOmit
 }
 
 /* Types for Logging */
