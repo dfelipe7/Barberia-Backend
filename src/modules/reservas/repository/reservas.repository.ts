@@ -1,5 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import { Prisma } from '../../../../generated/prisma/client';
 import { ReservationStatus, WeekDay } from '../../../../generated/prisma/enums';
 
@@ -419,7 +420,10 @@ export function esErrorReintentableTransaccion(error: unknown): boolean {
 
 @Injectable()
 export class ReservasRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aislamiento: NegocioAislamientoService,
+  ) {}
 
   /**
    * Indica si la franja `[startTime, endTime)` de un barbero en una fecha
@@ -431,7 +435,7 @@ export class ReservasRepository {
     consulta: ConsultaOcupacionPorFecha,
   ): Promise<boolean> {
     const reserva = await this.prisma.reservation.findFirst({
-      where: {
+      where: this.aislamiento.filtroLectura({
         barberoId: consulta.barberoId,
         date: consulta.fecha,
         status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
@@ -440,7 +444,7 @@ export class ReservasRepository {
         ...(consulta.excluirReservaId !== undefined
           ? { id: { not: consulta.excluirReservaId } }
           : {}),
-      },
+      }),
       select: { id: true },
     });
 
@@ -456,13 +460,13 @@ export class ReservasRepository {
     consulta: ConsultaOcupacionPorDiaSemana,
   ): Promise<boolean> {
     const reserva = await this.prisma.reservation.findFirst({
-      where: {
+      where: this.aislamiento.filtroLectura({
         barberoId: consulta.barberoId,
         dayOfWeek: consulta.dayOfWeek,
         status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
         startTime: { lt: consulta.endTime },
         endTime: { gt: consulta.startTime },
-      },
+      }),
       select: { id: true },
     });
 
@@ -480,21 +484,31 @@ export class ReservasRepository {
     consulta: ConsultaDuplicadoCliente,
   ): Promise<boolean> {
     const reserva = await this.prisma.reservation.findFirst({
-      where: {
+      where: this.aislamiento.filtroLectura({
         clienteId: consulta.clienteId,
         barberoId: consulta.barberoId,
         date: consulta.fecha,
         startTime: consulta.startTime,
         status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
-      },
+      }),
       select: { id: true },
     });
 
     return reserva !== null;
   }
 
+  /**
+   * Reserva por id, restringida al negocio activo.
+   *
+   * `findUnique` acepta en Prisma 7 un filtro adicional junto a la clave
+   * única: si la reserva pertenece a otro negocio, el motor no la devuelve.
+   * El resultado es `null` (no un error) para no revelar la existencia de
+   * reservas de otros negocios.
+   */
   async obtenerPorId(id: number): Promise<ReservaRegistro | null> {
-    return this.prisma.reservation.findUnique({ where: { id } });
+    return this.prisma.reservation.findUnique({
+      where: this.aislamiento.filtroEscritura({ id }),
+    });
   }
 
   /**
@@ -506,23 +520,24 @@ export class ReservasRepository {
     clienteId: number,
   ): Promise<ReservaConRelaciones[]> {
     return this.prisma.reservation.findMany({
-      where: { clienteId },
+      where: this.aislamiento.filtroLectura({ clienteId }),
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
       select: SELECCION_RESERVA_CON_RELACIONES,
     });
   }
 
   /**
-   * Reserva concreta de un cliente (filtra por `clienteId`, no solo por id):
-   * devuelve `null` tanto si la reserva no existe como si pertenece a otro
-   * cliente, para no revelar la existencia de reservas ajenas (HU-07).
+   * Reserva concreta de un cliente (filtra por `clienteId` y por negocio, no
+   * solo por id): devuelve `null` tanto si la reserva no existe como si
+   * pertenece a otro cliente o a otro negocio, para no revelar la existencia
+   * de reservas ajenas (HU-07).
    */
   async obtenerReservaDeCliente(
     clienteId: number,
     reservaId: number,
   ): Promise<ReservaConRelaciones | null> {
     return this.prisma.reservation.findFirst({
-      where: { id: reservaId, clienteId },
+      where: this.aislamiento.filtroLectura({ id: reservaId, clienteId }),
       select: SELECCION_RESERVA_CON_RELACIONES,
     });
   }
@@ -530,6 +545,9 @@ export class ReservasRepository {
   /**
    * Obtiene la reserva con sus relaciones y el hash del token de gestión,
    * para validar peticiones de modificación o cancelación de invitados.
+   *
+   * Restringida al negocio activo: una reserva de otro negocio se comporta
+   * como inexistente.
    */
   async obtenerReservaParaGestionInvitado(
     reservaId: number,
@@ -537,7 +555,7 @@ export class ReservasRepository {
     (ReservaConRelaciones & { gestionTokenHash: string | null }) | null
   > {
     return this.prisma.reservation.findUnique({
-      where: { id: reservaId },
+      where: this.aislamiento.filtroEscritura({ id: reservaId }),
       select: {
         ...SELECCION_RESERVA_CON_RELACIONES,
         gestionTokenHash: true,
@@ -552,7 +570,7 @@ export class ReservasRepository {
     id: number,
   ): Promise<ReservaConRelaciones | null> {
     return this.prisma.reservation.findUnique({
-      where: { id },
+      where: this.aislamiento.filtroEscritura({ id }),
       select: SELECCION_RESERVA_CON_RELACIONES,
     });
   }
@@ -622,7 +640,7 @@ export class ReservasRepository {
     status: ReservationStatus,
   ): Promise<boolean> {
     const resultado = await this.prisma.reservation.updateMany({
-      where: {
+      where: this.aislamiento.filtroEscritura({
         id,
         status: {
           in: [
@@ -631,7 +649,7 @@ export class ReservasRepository {
             ReservationStatus.IN_PROGRESS,
           ],
         },
-      },
+      }),
       data: { status },
     });
 
@@ -647,11 +665,11 @@ export class ReservasRepository {
     fecha: Date,
   ): Promise<ReservaAgendaRegistro[]> {
     return this.prisma.reservation.findMany({
-      where: {
+      where: this.aislamiento.filtroLectura({
         barberoId,
         date: fecha,
         status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
-      },
+      }),
       orderBy: { startTime: 'asc' },
       select: SELECCION_RESERVA_AGENDA_BARBERO,
     });
@@ -667,14 +685,14 @@ export class ReservasRepository {
     hasta: Date,
   ): Promise<ReservaAgendaRegistro[]> {
     return this.prisma.reservation.findMany({
-      where: {
+      where: this.aislamiento.filtroLectura({
         barberoId,
         date: {
           gte: desde,
           lte: hasta,
         },
         status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
-      },
+      }),
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
       select: SELECCION_RESERVA_AGENDA_BARBERO,
     });
@@ -698,9 +716,19 @@ export class ReservasRepository {
    * de forma acotada con backoff; un `P2002` nunca se reintenta.
    */
   async crearConBloqueo(datos: CrearReservaDatos): Promise<ReservaRegistro> {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+
     return this.conReintentos(() =>
       this.prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT id FROM Barbero WHERE id = ${datos.barberoId} FOR UPDATE`;
+        // El bloqueo de fila se mantiene sobre `Barbero` (misma estrategia de
+        // concurrencia), añadiendo el filtro de negocio: si el barbero
+        // pertenece a otro negocio, la fila NO se bloquea, de modo que la
+        // creación no puede enlazar un barbero ajeno.
+        await tx.$queryRaw`
+          SELECT id FROM Barbero
+           WHERE id = ${datos.barberoId}
+             AND negocioId = ${negocioId}
+           FOR UPDATE`;
 
         let clienteId: number;
         if ('clienteId' in datos.cliente) {
@@ -715,6 +743,7 @@ export class ReservasRepository {
                 ? { email: datos.cliente.crear.email }
                 : {}),
               usuarioId: datos.cliente.crear.usuarioId ?? null,
+              negocioId,
             },
           });
           clienteId = cliente.id;
@@ -732,6 +761,7 @@ export class ReservasRepository {
             status: datos.status ?? ReservationStatus.PENDING,
             precioReservado: datos.precioReservado ?? null,
             gestionTokenHash: datos.gestionTokenHash ?? null,
+            negocioId,
           },
         });
       }),
@@ -775,19 +805,27 @@ export class ReservasRepository {
   async modificarConBloqueo(
     datos: ModificarReservaDatos,
   ): Promise<ReservaConRelaciones> {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+
     return this.conReintentos(() =>
       this.prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT id FROM Barbero WHERE id = ${datos.barberoId} FOR UPDATE`;
+        // Mismo bloqueo de fila que antes, ahora acotado al negocio: un
+        // barbero de otro negocio no se bloquea ni se enlaza.
+        await tx.$queryRaw`
+          SELECT id FROM Barbero
+           WHERE id = ${datos.barberoId}
+             AND negocioId = ${negocioId}
+           FOR UPDATE`;
 
         const conflicto = await tx.reservation.findFirst({
-          where: {
+          where: this.aislamiento.filtroLectura({
             id: { not: datos.id },
             barberoId: datos.barberoId,
             date: datos.date,
             status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
             startTime: { lt: datos.endTime },
             endTime: { gt: datos.startTime },
-          },
+          }),
           select: { id: true },
         });
 
@@ -796,7 +834,7 @@ export class ReservasRepository {
         }
 
         return tx.reservation.update({
-          where: { id: datos.id },
+          where: this.aislamiento.filtroEscritura({ id: datos.id }),
           data: {
             barberoId: datos.barberoId,
             date: datos.date,
@@ -820,7 +858,7 @@ export class ReservasRepository {
    */
   async cancelar(id: number): Promise<ReservaRegistro> {
     return this.prisma.reservation.update({
-      where: { id },
+      where: this.aislamiento.filtroEscritura({ id }),
       data: { status: ReservationStatus.CANCELLED },
     });
   }
@@ -828,60 +866,138 @@ export class ReservasRepository {
   /**
    * Obtiene las reservas de una fecha con estado PENDING o CONFIRMED
    * que aún no han recibido el recordatorio automático por WhatsApp.
+   *
+   * ⚠️ AISLAMIENDO POR NEGOCIO, SIN TOCAR HU-11 ⚠️
+   *
+   * Esta consulta la consume el cron de recordatorios
+   * (`src/modules/reservas/cron/recordatorios.cron.ts`), que es propiedad de
+   * HU-11 y no puede modificarse en esta fase.
+   *
+   * El cron no fija contexto de negocio: recorre TODOS los negocios. En vez
+   * de dejar que su consulta atraviese los negocios (una fuga), este método
+   * RECORRE LOS NEGOCIOS UNO A UNO, fijando el contexto de cada uno antes
+   * de consultarlo. El resultado es el mismo conjunto de reservas que
+   * devolvía antes, pero cada fila se obtiene dentro de su ámbito: la capa de
+   * aislamiento sigue siendo efectiva y el cron de HU-11 no se modifica ni
+   * se interrumpe.
    */
   async obtenerCitasPendientesRecordatorio(fecha: Date) {
-    return this.prisma.reservation.findMany({
-      where: {
-        date: fecha,
-        status: {
-          in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED],
-        },
-        recordatorioEnviado: false,
-      },
-      select: {
-        id: true,
-        startTime: true,
-        endTime: true,
-        precioReservado: true,
-        date: true,
-        cliente: {
+    const negocios = await this.prisma.negocio.findMany({
+      where: { estado: 'ACTIVO' },
+      select: { id: true, slug: true },
+    });
+
+    const citas: Array<{
+      id: number;
+      startTime: string;
+      endTime: string;
+      precioReservado: Prisma.Decimal | null;
+      date: Date;
+      cliente: {
+        id: number;
+        nombre: string;
+        apellido: string | null;
+        telefono: string | null;
+      } | null;
+      barbero: {
+        id: number;
+        usuario: { nombre: string; apellido: string };
+      } | null;
+      servicio: { id: number; nombre: string; precio: Prisma.Decimal } | null;
+    }> = [];
+
+    for (const negocio of negocios) {
+      // Cada negocio se consulta con SU contexto: la capa de aislamiento
+      // sigue aplicando y ninguna consulta sale de su ámbito.
+      const propias = await this.aislamiento.ejecutarEnNegocio(negocio, () =>
+        this.prisma.reservation.findMany({
+          where: this.aislamiento.filtroLectura({
+            date: fecha,
+            status: {
+              in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED],
+            },
+            recordatorioEnviado: false,
+          }),
           select: {
             id: true,
-            nombre: true,
-            apellido: true,
-            telefono: true,
-          },
-        },
-        barbero: {
-          select: {
-            id: true,
-            usuario: {
+            startTime: true,
+            endTime: true,
+            precioReservado: true,
+            date: true,
+            cliente: {
               select: {
+                id: true,
                 nombre: true,
                 apellido: true,
+                telefono: true,
+              },
+            },
+            barbero: {
+              select: {
+                id: true,
+                usuario: {
+                  select: {
+                    nombre: true,
+                    apellido: true,
+                  },
+                },
+              },
+            },
+            servicio: {
+              select: {
+                id: true,
+                nombre: true,
+                precio: true,
               },
             },
           },
-        },
-        servicio: {
-          select: {
-            id: true,
-            nombre: true,
-            precio: true,
-          },
-        },
-      },
-    });
+        }),
+      );
+
+      citas.push(...propias);
+    }
+
+    return citas;
   }
 
   /**
    * Marca el recordatorio de una reserva como enviado para no retransmitirlo.
+   *
+   * Lo invoca el cron de recordatorios. La escritura se acota al negocio de
+   * la propia reserva: si la reserva pertenece a un negocio, la marca se
+   * escribe dentro de ese ámbito y no puede alcanzar reservas de otro
+   * negocio. La marca se aplica dentro del contexto de la reserva, de modo que
+   * el cron de HU-11 no necesita fijarlo (y no se modifica).
    */
   async marcarRecordatorioEnviado(id: number): Promise<void> {
-    await this.prisma.reservation.update({
+    const reserva = await this.prisma.reservation.findUnique({
       where: { id },
-      data: { recordatorioEnviado: true },
+      select: {
+        negocioId: true,
+        negocio: { select: { id: true, slug: true } },
+      },
     });
+
+    if (!reserva) {
+      return;
+    }
+
+    if (!reserva.negocio) {
+      // Reserva sin negocio (estado transitorio previo al backfill): no hay
+      // ámbito al que acotar la escritura, y marcarla afectaría a un recurso
+      // sin negocio identificado. Se deja sin marcar: el cron vuelve a
+      // intentarlo cuando la reserva tenga negocio asignado.
+      return;
+    }
+
+    await this.aislamiento.ejecutarEnNegocio(
+      { id: reserva.negocio.id, slug: reserva.negocio.slug },
+      () =>
+        this.prisma.reservation.update({
+          where: this.aislamiento.filtroEscritura({ id }),
+          data: { recordatorioEnviado: true },
+        }),
+    );
   }
 
   /**
@@ -891,13 +1007,16 @@ export class ReservasRepository {
     id: number,
   ): Promise<ReservaAdminRegistro | null> {
     return this.prisma.reservation.findUnique({
-      where: { id },
+      where: this.aislamiento.filtroEscritura({ id }),
       select: SELECCION_RESERVA_ADMIN,
     });
   }
 
   /**
    * Lista reservas de la barbería aplicando filtros directos en base de datos (fecha, rango, barbero, estado, cliente).
+   *
+   * El filtro de negocio se integra en el `where`: la consulta solo puede
+   * devolver reservas del negocio activo, nunca de los demás.
    */
   async listarReservasAdmin(
     filtro: FiltroReservasAdminRepo,
@@ -926,7 +1045,7 @@ export class ReservasRepository {
     }
 
     return this.prisma.reservation.findMany({
-      where,
+      where: this.aislamiento.filtroLectura(where),
       orderBy: [{ date: 'desc' }, { startTime: 'desc' }],
       select: SELECCION_RESERVA_ADMIN,
     });

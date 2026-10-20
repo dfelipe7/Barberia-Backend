@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import {
   EstadoServicio,
   EstadoUsuario,
@@ -8,10 +9,14 @@ import {
 /**
  * Fragmento reutilizable para incluir únicamente los barberos ACTIVOS asignados al servicio,
  * junto con los datos personales de su usuario (nombre, apellido, email).
+ *
+ * El filtro `where` de la relación anidada incluye el `negocioId`: un barbero
+ * de otra barbería no se incluye aunque exista la fila en `BarberoServicio`.
  */
-const INCLUDE_BARBEROS = {
+const incluirBarberos = (negocioId: number) => ({
   barberos: {
     where: {
+      negocioId,
       barbero: {
         estado: EstadoUsuario.ACTIVO,
         usuario: {
@@ -34,25 +39,31 @@ const INCLUDE_BARBEROS = {
       },
     },
   },
-};
+});
 
 @Injectable()
 export class ServiciosRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aislamiento: NegocioAislamientoService,
+  ) {}
 
   /**
    * Consulta los barberos que existen y se encuentran en estado ACTIVO (tanto el rol como la cuenta global).
    * Utilizado para validar que no se asocien barberos inactivos o inexistentes a un servicio.
+   *
+   * Restringido al negocio activo: no se pueden vincular barberos de otra
+   * barbería al servicio.
    */
   async obtenerBarberosActivosPorIds(ids: number[]) {
     return this.prisma.barbero.findMany({
-      where: {
+      where: this.aislamiento.filtroLectura({
         usuarioId: { in: ids },
         estado: EstadoUsuario.ACTIVO,
         usuario: {
           estado: EstadoUsuario.ACTIVO,
         },
-      },
+      }),
       select: {
         usuarioId: true,
       },
@@ -63,8 +74,8 @@ export class ServiciosRepository {
    * Busca un servicio por su nombre exacto (utilizado para evitar duplicados).
    */
   obtenerServicioPorNombre(nombre: string) {
-    return this.prisma.servicio.findUnique({
-      where: { nombre },
+    return this.prisma.servicio.findFirst({
+      where: this.aislamiento.filtroLectura({ nombre }),
     });
   }
 
@@ -73,8 +84,8 @@ export class ServiciosRepository {
    */
   obtenerServicioPorId(id: number) {
     return this.prisma.servicio.findUnique({
-      where: { id },
-      include: INCLUDE_BARBEROS,
+      where: this.aislamiento.filtroEscritura({ id }),
+      include: incluirBarberos(this.aislamiento.negocioIdRequerido()),
     });
   }
 
@@ -84,7 +95,10 @@ export class ServiciosRepository {
    */
   async obtenerServicioActivoPorId(id: number) {
     return this.prisma.servicio.findFirst({
-      where: { id, estado: EstadoServicio.ACTIVO },
+      where: this.aislamiento.filtroLectura({
+        id,
+        estado: EstadoServicio.ACTIVO,
+      }),
     });
   }
 
@@ -92,10 +106,13 @@ export class ServiciosRepository {
    * Indica si un barbero está asignado a un servicio mediante la tabla
    * intermedia `BarberoServicio` (clave compuesta barberoId + servicioId).
    * La disponibilidad pública solo es válida si el barbero ofrece el servicio.
+   *
+   * La asignación se comprueba DENTRO del negocio activo: un barbero de otra
+   * barbería no cuenta como asignado aunque exista la fila.
    */
   async existeAsignacionBarbero(barberoId: number, servicioId: number) {
-    const asignacion = await this.prisma.barberoServicio.findUnique({
-      where: { barberoId_servicioId: { barberoId, servicioId } },
+    const asignacion = await this.prisma.barberoServicio.findFirst({
+      where: this.aislamiento.filtroLectura({ barberoId, servicioId }),
       select: { barberoId: true },
     });
     return asignacion !== null;
@@ -118,8 +135,8 @@ export class ServiciosRepository {
     }
 
     return this.prisma.servicio.findMany({
-      where: whereCondition,
-      include: INCLUDE_BARBEROS,
+      where: this.aislamiento.filtroLectura(whereCondition),
+      include: incluirBarberos(this.aislamiento.negocioIdRequerido()),
       orderBy: {
         nombre: 'asc',
       },
@@ -148,8 +165,8 @@ export class ServiciosRepository {
     }
 
     return await this.prisma.servicio.findMany({
-      where: whereCondition,
-      include: INCLUDE_BARBEROS,
+      where: this.aislamiento.filtroLectura(whereCondition),
+      include: incluirBarberos(this.aislamiento.negocioIdRequerido()),
       orderBy: {
         id: 'desc',
       },
@@ -162,7 +179,7 @@ export class ServiciosRepository {
    */
   async listarServiciosPorBarbero(barberoId: number) {
     return await this.prisma.servicio.findMany({
-      where: {
+      where: this.aislamiento.filtroLectura({
         estado: EstadoServicio.ACTIVO,
         barberos: {
           some: {
@@ -171,8 +188,8 @@ export class ServiciosRepository {
             },
           },
         },
-      },
-      include: INCLUDE_BARBEROS,
+      }),
+      include: incluirBarberos(this.aislamiento.negocioIdRequerido()),
       orderBy: {
         nombre: 'asc',
       },
@@ -189,7 +206,7 @@ export class ServiciosRepository {
    */
   async listarBarberosActivosPorServicio(servicioId: number) {
     const asignaciones = await this.prisma.barberoServicio.findMany({
-      where: {
+      where: this.aislamiento.filtroLectura({
         servicioId,
         barbero: {
           estado: EstadoUsuario.ACTIVO,
@@ -197,7 +214,7 @@ export class ServiciosRepository {
             estado: EstadoUsuario.ACTIVO,
           },
         },
-      },
+      }),
       select: {
         barbero: {
           select: {
@@ -231,6 +248,8 @@ export class ServiciosRepository {
     fotoUrl?: string;
     barberoIds?: number[];
   }) {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+
     return await this.prisma.servicio.create({
       data: {
         nombre: data.nombre,
@@ -238,16 +257,18 @@ export class ServiciosRepository {
         precio: data.precio,
         duracionMinutos: data.duracionMinutos,
         fotoUrl: data.fotoUrl,
+        negocioId,
         barberos:
           data.barberoIds && data.barberoIds.length > 0
             ? {
                 create: data.barberoIds.map((usuarioId) => ({
                   barbero: { connect: { usuarioId } },
+                  negocioId,
                 })),
               }
             : undefined,
       },
-      include: INCLUDE_BARBEROS,
+      include: incluirBarberos(this.aislamiento.negocioIdRequerido()),
     });
   }
 
@@ -267,8 +288,10 @@ export class ServiciosRepository {
       barberoIds?: number[];
     },
   ) {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+
     return await this.prisma.servicio.update({
-      where: { id },
+      where: this.aislamiento.filtroEscritura({ id }),
       data: {
         nombre: data.nombre,
         descripcion: data.descripcion,
@@ -281,11 +304,12 @@ export class ServiciosRepository {
                 deleteMany: {},
                 create: data.barberoIds.map((usuarioId) => ({
                   barbero: { connect: { usuarioId } },
+                  negocioId,
                 })),
               }
             : undefined,
       },
-      include: INCLUDE_BARBEROS,
+      include: incluirBarberos(this.aislamiento.negocioIdRequerido()),
     });
   }
 
@@ -294,9 +318,9 @@ export class ServiciosRepository {
    */
   async cambiarEstado(id: number, estado: EstadoServicio) {
     return await this.prisma.servicio.update({
-      where: { id },
+      where: this.aislamiento.filtroEscritura({ id }),
       data: { estado },
-      include: INCLUDE_BARBEROS,
+      include: incluirBarberos(this.aislamiento.negocioIdRequerido()),
     });
   }
 }

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 
 /**
  * Datos de alta/actualización de un cliente que inicia sesión con Google.
@@ -11,6 +12,22 @@ export interface DatosClienteGoogle {
   email: string | null;
   nombre: string;
   apellido: string | null;
+}
+
+/**
+ * Ficha de cliente expuesta al listado administrativo.
+ *
+ * Se define un subconjunto DELIBERADAMENTE acotado: la búsqueda
+ * administrativa solo necesita identificar al cliente y localizarlo para
+ * asociarlo a una reserva. `googleId` (identidad de Google) y `usuarioId`
+ * (vínculo con la cuenta global) NO se devuelven: no son necesarios para
+ * esa operación y son datos que la interfaz autorizada no necesita ver.
+ */
+export interface ClienteBusquedaAdmin {
+  id: number;
+  nombre: string;
+  apellido: string | null;
+  telefono: string | null;
 }
 
 /**
@@ -29,7 +46,10 @@ export interface DatosClienteGoogle {
  */
 @Injectable()
 export class ClientesRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aislamiento: NegocioAislamientoService,
+  ) {}
 
   /**
    * Devuelve el `Cliente` vinculado a un `Usuario` (vínculo heredado), o `null`
@@ -37,17 +57,23 @@ export class ClientesRepository {
    * autenticados con Google; se mantiene por compatibilidad.
    */
   async buscarPorUsuarioId(usuarioId: number) {
-    return this.prisma.cliente.findUnique({ where: { usuarioId } });
+    return this.prisma.cliente.findUnique({
+      where: this.aislamiento.filtroEscritura({ usuarioId }),
+    });
   }
 
   /** Devuelve el `Cliente` por su identificador, o `null` si no existe. */
   async obtenerPorId(id: number) {
-    return this.prisma.cliente.findUnique({ where: { id } });
+    return this.prisma.cliente.findUnique({
+      where: this.aislamiento.filtroEscritura({ id }),
+    });
   }
 
   /** Devuelve el `Cliente` con la identidad de Google indicada, o `null`. */
   async buscarPorGoogleId(googleId: string) {
-    return this.prisma.cliente.findUnique({ where: { googleId } });
+    return this.prisma.cliente.findUnique({
+      where: this.aislamiento.filtroEscritura({ googleId }),
+    });
   }
 
   /**
@@ -67,7 +93,7 @@ export class ClientesRepository {
 
     if (existente) {
       return this.prisma.cliente.update({
-        where: { id: existente.id },
+        where: this.aislamiento.filtroEscritura({ id: existente.id }),
         data: {
           nombre: datos.nombre,
           apellido: datos.apellido,
@@ -97,23 +123,36 @@ export class ClientesRepository {
   }
 
   /**
-   * Busca clientes por nombre, apellido, teléfono o email para asociar a una reserva (HU-13-CA-02).
+   * Busca clientes por nombre, apellido, teléfono o email para asociar a una
+   * reserva (HU-13-CA-02).
+   *
+   * La búsqueda está RESTRINGIDA al negocio activo: solo devuelve clientes de
+   * la barbería activa. Además devuelve un subconjunto acotado de campos
+   * (`ClienteBusquedaAdmin`): ni `googleId` ni `usuarioId` se exponen, porque
+   * la operación de asociar una reserva no los necesita y son identificadores
+   * de identidad que la interfaz administrativa no debe recibir.
    */
-  async buscarClientes(termino: string) {
+  async buscarClientes(termino: string): Promise<ClienteBusquedaAdmin[]> {
     const t = termino.trim();
     if (!t) return [];
 
     return this.prisma.cliente.findMany({
-      where: {
+      where: this.aislamiento.filtroLectura({
         OR: [
           { nombre: { contains: t } },
           { apellido: { contains: t } },
           { telefono: { contains: t } },
           { email: { contains: t } },
         ],
-      },
+      }),
       take: 20,
       orderBy: { nombre: 'asc' },
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        telefono: true,
+      },
     });
   }
 }

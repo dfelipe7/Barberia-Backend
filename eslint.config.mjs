@@ -35,7 +35,7 @@ export default tseslint.config(
     // `test/` conserva el análisis previo (sin cambios en su resultado).
     files: [
       'prisma/multitenant/**/*.ts',
-      'test/multitenant-migracion.e2e-spec.ts',
+      'test/multitenant-*.e2e-spec.ts',
       'test/helpers/mariadb-test-container.ts',
     ],
     languageOptions: {
@@ -47,7 +47,7 @@ export default tseslint.config(
   {
     files: [
       'prisma/multitenant/**/*.ts',
-      'test/multitenant-migracion.e2e-spec.ts',
+      'test/multitenant-*.e2e-spec.ts',
       'test/helpers/mariadb-test-container.ts',
     ],
     languageOptions: {

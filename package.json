@@ -21,9 +21,7 @@
     "test:multitenant": "jest --config ./test/jest-multitenant.json",
     "seed": "tsc -p tsconfig.seed.json && node dist/seed/prisma/seed.js",
     "multitenant:build": "tsc -p tsconfig.multitenant.json",
-    "multitenant:inicializar": "npm run multitenant:build && node dist/multitenant/prisma/multitenant/inicializar-primer-negocio.js",
-    "multitenant:backfill": "npm run multitenant:build && node dist/multitenant/prisma/multitenant/backfill-negocio.js",
-    "multitenant:verificar": "npm run multitenant:build && node dist/multitenant/prisma/multitenant/verificar-reconciliacion.js"
+    "multitenant:migrar": "npm run multitenant:build && node dist/multitenant/prisma/multitenant/migrar-negocio.js"
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^3.0.2",

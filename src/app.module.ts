@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -13,6 +13,7 @@ import { HorariosModule } from './modules/horarios/horarios.module';
 import { ReservasModule } from './modules/reservas/reservas.module';
 import { ConfiguracionModule } from './modules/configuracion/configuracion.module';
 import { NegociosModule } from './modules/negocios/negocios.module';
+import { NegocioContextoMiddleware } from './modules/negocios/middleware/negocio-contexto.middleware';
 import { AppLoggerModule } from './logger/logger.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { AllExceptionsFilter } from './logger/all-exceptions.filter';
@@ -76,4 +77,17 @@ import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  /**
+   * Registra el middleware de contexto de negocio para TODAS las rutas.
+   *
+   * Va en un MIDDLEWARE y no en un guard porque el contexto se apoya en
+   * `AsyncLocalStorage` y debe acompañar a toda la cadena asíncrona de la
+   * petición (controlador -> servicio -> repositorio). Un guard se ejecuta
+   * cuando el router ya ha encadenado el resto, y su `run()` no abarca de
+   * forma fiable los tramos asíncronos posteriores.
+   */
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(NegocioContextoMiddleware).forRoutes('*');
+  }
+}

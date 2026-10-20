@@ -1,13 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 
 @Injectable()
 export class AdministradoresRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aislamiento: NegocioAislamientoService,
+  ) {}
 
   async crearAdministrador(data: { usuarioId: number }) {
     return this.prisma.administrador.create({
-      data,
+      data: { ...data, negocioId: this.aislamiento.negocioIdRequerido() },
     });
   }
 
@@ -44,7 +48,7 @@ export class AdministradoresRepository {
     }
 
     return this.prisma.administrador.findMany({
-      where: whereCondition,
+      where: this.aislamiento.filtroLectura(whereCondition),
       include: {
         usuario: {
           include: {
@@ -60,9 +64,7 @@ export class AdministradoresRepository {
     estado: 'ACTIVO' | 'INACTIVO',
   ) {
     return this.prisma.administrador.update({
-      where: {
-        usuarioId,
-      },
+      where: this.aislamiento.filtroEscritura({ usuarioId }),
       data: {
         estado,
       },
@@ -70,10 +72,8 @@ export class AdministradoresRepository {
   }
 
   async obtenerAdministradorPorUsuarioId(usuarioId: number) {
-    return this.prisma.administrador.findUnique({
-      where: {
-        usuarioId,
-      },
+    return this.prisma.administrador.findFirst({
+      where: this.aislamiento.filtroLectura({ usuarioId }),
     });
   }
 }

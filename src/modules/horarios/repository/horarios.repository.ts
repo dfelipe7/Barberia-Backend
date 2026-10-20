@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import { WeekDay } from '../../../../generated/prisma/enums';
 
 /**
@@ -15,7 +16,10 @@ export interface FranjaHorarioPersistencia {
 
 @Injectable()
 export class HorariosRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aislamiento: NegocioAislamientoService,
+  ) {}
 
   /**
    * Obtiene las franjas activas del horario semanal de un barbero,
@@ -23,10 +27,10 @@ export class HorariosRepository {
    */
   async obtenerFranjasActivasPorBarbero(barberoId: number) {
     return this.prisma.barberWeeklySlot.findMany({
-      where: {
+      where: this.aislamiento.filtroLectura({
         barberoId,
         active: true,
-      },
+      }),
       orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
     });
   }
@@ -41,11 +45,11 @@ export class HorariosRepository {
     dayOfWeek: WeekDay,
   ) {
     return this.prisma.barberWeeklySlot.findMany({
-      where: {
+      where: this.aislamiento.filtroLectura({
         barberoId,
         dayOfWeek,
         active: true,
-      },
+      }),
       orderBy: { startTime: 'asc' },
     });
   }
@@ -66,9 +70,11 @@ export class HorariosRepository {
     barberoId: number,
     franjas: FranjaHorarioPersistencia[],
   ) {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+
     const operaciones = [
       this.prisma.barberWeeklySlot.updateMany({
-        where: { barberoId, active: true },
+        where: this.aislamiento.filtroLectura({ barberoId, active: true }),
         data: { active: false },
       }),
       ...franjas.map((franja) =>
@@ -79,6 +85,10 @@ export class HorariosRepository {
               dayOfWeek: franja.dayOfWeek,
               startTime: franja.startTime,
             },
+            // El filtro de negocio acota el `upsert` a las franjas del
+            // negocio activo: sin él, la clave compuesta (barbero/día/hora)
+            // podría localizar o crear una franja de otra barbería.
+            negocioId,
           },
           update: {
             endTime: franja.endTime,
@@ -90,6 +100,7 @@ export class HorariosRepository {
             startTime: franja.startTime,
             endTime: franja.endTime,
             active: true,
+            negocioId,
           },
         }),
       ),

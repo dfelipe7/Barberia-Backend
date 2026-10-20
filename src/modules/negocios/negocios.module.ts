@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { NegocioAislamientoService } from './negocio-aislamiento.service';
 import { NegocioContextoService } from './negocio-contexto.service';
 import { NegocioContextoMiddleware } from './middleware/negocio-contexto.middleware';
 import { NegociosRepository } from './repository/negocios.repository';
@@ -11,22 +12,23 @@ import { NegocioResolucionService } from './service/negocio-resolucion.service';
  * el contexto de negocio debe poder inyectarse en cualquier repositorio o
  * servicio sin cablear el grafo de dependencias de cada módulo.
  *
- * NOTA DE ACTIVACIÓN: en esta fase el middleware se construye y se prueba,
- * pero NO se registra globalmente en `AppModule`. Registrarlo antes de que
- * existan negocios en la base de datos y de que los repositorios filtren por
- * `negocioId` rechazaría peticiones legítimas de la plataforma sin aportar
- * aislamiento real. La activación ocurre junto con los filtros por negocio.
+ * NOTA DE ACTIVACIÓN: en la Fase 1 el middleware se construyó y se probó, pero
+ * NO se registró globalmente en `AppModule`. Con los repositorios ya filtrando
+ * por `negocioId` (Fase 3), el middleware sí se registra: es la pieza que
+ * establece el contexto que los repositorios y la extensión de Prisma leen.
  */
 @Global()
 @Module({
   providers: [
     NegocioContextoService,
+    NegocioAislamientoService,
     NegocioResolucionService,
     NegociosRepository,
     NegocioContextoMiddleware,
   ],
   exports: [
     NegocioContextoService,
+    NegocioAislamientoService,
     NegocioResolucionService,
     NegociosRepository,
     NegocioContextoMiddleware,

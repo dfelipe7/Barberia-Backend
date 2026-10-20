@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
 
 @Injectable()
 export class BarberosRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aislamiento: NegocioAislamientoService,
+  ) {}
 
   async crearBarberoNuevo(data: {
     usuarioId: number;
@@ -13,7 +17,7 @@ export class BarberosRepository {
     fotoUrl?: string;
   }) {
     return this.prisma.barbero.create({
-      data,
+      data: { ...data, negocioId: this.aislamiento.negocioIdRequerido() },
     });
   }
 
@@ -28,9 +32,7 @@ export class BarberosRepository {
 
   async actualizarComision(usuarioId: number, porcentajeComision: number) {
     return this.prisma.barbero.update({
-      where: {
-        usuarioId,
-      },
+      where: this.aislamiento.filtroEscritura({ usuarioId }),
       data: {
         porcentajeComision,
       },
@@ -46,18 +48,14 @@ export class BarberosRepository {
     },
   ) {
     return this.prisma.barbero.update({
-      where: {
-        usuarioId,
-      },
+      where: this.aislamiento.filtroEscritura({ usuarioId }),
       data,
     });
   }
 
   async obtenerBarberoPorUsuarioId(usuarioId: number) {
-    return this.prisma.barbero.findUnique({
-      where: {
-        usuarioId,
-      },
+    return this.prisma.barbero.findFirst({
+      where: this.aislamiento.filtroLectura({ usuarioId }),
     });
   }
 
@@ -68,19 +66,19 @@ export class BarberosRepository {
    */
   async obtenerBarberoActivoPorId(barberoId: number) {
     return this.prisma.barbero.findFirst({
-      where: {
+      where: this.aislamiento.filtroLectura({
         id: barberoId,
         estado: EstadoUsuario.ACTIVO,
         usuario: {
           estado: EstadoUsuario.ACTIVO,
         },
-      },
+      }),
     });
   }
 
   async obtenerBarberoPorId(id: number) {
-    return this.prisma.barbero.findUnique({
-      where: { id },
+    return this.prisma.barbero.findFirst({
+      where: this.aislamiento.filtroLectura({ id }),
       include: {
         usuario: true,
       },
@@ -103,7 +101,7 @@ export class BarberosRepository {
     }
 
     return this.prisma.barbero.findMany({
-      where: whereCondition,
+      where: this.aislamiento.filtroLectura(whereCondition),
       include: {
         usuario: {
           select: {
@@ -146,7 +144,7 @@ export class BarberosRepository {
     }
 
     return this.prisma.barbero.findMany({
-      where: whereCondition,
+      where: this.aislamiento.filtroLectura(whereCondition),
       include: {
         usuario: {
           include: {
@@ -159,9 +157,7 @@ export class BarberosRepository {
 
   async actualizarEstadoBarbero(usuarioId: number, estado: EstadoUsuario) {
     return this.prisma.barbero.update({
-      where: {
-        usuarioId,
-      },
+      where: this.aislamiento.filtroEscritura({ usuarioId }),
       data: {
         estado,
       },

@@ -3,6 +3,9 @@
   "compilerOptions": {
     "outDir": "./dist/multitenant"
   },
-  "include": ["prisma/multitenant/**/*", "src/modules/negocios/migracion/**/*"],
+  "include": [
+    "prisma/multitenant/**/*",
+    "src/modules/negocios/migracion/**/*"
+  ],
   "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
 }

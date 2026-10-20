@@ -1,9 +1,9 @@
 /**
  * Constantes de la migración de datos al modelo multitenant (Fase 2).
  *
- * Se declaran una sola vez para que el servicio, el CLI y las pruebas
- * compartan exactamente los mismos nombres de tabla, claves y variables de
- * entorno.
+ * Fuente única compartida por el script de migración (`prisma/multitenant/`)
+ * y sus pruebas, para que la lista de modelos, las claves de configuración y
+ * las variables de entorno no se dupliquen.
  */
 
 /**
@@ -12,8 +12,8 @@
  * Los nombres físicos se toman del esquema Prisma: `reservations`,
  * `barber_weekly_slots`, `barber_schedule_blocks` y `general_closures` están
  * mapeados con `@@map`; el resto usa el nombre del modelo. Un nombre de tabla
- * equivocado en el SQL del backfill o de la verificación produciría un error
- * en tiempo de ejecución, por eso se centralizan aquí.
+ * equivocado en el backfill produciría un error en tiempo de ejecución (o, peor,
+ * actualizaría la tabla equivocada), por eso la lista es cerrada y central.
  */
 export const MODELOS_CON_NEGOCIO: ReadonlyArray<{
   /** Nombre del modelo en Prisma (clave del delegate). */
@@ -36,7 +36,11 @@ export const MODELOS_CON_NEGOCIO: ReadonlyArray<{
     tabla: 'BarberoServicio',
     etiqueta: 'BarberoServicio',
   },
-  { modelo: 'reservation', tabla: 'reservations', etiqueta: 'Reservation' },
+  {
+    modelo: 'reservation',
+    tabla: 'reservations',
+    etiqueta: 'Reservation',
+  },
   {
     modelo: 'barberWeeklySlot',
     tabla: 'barber_weekly_slots',
@@ -81,23 +85,21 @@ export const CLAVES_CONFIGURACION_OPERATIVA: ReadonlyArray<{
   },
 ];
 
-/** Longitud máxima del `slug`, alineada con la columna `negocios.slug`. */
+/** Variable de entorno con el nombre público del primer negocio. */
+export const NEGOCIO_INICIAL_NOMBRE_ENV = 'NEGOCIO_INICIAL_NOMBRE';
+
+/** Variable de entorno con el slug público y estable del primer negocio. */
+export const NEGOCIO_INICIAL_SLUG_ENV = 'NEGOCIO_INICIAL_SLUG';
+
+/** Variable de entorno con el tamaño de lote del backfill. */
+export const NEGOCIO_BACKFILL_LOTE_ENV = 'NEGOCIO_BACKFILL_LOTE';
+
+/** Longitud máxima del slug, alineada con la columna `negocios.slug`. */
 export const LONGITUD_MAXIMA_SLUG = 63;
 
 /**
- * Formato admitido del `slug`: exclusivamente `a-z`, `0-9` y guiones, sin
- * empezar ni terminar en guion (compatibilidad con una etiqueta DNS, que es
- * el uso previsto como subdominio).
+ * Formato admitido del slug: exclusivamente `a-z`, `0-9` y guiones, sin
+ * empezar ni terminar en guion (compatibilidad con una etiqueta DNS, que es el
+ * uso previsto como subdominio).
  */
 export const REGEX_SLUG_NEGOCIO = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
-
-/** Variables de entorno que precisa la migración. */
-export const VARIABLES_MIGRACION = {
-  NOMBRE: 'NEGOCIO_INICIAL_NOMBRE',
-  SLUG: 'NEGOCIO_INICIAL_SLUG',
-  ZONA_HORARIA: 'NEGOCIO_INICIAL_ZONA_HORARIA',
-  LOTE: 'NEGOCIO_BACKFILL_LOTE',
-} as const;
-
-/** Zona horaria por defecto: la que usa hoy la lógica de fechas del proyecto. */
-export const ZONA_HORARIA_POR_DEFECTO = 'America/Bogota';

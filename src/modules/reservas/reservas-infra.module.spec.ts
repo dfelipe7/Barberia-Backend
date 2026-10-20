@@ -1,10 +1,14 @@
 import { Test } from '@nestjs/testing';
+import { ConfigModule } from '@nestjs/config';
 import { ReservasInfraModule } from './reservas-infra.module';
 import { ReservasRepository } from './repository/reservas.repository';
 import { PrismaProveedorReservasActivas } from './adapters/prisma-proveedor-reservas-activas.adapter';
 import { PROVEEDOR_RESERVAS_ACTIVAS } from '../horarios/ports/proveedor-reservas-activas.port';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { NegocioAislamientoService } from '../negocios/negocio-aislamiento.service';
+import { NegociosModule } from '../negocios/negocios.module';
+import { crearAislamientoNegocio } from '../negocios/negocio-aislamiento.test-helpers';
 
 /**
  * Verifica el registro de proveedores y la exportación del módulo de
@@ -14,10 +18,17 @@ import { PrismaModule } from '../../prisma/prisma.module';
 describe('ReservasInfraModule', () => {
   it('exporta ReservasRepository y resuelve PROVEEDOR_RESERVAS_ACTIVAS con el adaptador Prisma', async () => {
     const moduleRef = await Test.createTestingModule({
-      imports: [PrismaModule, ReservasInfraModule],
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true }),
+        PrismaModule,
+        NegociosModule,
+        ReservasInfraModule,
+      ],
     })
       .overrideProvider(PrismaService)
       .useValue({ reservation: {} })
+      .overrideProvider(NegocioAislamientoService)
+      .useValue(crearAislamientoNegocio())
       .compile();
 
     expect(moduleRef.get(ReservasRepository)).toBeInstanceOf(

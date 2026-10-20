@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ServiciosRepository } from './servicios.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
+import { crearAislamientoNegocio } from '../../negocios/negocio-aislamiento.test-helpers';
 
 // Mock the generated Prisma enums so they resolve correctly in Jest
 jest.mock('../../../../generated/prisma/enums', () => ({
@@ -13,7 +15,11 @@ const EstadoServicio = { ACTIVO: 'ACTIVO', INACTIVO: 'INACTIVO' } as const;
 
 const mockPrisma = {
   barbero: { findMany: jest.fn() },
-  barberoServicio: { findUnique: jest.fn(), findMany: jest.fn() },
+  barberoServicio: {
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+  },
   servicio: {
     findUnique: jest.fn(),
     findFirst: jest.fn(),
@@ -21,6 +27,167 @@ const mockPrisma = {
     create: jest.fn(),
     update: jest.fn(),
   },
+};
+
+/** Negocio activo usado por las pruebas de repositorio. */
+const NEGOCIO_ACTIVO = 1;
+
+/**
+ * Elimina el `negocioId` de un valor, en todas las posiciones en las que
+ * el aislamiento puede inyectarlo (`where`, `data` y los `data.create` /
+ * `data.update` del upsert).
+ */
+const sinNegocio = (valor: unknown): unknown => {
+  if (Array.isArray(valor)) {
+    return valor.map(sinNegocio);
+  }
+
+  if (valor === null || typeof valor !== 'object') {
+    return valor;
+  }
+
+  // Una `Date` (u otro objeto sin propiedades enumerables) se devuelve tal
+  // cual: recorrerla la convertiría en `{}` y la comparación fallaría.
+  if (valor instanceof Date) {
+    return valor;
+  }
+
+  const entrada = valor as Record<string, unknown>;
+  const salida: Record<string, unknown> = {};
+
+  for (const [clave, contenido] of Object.entries(entrada)) {
+    if (clave === 'negocioId') {
+      continue;
+    }
+    salida[clave] = sinNegocio(contenido);
+  }
+
+  return salida;
+};
+
+/**
+ * Recorre un valor y devuelve todos los `negocioId` que encuentra.
+ */
+const negocioIdsDe = (valor: unknown): unknown[] => {
+  if (Array.isArray(valor)) {
+    return valor.flatMap(negocioIdsDe);
+  }
+
+  if (valor === null || typeof valor !== 'object') {
+    return [];
+  }
+
+  const entrada = valor as Record<string, unknown>;
+  const encontrados: unknown[] = [];
+
+  for (const [clave, contenido] of Object.entries(entrada)) {
+    if (clave === 'negocioId') {
+      encontrados.push(contenido);
+      continue;
+    }
+    encontrados.push(...negocioIdsDe(contenido));
+  }
+
+  return encontrados;
+};
+
+/**
+ * Verifica que una llamada de Prisma corresponde a la consulta esperada, una
+ * vez APLICADO el aislamiento multitenant.
+ *
+ * La consulta esperada por las pruebas existentes describe la consulta SIN
+ * el filtro de negocio. Con el aislamiento, la consulta real incluye además
+ * el `negocioId` del negocio activo. Esta función compara ambas ignorando
+ * ese campo, y exige que TODOS los `negocioId` de la consulta real sean el
+ * del negocio activo: si el repositorio consultara o escribiera con otro
+ * negocio (o sin filtro), la aserción fallaría.
+ */
+/**
+ * Detecta el marcador `expect.objectContaining(...)`, que Jest expone con
+ * las propiedades `sample` e `inverse`.
+ */
+const esObjectContaining = (valor: unknown): boolean =>
+  valor !== null &&
+  typeof valor === 'object' &&
+  'sample' in (valor as Record<string, unknown>) &&
+  'inverse' in (valor as Record<string, unknown>);
+
+/**
+ * Compara la consulta real con la esperada, admitiendo que la esperada use
+ * `expect.objectContaining(...)` (que Jest no sabe comparar con
+ * `toEqual`): en ese caso se compara contra los CAMPOS que declara.
+ */
+const coincideConEsperado = (real: unknown, esperado: unknown): boolean => {
+  if (esObjectContaining(esperado)) {
+    const campos = (esperado as { sample: Record<string, unknown> }).sample;
+    const realObj = (real ?? {}) as Record<string, unknown>;
+
+    for (const [clave, valor] of Object.entries(campos)) {
+      if (!coincideConEsperado(realObj[clave], valor)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  if (Array.isArray(esperado)) {
+    if (!Array.isArray(real) || real.length !== esperado.length) {
+      return false;
+    }
+    return esperado.every((item, i) => coincideConEsperado(real[i], item));
+  }
+
+  if (esperado === null || typeof esperado !== 'object') {
+    return JSON.stringify(real) === JSON.stringify(esperado);
+  }
+
+  const esperadoObj = esperado as Record<string, unknown>;
+  const realObj = (real ?? {}) as Record<string, unknown>;
+
+  for (const [clave, valor] of Object.entries(esperadoObj)) {
+    if (!coincideConEsperado(realObj[clave], valor)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const esperarConsultaAislada = (mock: unknown, esperado: unknown): void => {
+  const registro = (mock as { mock?: { calls?: unknown[][] } } | undefined)
+    ?.mock;
+  const llamadas = registro?.calls ?? [];
+
+  const coincide = llamadas.some((args) => {
+    try {
+      expect(args.map(sinNegocio)).toEqual([esperado]);
+      return true;
+    } catch {
+      // El marcador `objectContaining` no se puede comparar con
+      // `toEqual`: se compara campo a campo.
+      return args.length === 1 && coincideConEsperado(args[0], esperado);
+    }
+  });
+
+  if (!coincide) {
+    throw new Error(
+      `Esperado (ignorando negocioId): ${JSON.stringify(esperado)}\n` +
+        `Llamadas recibidas: ${JSON.stringify(llamadas)}`,
+    );
+  }
+
+  for (const args of llamadas) {
+    for (const negocioId of args.flatMap(negocioIdsDe)) {
+      if (negocioId !== NEGOCIO_ACTIVO) {
+        throw new Error(
+          `La consulta usa el negocio ${String(
+            negocioId,
+          )} en lugar del negocio activo ${NEGOCIO_ACTIVO}`,
+        );
+      }
+    }
+  }
 };
 
 describe('ServiciosRepository', () => {
@@ -31,6 +198,10 @@ describe('ServiciosRepository', () => {
       providers: [
         ServiciosRepository,
         { provide: PrismaService, useValue: mockPrisma },
+        {
+          provide: NegocioAislamientoService,
+          useValue: crearAislamientoNegocio(),
+        },
       ],
     }).compile();
     repository = module.get<ServiciosRepository>(ServiciosRepository);
@@ -52,12 +223,12 @@ describe('ServiciosRepository', () => {
 
   describe('obtenerServicioPorNombre', () => {
     it('should return a service by name', async () => {
-      mockPrisma.servicio.findUnique.mockResolvedValue({
+      mockPrisma.servicio.findFirst.mockResolvedValue({
         id: 1,
         nombre: 'Corte',
       });
       const result = await repository.obtenerServicioPorNombre('Corte');
-      expect(mockPrisma.servicio.findUnique).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrisma.servicio.findFirst, {
         where: { nombre: 'Corte' },
       });
       expect(result).toEqual({ id: 1, nombre: 'Corte' });
@@ -68,7 +239,8 @@ describe('ServiciosRepository', () => {
     it('should return a service by id with barberos', async () => {
       mockPrisma.servicio.findUnique.mockResolvedValue({ id: 1 });
       const result = await repository.obtenerServicioPorId(1);
-      expect(mockPrisma.servicio.findUnique).toHaveBeenCalledWith(
+      esperarConsultaAislada(
+        mockPrisma.servicio.findUnique,
         expect.objectContaining({ where: { id: 1 } }),
       );
       expect(result).toEqual({ id: 1 });
@@ -79,7 +251,7 @@ describe('ServiciosRepository', () => {
     it('should return an ACTIVO service by id', async () => {
       mockPrisma.servicio.findFirst.mockResolvedValue({ id: 1 });
       const result = await repository.obtenerServicioActivoPorId(1);
-      expect(mockPrisma.servicio.findFirst).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrisma.servicio.findFirst, {
         where: { id: 1, estado: EstadoServicio.ACTIVO },
       });
       expect(result).toEqual({ id: 1 });
@@ -88,17 +260,17 @@ describe('ServiciosRepository', () => {
 
   describe('existeAsignacionBarbero', () => {
     it('should return true when the assignment exists', async () => {
-      mockPrisma.barberoServicio.findUnique.mockResolvedValue({ barberoId: 3 });
+      mockPrisma.barberoServicio.findFirst.mockResolvedValue({ barberoId: 3 });
       const result = await repository.existeAsignacionBarbero(3, 2);
-      expect(mockPrisma.barberoServicio.findUnique).toHaveBeenCalledWith({
-        where: { barberoId_servicioId: { barberoId: 3, servicioId: 2 } },
+      esperarConsultaAislada(mockPrisma.barberoServicio.findFirst, {
+        where: { barberoId: 3, servicioId: 2 },
         select: { barberoId: true },
       });
       expect(result).toBe(true);
     });
 
     it('should return false when the assignment does not exist', async () => {
-      mockPrisma.barberoServicio.findUnique.mockResolvedValue(null);
+      mockPrisma.barberoServicio.findFirst.mockResolvedValue(null);
       const result = await repository.existeAsignacionBarbero(3, 2);
       expect(result).toBe(false);
     });
@@ -108,7 +280,7 @@ describe('ServiciosRepository', () => {
     it('should return active services without filter', async () => {
       mockPrisma.servicio.findMany.mockResolvedValue([{ id: 1 }]);
       const result = await repository.listarServiciosCatalogo();
-      expect(mockPrisma.servicio.findMany).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrisma.servicio.findMany, {
         where: { estado: EstadoServicio.ACTIVO },
         include: expect.any(Object),
         orderBy: { nombre: 'asc' },
@@ -119,7 +291,7 @@ describe('ServiciosRepository', () => {
     it('should apply nombre filter to catalogo', async () => {
       mockPrisma.servicio.findMany.mockResolvedValue([]);
       await repository.listarServiciosCatalogo({ nombre: 'Corte' });
-      expect(mockPrisma.servicio.findMany).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrisma.servicio.findMany, {
         where: {
           estado: EstadoServicio.ACTIVO,
           OR: [
@@ -137,7 +309,7 @@ describe('ServiciosRepository', () => {
     it('should return all services without filter', async () => {
       mockPrisma.servicio.findMany.mockResolvedValue([{ id: 1 }]);
       const result = await repository.listarServiciosGestion();
-      expect(mockPrisma.servicio.findMany).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrisma.servicio.findMany, {
         where: {},
         include: expect.any(Object),
         orderBy: { id: 'desc' },
@@ -150,7 +322,7 @@ describe('ServiciosRepository', () => {
       await repository.listarServiciosGestion({
         estado: EstadoServicio.ACTIVO,
       });
-      expect(mockPrisma.servicio.findMany).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrisma.servicio.findMany, {
         where: { estado: EstadoServicio.ACTIVO },
         include: expect.any(Object),
         orderBy: { id: 'desc' },
@@ -160,7 +332,7 @@ describe('ServiciosRepository', () => {
     it('should filter by nombre', async () => {
       mockPrisma.servicio.findMany.mockResolvedValue([]);
       await repository.listarServiciosGestion({ nombre: 'Corte' });
-      expect(mockPrisma.servicio.findMany).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrisma.servicio.findMany, {
         where: {
           OR: [
             { nombre: { contains: 'Corte' } },
@@ -177,7 +349,8 @@ describe('ServiciosRepository', () => {
     it('should return active services for a barbero', async () => {
       mockPrisma.servicio.findMany.mockResolvedValue([{ id: 1 }]);
       const result = await repository.listarServiciosPorBarbero(5);
-      expect(mockPrisma.servicio.findMany).toHaveBeenCalledWith(
+      esperarConsultaAislada(
+        mockPrisma.servicio.findMany,
         expect.objectContaining({
           where: expect.objectContaining({
             estado: EstadoServicio.ACTIVO,
@@ -210,7 +383,8 @@ describe('ServiciosRepository', () => {
 
       const result = await repository.listarBarberosActivosPorServicio(2);
 
-      expect(mockPrisma.barberoServicio.findMany).toHaveBeenCalledWith(
+      esperarConsultaAislada(
+        mockPrisma.barberoServicio.findMany,
         expect.objectContaining({
           where: expect.objectContaining({
             servicioId: 2,
@@ -281,7 +455,8 @@ describe('ServiciosRepository', () => {
       const result = await repository.actualizarServicio(1, {
         nombre: 'Corte Actualizado',
       });
-      expect(mockPrisma.servicio.update).toHaveBeenCalledWith(
+      esperarConsultaAislada(
+        mockPrisma.servicio.update,
         expect.objectContaining({ where: { id: 1 } }),
       );
       expect(result).toEqual({ id: 1, nombre: 'Corte Actualizado' });
@@ -303,7 +478,8 @@ describe('ServiciosRepository', () => {
         estado: EstadoServicio.INACTIVO,
       });
       const result = await repository.cambiarEstado(1, EstadoServicio.INACTIVO);
-      expect(mockPrisma.servicio.update).toHaveBeenCalledWith(
+      esperarConsultaAislada(
+        mockPrisma.servicio.update,
         expect.objectContaining({
           where: { id: 1 },
           data: { estado: EstadoServicio.INACTIVO },

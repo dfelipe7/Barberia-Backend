@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import {
   ScheduleBlockReason,
   ScheduleBlockStatus,
@@ -51,7 +52,10 @@ export interface FiltroBloqueosPersistencia {
 
 @Injectable()
 export class BloqueosHorarioRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aislamiento: NegocioAislamientoService,
+  ) {}
 
   async crear(datos: CrearBloqueoDatos): Promise<BloqueoHorarioRegistro> {
     return this.prisma.barberScheduleBlock.create({
@@ -63,12 +67,15 @@ export class BloqueosHorarioRepository {
         reason: datos.reason,
         notes: datos.notes,
         status: ScheduleBlockStatus.ACTIVE,
+        negocioId: this.aislamiento.negocioIdRequerido(),
       },
     });
   }
 
   async obtenerPorId(id: number): Promise<BloqueoHorarioRegistro | null> {
-    return this.prisma.barberScheduleBlock.findUnique({ where: { id } });
+    return this.prisma.barberScheduleBlock.findFirst({
+      where: this.aislamiento.filtroLectura({ id }),
+    });
   }
 
   async listarPorBarbero(
@@ -76,11 +83,11 @@ export class BloqueosHorarioRepository {
     filtro?: FiltroBloqueosPersistencia,
   ): Promise<BloqueoHorarioRegistro[]> {
     return this.prisma.barberScheduleBlock.findMany({
-      where: {
+      where: this.aislamiento.filtroLectura({
         barberoId,
         ...(filtro?.date ? { date: filtro.date } : {}),
         ...(filtro?.status ? { status: filtro.status } : {}),
-      },
+      }),
       orderBy: [{ date: 'desc' }, { startTime: 'asc' }],
     });
   }
@@ -90,7 +97,11 @@ export class BloqueosHorarioRepository {
     date: Date,
   ): Promise<BloqueoHorarioRegistro[]> {
     return this.prisma.barberScheduleBlock.findMany({
-      where: { barberoId, date, status: ScheduleBlockStatus.ACTIVE },
+      where: this.aislamiento.filtroLectura({
+        barberoId,
+        date,
+        status: ScheduleBlockStatus.ACTIVE,
+      }),
     });
   }
 
@@ -99,7 +110,7 @@ export class BloqueosHorarioRepository {
     datos: ActualizarBloqueoDatos,
   ): Promise<BloqueoHorarioRegistro> {
     return this.prisma.barberScheduleBlock.update({
-      where: { id },
+      where: this.aislamiento.filtroEscritura({ id }),
       data: datos,
     });
   }

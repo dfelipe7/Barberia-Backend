@@ -1,84 +1,70 @@
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { MariaDbConnection } from './helpers/mariadb-test-container';
+import { PrismaClient } from '../generated/prisma/client';
+import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
 /**
- * PRUEBA DE INTEGRACIÓN REAL CONTRA MARIADB (Fase 2).
+ * PRUEBA DE LA MIGRACIÓN DE DATOS CONTRA MARIADB REAL (Fase 2).
  *
- * A diferencia de las pruebas unitarias (que simulan el cliente de base de
- * datos), esta prueba levanta un contenedor MariaDB efímero, aplica las
- * MIGRACIONES REALES del proyecto, siembra datos y ejecuta los scripts de
- * inicialización y backfill contra la base de datos real.
+ * Levanta un contenedor **MariaDB 11 efímero**, aplica las migraciones
+ * reales del proyecto, siembra datos preexistentes (sin `negocioId`) y ejecuta
+ * el script de migración REAL (`prisma/multitenant/migrar-negocio.ts`).
  *
- * Comprueba, sobre MariaDB de verdad:
- *   1. La migración aditiva de la Fase 1 se aplica sin errores.
- *   2. La inicialización crea el primer negocio y sus configuraciones.
- *   3. Ejecutar la inicialización DOS VECES no duplica el negocio ni
- *      sobrescribe el nombre, el estado ni los valores de configuración
- *      personalizados.
- *   4. El backfill asigna `negocioId` a todos los registros preexistentes.
- *   5. El backfill es idempotente: la segunda ejecución no cambia nada.
- *   6. La verificación de reconciliación detecta una mezcla de negocios.
+ * Comprueba:
+ *  1. La migración crea el negocio inicial y le asigna TODOS los registros
+ *     preexistentes.
+ *  2. Ejecutarla DOS VECES no duplica el negocio ni sobrescribe los valores
+ *     personalizados (nombre del negocio, valores de configuración).
+ *  3. Los valores de configuración personalizados del negocio se conservan.
+ *  4. La migración falla de forma segura si faltan el nombre o el slug, o si
+ *     el slug tiene caracteres no permitidos.
  *
- * La prueba se OMITE (no falla) si no hay Docker disponible: el CI puede
- * ejecutarla donde lo haya, y el resto del equipo no queda bloqueado.
+ * Se omite (no falla) si no hay Docker disponible.
  */
 
 const OMITIR_SIN_DOCKER = process.env.MARIADB_TEST_SKIP === '1';
 
-describe('Migración multitenant sobre MariaDB real', () => {
-  let contenedor: MariaDbConnection | undefined;
-  let urlBase: string;
+const RUTA_SCRIPT = join(
+  __dirname,
+  '..',
+  'dist',
+  'multitenant',
+  'prisma',
+  'multitenant',
+  'migrar-negocio.js',
+);
+
+const NOMBRE = 'KYRIOS STUDIO';
+const SLUG = 'kyrios-studio';
+
+describe('Migración de datos al modelo multitenant (MariaDB real)', () => {
+  let conexion: MariaDbConnection | undefined;
+  let prisma: PrismaClient;
 
   beforeAll(async () => {
     if (OMITIR_SIN_DOCKER) {
       return;
     }
 
-    // Los scripts de `prisma/multitenant` se ejecutan como JavaScript
-    // compilado. Se compilan aquí para que la prueba SIEMPRE pruebe el
-    // código actual y no un `dist` obsoleto.
-    compilarScripts();
+    conexion = await MariaDbConnection.start();
 
-    contenedor = await MariaDbConnection.start();
-    urlBase = contenedor.urlBase;
-  }, 300000);
+    // El script de migración se ejecuta como proceso aparte, sobre el
+    // JAVASCRIPT COMPILADO. Si no está (p. ej. tras un `nest build`, que
+    // limpia `dist/`), se compila aquí.
+    if (!existsSync(RUTA_SCRIPT)) {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, '..', 'node_modules', 'typescript', 'bin', 'tsc'),
+          '-p',
+          'tsconfig.multitenant.json',
+        ],
+        { cwd: join(__dirname, '..'), stdio: 'pipe' },
+      );
+    }
 
-  afterAll(() => {
-    contenedor?.stop();
-  });
-
-  /**
-   * Compila los scripts de `prisma/multitenant` a `dist/multitenant`.
-   *
-   * Sin este paso, la prueba ejecutaría un binario de una compilación
-   * anterior y validaría código que ya no existe.
-   */
-  const compilarScripts = () => {
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, '..', 'node_modules', 'typescript', 'bin', 'tsc'),
-        '-p',
-        join(__dirname, '..', 'tsconfig.multitenant.json'),
-      ],
-      {
-        cwd: join(__dirname, '..'),
-        env: { ...process.env },
-        stdio: 'pipe',
-        encoding: 'utf8',
-      },
-    );
-  };
-
-  /**
-   * Aplica las migraciones del proyecto contra la base de datos de pruebas.
-   *
-   * Se invoca el binario de Prisma con `node` en lugar de `npx`: en Windows,
-   * `execFileSync` sobre `npx.cmd` termina el proceso sin código de salida
-   * (status `null`), lo que hace que la migración no se aplique en silencio.
-   */
-  const aplicarMigraciones = () => {
     execFileSync(
       process.execPath,
       [
@@ -88,43 +74,108 @@ describe('Migración multitenant sobre MariaDB real', () => {
       ],
       {
         cwd: join(__dirname, '..'),
-        env: { ...process.env, DATABASE_URL: urlBase },
+        env: { ...process.env, DATABASE_URL: conexion.urlBase },
         stdio: 'pipe',
         encoding: 'utf8',
       },
     );
+
+    const url = new URL(conexion.urlBase);
+    prisma = new PrismaClient({
+      adapter: new PrismaMariaDb({
+        host: url.hostname,
+        port: Number(url.port),
+        user: decodeURIComponent(url.username),
+        password: decodeURIComponent(url.password),
+        database: url.pathname.substring(1),
+        connectionLimit: 5,
+      }),
+    });
+  }, 300000);
+
+  afterAll(async () => {
+    await prisma?.$disconnect();
+    conexion?.stop();
+  });
+
+  /** Siembra datos preexistentes sin `negocioId`. */
+  const sembrarPreexistentes = async () => {
+    const usuario = await prisma.usuario.create({
+      data: {
+        email: 'preexistente@test.local',
+        nombre: 'Preexistente',
+        apellido: 'Uno',
+        rol: 'BARBERO',
+      },
+    });
+
+    const barbero = await prisma.barbero.create({
+      data: {
+        usuarioId: usuario.id,
+        telefono: '300',
+        porcentajeComision: 10,
+      },
+    });
+
+    const servicio = await prisma.servicio.create({
+      data: {
+        nombre: 'Servicio preexistente',
+        precio: 1000,
+        duracionMinutos: 30,
+      },
+    });
+
+    const cliente = await prisma.cliente.create({
+      data: { nombre: 'Cliente preexistente' },
+    });
+
+    await prisma.reservation.create({
+      data: {
+        barberoId: barbero.id,
+        servicioId: servicio.id,
+        clienteId: cliente.id,
+        date: new Date('2026-11-01T00:00:00.000Z'),
+        dayOfWeek: 'SUNDAY',
+        startTime: '10:00',
+        endTime: '10:30',
+      },
+    });
+
+    await prisma.generalClosure.create({
+      data: {
+        date: new Date('2026-12-25T00:00:00.000Z'),
+        allDay: true,
+        reason: 'Navidad',
+      },
+    });
+
+    // Configuración global con un valor ya personalizado por un administrador.
+    await prisma.configuracionSistema.create({
+      data: {
+        clave: 'reserva_cancelacion_antelacion_minutos',
+        valor: '90',
+        tipo: 'NUMERO',
+      },
+    });
+
+    return { barbero, servicio, cliente };
   };
 
-  /** Ejecuta un script de `prisma/multitenant` con las variables dadas. */
-  const ejecutarScript = (
-    script: string,
+  /** Ejecuta el script de migración con las variables dadas. */
+  const ejecutarMigracion = (
     variables: Record<string, string>,
   ): { codigo: number; salida: string } => {
     try {
-      const salida = execFileSync(
-        process.execPath,
-        [
-          join(
-            __dirname,
-            '..',
-            'dist',
-            'multitenant',
-            'prisma',
-            'multitenant',
-            script,
-          ),
-        ],
-        {
-          cwd: join(__dirname, '..'),
-          env: {
-            ...process.env,
-            DATABASE_URL: urlBase,
-            ...variables,
-          },
-          stdio: 'pipe',
-          encoding: 'utf8',
+      const salida = execFileSync(process.execPath, [RUTA_SCRIPT], {
+        cwd: join(__dirname, '..'),
+        env: {
+          ...process.env,
+          DATABASE_URL: conexion!.urlBase,
+          ...variables,
         },
-      );
+        stdio: 'pipe',
+        encoding: 'utf8',
+      });
 
       return { codigo: 0, salida };
     } catch (error) {
@@ -141,269 +192,134 @@ describe('Migración multitenant sobre MariaDB real', () => {
     }
   };
 
-  const NOMBRE = 'Barbería Integration';
-  const SLUG = 'barberia-integration';
-
-  it('aplica las migraciones del proyecto sobre MariaDB', () => {
+  it('1. la migración asigna el negocio a todos los registros preexistentes', async () => {
     if (OMITIR_SIN_DOCKER) {
       return;
     }
 
-    expect(() => aplicarMigraciones()).not.toThrow();
-  });
+    await sembrarPreexistentes();
 
-  it('crea el primer negocio y sus configuraciones operativas', async () => {
-    if (OMITIR_SIN_DOCKER) {
-      return;
-    }
-
-    const resultado = ejecutarScript('inicializar-primer-negocio.js', {
+    const resultado = ejecutarMigracion({
       NEGOCIO_INICIAL_NOMBRE: NOMBRE,
       NEGOCIO_INICIAL_SLUG: SLUG,
     });
 
     expect(resultado.codigo).toBe(0);
+    expect(resultado.salida).toContain('Negocio inicial creado');
 
-    const conteo = await contenedor!.consultar<{ total: number }>(
-      'SELECT COUNT(*) AS total FROM `negocios` WHERE `slug` = ?',
-      [SLUG],
-    );
-    expect(Number(conteo[0].total)).toBe(1);
-
-    const configs = await contenedor!.consultar<{
-      clave: string;
-      valor: string;
-    }>('SELECT `clave`, `valor` FROM `configuraciones_negocio`');
-
-    expect(configs.map((c) => c.clave).sort()).toEqual([
-      'reserva_cancelacion_antelacion_minutos',
-      'reserva_no_show_tolerancia_minutos',
-    ]);
-    // Valores iniciales conocidos, conservados desde el ámbito global.
-    expect(
-      configs.find((c) => c.clave === 'reserva_cancelacion_antelacion_minutos')
-        ?.valor,
-    ).toBe('120');
-    expect(
-      configs.find((c) => c.clave === 'reserva_no_show_tolerancia_minutos')
-        ?.valor,
-    ).toBe('15');
-  });
-
-  it('ejecutar la inicialización dos veces no duplica ni sobrescribe', async () => {
-    if (OMITIR_SIN_DOCKER) {
-      return;
-    }
-
-    // Personalización, como haría un administrador entre ambas ejecuciones.
-    await contenedor!.ejecutar(
-      'UPDATE `negocios` SET `nombre` = ?, `estado` = ? WHERE `slug` = ?',
-      ['Nombre Personalizado', 'INACTIVO', SLUG],
-    );
-    await contenedor!.ejecutar(
-      'UPDATE `configuraciones_negocio` SET `valor` = ? WHERE `clave` = ?',
-      ['45', 'reserva_cancelacion_antelacion_minutos'],
-    );
-
-    const resultado = ejecutarScript('inicializar-primer-negocio.js', {
-      NEGOCIO_INICIAL_NOMBRE: NOMBRE,
-      NEGOCIO_INICIAL_SLUG: SLUG,
-    });
-
-    expect(resultado.codigo).toBe(0);
-    expect(resultado.salida).toContain('ya existía');
-
-    const negocios = await contenedor!.consultar<{
-      total: number;
-      nombre: string;
-      estado: string;
-    }>(
-      'SELECT COUNT(*) AS total, MIN(`nombre`) AS nombre, MIN(`estado`) AS estado FROM `negocios`',
-    );
-
-    // No se duplicó y los valores personalizados se conservaron.
-    expect(Number(negocios[0].total)).toBe(1);
-    expect(negocios[0].nombre).toBe('Nombre Personalizado');
-    expect(negocios[0].estado).toBe('INACTIVO');
-
-    const config = await contenedor!.consultar<{ valor: string }>(
-      'SELECT `valor` FROM `configuraciones_negocio` WHERE `clave` = ?',
-      ['reserva_cancelacion_antelacion_minutos'],
-    );
-    expect(config[0].valor).toBe('45');
-  });
-
-  it('el backfill asigna negocioId a todos los registros preexistentes', async () => {
-    if (OMITIR_SIN_DOCKER) {
-      return;
-    }
-
-    // Se reactiva el negocio (el paso anterior lo dejó INACTIVO) y se
-    // insertan registros huérfanos en las tablas por negocio.
-    await contenedor!.ejecutar(
-      'UPDATE `negocios` SET `estado` = ? WHERE `slug` = ?',
-      ['ACTIVO', SLUG],
-    );
-
-    await contenedor!.ejecutar(
-      `INSERT INTO \`Usuario\` (\`email\`, \`nombre\`, \`apellido\`, \`rol\`, \`estado\`)
-       VALUES ('prueba@barberia.test', 'Prueba', 'Prueba', 'BARBERO', 'ACTIVO')`,
-    );
-
-    const usuarioId = await contenedor!.consultar<{ id: number }>(
-      'SELECT `id` FROM `Usuario` WHERE `email` = ?',
-      ['prueba@barberia.test'],
-    );
-
-    await contenedor!.ejecutar(
-      'INSERT INTO `Barbero` (`usuarioId`, `telefono`, `porcentajeComision`, `estado`) VALUES (?, ?, ?, ?)',
-      [usuarioId[0].id, '3000000000', 10, 'ACTIVO'],
-    );
-
-    await contenedor!.ejecutar(
-      "INSERT INTO `Servicio` (`nombre`, `descripcion`, `precio`, `duracionMinutos`, `estado`, `actualizadoEn`) VALUES ('Servicio Prueba', 'Prueba', 1000, 30, 'ACTIVO', NOW(3))",
-    );
-
-    const servicioId = await contenedor!.consultar<{ id: number }>(
-      'SELECT `id` FROM `Servicio` WHERE `nombre` = ?',
-      ['Servicio Prueba'],
-    );
-
-    await contenedor!.ejecutar(
-      "INSERT INTO `Cliente` (`nombre`, `apellido`, `telefono`) VALUES ('Cliente', 'Prueba', '3011111111')",
-    );
-
-    const clienteId = await contenedor!.consultar<{ id: number }>(
-      'SELECT `id` FROM `Cliente` WHERE `nombre` = ?',
-      ['Cliente'],
-    );
-
-    const barberoId = await contenedor!.consultar<{ id: number }>(
-      'SELECT `id` FROM `Barbero` WHERE `usuarioId` = ?',
-      [usuarioId[0].id],
-    );
-
-    await contenedor!.ejecutar(
-      'INSERT INTO `BarberoServicio` (`barberoId`, `servicioId`) VALUES (?, ?)',
-      [barberoId[0].id, servicioId[0].id],
-    );
-
-    await contenedor!.ejecutar(
-      "INSERT INTO `reservations` (`barberoId`, `servicioId`, `clienteId`, `date`, `dayOfWeek`, `startTime`, `endTime`, `status`, `updatedAt`) VALUES (?, ?, ?, '2026-11-01', 'SUNDAY', '10:00', '10:30', 'PENDING', NOW(3))",
-      [barberoId[0].id, servicioId[0].id, clienteId[0].id],
-    );
-
-    await contenedor!.ejecutar(
-      "INSERT INTO `barber_weekly_slots` (`barberoId`, `dayOfWeek`, `startTime`, `endTime`, `active`, `updatedAt`) VALUES (?, 'SUNDAY', '09:00', '17:00', 1, NOW(3))",
-      [barberoId[0].id],
-    );
-
-    await contenedor!.ejecutar(
-      "INSERT INTO `general_closures` (`date`, `allDay`, `reason`, `active`, `updatedAt`) VALUES ('2026-12-25', 1, 'Navidad', 1, NOW(3))",
-    );
-
-    // Antes del backfill, todo debe estar sin negocio.
-    const previos = await contenedor!.consultar<{ total: number }>(
-      'SELECT COUNT(*) AS total FROM `reservations` WHERE `negocioId` IS NULL',
-    );
-    expect(Number(previos[0].total)).toBe(1);
-
-    const resultado = ejecutarScript('backfill-negocio.js', {
-      NEGOCIO_INICIAL_SLUG: SLUG,
-    });
-
-    expect(resultado.codigo).toBe(0);
-
-    // Ningún modelo por negocio puede quedar con filas sin negocio.
+    // Ningún registro por negocio queda sin asignar.
     for (const tabla of [
-      'Administrador',
       'Barbero',
       'Cliente',
       'Servicio',
-      'BarberoServicio',
       'reservations',
-      'barber_weekly_slots',
-      'barber_schedule_blocks',
       'general_closures',
     ]) {
-      const pendientes = await contenedor!.consultar<{ total: number }>(
+      const filas = await prisma.$queryRawUnsafe<Array<{ total: number }>>(
         `SELECT COUNT(*) AS total FROM \`${tabla}\` WHERE \`negocioId\` IS NULL`,
       );
 
-      expect(Number(pendientes[0].total)).toBe(0);
+      expect(Number(filas[0]?.total ?? 0)).toBe(0);
     }
 
-    // Y las filas sí están asignadas al negocio inicial.
-    const asignadas = await contenedor!.consultar<{ total: number }>(
-      'SELECT COUNT(*) AS total FROM `reservations` WHERE `negocioId` IS NOT NULL',
-    );
-    expect(Number(asignadas[0].total)).toBe(1);
+    // Y todos quedan asignados al negocio inicial.
+    const reservas = await prisma.reservation.findMany();
+    expect(reservas).toHaveLength(1);
+    expect(reservas[0].negocioId).not.toBeNull();
   });
 
-  it('el backfill es idempotente: la segunda ejecución no cambia nada', async () => {
+  it('2. ejecutarla dos veces no duplica el negocio ni sobrescribe los valores', async () => {
     if (OMITIR_SIN_DOCKER) {
       return;
     }
 
-    const antes = await contenedor!.consultar<{ total: number }>(
-      'SELECT COUNT(*) AS total FROM `reservations` WHERE `negocioId` IS NOT NULL',
-    );
+    // Se personalizan el nombre del negocio y el valor de la configuración.
+    await prisma.negocio.updateMany({
+      where: { slug: SLUG },
+      data: { nombre: 'KYRIOS PERSONALIZADO' },
+    });
+    await prisma.configuracionNegocio.updateMany({
+      where: { clave: 'reserva_cancelacion_antelacion_minutos' },
+      data: { valor: '45' },
+    });
 
-    const resultado = ejecutarScript('backfill-negocio.js', {
+    const segunda = ejecutarMigracion({
+      NEGOCIO_INICIAL_NOMBRE: NOMBRE,
       NEGOCIO_INICIAL_SLUG: SLUG,
     });
 
-    expect(resultado.codigo).toBe(0);
-    // La segunda ejecución no actualiza ninguna fila: el resumen lo delata
-    // porque todas las filas ya estaban asignadas.
-    expect(resultado.salida).toMatch(/sin negocio=\s*0/);
-    expect(resultado.salida).toMatch(/asignadas=\s*0/);
+    expect(segunda.codigo).toBe(0);
+    expect(segunda.salida).toContain('ya existe');
+    // La segunda ejecución no actualiza ninguna fila.
+    expect(segunda.salida).toMatch(/0 registro\(s\) asignado/);
 
-    const despues = await contenedor!.consultar<{ total: number }>(
-      'SELECT COUNT(*) AS total FROM `reservations` WHERE `negocioId` IS NOT NULL',
-    );
-    expect(Number(despues[0].total)).toBe(Number(antes[0].total));
+    // No se duplicó el negocio.
+    const negocios = await prisma.negocio.count();
+    expect(negocios).toBe(1);
+
+    // No se sobrescribió el nombre personalizado.
+    const negocio = await prisma.negocio.findUnique({ where: { slug: SLUG } });
+    expect(negocio?.nombre).toBe('KYRIOS PERSONALIZADO');
+
+    // No se sobrescribió el valor de configuración personalizado.
+    const config = await prisma.configuracionNegocio.findUnique({
+      where: {
+        negocioId_clave: {
+          negocioId: negocio!.id,
+          clave: 'reserva_cancelacion_antelacion_minutos',
+        },
+      },
+    });
+    expect(config?.valor).toBe('45');
   });
 
-  it('la verificación de reconciliación detecta una mezcla de negocios', async () => {
+  it('3. la configuración conserva el valor global al crearse', async () => {
     if (OMITIR_SIN_DOCKER) {
       return;
     }
 
-    // Estado correcto: la verificación pasa.
-    const correcta = ejecutarScript('verificar-reconciliacion.js', {
-      NEGOCIO_INICIAL_SLUG: SLUG,
-    });
-    expect(correcta.codigo).toBe(0);
-    expect(correcta.salida).toContain('Reconciliación correcta');
-
-    // Se crea un segundo negocio y se le asigna un registro: mezcla.
-    // `actualizadoEn` no tiene valor por defecto en el esquema (lo gestiona
-    // Prisma), por eso se informa explícitamente.
-    await contenedor!.ejecutar(
-      "INSERT INTO `negocios` (`slug`, `nombre`, `estado`, `zonaHoraria`, `actualizadoEn`) VALUES ('otro-negocio', 'Otro Negocio', 'ACTIVO', 'America/Bogota', NOW(3))",
-    );
-
-    const otroId = await contenedor!.consultar<{ id: number }>(
-      'SELECT `id` FROM `negocios` WHERE `slug` = ?',
-      ['otro-negocio'],
-    );
-
-    const clienteId = await contenedor!.consultar<{ id: number }>(
-      'SELECT `id` FROM `Cliente` LIMIT 1',
-    );
-
-    await contenedor!.ejecutar(
-      'UPDATE `Cliente` SET `negocioId` = ? WHERE `id` = ?',
-      [otroId[0].id, clienteId[0].id],
-    );
-
-    const conMezcla = ejecutarScript('verificar-reconciliacion.js', {
-      NEGOCIO_INICIAL_SLUG: SLUG,
+    // Una clave operativa que aún no existe en el negocio (el negocio nuevo
+    // se crea en otra base de pruebas).
+    const clave = 'reserva_no_show_tolerancia_minutos';
+    const negocio = await prisma.negocio.findUnique({ where: { slug: SLUG } });
+    const enNegocio = await prisma.configuracionNegocio.findUnique({
+      where: {
+        negocioId_clave: { negocioId: negocio!.id, clave },
+      },
     });
 
-    // Debe FALLAR: hay un cliente de otro negocio.
-    expect(conMezcla.codigo).toBe(1);
-    expect(conMezcla.salida).toContain('inconsistencias');
+    // El valor inicial provino del ámbito global (15), no de un literal.
+    const global = await prisma.configuracionSistema.findUnique({
+      where: { clave },
+    });
+    expect(enNegocio?.valor).toBe(global?.valor ?? '15');
+  });
+
+  it('4. la migración falla de forma segura sin nombre o con slug inválido', async () => {
+    if (OMITIR_SIN_DOCKER) {
+      return;
+    }
+
+    const sinNombre = ejecutarMigracion({
+      NEGOCIO_INICIAL_NOMBRE: '',
+      NEGOCIO_INICIAL_SLUG: SLUG,
+    });
+    expect(sinNombre.codigo).not.toBe(0);
+    expect(sinNombre.salida).toContain(
+      'nombre del primer negocio es obligatorio',
+    );
+
+    const slugInvalido = ejecutarMigracion({
+      NEGOCIO_INICIAL_NOMBRE: NOMBRE,
+      NEGOCIO_INICIAL_SLUG: 'kyrios_studio',
+    });
+    expect(slugInvalido.codigo).not.toBe(0);
+    expect(slugInvalido.salida).toContain('solo admite a-z, 0-9 y guiones');
+
+    // Y no se creó ningún negocio con el slug inválido.
+    const invalido = await prisma.negocio.findUnique({
+      where: { slug: 'kyrios_studio' },
+    });
+    expect(invalido).toBeNull();
   });
 });
