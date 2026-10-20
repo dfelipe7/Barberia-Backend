@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "resolvePackageJsonExports": false,
+    "allowJs": true,
+    "target": "ES2021"
+  },
+  "include": [
+    "prisma/multitenant/**/*",
+    "src/modules/negocios/migracion/**/*",
+    "test/**/*"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
