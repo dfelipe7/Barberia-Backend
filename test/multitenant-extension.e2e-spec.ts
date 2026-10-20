@@ -88,12 +88,13 @@ describe('Extensión de Prisma: aislamiento por negocio (MariaDB real)', () => {
         email: 'ext@test.local',
         nombre: 'Ext',
         apellido: 'Test',
-        rol: 'BARBERO',
+        rol: 'PERSONAL',
       },
     });
 
     await prismaBase.barbero.create({
       data: {
+        negocioId: NEGOCIO_A,
         usuarioId: usuario.id,
         telefono: '300',
         porcentajeComision: 10,

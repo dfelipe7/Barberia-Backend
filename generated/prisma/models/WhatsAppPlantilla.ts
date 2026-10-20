@@ -20,22 +20,12 @@ export type WhatsAppPlantillaModel = runtime.Types.Result.DefaultSelection<Prism
 
 export type AggregateWhatsAppPlantilla = {
   _count: WhatsAppPlantillaCountAggregateOutputType | null
-  _avg: WhatsAppPlantillaAvgAggregateOutputType | null
-  _sum: WhatsAppPlantillaSumAggregateOutputType | null
   _min: WhatsAppPlantillaMinAggregateOutputType | null
   _max: WhatsAppPlantillaMaxAggregateOutputType | null
 }
 
-export type WhatsAppPlantillaAvgAggregateOutputType = {
-  id: number | null
-}
-
-export type WhatsAppPlantillaSumAggregateOutputType = {
-  id: number | null
-}
-
 export type WhatsAppPlantillaMinAggregateOutputType = {
-  id: number | null
+  id: string | null
   tipo: string | null
   mensaje: string | null
   activo: boolean | null
@@ -44,7 +34,7 @@ export type WhatsAppPlantillaMinAggregateOutputType = {
 }
 
 export type WhatsAppPlantillaMaxAggregateOutputType = {
-  id: number | null
+  id: string | null
   tipo: string | null
   mensaje: string | null
   activo: boolean | null
@@ -62,14 +52,6 @@ export type WhatsAppPlantillaCountAggregateOutputType = {
   _all: number
 }
 
-
-export type WhatsAppPlantillaAvgAggregateInputType = {
-  id?: true
-}
-
-export type WhatsAppPlantillaSumAggregateInputType = {
-  id?: true
-}
 
 export type WhatsAppPlantillaMinAggregateInputType = {
   id?: true
@@ -137,18 +119,6 @@ export type WhatsAppPlantillaAggregateArgs<ExtArgs extends runtime.Types.Extensi
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
-   * Select which fields to average
-  **/
-  _avg?: WhatsAppPlantillaAvgAggregateInputType
-  /**
-   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-   * 
-   * Select which fields to sum
-  **/
-  _sum?: WhatsAppPlantillaSumAggregateInputType
-  /**
-   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-   * 
    * Select which fields to find the minimum value
   **/
   _min?: WhatsAppPlantillaMinAggregateInputType
@@ -179,22 +149,18 @@ export type WhatsAppPlantillaGroupByArgs<ExtArgs extends runtime.Types.Extension
   take?: number
   skip?: number
   _count?: WhatsAppPlantillaCountAggregateInputType | true
-  _avg?: WhatsAppPlantillaAvgAggregateInputType
-  _sum?: WhatsAppPlantillaSumAggregateInputType
   _min?: WhatsAppPlantillaMinAggregateInputType
   _max?: WhatsAppPlantillaMaxAggregateInputType
 }
 
 export type WhatsAppPlantillaGroupByOutputType = {
-  id: number
+  id: string
   tipo: string
   mensaje: string
   activo: boolean
   createdAt: Date
   updatedAt: Date
   _count: WhatsAppPlantillaCountAggregateOutputType | null
-  _avg: WhatsAppPlantillaAvgAggregateOutputType | null
-  _sum: WhatsAppPlantillaSumAggregateOutputType | null
   _min: WhatsAppPlantillaMinAggregateOutputType | null
   _max: WhatsAppPlantillaMaxAggregateOutputType | null
 }
@@ -218,7 +184,7 @@ export type WhatsAppPlantillaWhereInput = {
   AND?: Prisma.WhatsAppPlantillaWhereInput | Prisma.WhatsAppPlantillaWhereInput[]
   OR?: Prisma.WhatsAppPlantillaWhereInput[]
   NOT?: Prisma.WhatsAppPlantillaWhereInput | Prisma.WhatsAppPlantillaWhereInput[]
-  id?: Prisma.IntFilter<"WhatsAppPlantilla"> | number
+  id?: Prisma.StringFilter<"WhatsAppPlantilla"> | string
   tipo?: Prisma.StringFilter<"WhatsAppPlantilla"> | string
   mensaje?: Prisma.StringFilter<"WhatsAppPlantilla"> | string
   activo?: Prisma.BoolFilter<"WhatsAppPlantilla"> | boolean
@@ -237,7 +203,7 @@ export type WhatsAppPlantillaOrderByWithRelationInput = {
 }
 
 export type WhatsAppPlantillaWhereUniqueInput = Prisma.AtLeast<{
-  id?: number
+  id?: string
   tipo?: string
   AND?: Prisma.WhatsAppPlantillaWhereInput | Prisma.WhatsAppPlantillaWhereInput[]
   OR?: Prisma.WhatsAppPlantillaWhereInput[]
@@ -256,17 +222,15 @@ export type WhatsAppPlantillaOrderByWithAggregationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.WhatsAppPlantillaCountOrderByAggregateInput
-  _avg?: Prisma.WhatsAppPlantillaAvgOrderByAggregateInput
   _max?: Prisma.WhatsAppPlantillaMaxOrderByAggregateInput
   _min?: Prisma.WhatsAppPlantillaMinOrderByAggregateInput
-  _sum?: Prisma.WhatsAppPlantillaSumOrderByAggregateInput
 }
 
 export type WhatsAppPlantillaScalarWhereWithAggregatesInput = {
   AND?: Prisma.WhatsAppPlantillaScalarWhereWithAggregatesInput | Prisma.WhatsAppPlantillaScalarWhereWithAggregatesInput[]
   OR?: Prisma.WhatsAppPlantillaScalarWhereWithAggregatesInput[]
   NOT?: Prisma.WhatsAppPlantillaScalarWhereWithAggregatesInput | Prisma.WhatsAppPlantillaScalarWhereWithAggregatesInput[]
-  id?: Prisma.IntWithAggregatesFilter<"WhatsAppPlantilla"> | number
+  id?: Prisma.StringWithAggregatesFilter<"WhatsAppPlantilla"> | string
   tipo?: Prisma.StringWithAggregatesFilter<"WhatsAppPlantilla"> | string
   mensaje?: Prisma.StringWithAggregatesFilter<"WhatsAppPlantilla"> | string
   activo?: Prisma.BoolWithAggregatesFilter<"WhatsAppPlantilla"> | boolean
@@ -275,6 +239,7 @@ export type WhatsAppPlantillaScalarWhereWithAggregatesInput = {
 }
 
 export type WhatsAppPlantillaCreateInput = {
+  id?: string
   tipo: string
   mensaje: string
   activo?: boolean
@@ -283,7 +248,7 @@ export type WhatsAppPlantillaCreateInput = {
 }
 
 export type WhatsAppPlantillaUncheckedCreateInput = {
-  id?: number
+  id?: string
   tipo: string
   mensaje: string
   activo?: boolean
@@ -292,6 +257,7 @@ export type WhatsAppPlantillaUncheckedCreateInput = {
 }
 
 export type WhatsAppPlantillaUpdateInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
   tipo?: Prisma.StringFieldUpdateOperationsInput | string
   mensaje?: Prisma.StringFieldUpdateOperationsInput | string
   activo?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -300,7 +266,7 @@ export type WhatsAppPlantillaUpdateInput = {
 }
 
 export type WhatsAppPlantillaUncheckedUpdateInput = {
-  id?: Prisma.IntFieldUpdateOperationsInput | number
+  id?: Prisma.StringFieldUpdateOperationsInput | string
   tipo?: Prisma.StringFieldUpdateOperationsInput | string
   mensaje?: Prisma.StringFieldUpdateOperationsInput | string
   activo?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -309,7 +275,7 @@ export type WhatsAppPlantillaUncheckedUpdateInput = {
 }
 
 export type WhatsAppPlantillaCreateManyInput = {
-  id?: number
+  id?: string
   tipo: string
   mensaje: string
   activo?: boolean
@@ -318,6 +284,7 @@ export type WhatsAppPlantillaCreateManyInput = {
 }
 
 export type WhatsAppPlantillaUpdateManyMutationInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
   tipo?: Prisma.StringFieldUpdateOperationsInput | string
   mensaje?: Prisma.StringFieldUpdateOperationsInput | string
   activo?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -326,7 +293,7 @@ export type WhatsAppPlantillaUpdateManyMutationInput = {
 }
 
 export type WhatsAppPlantillaUncheckedUpdateManyInput = {
-  id?: Prisma.IntFieldUpdateOperationsInput | number
+  id?: Prisma.StringFieldUpdateOperationsInput | string
   tipo?: Prisma.StringFieldUpdateOperationsInput | string
   mensaje?: Prisma.StringFieldUpdateOperationsInput | string
   activo?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -349,10 +316,6 @@ export type WhatsAppPlantillaCountOrderByAggregateInput = {
   updatedAt?: Prisma.SortOrder
 }
 
-export type WhatsAppPlantillaAvgOrderByAggregateInput = {
-  id?: Prisma.SortOrder
-}
-
 export type WhatsAppPlantillaMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   tipo?: Prisma.SortOrder
@@ -369,10 +332,6 @@ export type WhatsAppPlantillaMinOrderByAggregateInput = {
   activo?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
-}
-
-export type WhatsAppPlantillaSumOrderByAggregateInput = {
-  id?: Prisma.SortOrder
 }
 
 
@@ -403,7 +362,7 @@ export type $WhatsAppPlantillaPayload<ExtArgs extends runtime.Types.Extensions.I
   name: "WhatsAppPlantilla"
   objects: {}
   scalars: runtime.Types.Extensions.GetPayloadResult<{
-    id: number
+    id: string
     tipo: string
     mensaje: string
     activo: boolean
@@ -778,7 +737,7 @@ export interface Prisma__WhatsAppPlantillaClient<T, Null = never, ExtArgs extend
  * Fields of the WhatsAppPlantilla model
  */
 export interface WhatsAppPlantillaFieldRefs {
-  readonly id: Prisma.FieldRef<"WhatsAppPlantilla", 'Int'>
+  readonly id: Prisma.FieldRef<"WhatsAppPlantilla", 'String'>
   readonly tipo: Prisma.FieldRef<"WhatsAppPlantilla", 'String'>
   readonly mensaje: Prisma.FieldRef<"WhatsAppPlantilla", 'String'>
   readonly activo: Prisma.FieldRef<"WhatsAppPlantilla", 'Boolean'>

@@ -30,6 +30,7 @@ cuerpo, la query ni otra cabecera que sirva para autorizar.
 
 | # | Endpoint | Identificador anterior | Identificador nuevo | Encabezados requeridos | ¿Rompe compatibilidad? | Acción del frontend |
 |---|---|---|---|---|---|---|
+| 0 | `GET /usuarios/me`, `GET /usuarios/:usuarioId`, `POST /auth/google` (campo `usuario.rol`) | `rol` = `ADMINISTRADOR` \| `BARBERO` \| `SUPERADMIN` | `rol` = `PERSONAL` \| `SUPERADMIN` | `X-Negocio-Slug` (login) | **Sí** (solo el campo informativo `rol`) | Dejar de usar `usuario.rol` para decidir permisos: usar `usuario.roles` (roles efectivos del negocio). `SUPERADMIN` se mantiene igual. |
 | 1 | `GET /servicios` | `barberos[].id` = `Usuario.id` | `barberos[].id` = **`Barbero.id`** | `X-Negocio-Slug` (o subdominio) | **Sí** | Dejar de traducir el id: usar `barberos[].id` tal cual en disponibilidad y reserva |
 | 2 | `GET /servicios/gestion` | `barberos[].id` = `Usuario.id` | `barberos[].id` = **`Barbero.id`** | `X-Negocio-Slug` | **Sí** | Igual que #1 |
 | 3 | `GET /servicios/:id` | `barberos[].id` = `Usuario.id` | `barberos[].id` = **`Barbero.id`** | `X-Negocio-Slug` | **Sí** | Igual que #1 |
@@ -177,5 +178,8 @@ X-Reservation-Management-Token
   y la Fase 5, y se configuran **por negocio**.
 - La autenticación de personal (token con `negocioId` y roles efectivos) y la
   de clientes (token con `negocioId` y secreto propio) no cambian.
-- Las rutas de horario semanal y bloqueos siguen opera sobre el barbero
+- Las rutas de horario semanal y bloqueos siguen operan sobre el barbero
   **autenticado** (`/usuarios/me/barbero/...`): no aceptan un `barberoId`.
+- Los identificadores de negocio (`negocioId`, `Barbero.id`, `Usuario.id`,
+  `Servicio.id`, `Cliente.id`) no cambian de valor: lo que cambia es qué
+  identificador ACEPTA cada ruta (fila 0 y filas 1-6 de la tabla).

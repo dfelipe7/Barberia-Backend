@@ -5,6 +5,7 @@ import { CrearAdministradorDto } from '../dto/dto-peticion/crear-administrador.d
 import { FiltroAdministradoresDto } from '../dto/dto-peticion/filtro-administradores.dto';
 import { AdministradorResponseDto } from '../dto/dto-respuesta/administrador-response.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 
 @Injectable()
 export class AdministradoresService {
@@ -14,7 +15,37 @@ export class AdministradoresService {
     private readonly administradoresRepository: AdministradoresRepository,
     private readonly usuariosRepository: UsuariosRepository,
     private readonly prisma: PrismaService,
+    private readonly aislamiento: NegocioAislamientoService,
   ) {}
+
+  /**
+   * Perfil de ADMINISTRADOR de la persona en el NEGOCIO ACTIVO.
+   *
+   * Una persona puede ser administradora de varias barberías: el perfil que
+   * cuenta es SIEMPRE el de la barbería de la petición. Las relaciones
+   * cargadas por Prisma no las filtra la extensión de aislamiento, de modo que
+   * el filtro se aplica aquí de forma explícita.
+   */
+  private perfilAdministradorEnNegocio(usuario: any) {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+
+    return (
+      (usuario?.administradores ?? []).find(
+        (perfil: any) => perfil.negocioId === negocioId,
+      ) ?? null
+    );
+  }
+
+  /** Perfil de BARBERO de la persona en el NEGOCIO ACTIVO. */
+  private perfilBarberoEnNegocio(usuario: any) {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+
+    return (
+      (usuario?.barberos ?? []).find(
+        (perfil: any) => perfil.negocioId === negocioId,
+      ) ?? null
+    );
+  }
 
   /**
    * Registra a un nuevo administrador/gerente en el sistema.
@@ -37,13 +68,16 @@ export class AdministradoresService {
             email: dto.email,
             nombre: dto.nombre,
             apellido: dto.apellido ?? '',
-            rol: 'ADMINISTRADOR',
+            // El rol global ya no distingue administrador de barbero: los
+            // roles efectivos se derivan del perfil del negocio.
+            rol: 'PERSONAL',
           },
         });
 
         return tx.administrador.create({
           data: {
             usuarioId: usuario.id,
+            negocioId: this.aislamiento.negocioIdRequerido(),
           },
         });
       });
@@ -85,8 +119,8 @@ export class AdministradoresService {
       email: administrador.usuario.email,
       estado: administrador.usuario.estado, // Estado de la cuenta global
       estadoAdmin: administrador.estado, // Estado del rol de administrador
-      esBarbero: administrador.usuario.barbero !== null,
-      estadoBarbero: administrador.usuario.barbero?.estado,
+      esBarbero: (administrador.usuario.barberos ?? []).length > 0,
+      estadoBarbero: (administrador.usuario.barberos ?? [])[0]?.estado,
     }));
   }
 
@@ -117,27 +151,23 @@ export class AdministradoresService {
   }
 
   /**
-   * Promueve al usuario a ADMINISTRADOR: ajusta el rol, reactiva o crea su
-   * perfil y conserva el manejo de errores original.
+   * Promueve al usuario a ADMINISTRADOR: reactiva o crea su perfil de
+   * administrador en el negocio activo y conserva el manejo de errores
+   * original.
+   *
+   * El rol GLOBAL ya no se modifica: los roles efectivos se derivan del
+   * perfil del negocio, no de `Usuario.rol`.
    */
   private async promoverAdministrador(usuario: any) {
-    if (
-      usuario.administrador &&
-      (usuario.administrador as any).estado === 'ACTIVO'
-    ) {
+    const perfilAdmin = this.perfilAdministradorEnNegocio(usuario);
+
+    if (perfilAdmin && perfilAdmin.estado === 'ACTIVO') {
       throw new ConflictException(
         'Este usuario ya tiene privilegios de Administrador',
       );
     }
 
     try {
-      if (usuario.rol === 'BARBERO') {
-        await this.usuariosRepository.actualizarRol(
-          usuario.id,
-          'ADMINISTRADOR',
-        );
-      }
-
       const adminExistente =
         await this.administradoresRepository.obtenerAdministradorPorUsuarioId(
           usuario.id,
@@ -168,27 +198,28 @@ export class AdministradoresService {
   }
 
   /**
-   * Revoca los privilegios de ADMINISTRADOR: ajusta el rol, desactiva su perfil
-   * y bloquea la cuenta global si no conserva otro rol activo.
+   * Revoca los privilegios de ADMINISTRADOR: desactiva su perfil de
+   * administrador del negocio activo y bloquea la cuenta global si no conserva
+   * otro rol activo.
+   *
+   * El rol GLOBAL no se modifica: los roles efectivos se derivan del perfil
+   * del negocio.
    */
   private async revocarAdministrador(usuario: any) {
-    if (!usuario.administrador) {
+    if (!this.perfilAdministradorEnNegocio(usuario)) {
       throw new ConflictException(
         'Este usuario no tiene privilegios de Administrador',
       );
     }
 
     try {
-      if (usuario.barbero) {
-        await this.usuariosRepository.actualizarRol(usuario.id, 'BARBERO');
-      }
-
       await this.administradoresRepository.actualizarEstadoAdministrador(
         usuario.id,
         'INACTIVO',
       );
 
-      const esBarberoActivo = usuario.barbero?.estado === 'ACTIVO';
+      const esBarberoActivo =
+        this.perfilBarberoEnNegocio(usuario)?.estado === 'ACTIVO';
       if (!esBarberoActivo) {
         await this.usuariosRepository.actualizarEstadoUsuario(
           usuario.id,

@@ -60,7 +60,7 @@ describe('RolesGuard', () => {
 
   it('NO debe autorizar por el rol global heredado (user.rol)', () => {
     reflector.getAllAndOverride.mockReturnValue(['ADMINISTRADOR']);
-    const context = createMockContext({ rol: 'ADMINISTRADOR', roles: [] });
+    const context = createMockContext({ rol: 'PERSONAL', roles: [] });
 
     expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
   });

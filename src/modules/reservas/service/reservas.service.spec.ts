@@ -555,7 +555,7 @@ describe('ReservasService', () => {
   });
 
   describe('Agenda del barbero (obtenerAgendaBarbero)', () => {
-    const usuarioBarbero = { id: 7, rol: 'BARBERO' };
+    const usuarioBarbero = { id: 7, rol: 'PERSONAL' };
     const barberoActivo = {
       id: 3,
       usuarioId: 7,
@@ -746,7 +746,7 @@ describe('ReservasService', () => {
   });
 
   describe('Agenda semanal del barbero (obtenerAgendaSemanalBarbero)', () => {
-    const usuarioBarbero = { id: 7, rol: 'BARBERO' };
+    const usuarioBarbero = { id: 7, rol: 'PERSONAL' };
     const barberoActivo = {
       id: 3,
       usuarioId: 7,
@@ -1435,7 +1435,7 @@ describe('ReservasService', () => {
   });
 
   describe('completarReserva (SCRUM-277)', () => {
-    const usuarioBarbero = { id: 9, sub: '9', rol: 'BARBERO' };
+    const usuarioBarbero = { id: 9, sub: '9', rol: 'PERSONAL' };
     const usuarioSuperadmin = { id: 1, sub: '1', rol: 'SUPERADMIN' };
 
     const reservaCompletarBase = (over: Record<string, unknown> = {}) => ({
@@ -1608,7 +1608,7 @@ describe('ReservasService', () => {
   });
 
   describe('noShowReserva (NO_SHOW)', () => {
-    const usuarioBarbero = { id: 9, sub: '9', rol: 'BARBERO' };
+    const usuarioBarbero = { id: 9, sub: '9', rol: 'PERSONAL' };
     const usuarioSuperadmin = { id: 1, sub: '1', rol: 'SUPERADMIN' };
 
     const reservaNoShowBase = (over: Record<string, unknown> = {}) => ({

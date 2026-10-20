@@ -113,7 +113,7 @@ describe('ReservasController', () => {
     const mockAgenda = { fecha: '2026-11-01', reservas: [] };
     reservasService.obtenerAgendaBarbero.mockResolvedValue(mockAgenda);
 
-    const mockUser = { id: 5, rol: 'BARBERO', roles: ['BARBERO'] };
+    const mockUser = { id: 5, rol: 'PERSONAL', roles: ['BARBERO'] };
     const resultado = await controller.obtenerMiAgenda(
       { user: mockUser },
       { fecha: '2026-11-01' },
@@ -136,7 +136,7 @@ describe('ReservasController', () => {
       mockAgendaSemanal,
     );
 
-    const mockUser = { id: 5, rol: 'BARBERO', roles: ['BARBERO'] };
+    const mockUser = { id: 5, rol: 'PERSONAL', roles: ['BARBERO'] };
     const consulta = { desde: '2026-11-02', hasta: '2026-11-08' };
     const resultado = await controller.obtenerMiAgendaSemanal(
       { user: mockUser },
@@ -373,7 +373,7 @@ describe('ReservasController', () => {
   });
 
   describe('marcarNoShow', () => {
-    const mockUser = { id: 5, rol: 'BARBERO', roles: ['BARBERO'] };
+    const mockUser = { id: 5, rol: 'PERSONAL', roles: ['BARBERO'] };
 
     it('delega en el servicio con la identidad y el rol del usuario autenticado', async () => {
       const mockRespuesta = {
@@ -403,7 +403,7 @@ describe('ReservasController', () => {
   });
 
   describe('completarReserva', () => {
-    const mockUser = { id: 5, rol: 'BARBERO', roles: ['BARBERO'] };
+    const mockUser = { id: 5, rol: 'PERSONAL', roles: ['BARBERO'] };
 
     it('delega en el servicio con la identidad y el rol del usuario autenticado', async () => {
       const mockRespuesta = {

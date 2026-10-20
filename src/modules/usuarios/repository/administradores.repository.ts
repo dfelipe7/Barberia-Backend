@@ -52,11 +52,26 @@ export class AdministradoresRepository {
       include: {
         usuario: {
           include: {
-            barbero: true,
+            barberos: true,
           },
         },
       },
     });
+  }
+
+  /**
+   * Clave única del perfil de administrador de una persona en el negocio ACTIVO.
+   *
+   * `usuarioId` ya no es único global: la misma persona puede ser
+   * administradora de varias barberías.
+   */
+  private dondePerfilEnNegocio(usuarioId: number) {
+    return {
+      negocioId_usuarioId: {
+        negocioId: this.aislamiento.negocioIdRequerido(),
+        usuarioId,
+      },
+    };
   }
 
   async actualizarEstadoAdministrador(
@@ -64,7 +79,7 @@ export class AdministradoresRepository {
     estado: 'ACTIVO' | 'INACTIVO',
   ) {
     return this.prisma.administrador.update({
-      where: this.aislamiento.filtroEscritura({ usuarioId }),
+      where: this.dondePerfilEnNegocio(usuarioId),
       data: {
         estado,
       },

@@ -199,29 +199,29 @@ describe('ClientesRepository', () => {
   });
 
   it('busca el cliente por usuarioId', async () => {
-    mockPrismaService.cliente.findUnique.mockResolvedValue({ id: 55 });
+    mockPrismaService.cliente.findFirst.mockResolvedValue({ id: 55 });
 
     const resultado = await repository.buscarPorUsuarioId(9);
 
     expect(resultado).toEqual({ id: 55 });
-    esperarConsultaAislada(mockPrismaService.cliente.findUnique, {
+    esperarConsultaAislada(mockPrismaService.cliente.findFirst, {
       where: { usuarioId: 9 },
     });
   });
 
   it('devuelve null cuando el usuario no tiene cliente asociado', async () => {
-    mockPrismaService.cliente.findUnique.mockResolvedValue(null);
+    mockPrismaService.cliente.findFirst.mockResolvedValue(null);
 
     await expect(repository.buscarPorUsuarioId(9)).resolves.toBeNull();
   });
 
   it('busca el cliente por googleId', async () => {
-    mockPrismaService.cliente.findUnique.mockResolvedValue({ id: 7 });
+    mockPrismaService.cliente.findFirst.mockResolvedValue({ id: 7 });
 
     await expect(repository.buscarPorGoogleId('google-sub')).resolves.toEqual({
       id: 7,
     });
-    esperarConsultaAislada(mockPrismaService.cliente.findUnique, {
+    esperarConsultaAislada(mockPrismaService.cliente.findFirst, {
       where: { googleId: 'google-sub' },
     });
   });
@@ -235,7 +235,7 @@ describe('ClientesRepository', () => {
     };
 
     it('reutiliza y refresca el cliente existente sin crear otro', async () => {
-      mockPrismaService.cliente.findUnique.mockResolvedValue({ id: 7 });
+      mockPrismaService.cliente.findFirst.mockResolvedValue({ id: 7 });
       mockPrismaService.cliente.update.mockResolvedValue({ id: 7 });
 
       const resultado = await repository.buscarOcrearPorGoogle(datos);
@@ -253,7 +253,7 @@ describe('ClientesRepository', () => {
     });
 
     it('crea el cliente cuando no existe para ese googleId', async () => {
-      mockPrismaService.cliente.findUnique.mockResolvedValue(null);
+      mockPrismaService.cliente.findFirst.mockResolvedValue(null);
       mockPrismaService.cliente.create.mockResolvedValue({ id: 8 });
 
       await expect(repository.buscarOcrearPorGoogle(datos)).resolves.toEqual({
@@ -270,7 +270,7 @@ describe('ClientesRepository', () => {
     });
 
     it('ante una carrera de unicidad (P2002) devuelve el cliente ya creado', async () => {
-      mockPrismaService.cliente.findUnique
+      mockPrismaService.cliente.findFirst
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ id: 9 });
       mockPrismaService.cliente.create.mockRejectedValue(
@@ -283,7 +283,7 @@ describe('ClientesRepository', () => {
     });
 
     it('propaga el error si no es una violación de unicidad', async () => {
-      mockPrismaService.cliente.findUnique.mockResolvedValue(null);
+      mockPrismaService.cliente.findFirst.mockResolvedValue(null);
       mockPrismaService.cliente.create.mockRejectedValue(new Error('db down'));
 
       await expect(repository.buscarOcrearPorGoogle(datos)).rejects.toThrow(

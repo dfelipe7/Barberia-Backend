@@ -281,7 +281,7 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
       const rolesGuard = new RolesGuard(reflector);
 
       const requestAdmin = {
-        user: { id: 1, rol: 'ADMINISTRADOR', roles: ['ADMINISTRADOR'] },
+        user: { id: 1, rol: 'PERSONAL', roles: ['ADMINISTRADOR'] },
       };
       const contextAdmin = {
         switchToHttp: () => ({ getRequest: () => requestAdmin }),
@@ -303,7 +303,7 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
       const rolesGuard = new RolesGuard(reflector);
 
       const requestBarbero = {
-        user: { id: 3, rol: 'BARBERO', roles: ['BARBERO'] },
+        user: { id: 3, rol: 'PERSONAL', roles: ['BARBERO'] },
       };
       const contextBarbero = {
         switchToHttp: () => ({ getRequest: () => requestBarbero }),

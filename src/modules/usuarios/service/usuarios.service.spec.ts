@@ -136,7 +136,7 @@ describe('UsuariosService', () => {
         nombre: 'Por Email',
         apellido: 'User',
         email: 'por.email@barberia.com',
-        rol: 'ADMINISTRADOR',
+        rol: 'PERSONAL',
         estado: 'ACTIVO',
         administrador: null,
         barbero: null,
@@ -181,7 +181,7 @@ describe('UsuariosService', () => {
         email: 'barbero@barberia.com',
         nombre: 'Carlos',
         apellido: 'Perez',
-        rol: 'BARBERO',
+        rol: 'PERSONAL',
         estado: 'ACTIVO',
         administrador: null,
         barbero: {
@@ -231,8 +231,8 @@ describe('UsuariosService', () => {
     });
 
     it('debe actualizar datos personales en BD exitosamente', async () => {
-      const mockTarget = { id: 2, rol: 'BARBERO' };
-      const mockCaller = { id: 1, rol: 'ADMINISTRADOR' };
+      const mockTarget = { id: 2, rol: 'PERSONAL' };
+      const mockCaller = { id: 1, rol: 'PERSONAL' };
 
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
         mockTarget as any,
@@ -259,8 +259,8 @@ describe('UsuariosService', () => {
     });
 
     it('debe rechazar que un no-SUPERADMIN modifique el rol de Administrador', async () => {
-      const mockTarget = { id: 2, rol: 'BARBERO', administrador: null };
-      const mockCaller = { id: 3, rol: 'ADMINISTRADOR' };
+      const mockTarget = { id: 2, rol: 'PERSONAL', administrador: null };
+      const mockCaller = { id: 3, rol: 'PERSONAL' };
 
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
         mockTarget as any,
@@ -277,7 +277,7 @@ describe('UsuariosService', () => {
     it('debe impedir que el superadmin se retire a sí mismo el rol de Administrador', async () => {
       const mockTarget = {
         id: 1,
-        rol: 'ADMINISTRADOR',
+        rol: 'PERSONAL',
         administrador: { estado: 'ACTIVO', negocioId: 10 },
       };
       const mockCaller = { id: 1, rol: 'SUPERADMIN' };
@@ -297,7 +297,7 @@ describe('UsuariosService', () => {
     it('debe cambiar estado de administrador cuando un superadmin lo autoriza', async () => {
       const mockTarget = {
         id: 2,
-        rol: 'BARBERO',
+        rol: 'PERSONAL',
         administrador: { estado: 'INACTIVO' },
       };
       const mockCaller = { id: 1, rol: 'SUPERADMIN' };
@@ -320,7 +320,7 @@ describe('UsuariosService', () => {
     });
 
     it('debe omitir el cambio de rol de Administrador cuando el estado solicitado coincide con el actual', async () => {
-      const mockTarget = { id: 2, rol: 'BARBERO', administrador: null };
+      const mockTarget = { id: 2, rol: 'PERSONAL', administrador: null };
       const mockCaller = { id: 1, rol: 'SUPERADMIN' };
 
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
@@ -343,10 +343,10 @@ describe('UsuariosService', () => {
     it('debe rechazar que un barbero modifique o revoque su propio rol de barbero', async () => {
       const mockTarget = {
         id: 2,
-        rol: 'BARBERO',
+        rol: 'PERSONAL',
         barbero: { estado: 'ACTIVO', negocioId: 10 },
       };
-      const mockCaller = { id: 2, rol: 'BARBERO' };
+      const mockCaller = { id: 2, rol: 'PERSONAL' };
 
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
         mockTarget as any,
@@ -389,7 +389,7 @@ describe('UsuariosService', () => {
     it('debe inactivar rol de barbero si esBarbero es false', async () => {
       const mockTarget = {
         id: 2,
-        rol: 'BARBERO',
+        rol: 'PERSONAL',
         barbero: { estado: 'ACTIVO', negocioId: 10 },
       };
       const mockCaller = { id: 1, rol: 'SUPERADMIN' };
@@ -416,7 +416,7 @@ describe('UsuariosService', () => {
     it('debe actualizar teléfono y comisión de un barbero existente', async () => {
       const mockTarget = {
         id: 2,
-        rol: 'BARBERO',
+        rol: 'PERSONAL',
         barbero: { estado: 'ACTIVO', negocioId: 10 },
       };
       const mockCaller = { id: 1, rol: 'SUPERADMIN' };

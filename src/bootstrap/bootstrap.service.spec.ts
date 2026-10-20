@@ -84,7 +84,7 @@ describe('BootstrapService', () => {
         id: 1,
         email: 'armeroduvan8@gmail.com',
         nombre: 'Felipe',
-        rol: 'BARBERO',
+        rol: 'PERSONAL',
         estado: 'INACTIVO',
       });
 

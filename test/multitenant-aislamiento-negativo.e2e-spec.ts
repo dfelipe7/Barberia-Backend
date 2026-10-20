@@ -202,27 +202,27 @@ describe('Aislamiento negativo entre negocios (MariaDB real)', () => {
         },
       });
 
-    const adminA = await crearUsuario('admin-a@pruebas.local', 'ADMINISTRADOR');
+    const adminA = await crearUsuario('admin-a@pruebas.local', 'PERSONAL');
     const superadmin = await crearUsuario('super@pruebas.local', 'SUPERADMIN');
     const barberoAUsuario = await crearUsuario(
       'barbero-a@pruebas.local',
-      'BARBERO',
+      'PERSONAL',
     );
     const barberoBUsuario = await crearUsuario(
       'barbero-b@pruebas.local',
-      'BARBERO',
+      'PERSONAL',
     );
     const clienteAUsuario = await crearUsuario(
       'cliente-a@pruebas.local',
-      'BARBERO',
+      'PERSONAL',
     );
     const clienteBUsuario = await crearUsuario(
       'cliente-b@pruebas.local',
-      'BARBERO',
+      'PERSONAL',
     );
 
     const barberoA = await prisma.barbero.upsert({
-      where: { usuarioId: barberoAUsuario.id },
+      where: { negocioId_usuarioId: { negocioId: kyrios.id, usuarioId: barberoAUsuario.id } },
       update: {},
       create: {
         usuarioId: barberoAUsuario.id,
@@ -232,7 +232,7 @@ describe('Aislamiento negativo entre negocios (MariaDB real)', () => {
       },
     });
     const barberoB = await prisma.barbero.upsert({
-      where: { usuarioId: barberoBUsuario.id },
+      where: { negocioId_usuarioId: { negocioId: negocioB.id, usuarioId: barberoBUsuario.id } },
       update: {},
       create: {
         usuarioId: barberoBUsuario.id,
@@ -245,12 +245,12 @@ describe('Aislamiento negativo entre negocios (MariaDB real)', () => {
     // El SUPERADMIN tiene perfil de administrador en A (para poder operar
     // dentro de la barbería) pero NO en B.
     await prisma.administrador.upsert({
-      where: { usuarioId: adminA.id },
+      where: { negocioId_usuarioId: { negocioId: kyrios.id, usuarioId: adminA.id } },
       update: {},
       create: { usuarioId: adminA.id, negocioId: kyrios.id },
     });
     await prisma.administrador.upsert({
-      where: { usuarioId: superadmin.id },
+      where: { negocioId_usuarioId: { negocioId: kyrios.id, usuarioId: superadmin.id } },
       update: {},
       create: { usuarioId: superadmin.id, negocioId: kyrios.id },
     });

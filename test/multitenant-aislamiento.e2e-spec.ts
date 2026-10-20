@@ -103,7 +103,7 @@ describe('Aislamiento entre negocios A y B (MariaDB real)', () => {
         email: 'a@test.local',
         nombre: 'Usuario',
         apellido: 'A',
-        rol: 'BARBERO',
+        rol: 'PERSONAL',
       },
     });
     const usuarioB = await prisma.usuario.upsert({
@@ -113,12 +113,12 @@ describe('Aislamiento entre negocios A y B (MariaDB real)', () => {
         email: 'b@test.local',
         nombre: 'Usuario',
         apellido: 'B',
-        rol: 'BARBERO',
+        rol: 'PERSONAL',
       },
     });
 
     const barberoA = await prisma.barbero.upsert({
-      where: { usuarioId: usuarioA.id },
+      where: { negocioId_usuarioId: { negocioId: NEGOCIO_A, usuarioId: usuarioA.id } },
       update: {},
       create: {
         usuarioId: usuarioA.id,
@@ -128,7 +128,7 @@ describe('Aislamiento entre negocios A y B (MariaDB real)', () => {
       },
     });
     const barberoB = await prisma.barbero.upsert({
-      where: { usuarioId: usuarioB.id },
+      where: { negocioId_usuarioId: { negocioId: NEGOCIO_B, usuarioId: usuarioB.id } },
       update: {},
       create: {
         usuarioId: usuarioB.id,

@@ -16,7 +16,7 @@ describe('AuthController', () => {
     nombre: 'Carlos',
     apellido: 'Perez',
     tipo: 'PERSONAL',
-    rol: 'BARBERO',
+    rol: 'PERSONAL',
     roles: ['BARBERO'],
     superadmin: false,
     ambito: 'NEGOCIO' as const,
@@ -97,7 +97,7 @@ describe('AuthController', () => {
       email: 'barbero@gmail.com',
       nombre: 'Carlos',
       apellido: 'Perez',
-      rol: 'BARBERO',
+      rol: 'PERSONAL',
       estado: 'ACTIVO',
     };
     const mockResponse = {

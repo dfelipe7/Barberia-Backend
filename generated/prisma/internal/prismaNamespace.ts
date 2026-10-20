@@ -1694,6 +1694,7 @@ export type ReservationOrderByRelevanceFieldEnum = (typeof ReservationOrderByRel
 
 
 export const WhatsAppPlantillaOrderByRelevanceFieldEnum = {
+  id: 'id',
   tipo: 'tipo',
   mensaje: 'mensaje'
 } as const

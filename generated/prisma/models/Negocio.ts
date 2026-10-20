@@ -24,6 +24,10 @@ import type * as Prisma from "../internal/prismaNamespace.js"
  * `slug` es el identificador PÚBLICO y estable con el que se resuelve el
  * negocio en cada petición (subdominio o cabecera `X-Negocio-Slug`).
  * No debe contener información sensible: es visible en URLs y logs.
+ * 
+ * `onDelete: Restrict`: eliminar un negocio con datos exige una operación
+ * explícita; la vía prevista para "retirar" una barbería es `estado =
+ * INACTIVO`, que conserva el histórico.
  */
 export type NegocioModel = runtime.Types.Result.DefaultSelection<Prisma.$NegocioPayload>
 
@@ -476,11 +480,6 @@ export type NegocioSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
 }
 
-export type NegocioNullableScalarRelationFilter = {
-  is?: Prisma.NegocioWhereInput | null
-  isNot?: Prisma.NegocioWhereInput | null
-}
-
 export type NegocioScalarRelationFilter = {
   is?: Prisma.NegocioWhereInput
   isNot?: Prisma.NegocioWhereInput
@@ -512,12 +511,10 @@ export type NegocioCreateNestedOneWithoutAdministradoresInput = {
   connect?: Prisma.NegocioWhereUniqueInput
 }
 
-export type NegocioUpdateOneWithoutAdministradoresNestedInput = {
+export type NegocioUpdateOneRequiredWithoutAdministradoresNestedInput = {
   create?: Prisma.XOR<Prisma.NegocioCreateWithoutAdministradoresInput, Prisma.NegocioUncheckedCreateWithoutAdministradoresInput>
   connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutAdministradoresInput
   upsert?: Prisma.NegocioUpsertWithoutAdministradoresInput
-  disconnect?: Prisma.NegocioWhereInput | boolean
-  delete?: Prisma.NegocioWhereInput | boolean
   connect?: Prisma.NegocioWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.NegocioUpdateToOneWithWhereWithoutAdministradoresInput, Prisma.NegocioUpdateWithoutAdministradoresInput>, Prisma.NegocioUncheckedUpdateWithoutAdministradoresInput>
 }
@@ -528,12 +525,10 @@ export type NegocioCreateNestedOneWithoutBarberosInput = {
   connect?: Prisma.NegocioWhereUniqueInput
 }
 
-export type NegocioUpdateOneWithoutBarberosNestedInput = {
+export type NegocioUpdateOneRequiredWithoutBarberosNestedInput = {
   create?: Prisma.XOR<Prisma.NegocioCreateWithoutBarberosInput, Prisma.NegocioUncheckedCreateWithoutBarberosInput>
   connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutBarberosInput
   upsert?: Prisma.NegocioUpsertWithoutBarberosInput
-  disconnect?: Prisma.NegocioWhereInput | boolean
-  delete?: Prisma.NegocioWhereInput | boolean
   connect?: Prisma.NegocioWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.NegocioUpdateToOneWithWhereWithoutBarberosInput, Prisma.NegocioUpdateWithoutBarberosInput>, Prisma.NegocioUncheckedUpdateWithoutBarberosInput>
 }
@@ -544,12 +539,10 @@ export type NegocioCreateNestedOneWithoutClientesInput = {
   connect?: Prisma.NegocioWhereUniqueInput
 }
 
-export type NegocioUpdateOneWithoutClientesNestedInput = {
+export type NegocioUpdateOneRequiredWithoutClientesNestedInput = {
   create?: Prisma.XOR<Prisma.NegocioCreateWithoutClientesInput, Prisma.NegocioUncheckedCreateWithoutClientesInput>
   connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutClientesInput
   upsert?: Prisma.NegocioUpsertWithoutClientesInput
-  disconnect?: Prisma.NegocioWhereInput | boolean
-  delete?: Prisma.NegocioWhereInput | boolean
   connect?: Prisma.NegocioWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.NegocioUpdateToOneWithWhereWithoutClientesInput, Prisma.NegocioUpdateWithoutClientesInput>, Prisma.NegocioUncheckedUpdateWithoutClientesInput>
 }
@@ -560,12 +553,10 @@ export type NegocioCreateNestedOneWithoutServiciosInput = {
   connect?: Prisma.NegocioWhereUniqueInput
 }
 
-export type NegocioUpdateOneWithoutServiciosNestedInput = {
+export type NegocioUpdateOneRequiredWithoutServiciosNestedInput = {
   create?: Prisma.XOR<Prisma.NegocioCreateWithoutServiciosInput, Prisma.NegocioUncheckedCreateWithoutServiciosInput>
   connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutServiciosInput
   upsert?: Prisma.NegocioUpsertWithoutServiciosInput
-  disconnect?: Prisma.NegocioWhereInput | boolean
-  delete?: Prisma.NegocioWhereInput | boolean
   connect?: Prisma.NegocioWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.NegocioUpdateToOneWithWhereWithoutServiciosInput, Prisma.NegocioUpdateWithoutServiciosInput>, Prisma.NegocioUncheckedUpdateWithoutServiciosInput>
 }
@@ -576,12 +567,10 @@ export type NegocioCreateNestedOneWithoutBarberoServiciosInput = {
   connect?: Prisma.NegocioWhereUniqueInput
 }
 
-export type NegocioUpdateOneWithoutBarberoServiciosNestedInput = {
+export type NegocioUpdateOneRequiredWithoutBarberoServiciosNestedInput = {
   create?: Prisma.XOR<Prisma.NegocioCreateWithoutBarberoServiciosInput, Prisma.NegocioUncheckedCreateWithoutBarberoServiciosInput>
   connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutBarberoServiciosInput
   upsert?: Prisma.NegocioUpsertWithoutBarberoServiciosInput
-  disconnect?: Prisma.NegocioWhereInput | boolean
-  delete?: Prisma.NegocioWhereInput | boolean
   connect?: Prisma.NegocioWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.NegocioUpdateToOneWithWhereWithoutBarberoServiciosInput, Prisma.NegocioUpdateWithoutBarberoServiciosInput>, Prisma.NegocioUncheckedUpdateWithoutBarberoServiciosInput>
 }
@@ -592,12 +581,10 @@ export type NegocioCreateNestedOneWithoutFranjasSemanalesInput = {
   connect?: Prisma.NegocioWhereUniqueInput
 }
 
-export type NegocioUpdateOneWithoutFranjasSemanalesNestedInput = {
+export type NegocioUpdateOneRequiredWithoutFranjasSemanalesNestedInput = {
   create?: Prisma.XOR<Prisma.NegocioCreateWithoutFranjasSemanalesInput, Prisma.NegocioUncheckedCreateWithoutFranjasSemanalesInput>
   connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutFranjasSemanalesInput
   upsert?: Prisma.NegocioUpsertWithoutFranjasSemanalesInput
-  disconnect?: Prisma.NegocioWhereInput | boolean
-  delete?: Prisma.NegocioWhereInput | boolean
   connect?: Prisma.NegocioWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.NegocioUpdateToOneWithWhereWithoutFranjasSemanalesInput, Prisma.NegocioUpdateWithoutFranjasSemanalesInput>, Prisma.NegocioUncheckedUpdateWithoutFranjasSemanalesInput>
 }
@@ -608,12 +595,10 @@ export type NegocioCreateNestedOneWithoutBloqueosHorarioInput = {
   connect?: Prisma.NegocioWhereUniqueInput
 }
 
-export type NegocioUpdateOneWithoutBloqueosHorarioNestedInput = {
+export type NegocioUpdateOneRequiredWithoutBloqueosHorarioNestedInput = {
   create?: Prisma.XOR<Prisma.NegocioCreateWithoutBloqueosHorarioInput, Prisma.NegocioUncheckedCreateWithoutBloqueosHorarioInput>
   connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutBloqueosHorarioInput
   upsert?: Prisma.NegocioUpsertWithoutBloqueosHorarioInput
-  disconnect?: Prisma.NegocioWhereInput | boolean
-  delete?: Prisma.NegocioWhereInput | boolean
   connect?: Prisma.NegocioWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.NegocioUpdateToOneWithWhereWithoutBloqueosHorarioInput, Prisma.NegocioUpdateWithoutBloqueosHorarioInput>, Prisma.NegocioUncheckedUpdateWithoutBloqueosHorarioInput>
 }
@@ -624,12 +609,10 @@ export type NegocioCreateNestedOneWithoutCierresGeneralesInput = {
   connect?: Prisma.NegocioWhereUniqueInput
 }
 
-export type NegocioUpdateOneWithoutCierresGeneralesNestedInput = {
+export type NegocioUpdateOneRequiredWithoutCierresGeneralesNestedInput = {
   create?: Prisma.XOR<Prisma.NegocioCreateWithoutCierresGeneralesInput, Prisma.NegocioUncheckedCreateWithoutCierresGeneralesInput>
   connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutCierresGeneralesInput
   upsert?: Prisma.NegocioUpsertWithoutCierresGeneralesInput
-  disconnect?: Prisma.NegocioWhereInput | boolean
-  delete?: Prisma.NegocioWhereInput | boolean
   connect?: Prisma.NegocioWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.NegocioUpdateToOneWithWhereWithoutCierresGeneralesInput, Prisma.NegocioUpdateWithoutCierresGeneralesInput>, Prisma.NegocioUncheckedUpdateWithoutCierresGeneralesInput>
 }
@@ -640,12 +623,10 @@ export type NegocioCreateNestedOneWithoutReservasInput = {
   connect?: Prisma.NegocioWhereUniqueInput
 }
 
-export type NegocioUpdateOneWithoutReservasNestedInput = {
+export type NegocioUpdateOneRequiredWithoutReservasNestedInput = {
   create?: Prisma.XOR<Prisma.NegocioCreateWithoutReservasInput, Prisma.NegocioUncheckedCreateWithoutReservasInput>
   connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutReservasInput
   upsert?: Prisma.NegocioUpsertWithoutReservasInput
-  disconnect?: Prisma.NegocioWhereInput | boolean
-  delete?: Prisma.NegocioWhereInput | boolean
   connect?: Prisma.NegocioWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.NegocioUpdateToOneWithWhereWithoutReservasInput, Prisma.NegocioUpdateWithoutReservasInput>, Prisma.NegocioUncheckedUpdateWithoutReservasInput>
 }

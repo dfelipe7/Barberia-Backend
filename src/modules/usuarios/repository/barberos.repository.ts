@@ -30,9 +30,25 @@ export class BarberosRepository {
     return this.crearBarberoNuevo(data);
   }
 
+  /**
+   * Clave única del perfil de barbero de una persona en el negocio ACTIVO.
+   *
+   * `usuarioId` ya no es único global: la misma persona puede ser barbero en
+   * varias barberías. La escritura se identifica por `(negocioId, usuarioId)`,
+   * de modo que nunca se toca el perfil de OTRO negocio.
+   */
+  private dondePerfilEnNegocio(usuarioId: number) {
+    return {
+      negocioId_usuarioId: {
+        negocioId: this.aislamiento.negocioIdRequerido(),
+        usuarioId,
+      },
+    };
+  }
+
   async actualizarComision(usuarioId: number, porcentajeComision: number) {
     return this.prisma.barbero.update({
-      where: this.aislamiento.filtroEscritura({ usuarioId }),
+      where: this.dondePerfilEnNegocio(usuarioId),
       data: {
         porcentajeComision,
       },
@@ -48,7 +64,7 @@ export class BarberosRepository {
     },
   ) {
     return this.prisma.barbero.update({
-      where: this.aislamiento.filtroEscritura({ usuarioId }),
+      where: this.dondePerfilEnNegocio(usuarioId),
       data,
     });
   }
@@ -148,7 +164,7 @@ export class BarberosRepository {
       include: {
         usuario: {
           include: {
-            administrador: true,
+            administradores: true,
           },
         },
       },
@@ -157,7 +173,7 @@ export class BarberosRepository {
 
   async actualizarEstadoBarbero(usuarioId: number, estado: EstadoUsuario) {
     return this.prisma.barbero.update({
-      where: this.aislamiento.filtroEscritura({ usuarioId }),
+      where: this.dondePerfilEnNegocio(usuarioId),
       data: {
         estado,
       },

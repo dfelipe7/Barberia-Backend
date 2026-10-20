@@ -210,24 +210,24 @@ describe('Autenticación y autorización por negocio (MariaDB real)', () => {
         },
       });
 
-    const adminA = await crearUsuario('admin-a@test.local', 'ADMINISTRADOR');
-    const barberoA = await crearUsuario('barbero-a@test.local', 'BARBERO');
-    const cross = await crearUsuario('cross@test.local', 'ADMINISTRADOR');
+    const adminA = await crearUsuario('admin-a@test.local', 'PERSONAL');
+    const barberoA = await crearUsuario('barbero-a@test.local', 'PERSONAL');
+    const cross = await crearUsuario('cross@test.local', 'PERSONAL');
     const superadmin = await crearUsuario('super@test.local', 'SUPERADMIN');
-    const sinPerfil = await crearUsuario('sinperfil@test.local', 'BARBERO');
+    const sinPerfil = await crearUsuario('sinperfil@test.local', 'PERSONAL');
 
     await prisma.administrador.upsert({
-      where: { usuarioId: adminA.id },
+      where: { negocioId_usuarioId: { negocioId: negocioA.id, usuarioId: adminA.id } },
       update: {},
       create: { usuarioId: adminA.id, negocioId: negocioA.id },
     });
     await prisma.administrador.upsert({
-      where: { usuarioId: cross.id },
+      where: { negocioId_usuarioId: { negocioId: negocioA.id, usuarioId: cross.id } },
       update: {},
       create: { usuarioId: cross.id, negocioId: negocioA.id },
     });
     await prisma.barbero.upsert({
-      where: { usuarioId: barberoA.id },
+      where: { negocioId_usuarioId: { negocioId: negocioA.id, usuarioId: barberoA.id } },
       update: {},
       create: {
         usuarioId: barberoA.id,
@@ -237,7 +237,7 @@ describe('Autenticación y autorización por negocio (MariaDB real)', () => {
       },
     });
     await prisma.barbero.upsert({
-      where: { usuarioId: cross.id },
+      where: { negocioId_usuarioId: { negocioId: negocioB.id, usuarioId: cross.id } },
       update: {},
       create: {
         usuarioId: cross.id,

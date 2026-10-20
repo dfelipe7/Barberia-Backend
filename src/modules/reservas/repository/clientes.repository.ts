@@ -52,13 +52,14 @@ export class ClientesRepository {
   ) {}
 
   /**
-   * Devuelve el `Cliente` vinculado a un `Usuario` (vínculo heredado), o `null`
-   * si el usuario no tiene registro de cliente. No se usa en la ruta de clientes
-   * autenticados con Google; se mantiene por compatibilidad.
+   * Devuelve el `Cliente` vinculado a un `Usuario` (vínculo heredado) en el
+   * negocio ACTIVO, o `null` si el usuario no tiene registro de cliente allí.
+   * No se usa en la ruta de clientes autenticados con Google; se mantiene por
+   * compatibilidad.
    */
   async buscarPorUsuarioId(usuarioId: number) {
-    return this.prisma.cliente.findUnique({
-      where: this.aislamiento.filtroEscritura({ usuarioId }),
+    return this.prisma.cliente.findFirst({
+      where: this.aislamiento.filtroLectura({ usuarioId }),
     });
   }
 
@@ -69,10 +70,16 @@ export class ClientesRepository {
     });
   }
 
-  /** Devuelve el `Cliente` con la identidad de Google indicada, o `null`. */
+  /**
+   * Devuelve el `Cliente` con la identidad de Google indicada en el negocio
+   * ACTIVO, o `null`.
+   *
+   * `googleId` ya no es único global: la misma cuenta de Google puede tener
+   * una ficha en cada barbería, así que la búsqueda se acota al negocio.
+   */
   async buscarPorGoogleId(googleId: string) {
-    return this.prisma.cliente.findUnique({
-      where: this.aislamiento.filtroEscritura({ googleId }),
+    return this.prisma.cliente.findFirst({
+      where: this.aislamiento.filtroLectura({ googleId }),
     });
   }
 
@@ -83,10 +90,11 @@ export class ClientesRepository {
    *   datos de perfil que aporta Google (`nombre`, `apellido`, `email`).
    * - Si no existe, lo crea.
    *
-   * La unicidad de `googleId` la garantiza el índice UNIQUE de la base. Si dos
-   * inicios de sesión concurrentes intentan crear el mismo `googleId`, la
-   * segunda escritura produce `P2002`; se reintenta la lectura y se devuelve el
-   * registro ya creado por la otra petición.
+   * La unicidad de `(negocioId, googleId)` la garantiza el índice UNIQUE de la
+   * base. Si dos inicios de sesión concurrentes intentan crear el mismo
+   * `googleId` en el mismo negocio, la segunda escritura produce `P2002`; se
+   * reintenta la lectura y se devuelve el registro ya creado por la otra
+   * petición.
    */
   async buscarOcrearPorGoogle(datos: DatosClienteGoogle) {
     const existente = await this.buscarPorGoogleId(datos.googleId);
@@ -109,6 +117,7 @@ export class ClientesRepository {
           email: datos.email,
           nombre: datos.nombre,
           apellido: datos.apellido,
+          negocioId: this.aislamiento.negocioIdRequerido(),
         },
       });
     } catch (error) {

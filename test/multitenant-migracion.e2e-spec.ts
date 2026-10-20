@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MariaDbConnection } from './helpers/mariadb-test-container';
 import { PrismaClient } from '../generated/prisma/client';
@@ -65,12 +65,19 @@ describe('Migración de datos al modelo multitenant (MariaDB real)', () => {
       );
     }
 
+    // Se aplica el historial de migraciones HASTA la fase aditiva (la
+    // migración final de endurecimiento de la Fase 8 NO se aplica aquí): el
+    // escenario que se prueba es exactamente el de la Liberación A, con el
+    // `negocioId` todavía anulable y el backfill pendiente.
+    prepararProyectoSinEndurecimiento();
     execFileSync(
       process.execPath,
       [
         join(__dirname, '..', 'node_modules', 'prisma', 'build', 'index.js'),
         'migrate',
         'deploy',
+        '--config',
+        join(__dirname, '.tmp-prisma-sin-final', 'prisma7.config.ts'),
       ],
       {
         cwd: join(__dirname, '..'),
@@ -96,58 +103,103 @@ describe('Migración de datos al modelo multitenant (MariaDB real)', () => {
   afterAll(async () => {
     await prisma?.$disconnect();
     conexion?.stop();
+    rmSync(join(__dirname, '.tmp-prisma-sin-final'), {
+      recursive: true,
+      force: true,
+    });
   });
+
+  /**
+   * Prepara un proyecto Prisma temporal con el historial de migraciones SIN
+   * la migración final de endurecimiento (Fase 8): el escenario probado es el
+   * de la Liberación A (esquema aditivo aplicado, backfill pendiente).
+   */
+  const prepararProyectoSinEndurecimiento = () => {
+    const destino = join(__dirname, '.tmp-prisma-sin-final');
+    rmSync(destino, { recursive: true, force: true });
+    mkdirSync(destino, { recursive: true });
+    cpSync(
+      join(__dirname, '..', 'prisma', 'schema.prisma'),
+      join(destino, 'schema.prisma'),
+    );
+    cpSync(
+      join(__dirname, '..', 'prisma', 'migrations'),
+      join(destino, 'migrations'),
+      { recursive: true },
+    );
+    rmSync(
+      join(destino, 'migrations', '20261020120000_endurecer_esquema_multitenant'),
+      { recursive: true, force: true },
+    );
+    writeFileSync(
+      join(destino, 'prisma7.config.ts'),
+      [
+        'import { defineConfig } from "prisma/config";',
+        'export default defineConfig({',
+        `  schema: ${JSON.stringify(join(destino, 'schema.prisma'))},`,
+        '  migrations: {',
+        `    path: ${JSON.stringify(join(destino, 'migrations'))},`,
+        '  },',
+        '  datasource: { url: process.env["DATABASE_URL"] },',
+        '});',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+  };
 
   /** Siembra datos preexistentes sin `negocioId`. */
   const sembrarPreexistentes = async () => {
-    const usuario = await prisma.usuario.create({
-      data: {
-        email: 'preexistente@test.local',
-        nombre: 'Preexistente',
-        apellido: 'Uno',
-        rol: 'BARBERO',
-      },
-    });
+    // El usuario se siembra con SQL CRUDO: en el escenario probado el
+    // esquema todavía tiene el enum de roles anterior (`rol` = 'BARBERO') y el
+    // cliente tipado ya solo admite el enum endurecido.
+    await prisma.$executeRawUnsafe(
+      "INSERT INTO `Usuario` (`email`, `nombre`, `apellido`, `rol`, `estado`) VALUES ('preexistente@test.local', 'Preexistente', 'Uno', 'BARBERO', 'ACTIVO')",
+    );
+    const usuarioId = await idDe(
+      "SELECT id FROM `Usuario` WHERE `email` = 'preexistente@test.local'",
+    );
 
-    const barbero = await prisma.barbero.create({
-      data: {
-        usuarioId: usuario.id,
-        telefono: '300',
-        porcentajeComision: 10,
-      },
-    });
+    // Los modelos tenant-scoped se siembran con SQL CRUDO: en el escenario
+    // probado (`negocioId` anulable) el cliente tipado no puede omitir el
+    // campo. El id se recupera con una consulta posterior (la conexión del
+    // pool no es necesariamente la misma).
+    await prisma.$executeRawUnsafe(
+      'INSERT INTO `Barbero` (`usuarioId`, `negocioId`, `telefono`, `porcentajeComision`, `estado`) VALUES (' +
+        String(usuarioId) +
+        ", NULL, '300', 10, 'ACTIVO')",
+    );
+    const barberoId = await idDe(
+      'SELECT id FROM `Barbero` WHERE `usuarioId` = ' + String(usuarioId),
+    );
 
-    const servicio = await prisma.servicio.create({
-      data: {
-        nombre: 'Servicio preexistente',
-        precio: 1000,
-        duracionMinutos: 30,
-      },
-    });
+    await prisma.$executeRawUnsafe(
+      "INSERT INTO `Servicio` (`nombre`, `precio`, `duracionMinutos`, `negocioId`, `estado`, `creadoEn`, `actualizadoEn`) VALUES ('Servicio preexistente', 1000, 30, NULL, 'ACTIVO', NOW(3), NOW(3))",
+    );
+    const servicioId = await idDe(
+      "SELECT id FROM `Servicio` WHERE `nombre` = 'Servicio preexistente'",
+    );
 
-    const cliente = await prisma.cliente.create({
-      data: { nombre: 'Cliente preexistente' },
-    });
+    await prisma.$executeRawUnsafe(
+      "INSERT INTO `Cliente` (`nombre`, `negocioId`) VALUES ('Cliente preexistente', NULL)",
+    );
+    const clienteId = await idDe(
+      "SELECT id FROM `Cliente` WHERE `nombre` = 'Cliente preexistente'",
+    );
 
-    await prisma.reservation.create({
-      data: {
-        barberoId: barbero.id,
-        servicioId: servicio.id,
-        clienteId: cliente.id,
-        date: new Date('2026-11-01T00:00:00.000Z'),
-        dayOfWeek: 'SUNDAY',
-        startTime: '10:00',
-        endTime: '10:30',
-      },
-    });
+    await prisma.$executeRawUnsafe(
+      'INSERT INTO `reservations` (`barberoId`, `servicioId`, `clienteId`, `date`, `dayOfWeek`, `startTime`, `endTime`, `status`, `negocioId`, `createdAt`, `updatedAt`) VALUES (' +
+        String(barberoId) +
+        ', ' +
+        String(servicioId) +
+        ', ' +
+        String(clienteId) +
+        ", '2026-11-01', 'SUNDAY', '10:00', '10:30', 'CONFIRMED', NULL, NOW(3), NOW(3))",
+    );
 
-    await prisma.generalClosure.create({
-      data: {
-        date: new Date('2026-12-25T00:00:00.000Z'),
-        allDay: true,
-        reason: 'Navidad',
-      },
-    });
+    await prisma.$executeRawUnsafe(
+      "INSERT INTO `general_closures` (`date`, `allDay`, `reason`, `active`, `negocioId`, `createdAt`, `updatedAt`) VALUES ('2026-12-25', true, 'Navidad', true, NULL, NOW(3), NOW(3))",
+    );
 
     // Configuración global con un valor ya personalizado por un administrador.
     await prisma.configuracionSistema.create({
@@ -158,7 +210,17 @@ describe('Migración de datos al modelo multitenant (MariaDB real)', () => {
       },
     });
 
-    return { barbero, servicio, cliente };
+    return {
+      barbero: { id: barberoId },
+      servicio: { id: servicioId },
+      cliente: { id: clienteId },
+    };
+  };
+
+  /** Devuelve el id de la primera fila que devuelve la consulta. */
+  const idDe = async (sql: string): Promise<number> => {
+    const filas = await prisma.$queryRawUnsafe<Array<{ id: number }>>(sql);
+    return Number(filas[0].id);
   };
 
   /** Ejecuta el script de migración con las variables dadas. */

@@ -20,7 +20,7 @@ describe('JwtAuthGuard', () => {
     nombre: 'Test',
     apellido: 'Prueba',
     tipo: 'PERSONAL',
-    rol: 'BARBERO',
+    rol: 'PERSONAL',
     roles: ['BARBERO'],
     superadmin: false,
     ambito: 'NEGOCIO',

@@ -38,7 +38,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosConsulta(
           actor(1, ['SUPERADMIN'], NEGOCIO, true),
-          { id: 2, rol: 'BARBERO', barbero: { negocioId: NEGOCIO } },
+          { id: 2, rol: 'PERSONAL', barbero: { negocioId: NEGOCIO } },
         ),
       ).not.toThrow();
     });
@@ -46,7 +46,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosConsulta(
           actor(1, ['ADMINISTRADOR']),
-          { id: 1, rol: 'ADMINISTRADOR', barbero: null },
+          { id: 1, rol: 'PERSONAL', barbero: null },
         ),
       ).not.toThrow();
     });
@@ -54,7 +54,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosConsulta(
           actor(1, ['ADMINISTRADOR']),
-          { id: 2, rol: 'BARBERO', barbero: { id: 5, negocioId: NEGOCIO } },
+          { id: 2, rol: 'PERSONAL', barbero: { id: 5, negocioId: NEGOCIO } },
         ),
       ).not.toThrow();
     });
@@ -62,7 +62,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosConsulta(
           actor(1, ['ADMINISTRADOR']),
-          { id: 2, rol: 'BARBERO', barbero: { id: 5, negocioId: 20 } },
+          { id: 2, rol: 'PERSONAL', barbero: { id: 5, negocioId: 20 } },
         ),
       ).toThrow(ForbiddenException);
     });
@@ -70,7 +70,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosConsulta(
           actor(1, ['ADMINISTRADOR']),
-          { id: 2, rol: 'ADMINISTRADOR', barbero: null },
+          { id: 2, rol: 'PERSONAL', barbero: null },
         ),
       ).toThrow(ForbiddenException);
     });
@@ -78,7 +78,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosConsulta(
           actor(3, ['BARBERO']),
-          { id: 3, rol: 'BARBERO' },
+          { id: 3, rol: 'PERSONAL' },
         ),
       ).not.toThrow();
     });
@@ -86,7 +86,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosConsulta(
           actor(3, ['BARBERO']),
-          { id: 4, rol: 'BARBERO' },
+          { id: 4, rol: 'PERSONAL' },
         ),
       ).toThrow(ForbiddenException);
     });
@@ -94,7 +94,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosConsulta(
           actor(1, []),
-          { id: 2, rol: 'BARBERO' },
+          { id: 2, rol: 'PERSONAL' },
         ),
       ).toThrow(ForbiddenException);
     });
@@ -105,7 +105,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosEdicion(
           actor(1, ['SUPERADMIN'], NEGOCIO, true),
-          { id: 2, rol: 'BARBERO' },
+          { id: 2, rol: 'PERSONAL' },
         ),
       ).not.toThrow();
     });
@@ -121,7 +121,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosEdicion(
           actor(1, ['ADMINISTRADOR']),
-          { id: 1, rol: 'ADMINISTRADOR' },
+          { id: 1, rol: 'PERSONAL' },
         ),
       ).not.toThrow();
     });
@@ -131,7 +131,7 @@ describe('UsuariosAuthorizationService', () => {
           actor(1, ['ADMINISTRADOR']),
           {
             id: 3,
-            rol: 'ADMINISTRADOR',
+            rol: 'PERSONAL',
             administrador: { estado: 'ACTIVO', negocioId: NEGOCIO },
           },
         ),
@@ -143,7 +143,7 @@ describe('UsuariosAuthorizationService', () => {
           actor(1, ['ADMINISTRADOR']),
           {
             id: 4,
-            rol: 'BARBERO',
+            rol: 'PERSONAL',
             administrador: null,
             barbero: { id: 5, negocioId: NEGOCIO },
           },
@@ -156,7 +156,7 @@ describe('UsuariosAuthorizationService', () => {
           actor(1, ['ADMINISTRADOR']),
           {
             id: 4,
-            rol: 'BARBERO',
+            rol: 'PERSONAL',
             administrador: null,
             barbero: { id: 5, negocioId: 20 },
           },
@@ -175,7 +175,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosEdicion(
           actor(3, ['BARBERO']),
-          { id: 3, rol: 'BARBERO' },
+          { id: 3, rol: 'PERSONAL' },
         ),
       ).not.toThrow();
     });
@@ -183,7 +183,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosEdicion(
           actor(3, ['BARBERO']),
-          { id: 4, rol: 'BARBERO' },
+          { id: 4, rol: 'PERSONAL' },
         ),
       ).toThrow('Solo puedes editar tu propio perfil');
     });
@@ -191,7 +191,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosEdicion(
           actor(1, []),
-          { id: 2, rol: 'BARBERO' },
+          { id: 2, rol: 'PERSONAL' },
         ),
       ).toThrow(ForbiddenException);
     });
@@ -212,7 +212,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoCuenta(
           actor(1, ['SUPERADMIN'], NEGOCIO, true),
-          { id: 2, rol: 'BARBERO', administrador: null, barbero: {} },
+          { id: 2, rol: 'PERSONAL', administrador: null, barbero: {} },
         ),
       ).not.toThrow();
     });
@@ -230,7 +230,7 @@ describe('UsuariosAuthorizationService', () => {
           actor(1, ['ADMINISTRADOR']),
           {
             id: 2,
-            rol: 'ADMINISTRADOR',
+            rol: 'PERSONAL',
             administrador: { estado: 'ACTIVO', negocioId: NEGOCIO },
             barbero: null,
           },
@@ -243,7 +243,7 @@ describe('UsuariosAuthorizationService', () => {
           actor(1, ['ADMINISTRADOR']),
           {
             id: 3,
-            rol: 'BARBERO',
+            rol: 'PERSONAL',
             administrador: null,
             barbero: { id: 5, negocioId: NEGOCIO },
           },
@@ -256,7 +256,7 @@ describe('UsuariosAuthorizationService', () => {
           actor(1, ['ADMINISTRADOR']),
           {
             id: 3,
-            rol: 'BARBERO',
+            rol: 'PERSONAL',
             administrador: null,
             barbero: { id: 5, negocioId: 20 },
           },
@@ -275,7 +275,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoCuenta(
           actor(1, []),
-          { id: 2, rol: 'BARBERO' },
+          { id: 2, rol: 'PERSONAL' },
         ),
       ).toThrow(ForbiddenException);
     });
@@ -286,7 +286,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoBarbero(
           actor(1, ['SUPERADMIN'], NEGOCIO, true),
-          { id: 2, rol: 'BARBERO' },
+          { id: 2, rol: 'PERSONAL' },
         ),
       ).not.toThrow();
     });
@@ -304,7 +304,7 @@ describe('UsuariosAuthorizationService', () => {
           actor(1, ['ADMINISTRADOR']),
           {
             id: 1,
-            rol: 'ADMINISTRADOR',
+            rol: 'PERSONAL',
             administrador: { estado: 'ACTIVO', negocioId: NEGOCIO },
           },
         ),
@@ -316,7 +316,7 @@ describe('UsuariosAuthorizationService', () => {
           actor(1, ['ADMINISTRADOR']),
           {
             id: 2,
-            rol: 'ADMINISTRADOR',
+            rol: 'PERSONAL',
             administrador: { estado: 'ACTIVO', negocioId: NEGOCIO },
           },
         ),
@@ -326,7 +326,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoBarbero(
           actor(1, ['ADMINISTRADOR']),
-          { id: 2, rol: 'BARBERO', administrador: null },
+          { id: 2, rol: 'PERSONAL', administrador: null },
         ),
       ).not.toThrow();
     });
@@ -334,7 +334,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoBarbero(
           actor(3, ['BARBERO']),
-          { id: 4, rol: 'BARBERO' },
+          { id: 4, rol: 'PERSONAL' },
         ),
       ).toThrow(ForbiddenException);
     });
@@ -345,7 +345,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosComision(
           actor(1, ['SUPERADMIN'], NEGOCIO, true),
-          { id: 2, rol: 'BARBERO' },
+          { id: 2, rol: 'PERSONAL' },
         ),
       ).not.toThrow();
     });
@@ -353,7 +353,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosComision(
           actor(1, ['ADMINISTRADOR']),
-          { id: 4, rol: 'BARBERO' },
+          { id: 4, rol: 'PERSONAL' },
         ),
       ).not.toThrow();
     });
@@ -371,7 +371,7 @@ describe('UsuariosAuthorizationService', () => {
       expect(() =>
         service.verificarPermisosComision(
           actor(4, ['BARBERO']),
-          { id: 4, rol: 'BARBERO' },
+          { id: 4, rol: 'PERSONAL' },
         ),
       ).toThrow('No tienes permisos para modificar la comisión');
     });

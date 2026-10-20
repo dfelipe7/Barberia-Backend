@@ -12,10 +12,21 @@ enum EstadoUsuario {
   INACTIVO
 }
 
+/// Identidad global de la persona en la plataforma.
+///
+/// - `SUPERADMIN`: identidad de plataforma. Puede operar en cualquier negocio
+///   mediante la transición explícita `POST /auth/tenant/:slug` (auditada).
+/// - `PERSONAL`: persona de la plataforma sin identidad de plataforma. Sus
+///   roles EFECTIVOS (administrador/barbero) NO se derivan de esta columna,
+///   sino de sus perfiles operativos (`Administrador` / `Barbero`) en el
+///   negocio concreto.
+///
+/// Los antiguos valores `ADMINISTRADOR` y `BARBERO` se migraron a `PERSONAL`
+/// en la Fase 8: describían el modelo de negocio único, no el modelo
+/// multitenant, y ya no se conservaban como fuente autorizante.
 enum RolUsuario {
   SUPERADMIN
-  ADMINISTRADOR
-  BARBERO
+  PERSONAL
 }
 
 /// Estado de un negocio (tenant) dentro de la plataforma.
@@ -36,6 +47,10 @@ enum EstadoNegocio {
 /// `slug` es el identificador PÚBLICO y estable con el que se resuelve el
 /// negocio en cada petición (subdominio o cabecera `X-Negocio-Slug`).
 /// No debe contener información sensible: es visible en URLs y logs.
+///
+/// `onDelete: Restrict`: eliminar un negocio con datos exige una operación
+/// explícita; la vía prevista para "retirar" una barbería es `estado =
+/// INACTIVO`, que conserva el histórico.
 model Negocio {
   id          Int           @id @default(autoincrement())
   slug        String        @unique @db.VarChar(63)
@@ -60,6 +75,15 @@ model Negocio {
   @@map("negocios")
 }
 
+/// Identidad GLOBAL de la persona en la plataforma.
+///
+/// No pertenece a ningún negocio: es la persona. Sus permisos dentro de una
+/// barbería vienen de sus perfiles (`Administrador` / `Barbero`), no de esta
+/// tabla. Por eso las relaciones hacia `Usuario` NO son compuestas: el usuario
+/// es global y solo el PERFIL es por negocio.
+///
+/// Una persona puede tener VARIOS perfiles (uno por barbería en la que
+/// opera): las relaciones con los perfiles son uno-a-muchos.
 model Usuario {
   id         Int           @id @default(autoincrement())
   googleId   String?       @unique
@@ -69,44 +93,58 @@ model Usuario {
   rol        RolUsuario
   estado     EstadoUsuario @default(ACTIVO)
 
-  administrador Administrador?
-  barbero       Barbero?
-  cliente       Cliente?
+  administradores Administrador[]
+  barberos       Barbero[]
+  clientes       Cliente[]
 }
 
+/// Perfil de administrador de un negocio.
+///
+/// `usuarioId` es ÚNICO POR NEGOCIO: la misma persona puede ser administradora
+/// de varias barberías (y de ninguna).
 model Administrador {
   id        Int           @id @default(autoincrement())
-  usuarioId Int           @unique
-  // Negocio al que pertenece el perfil. Anulable durante la fase de
-  // ampliación del esquema; pasa a obligatorio en el endurecimiento final.
-  negocioId Int?
+  usuarioId Int
+  /// Negocio al que pertenece el perfil. OBLIGATORIO: un perfil sin
+  /// negocio no puede existir.
+  negocioId Int
   estado    EstadoUsuario @default(ACTIVO)
 
   usuario Usuario @relation(fields: [usuarioId], references: [id])
-  negocio Negocio? @relation(fields: [negocioId], references: [id], onDelete: SetNull)
+  negocio Negocio @relation(fields: [negocioId], references: [id], onDelete: Restrict)
 
+  @@unique([negocioId, usuarioId])
+  /// Destino de las claves foráneas compuestas: impide que un registro de
+  /// este negocio apunte al perfil de OTRO negocio.
+  @@unique([negocioId, id])
   @@index([negocioId])
 }
 
+/// Perfil de barbero de un negocio.
+///
+/// `usuarioId` es ÚNICO POR NEGOCIO: la misma persona puede ser barbero en
+/// varias barberías (y de ninguna).
 model Barbero {
   id                Int           @id @default(autoincrement())
-  usuarioId         Int           @unique
-  // Negocio al que pertenece el perfil. Anulable durante la fase de
-  // ampliación del esquema; pasa a obligatorio en el endurecimiento final.
-  negocioId         Int?
+  usuarioId         Int
+  /// Negocio al que pertenece el perfil. OBLIGATORIO.
+  negocioId         Int
   telefono          String
   porcentajeComision Decimal       @db.Decimal(5, 2)
   fotoUrl           String?       @db.VarChar(500)
   estado            EstadoUsuario @default(ACTIVO)
 
   usuario   Usuario         @relation(fields: [usuarioId], references: [id])
-  negocio   Negocio?        @relation(fields: [negocioId], references: [id], onDelete: SetNull)
+  negocio   Negocio         @relation(fields: [negocioId], references: [id], onDelete: Restrict)
   servicios BarberoServicio[] // <--- Conexión con la tabla intermedia
 
   weeklySlots  BarberWeeklySlot[]
   blocks       BarberScheduleBlock[]
   reservations Reservation[]
 
+  @@unique([negocioId, usuarioId])
+  /// Destino de las claves foráneas compuestas.
+  @@unique([negocioId, id])
   @@index([negocioId])
 }
 
@@ -115,32 +153,34 @@ model Barbero {
 ///   exige como mínimo nombre y número de contacto, por eso `apellido`/`telefono`
 ///   son opcionales en el modelo, aunque el flujo de invitado valide el teléfono).
 /// - Autenticado con Google (HE-04, Modalidad B): la identidad estable es
-///   `googleId` (el `sub` del ID Token de Google, único cuando existe). El alta es
-///   idempotente por `googleId`, de modo que el mismo cliente no se duplica entre
-///   reservas. `email` se guarda como dato de contacto/consulta, NO como clave de
-///   identidad (no se vincula por coincidencia de correo sin verificación).
-/// - `usuarioId` es un vínculo heredado opcional y único con `Usuario`. La
-///   autenticación de clientes NO depende de él ni crea usuarios de personal; se
-///   conserva por compatibilidad con el historial existente.
+///   el `googleId` (el `sub` del ID Token de Google). Es ÚNICO POR NEGOCIO: la
+///   misma cuenta de Google puede tener fichas independientes (e historiales de
+///   reservas separados) en negocios distintos.
+/// - `usuarioId` es un vínculo heredado opcional, único POR NEGOCIO.
+/// La autenticación de clientes NO depende de él ni crea usuarios de personal; se
+/// conserva por compatibilidad con el historial existente.
 /// `onDelete: SetNull`: borrar un usuario no elimina el historial de reservas.
 model Cliente {
   id        Int     @id @default(autoincrement())
   nombre    String
   apellido  String?
   telefono  String?
-  googleId  String? @unique
+  googleId  String?
   email     String?
-  usuarioId Int?    @unique
-  // Negocio al que pertenece la ficha del cliente. Anulable durante la
-  // ampliación del esquema; pasa a obligatorio en el endurecimiento final.
-  // Permite que una misma identidad de Google tenga fichas independientes
-  // (e historiales de reservas separados) en negocios distintos.
-  negocioId Int?
+  usuarioId Int?
+  /// Negocio al que pertenece la ficha del cliente. OBLIGATORIO.
+  negocioId Int
 
   usuario      Usuario?      @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
-  negocio      Negocio?      @relation(fields: [negocioId], references: [id], onDelete: SetNull)
+  negocio      Negocio       @relation(fields: [negocioId], references: [id], onDelete: Restrict)
   reservations Reservation[]
 
+  /// La misma identidad de Google puede tener una ficha en cada negocio.
+  @@unique([negocioId, googleId])
+  /// El mismo usuario puede tener ficha de cliente en varios negocios.
+  @@unique([negocioId, usuarioId])
+  /// Destino de las claves foráneas compuestas.
+  @@unique([negocioId, id])
   @@index([negocioId])
 }
 
@@ -149,40 +189,48 @@ enum EstadoServicio {
   INACTIVO
 }
 
+/// Servicio del catálogo de un negocio.
+///
+/// `nombre` es ÚNICO POR NEGOCIO: dos barberías pueden tener un servicio
+/// llamado igual, pero un mismo negocio no puede repetirlo.
 model Servicio {
   id              Int            @id @default(autoincrement())
-  nombre          String         @unique @db.VarChar(100)
+  nombre          String         @db.VarChar(100)
   descripcion     String?        @db.Text
   precio          Decimal        @db.Decimal(10, 2)
   duracionMinutos Int            // Fundamental para calcular los bloques de las citas (ej. 30, 45, 60 min)
   fotoUrl         String?        @db.VarChar(500) // Para el catálogo visual de clientes
   estado          EstadoServicio @default(ACTIVO)
-  // Negocio dueño del catálogo y de los precios. Anulable durante la
-  // ampliación del esquema; pasa a obligatorio en el endurecimiento final.
-  negocioId       Int?
+  /// Negocio dueño del catálogo y de los precios. OBLIGATORIO.
+  negocioId       Int
   creadoEn        DateTime       @default(now())
   actualizadoEn   DateTime       @updatedAt
   barberos        BarberoServicio[] // <--- Conexión con la tabla intermedia
   reservations    Reservation[]
 
-  negocio Negocio? @relation(fields: [negocioId], references: [id], onDelete: SetNull)
+  negocio Negocio @relation(fields: [negocioId], references: [id], onDelete: Restrict)
 
+  @@unique([negocioId, nombre])
+  /// Destino de las claves foráneas compuestas.
+  @@unique([negocioId, id])
   @@index([negocioId])
 }
 
 // Tabla intermedia explícita para la relación muchos a muchos
+//
+// Las relaciones son COMPUESTAS: el barbero y el servicio deben pertenecer al
+// MISMO negocio que el vínculo. La base de datos lo impide, no la aplicación.
 model BarberoServicio {
-  barberoId   Int
-  servicioId  Int
-  // Negocio al que pertenece el vínculo barbero-servicio. Anulable durante la
-  // ampliación del esquema; pasa a obligatorio en el endurecimiento final.
-  // Impide vincular en el futuro un barbero de un negocio con un servicio de
-  // otro mediante claves foráneas compuestas.
-  negocioId   Int?
-  creadoEn    DateTime @default(now())
-  barbero     Barbero  @relation(fields: [barberoId], references: [id], onDelete: Cascade)
-  servicio    Servicio @relation(fields: [servicioId], references: [id], onDelete: Cascade)
-  negocio     Negocio? @relation(fields: [negocioId], references: [id], onDelete: SetNull)
+  barberoId  Int
+  servicioId Int
+  /// Negocio al que pertenece el vínculo barbero-servicio. OBLIGATORIO.
+  negocioId  Int
+  creadoEn   DateTime @default(now())
+
+  barbero  Barbero  @relation(fields: [negocioId, barberoId], references: [negocioId, id], onDelete: Cascade)
+  servicio Servicio @relation(fields: [negocioId, servicioId], references: [negocioId, id], onDelete: Cascade)
+  negocio  Negocio  @relation(fields: [negocioId], references: [id], onDelete: Restrict)
+
   @@id([barberoId, servicioId]) // Llave primaria compuesta
   @@index([negocioId])
 }
@@ -223,9 +271,8 @@ enum ScheduleBlockReason {
 model BarberWeeklySlot {
   id        Int      @id @default(autoincrement())
   barberoId Int
-  // Negocio al que pertenece la franja. Anulable durante la ampliación del
-  // esquema; pasa a obligatorio en el endurecimiento final.
-  negocioId Int?
+  /// Negocio al que pertenece la franja. OBLIGATORIO.
+  negocioId Int
   dayOfWeek WeekDay
   startTime String   @db.VarChar(5) // HH:mm
   endTime   String   @db.VarChar(5) // HH:mm
@@ -233,8 +280,10 @@ model BarberWeeklySlot {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  barbero Barbero  @relation(fields: [barberoId], references: [id], onDelete: Cascade)
-  negocio Negocio? @relation(fields: [negocioId], references: [id], onDelete: SetNull)
+  /// Relación COMPUESTA: la franja solo puede apuntar al perfil de barbero del
+  /// mismo negocio.
+  barbero Barbero @relation(fields: [negocioId, barberoId], references: [negocioId, id], onDelete: Cascade)
+  negocio Negocio @relation(fields: [negocioId], references: [id], onDelete: Restrict)
 
   @@unique([barberoId, dayOfWeek, startTime])
   @@index([negocioId])
@@ -248,9 +297,8 @@ model BarberWeeklySlot {
 model BarberScheduleBlock {
   id            Int                  @id @default(autoincrement())
   barberoId     Int
-  // Negocio al que pertenece el bloqueo. Anulable durante la ampliación del
-  // esquema; pasa a obligatorio en el endurecimiento final.
-  negocioId     Int?
+  /// Negocio al que pertenece el bloqueo. OBLIGATORIO.
+  negocioId     Int
   date          DateTime             @db.Date
   startTime     String               @db.VarChar(5) // HH:mm
   endTime       String               @db.VarChar(5) // HH:mm
@@ -262,8 +310,10 @@ model BarberScheduleBlock {
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
 
-  barbero Barbero  @relation(fields: [barberoId], references: [id], onDelete: Cascade)
-  negocio Negocio? @relation(fields: [negocioId], references: [id], onDelete: SetNull)
+  /// Relación COMPUESTA: el bloqueo solo puede apuntar al perfil de barbero del
+  /// mismo negocio.
+  barbero Barbero @relation(fields: [negocioId, barberoId], references: [negocioId, id], onDelete: Cascade)
+  negocio Negocio @relation(fields: [negocioId], references: [id], onDelete: Restrict)
 
   @@index([barberoId, date, status])
   @@index([negocioId])
@@ -276,11 +326,9 @@ model BarberScheduleBlock {
 /// Prisma (no es una restricción portable).
 model GeneralClosure {
   id        Int      @id @default(autoincrement())
-  // Negocio al que aplica el cierre. Anulable durante la ampliación del
-  // esquema; pasa a obligatorio en el endurecimiento final.
-  // Sin negocio, un cierre aplicaría a TODOS los negocios de la plataforma:
-  // por eso el filtro por negocio es obligatorio en las consultas.
-  negocioId Int?
+  /// Negocio al que aplica el cierre. OBLIGATORIO: un cierre sin negocio
+  /// aplicaría a TODOS los negocios de la plataforma.
+  negocioId Int
   date      DateTime @db.Date
   startTime String?  @db.VarChar(5) // HH:mm
   endTime   String?  @db.VarChar(5) // HH:mm
@@ -290,7 +338,7 @@ model GeneralClosure {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  negocio Negocio? @relation(fields: [negocioId], references: [id], onDelete: SetNull)
+  negocio Negocio @relation(fields: [negocioId], references: [id], onDelete: Restrict)
 
   @@index([date, active])
   @@index([negocioId])
@@ -323,8 +371,8 @@ enum ReservationStatus {
 /// HE-08 detecte ocupación de franja. `precioReservado` conserva el precio del
 /// `Servicio` calculado en el servidor al crear la reserva, para que las
 /// consultas de HU-06/HU-07 no cambien si el catálogo sube de precio después.
-/// Queda `NULL` para reservas anteriores a esta migración (no se inventan
-/// snapshots retroactivos). El descuento y la idempotencia siguen fuera hasta
+/// Queda `NULL` para reservas creadas antes de que existiera esta columna (no se
+/// inventan snapshots retroactivos). El descuento y la idempotencia siguen fuera hasta
 /// resolver D-07/D-08. La duración no se persiste: se resuelve del servicio
 /// vigente. El precio y la duración NUNCA se confían al cliente.
 ///
@@ -335,13 +383,17 @@ enum ReservationStatus {
 /// canceladas por franja, pero solo una activa; esto habilita la re-reserva.
 /// `slotActivo` NO se declara aquí porque Prisma no expresa columnas generadas:
 /// se crea en la migración SQL. Prisma Client funciona con o sin ella.
+///
+/// AISLAMIENTO (Fase 8): barbero, servicio y cliente se referencian con
+/// CLAVES FORÁNEAS COMPUESTAS `(negocioId, id)`: la base de datos impide que
+/// una reserva combine entidades de negocios distintos.
 model Reservation {
   id         Int               @id @default(autoincrement())
   barberoId  Int
   servicioId Int
   clienteId  Int
   date       DateTime          @db.Date // fecha de calendario (America/Bogota)
-  dayOfWeek  WeekDay           // derivada de `date`; denormalizada para la consulta semanal
+  dayOfWeek  WeekDay           // derivada de `date`; desnormalizada para la consulta semanal
   startTime  String            @db.VarChar(5) // HH:mm
   endTime    String            @db.VarChar(5) // HH:mm
   status     ReservationStatus @default(PENDING)
@@ -354,9 +406,8 @@ model Reservation {
   gestionTokenHash String?     @db.VarChar(255)
   // Control de recordatorio automático por WhatsApp (2 horas antes)
   recordatorioEnviado Boolean  @default(false)
-  // Negocio al que pertenece la reserva. Anulable durante la ampliación del
-  // esquema; pasa a obligatorio en el endurecimiento final.
-  negocioId  Int?
+  /// Negocio al que pertenece la reserva. OBLIGATORIO.
+  negocioId  Int
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 
@@ -366,10 +417,10 @@ model Reservation {
   // expresión generada solo exista en SQL. Prisma Client la expone como lectura.
   slotActivo Int? @db.TinyInt
 
-  barbero  Barbero  @relation(fields: [barberoId], references: [id], onDelete: Restrict)
-  servicio Servicio @relation(fields: [servicioId], references: [id], onDelete: Restrict)
-  cliente  Cliente  @relation(fields: [clienteId], references: [id], onDelete: Restrict)
-  negocio  Negocio? @relation(fields: [negocioId], references: [id], onDelete: SetNull)
+  barbero  Barbero  @relation(fields: [negocioId, barberoId], references: [negocioId, id], onDelete: Restrict)
+  servicio Servicio @relation(fields: [negocioId, servicioId], references: [negocioId, id], onDelete: Restrict)
+  cliente  Cliente  @relation(fields: [negocioId, clienteId], references: [negocioId, id], onDelete: Restrict)
+  negocio  Negocio @relation(fields: [negocioId], references: [id], onDelete: Restrict)
 
   // Consulta de ocupación por fecha concreta (método 1 del puerto HE-08).
   @@index([barberoId, date, status])
@@ -391,7 +442,7 @@ model Reservation {
 // Plantillas de mensajes dinámicos de WhatsApp
 // ---------------------------------------------------------------------------
 model WhatsAppPlantilla {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(cuid())
   tipo      String   @unique @db.VarChar(50) // CONFIRMACION, RECORDATORIO, CANCELACION, etc.
   mensaje   String   @db.Text
   activo    Boolean  @default(true)
@@ -462,4 +513,3 @@ model ConfiguracionNegocio {
   @@unique([negocioId, clave])
   @@map("configuraciones_negocio")
 }
-

@@ -16,7 +16,6 @@ export class MariaDbConnection {
     readonly clave: string,
     readonly nombreBase: string,
   ) {}
-
   /** URL de conexión a la base de datos de pruebas. */
   get urlBase(): string {
     return `mysql://${this.usuario}:${this.clave}@127.0.0.1:${this.puerto}/${this.nombreBase}`;
@@ -29,12 +28,22 @@ export class MariaDbConnection {
     return resultado.status === 0;
   }
 
-  /** Levanta un contenedor MariaDB nuevo y espera a que acepte conexiones. */
-  static async start(): Promise<MariaDbConnection> {
+  /**
+   * Levanta un contenedor MariaDB nuevo y espera a que acepte conexiones.
+   *
+   * @param opciones `lowerCaseTableNames: false` reproduce el modo de un
+   * servidor Linux (sensibilidad a mayúsculas/minúsculas). El valor por
+   * defecto (`true`) replica el ajuste de la base de datos del proyecto
+   * (MySQL en Windows), donde los nombres de tabla se almacenan en minúsculas.
+   */
+  static async start(
+    opciones: { lowerCaseTableNames?: boolean } = {},
+  ): Promise<MariaDbConnection> {
     const nombre = `barberia-mt-test-${process.pid}-${Date.now()}`;
     const usuario = 'root';
     const clave = 'pruebas123';
     const nombreBase = 'barberia_migracion_test';
+    const lowerCaseTableNames = opciones.lowerCaseTableNames !== false;
 
     // Puerto efímero en el host: se deja que Docker lo asigne.
     //
@@ -43,6 +52,10 @@ export class MariaDbConnection {
     // minúsculas. Es necesario porque el historial de migraciones del
     // proyecto mixture `Administrador` (creación) y `administrador`
     // (ALTER posterior): sin este ajuste, esas sentencias no se resolverían.
+    //
+    // Con `lowerCaseTableNames: false` se reproduce el comportamiento de un
+    // servidor Linux, donde los nombres de tabla NO se normalizan: es el
+    // escenario en el que el historialmixto de mayúsculas/minúsculas falla.
     execFileSync(
       'docker',
       [
@@ -58,7 +71,7 @@ export class MariaDbConnection {
         '--env',
         `MARIADB_DATABASE=${nombreBase}`,
         'mariadb:11',
-        '--lower-case-table-names=1',
+        `--lower-case-table-names=${lowerCaseTableNames ? 1 : 0}`,
       ],
       { stdio: 'pipe' },
     );

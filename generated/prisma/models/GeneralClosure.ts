@@ -218,7 +218,7 @@ export type GeneralClosureGroupByArgs<ExtArgs extends runtime.Types.Extensions.I
 
 export type GeneralClosureGroupByOutputType = {
   id: number
-  negocioId: number | null
+  negocioId: number
   date: Date
   startTime: string | null
   endTime: string | null
@@ -254,7 +254,7 @@ export type GeneralClosureWhereInput = {
   OR?: Prisma.GeneralClosureWhereInput[]
   NOT?: Prisma.GeneralClosureWhereInput | Prisma.GeneralClosureWhereInput[]
   id?: Prisma.IntFilter<"GeneralClosure"> | number
-  negocioId?: Prisma.IntNullableFilter<"GeneralClosure"> | number | null
+  negocioId?: Prisma.IntFilter<"GeneralClosure"> | number
   date?: Prisma.DateTimeFilter<"GeneralClosure"> | Date | string
   startTime?: Prisma.StringNullableFilter<"GeneralClosure"> | string | null
   endTime?: Prisma.StringNullableFilter<"GeneralClosure"> | string | null
@@ -263,12 +263,12 @@ export type GeneralClosureWhereInput = {
   active?: Prisma.BoolFilter<"GeneralClosure"> | boolean
   createdAt?: Prisma.DateTimeFilter<"GeneralClosure"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"GeneralClosure"> | Date | string
-  negocio?: Prisma.XOR<Prisma.NegocioNullableScalarRelationFilter, Prisma.NegocioWhereInput> | null
+  negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
 }
 
 export type GeneralClosureOrderByWithRelationInput = {
   id?: Prisma.SortOrder
-  negocioId?: Prisma.SortOrderInput | Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   date?: Prisma.SortOrder
   startTime?: Prisma.SortOrderInput | Prisma.SortOrder
   endTime?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -286,7 +286,7 @@ export type GeneralClosureWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.GeneralClosureWhereInput | Prisma.GeneralClosureWhereInput[]
   OR?: Prisma.GeneralClosureWhereInput[]
   NOT?: Prisma.GeneralClosureWhereInput | Prisma.GeneralClosureWhereInput[]
-  negocioId?: Prisma.IntNullableFilter<"GeneralClosure"> | number | null
+  negocioId?: Prisma.IntFilter<"GeneralClosure"> | number
   date?: Prisma.DateTimeFilter<"GeneralClosure"> | Date | string
   startTime?: Prisma.StringNullableFilter<"GeneralClosure"> | string | null
   endTime?: Prisma.StringNullableFilter<"GeneralClosure"> | string | null
@@ -295,12 +295,12 @@ export type GeneralClosureWhereUniqueInput = Prisma.AtLeast<{
   active?: Prisma.BoolFilter<"GeneralClosure"> | boolean
   createdAt?: Prisma.DateTimeFilter<"GeneralClosure"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"GeneralClosure"> | Date | string
-  negocio?: Prisma.XOR<Prisma.NegocioNullableScalarRelationFilter, Prisma.NegocioWhereInput> | null
+  negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
 }, "id">
 
 export type GeneralClosureOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
-  negocioId?: Prisma.SortOrderInput | Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   date?: Prisma.SortOrder
   startTime?: Prisma.SortOrderInput | Prisma.SortOrder
   endTime?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -321,7 +321,7 @@ export type GeneralClosureScalarWhereWithAggregatesInput = {
   OR?: Prisma.GeneralClosureScalarWhereWithAggregatesInput[]
   NOT?: Prisma.GeneralClosureScalarWhereWithAggregatesInput | Prisma.GeneralClosureScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"GeneralClosure"> | number
-  negocioId?: Prisma.IntNullableWithAggregatesFilter<"GeneralClosure"> | number | null
+  negocioId?: Prisma.IntWithAggregatesFilter<"GeneralClosure"> | number
   date?: Prisma.DateTimeWithAggregatesFilter<"GeneralClosure"> | Date | string
   startTime?: Prisma.StringNullableWithAggregatesFilter<"GeneralClosure"> | string | null
   endTime?: Prisma.StringNullableWithAggregatesFilter<"GeneralClosure"> | string | null
@@ -341,12 +341,12 @@ export type GeneralClosureCreateInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
-  negocio?: Prisma.NegocioCreateNestedOneWithoutCierresGeneralesInput
+  negocio: Prisma.NegocioCreateNestedOneWithoutCierresGeneralesInput
 }
 
 export type GeneralClosureUncheckedCreateInput = {
   id?: number
-  negocioId?: number | null
+  negocioId: number
   date: Date | string
   startTime?: string | null
   endTime?: string | null
@@ -366,12 +366,12 @@ export type GeneralClosureUpdateInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  negocio?: Prisma.NegocioUpdateOneWithoutCierresGeneralesNestedInput
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutCierresGeneralesNestedInput
 }
 
 export type GeneralClosureUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
-  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   endTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -384,7 +384,7 @@ export type GeneralClosureUncheckedUpdateInput = {
 
 export type GeneralClosureCreateManyInput = {
   id?: number
-  negocioId?: number | null
+  negocioId: number
   date: Date | string
   startTime?: string | null
   endTime?: string | null
@@ -408,7 +408,7 @@ export type GeneralClosureUpdateManyMutationInput = {
 
 export type GeneralClosureUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
-  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   endTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -580,7 +580,7 @@ export type GeneralClosureScalarWhereInput = {
   OR?: Prisma.GeneralClosureScalarWhereInput[]
   NOT?: Prisma.GeneralClosureScalarWhereInput | Prisma.GeneralClosureScalarWhereInput[]
   id?: Prisma.IntFilter<"GeneralClosure"> | number
-  negocioId?: Prisma.IntNullableFilter<"GeneralClosure"> | number | null
+  negocioId?: Prisma.IntFilter<"GeneralClosure"> | number
   date?: Prisma.DateTimeFilter<"GeneralClosure"> | Date | string
   startTime?: Prisma.StringNullableFilter<"GeneralClosure"> | string | null
   endTime?: Prisma.StringNullableFilter<"GeneralClosure"> | string | null
@@ -651,7 +651,7 @@ export type GeneralClosureSelect<ExtArgs extends runtime.Types.Extensions.Intern
   active?: boolean
   createdAt?: boolean
   updatedAt?: boolean
-  negocio?: boolean | Prisma.GeneralClosure$negocioArgs<ExtArgs>
+  negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["generalClosure"]>
 
 
@@ -671,17 +671,21 @@ export type GeneralClosureSelectScalar = {
 
 export type GeneralClosureOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "negocioId" | "date" | "startTime" | "endTime" | "allDay" | "reason" | "active" | "createdAt" | "updatedAt", ExtArgs["result"]["generalClosure"]>
 export type GeneralClosureInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  negocio?: boolean | Prisma.GeneralClosure$negocioArgs<ExtArgs>
+  negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
 }
 
 export type $GeneralClosurePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "GeneralClosure"
   objects: {
-    negocio: Prisma.$NegocioPayload<ExtArgs> | null
+    negocio: Prisma.$NegocioPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
-    negocioId: number | null
+    /**
+     * Negocio al que aplica el cierre. OBLIGATORIO: un cierre sin negocio
+     * aplicaría a TODOS los negocios de la plataforma.
+     */
+    negocioId: number
     date: Date
     startTime: string | null
     endTime: string | null
@@ -1030,7 +1034,7 @@ readonly fields: GeneralClosureFieldRefs;
  */
 export interface Prisma__GeneralClosureClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
-  negocio<T extends Prisma.GeneralClosure$negocioArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.GeneralClosure$negocioArgs<ExtArgs>>): Prisma.Prisma__NegocioClient<runtime.Types.Result.GetResult<Prisma.$NegocioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  negocio<T extends Prisma.NegocioDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NegocioDefaultArgs<ExtArgs>>): Prisma.Prisma__NegocioClient<runtime.Types.Result.GetResult<Prisma.$NegocioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1415,25 +1419,6 @@ export type GeneralClosureDeleteManyArgs<ExtArgs extends runtime.Types.Extension
    * Limit how many GeneralClosures to delete.
    */
   limit?: number
-}
-
-/**
- * GeneralClosure.negocio
- */
-export type GeneralClosure$negocioArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the Negocio
-   */
-  select?: Prisma.NegocioSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the Negocio
-   */
-  omit?: Prisma.NegocioOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.NegocioInclude<ExtArgs> | null
-  where?: Prisma.NegocioWhereInput
 }
 
 /**

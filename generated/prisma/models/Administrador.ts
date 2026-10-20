@@ -14,7 +14,10 @@ import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model Administrador
+ * Perfil de administrador de un negocio.
  * 
+ * `usuarioId` es ÚNICO POR NEGOCIO: la misma persona puede ser administradora
+ * de varias barberías (y de ninguna).
  */
 export type AdministradorModel = runtime.Types.Result.DefaultSelection<Prisma.$AdministradorPayload>
 
@@ -184,7 +187,7 @@ export type AdministradorGroupByArgs<ExtArgs extends runtime.Types.Extensions.In
 export type AdministradorGroupByOutputType = {
   id: number
   usuarioId: number
-  negocioId: number | null
+  negocioId: number
   estado: $Enums.EstadoUsuario
   _count: AdministradorCountAggregateOutputType | null
   _avg: AdministradorAvgAggregateOutputType | null
@@ -214,16 +217,16 @@ export type AdministradorWhereInput = {
   NOT?: Prisma.AdministradorWhereInput | Prisma.AdministradorWhereInput[]
   id?: Prisma.IntFilter<"Administrador"> | number
   usuarioId?: Prisma.IntFilter<"Administrador"> | number
-  negocioId?: Prisma.IntNullableFilter<"Administrador"> | number | null
+  negocioId?: Prisma.IntFilter<"Administrador"> | number
   estado?: Prisma.EnumEstadoUsuarioFilter<"Administrador"> | $Enums.EstadoUsuario
   usuario?: Prisma.XOR<Prisma.UsuarioScalarRelationFilter, Prisma.UsuarioWhereInput>
-  negocio?: Prisma.XOR<Prisma.NegocioNullableScalarRelationFilter, Prisma.NegocioWhereInput> | null
+  negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
 }
 
 export type AdministradorOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
-  negocioId?: Prisma.SortOrderInput | Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   estado?: Prisma.SortOrder
   usuario?: Prisma.UsuarioOrderByWithRelationInput
   negocio?: Prisma.NegocioOrderByWithRelationInput
@@ -231,20 +234,22 @@ export type AdministradorOrderByWithRelationInput = {
 
 export type AdministradorWhereUniqueInput = Prisma.AtLeast<{
   id?: number
-  usuarioId?: number
+  negocioId_usuarioId?: Prisma.AdministradorNegocioIdUsuarioIdCompoundUniqueInput
+  negocioId_id?: Prisma.AdministradorNegocioIdIdCompoundUniqueInput
   AND?: Prisma.AdministradorWhereInput | Prisma.AdministradorWhereInput[]
   OR?: Prisma.AdministradorWhereInput[]
   NOT?: Prisma.AdministradorWhereInput | Prisma.AdministradorWhereInput[]
-  negocioId?: Prisma.IntNullableFilter<"Administrador"> | number | null
+  usuarioId?: Prisma.IntFilter<"Administrador"> | number
+  negocioId?: Prisma.IntFilter<"Administrador"> | number
   estado?: Prisma.EnumEstadoUsuarioFilter<"Administrador"> | $Enums.EstadoUsuario
   usuario?: Prisma.XOR<Prisma.UsuarioScalarRelationFilter, Prisma.UsuarioWhereInput>
-  negocio?: Prisma.XOR<Prisma.NegocioNullableScalarRelationFilter, Prisma.NegocioWhereInput> | null
-}, "id" | "usuarioId">
+  negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
+}, "id" | "negocioId_usuarioId" | "negocioId_id">
 
 export type AdministradorOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
-  negocioId?: Prisma.SortOrderInput | Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   estado?: Prisma.SortOrder
   _count?: Prisma.AdministradorCountOrderByAggregateInput
   _avg?: Prisma.AdministradorAvgOrderByAggregateInput
@@ -259,40 +264,40 @@ export type AdministradorScalarWhereWithAggregatesInput = {
   NOT?: Prisma.AdministradorScalarWhereWithAggregatesInput | Prisma.AdministradorScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"Administrador"> | number
   usuarioId?: Prisma.IntWithAggregatesFilter<"Administrador"> | number
-  negocioId?: Prisma.IntNullableWithAggregatesFilter<"Administrador"> | number | null
+  negocioId?: Prisma.IntWithAggregatesFilter<"Administrador"> | number
   estado?: Prisma.EnumEstadoUsuarioWithAggregatesFilter<"Administrador"> | $Enums.EstadoUsuario
 }
 
 export type AdministradorCreateInput = {
   estado?: $Enums.EstadoUsuario
-  usuario: Prisma.UsuarioCreateNestedOneWithoutAdministradorInput
-  negocio?: Prisma.NegocioCreateNestedOneWithoutAdministradoresInput
+  usuario: Prisma.UsuarioCreateNestedOneWithoutAdministradoresInput
+  negocio: Prisma.NegocioCreateNestedOneWithoutAdministradoresInput
 }
 
 export type AdministradorUncheckedCreateInput = {
   id?: number
   usuarioId: number
-  negocioId?: number | null
+  negocioId: number
   estado?: $Enums.EstadoUsuario
 }
 
 export type AdministradorUpdateInput = {
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
-  usuario?: Prisma.UsuarioUpdateOneRequiredWithoutAdministradorNestedInput
-  negocio?: Prisma.NegocioUpdateOneWithoutAdministradoresNestedInput
+  usuario?: Prisma.UsuarioUpdateOneRequiredWithoutAdministradoresNestedInput
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutAdministradoresNestedInput
 }
 
 export type AdministradorUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
-  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
 }
 
 export type AdministradorCreateManyInput = {
   id?: number
   usuarioId: number
-  negocioId?: number | null
+  negocioId: number
   estado?: $Enums.EstadoUsuario
 }
 
@@ -303,7 +308,7 @@ export type AdministradorUpdateManyMutationInput = {
 export type AdministradorUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
-  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
 }
 
@@ -317,9 +322,14 @@ export type AdministradorOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
-export type AdministradorNullableScalarRelationFilter = {
-  is?: Prisma.AdministradorWhereInput | null
-  isNot?: Prisma.AdministradorWhereInput | null
+export type AdministradorNegocioIdUsuarioIdCompoundUniqueInput = {
+  negocioId: number
+  usuarioId: number
+}
+
+export type AdministradorNegocioIdIdCompoundUniqueInput = {
+  negocioId: number
+  id: number
 }
 
 export type AdministradorCountOrderByAggregateInput = {
@@ -397,49 +407,51 @@ export type AdministradorUncheckedUpdateManyWithoutNegocioNestedInput = {
   deleteMany?: Prisma.AdministradorScalarWhereInput | Prisma.AdministradorScalarWhereInput[]
 }
 
-export type AdministradorCreateNestedOneWithoutUsuarioInput = {
-  create?: Prisma.XOR<Prisma.AdministradorCreateWithoutUsuarioInput, Prisma.AdministradorUncheckedCreateWithoutUsuarioInput>
-  connectOrCreate?: Prisma.AdministradorCreateOrConnectWithoutUsuarioInput
-  connect?: Prisma.AdministradorWhereUniqueInput
+export type AdministradorCreateNestedManyWithoutUsuarioInput = {
+  create?: Prisma.XOR<Prisma.AdministradorCreateWithoutUsuarioInput, Prisma.AdministradorUncheckedCreateWithoutUsuarioInput> | Prisma.AdministradorCreateWithoutUsuarioInput[] | Prisma.AdministradorUncheckedCreateWithoutUsuarioInput[]
+  connectOrCreate?: Prisma.AdministradorCreateOrConnectWithoutUsuarioInput | Prisma.AdministradorCreateOrConnectWithoutUsuarioInput[]
+  createMany?: Prisma.AdministradorCreateManyUsuarioInputEnvelope
+  connect?: Prisma.AdministradorWhereUniqueInput | Prisma.AdministradorWhereUniqueInput[]
 }
 
-export type AdministradorUncheckedCreateNestedOneWithoutUsuarioInput = {
-  create?: Prisma.XOR<Prisma.AdministradorCreateWithoutUsuarioInput, Prisma.AdministradorUncheckedCreateWithoutUsuarioInput>
-  connectOrCreate?: Prisma.AdministradorCreateOrConnectWithoutUsuarioInput
-  connect?: Prisma.AdministradorWhereUniqueInput
+export type AdministradorUncheckedCreateNestedManyWithoutUsuarioInput = {
+  create?: Prisma.XOR<Prisma.AdministradorCreateWithoutUsuarioInput, Prisma.AdministradorUncheckedCreateWithoutUsuarioInput> | Prisma.AdministradorCreateWithoutUsuarioInput[] | Prisma.AdministradorUncheckedCreateWithoutUsuarioInput[]
+  connectOrCreate?: Prisma.AdministradorCreateOrConnectWithoutUsuarioInput | Prisma.AdministradorCreateOrConnectWithoutUsuarioInput[]
+  createMany?: Prisma.AdministradorCreateManyUsuarioInputEnvelope
+  connect?: Prisma.AdministradorWhereUniqueInput | Prisma.AdministradorWhereUniqueInput[]
 }
 
-export type AdministradorUpdateOneWithoutUsuarioNestedInput = {
-  create?: Prisma.XOR<Prisma.AdministradorCreateWithoutUsuarioInput, Prisma.AdministradorUncheckedCreateWithoutUsuarioInput>
-  connectOrCreate?: Prisma.AdministradorCreateOrConnectWithoutUsuarioInput
-  upsert?: Prisma.AdministradorUpsertWithoutUsuarioInput
-  disconnect?: Prisma.AdministradorWhereInput | boolean
-  delete?: Prisma.AdministradorWhereInput | boolean
-  connect?: Prisma.AdministradorWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.AdministradorUpdateToOneWithWhereWithoutUsuarioInput, Prisma.AdministradorUpdateWithoutUsuarioInput>, Prisma.AdministradorUncheckedUpdateWithoutUsuarioInput>
+export type AdministradorUpdateManyWithoutUsuarioNestedInput = {
+  create?: Prisma.XOR<Prisma.AdministradorCreateWithoutUsuarioInput, Prisma.AdministradorUncheckedCreateWithoutUsuarioInput> | Prisma.AdministradorCreateWithoutUsuarioInput[] | Prisma.AdministradorUncheckedCreateWithoutUsuarioInput[]
+  connectOrCreate?: Prisma.AdministradorCreateOrConnectWithoutUsuarioInput | Prisma.AdministradorCreateOrConnectWithoutUsuarioInput[]
+  upsert?: Prisma.AdministradorUpsertWithWhereUniqueWithoutUsuarioInput | Prisma.AdministradorUpsertWithWhereUniqueWithoutUsuarioInput[]
+  createMany?: Prisma.AdministradorCreateManyUsuarioInputEnvelope
+  set?: Prisma.AdministradorWhereUniqueInput | Prisma.AdministradorWhereUniqueInput[]
+  disconnect?: Prisma.AdministradorWhereUniqueInput | Prisma.AdministradorWhereUniqueInput[]
+  delete?: Prisma.AdministradorWhereUniqueInput | Prisma.AdministradorWhereUniqueInput[]
+  connect?: Prisma.AdministradorWhereUniqueInput | Prisma.AdministradorWhereUniqueInput[]
+  update?: Prisma.AdministradorUpdateWithWhereUniqueWithoutUsuarioInput | Prisma.AdministradorUpdateWithWhereUniqueWithoutUsuarioInput[]
+  updateMany?: Prisma.AdministradorUpdateManyWithWhereWithoutUsuarioInput | Prisma.AdministradorUpdateManyWithWhereWithoutUsuarioInput[]
+  deleteMany?: Prisma.AdministradorScalarWhereInput | Prisma.AdministradorScalarWhereInput[]
 }
 
-export type AdministradorUncheckedUpdateOneWithoutUsuarioNestedInput = {
-  create?: Prisma.XOR<Prisma.AdministradorCreateWithoutUsuarioInput, Prisma.AdministradorUncheckedCreateWithoutUsuarioInput>
-  connectOrCreate?: Prisma.AdministradorCreateOrConnectWithoutUsuarioInput
-  upsert?: Prisma.AdministradorUpsertWithoutUsuarioInput
-  disconnect?: Prisma.AdministradorWhereInput | boolean
-  delete?: Prisma.AdministradorWhereInput | boolean
-  connect?: Prisma.AdministradorWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.AdministradorUpdateToOneWithWhereWithoutUsuarioInput, Prisma.AdministradorUpdateWithoutUsuarioInput>, Prisma.AdministradorUncheckedUpdateWithoutUsuarioInput>
-}
-
-export type NullableIntFieldUpdateOperationsInput = {
-  set?: number | null
-  increment?: number
-  decrement?: number
-  multiply?: number
-  divide?: number
+export type AdministradorUncheckedUpdateManyWithoutUsuarioNestedInput = {
+  create?: Prisma.XOR<Prisma.AdministradorCreateWithoutUsuarioInput, Prisma.AdministradorUncheckedCreateWithoutUsuarioInput> | Prisma.AdministradorCreateWithoutUsuarioInput[] | Prisma.AdministradorUncheckedCreateWithoutUsuarioInput[]
+  connectOrCreate?: Prisma.AdministradorCreateOrConnectWithoutUsuarioInput | Prisma.AdministradorCreateOrConnectWithoutUsuarioInput[]
+  upsert?: Prisma.AdministradorUpsertWithWhereUniqueWithoutUsuarioInput | Prisma.AdministradorUpsertWithWhereUniqueWithoutUsuarioInput[]
+  createMany?: Prisma.AdministradorCreateManyUsuarioInputEnvelope
+  set?: Prisma.AdministradorWhereUniqueInput | Prisma.AdministradorWhereUniqueInput[]
+  disconnect?: Prisma.AdministradorWhereUniqueInput | Prisma.AdministradorWhereUniqueInput[]
+  delete?: Prisma.AdministradorWhereUniqueInput | Prisma.AdministradorWhereUniqueInput[]
+  connect?: Prisma.AdministradorWhereUniqueInput | Prisma.AdministradorWhereUniqueInput[]
+  update?: Prisma.AdministradorUpdateWithWhereUniqueWithoutUsuarioInput | Prisma.AdministradorUpdateWithWhereUniqueWithoutUsuarioInput[]
+  updateMany?: Prisma.AdministradorUpdateManyWithWhereWithoutUsuarioInput | Prisma.AdministradorUpdateManyWithWhereWithoutUsuarioInput[]
+  deleteMany?: Prisma.AdministradorScalarWhereInput | Prisma.AdministradorScalarWhereInput[]
 }
 
 export type AdministradorCreateWithoutNegocioInput = {
   estado?: $Enums.EstadoUsuario
-  usuario: Prisma.UsuarioCreateNestedOneWithoutAdministradorInput
+  usuario: Prisma.UsuarioCreateNestedOneWithoutAdministradoresInput
 }
 
 export type AdministradorUncheckedCreateWithoutNegocioInput = {
@@ -480,18 +492,18 @@ export type AdministradorScalarWhereInput = {
   NOT?: Prisma.AdministradorScalarWhereInput | Prisma.AdministradorScalarWhereInput[]
   id?: Prisma.IntFilter<"Administrador"> | number
   usuarioId?: Prisma.IntFilter<"Administrador"> | number
-  negocioId?: Prisma.IntNullableFilter<"Administrador"> | number | null
+  negocioId?: Prisma.IntFilter<"Administrador"> | number
   estado?: Prisma.EnumEstadoUsuarioFilter<"Administrador"> | $Enums.EstadoUsuario
 }
 
 export type AdministradorCreateWithoutUsuarioInput = {
   estado?: $Enums.EstadoUsuario
-  negocio?: Prisma.NegocioCreateNestedOneWithoutAdministradoresInput
+  negocio: Prisma.NegocioCreateNestedOneWithoutAdministradoresInput
 }
 
 export type AdministradorUncheckedCreateWithoutUsuarioInput = {
   id?: number
-  negocioId?: number | null
+  negocioId: number
   estado?: $Enums.EstadoUsuario
 }
 
@@ -500,26 +512,25 @@ export type AdministradorCreateOrConnectWithoutUsuarioInput = {
   create: Prisma.XOR<Prisma.AdministradorCreateWithoutUsuarioInput, Prisma.AdministradorUncheckedCreateWithoutUsuarioInput>
 }
 
-export type AdministradorUpsertWithoutUsuarioInput = {
-  update: Prisma.XOR<Prisma.AdministradorUpdateWithoutUsuarioInput, Prisma.AdministradorUncheckedUpdateWithoutUsuarioInput>
-  create: Prisma.XOR<Prisma.AdministradorCreateWithoutUsuarioInput, Prisma.AdministradorUncheckedCreateWithoutUsuarioInput>
-  where?: Prisma.AdministradorWhereInput
+export type AdministradorCreateManyUsuarioInputEnvelope = {
+  data: Prisma.AdministradorCreateManyUsuarioInput | Prisma.AdministradorCreateManyUsuarioInput[]
+  skipDuplicates?: boolean
 }
 
-export type AdministradorUpdateToOneWithWhereWithoutUsuarioInput = {
-  where?: Prisma.AdministradorWhereInput
+export type AdministradorUpsertWithWhereUniqueWithoutUsuarioInput = {
+  where: Prisma.AdministradorWhereUniqueInput
+  update: Prisma.XOR<Prisma.AdministradorUpdateWithoutUsuarioInput, Prisma.AdministradorUncheckedUpdateWithoutUsuarioInput>
+  create: Prisma.XOR<Prisma.AdministradorCreateWithoutUsuarioInput, Prisma.AdministradorUncheckedCreateWithoutUsuarioInput>
+}
+
+export type AdministradorUpdateWithWhereUniqueWithoutUsuarioInput = {
+  where: Prisma.AdministradorWhereUniqueInput
   data: Prisma.XOR<Prisma.AdministradorUpdateWithoutUsuarioInput, Prisma.AdministradorUncheckedUpdateWithoutUsuarioInput>
 }
 
-export type AdministradorUpdateWithoutUsuarioInput = {
-  estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
-  negocio?: Prisma.NegocioUpdateOneWithoutAdministradoresNestedInput
-}
-
-export type AdministradorUncheckedUpdateWithoutUsuarioInput = {
-  id?: Prisma.IntFieldUpdateOperationsInput | number
-  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
-  estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+export type AdministradorUpdateManyWithWhereWithoutUsuarioInput = {
+  where: Prisma.AdministradorScalarWhereInput
+  data: Prisma.XOR<Prisma.AdministradorUpdateManyMutationInput, Prisma.AdministradorUncheckedUpdateManyWithoutUsuarioInput>
 }
 
 export type AdministradorCreateManyNegocioInput = {
@@ -530,7 +541,7 @@ export type AdministradorCreateManyNegocioInput = {
 
 export type AdministradorUpdateWithoutNegocioInput = {
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
-  usuario?: Prisma.UsuarioUpdateOneRequiredWithoutAdministradorNestedInput
+  usuario?: Prisma.UsuarioUpdateOneRequiredWithoutAdministradoresNestedInput
 }
 
 export type AdministradorUncheckedUpdateWithoutNegocioInput = {
@@ -545,6 +556,29 @@ export type AdministradorUncheckedUpdateManyWithoutNegocioInput = {
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
 }
 
+export type AdministradorCreateManyUsuarioInput = {
+  id?: number
+  negocioId: number
+  estado?: $Enums.EstadoUsuario
+}
+
+export type AdministradorUpdateWithoutUsuarioInput = {
+  estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutAdministradoresNestedInput
+}
+
+export type AdministradorUncheckedUpdateWithoutUsuarioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
+  estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+}
+
+export type AdministradorUncheckedUpdateManyWithoutUsuarioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
+  estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+}
+
 
 
 export type AdministradorSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -553,7 +587,7 @@ export type AdministradorSelect<ExtArgs extends runtime.Types.Extensions.Interna
   negocioId?: boolean
   estado?: boolean
   usuario?: boolean | Prisma.UsuarioDefaultArgs<ExtArgs>
-  negocio?: boolean | Prisma.Administrador$negocioArgs<ExtArgs>
+  negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["administrador"]>
 
 
@@ -568,19 +602,23 @@ export type AdministradorSelectScalar = {
 export type AdministradorOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "usuarioId" | "negocioId" | "estado", ExtArgs["result"]["administrador"]>
 export type AdministradorInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   usuario?: boolean | Prisma.UsuarioDefaultArgs<ExtArgs>
-  negocio?: boolean | Prisma.Administrador$negocioArgs<ExtArgs>
+  negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
 }
 
 export type $AdministradorPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Administrador"
   objects: {
     usuario: Prisma.$UsuarioPayload<ExtArgs>
-    negocio: Prisma.$NegocioPayload<ExtArgs> | null
+    negocio: Prisma.$NegocioPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
     usuarioId: number
-    negocioId: number | null
+    /**
+     * Negocio al que pertenece el perfil. OBLIGATORIO: un perfil sin
+     * negocio no puede existir.
+     */
+    negocioId: number
     estado: $Enums.EstadoUsuario
   }, ExtArgs["result"]["administrador"]>
   composites: {}
@@ -923,7 +961,7 @@ readonly fields: AdministradorFieldRefs;
 export interface Prisma__AdministradorClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   usuario<T extends Prisma.UsuarioDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UsuarioDefaultArgs<ExtArgs>>): Prisma.Prisma__UsuarioClient<runtime.Types.Result.GetResult<Prisma.$UsuarioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-  negocio<T extends Prisma.Administrador$negocioArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Administrador$negocioArgs<ExtArgs>>): Prisma.Prisma__NegocioClient<runtime.Types.Result.GetResult<Prisma.$NegocioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  negocio<T extends Prisma.NegocioDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NegocioDefaultArgs<ExtArgs>>): Prisma.Prisma__NegocioClient<runtime.Types.Result.GetResult<Prisma.$NegocioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1302,25 +1340,6 @@ export type AdministradorDeleteManyArgs<ExtArgs extends runtime.Types.Extensions
    * Limit how many Administradors to delete.
    */
   limit?: number
-}
-
-/**
- * Administrador.negocio
- */
-export type Administrador$negocioArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the Negocio
-   */
-  select?: Prisma.NegocioSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the Negocio
-   */
-  omit?: Prisma.NegocioOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.NegocioInclude<ExtArgs> | null
-  where?: Prisma.NegocioWhereInput
 }
 
 /**

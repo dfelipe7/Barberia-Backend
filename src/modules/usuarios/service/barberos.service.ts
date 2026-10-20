@@ -14,6 +14,7 @@ import { BarberoGestionDto } from '../dto/dto-respuesta/barbero-gestion.dto';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { construirActorSesion } from '../../../auth/sesion/sesion-personal';
+import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 
 @Injectable()
 export class BarberosService {
@@ -24,11 +25,47 @@ export class BarberosService {
     private readonly usuariosRepository: UsuariosRepository,
     private readonly authorizationService: UsuariosAuthorizationService,
     private readonly prisma: PrismaService,
+    private readonly aislamiento: NegocioAislamientoService,
   ) {}
 
   /**
+   * Perfil de BARBERO de la persona en el NEGOCIO ACTIVO.
+   *
+   * Una persona puede ser barbero en varias barberías (el perfil es único por
+   * negocio), así que el perfil que cuenta es SIEMPRE el de la barbería de la
+   * petición. Las relaciones cargadas por Prisma no las filtra la extensión de
+   * aislamiento, de modo que el filtro se aplica aquí de forma explícita.
+   */
+  private perfilBarberoEnNegocio(usuario: any) {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+
+    return (
+      (usuario?.barberos ?? []).find(
+        (perfil: any) => perfil.negocioId === negocioId,
+      ) ?? null
+    );
+  }
+
+  /**
+   * Perfil de ADMINISTRADOR de la persona en el NEGOCIO ACTIVO.
+   *
+   * Mismo criterio que `perfilBarberoEnNegocio`: una persona puede ser
+   * administradora de varias barberías.
+   */
+  private perfilAdministradorEnNegocio(usuario: any) {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+
+    return (
+      (usuario?.administradores ?? []).find(
+        (perfil: any) => perfil.negocioId === negocioId,
+      ) ?? null
+    );
+  }
+
+  /**
    * Crea un nuevo empleado barbero desde cero.
-   * Crea el usuario en MySQL con rol BARBERO y su perfil asociado.
+   * Crea el usuario en MySQL con rol PERSONAL y su perfil asociado en el
+   * negocio activo.
    */
   async crearBarbero(dto: CrearBarberoDto) {
     const usuarioExistente =
@@ -46,7 +83,9 @@ export class BarberosService {
             email: dto.email,
             nombre: dto.nombre,
             apellido: dto.apellido,
-            rol: 'BARBERO',
+            // El rol global ya no distingue administrador de barbero: los
+            // roles efectivos se derivan del perfil del negocio.
+            rol: 'PERSONAL',
           },
         });
 
@@ -56,6 +95,7 @@ export class BarberosService {
             telefono: dto.telefono,
             porcentajeComision: dto.porcentajeComision,
             fotoUrl: dto.fotoUrl,
+            negocioId: this.aislamiento.negocioIdRequerido(),
           },
         });
       });
@@ -110,8 +150,10 @@ export class BarberosService {
       throw new ConflictException('El usuario no existe');
     }
 
-    if (usuario.barbero) {
-      if ((usuario.barbero as any).estado === 'ACTIVO') {
+    const perfilBarbero = this.perfilBarberoEnNegocio(usuario);
+
+    if (perfilBarbero) {
+      if (perfilBarbero.estado === 'ACTIVO') {
         throw new ConflictException(
           'El usuario ya está configurado como barbero',
         );
@@ -146,8 +188,10 @@ export class BarberosService {
       throw new ConflictException('El usuario no existe');
     }
 
-    if (usuario.barbero) {
-      if ((usuario.barbero as any).estado === 'ACTIVO') {
+    const perfilBarbero = this.perfilBarberoEnNegocio(usuario);
+
+    if (perfilBarbero) {
+      if (perfilBarbero.estado === 'ACTIVO') {
         throw new ConflictException(
           'El usuario ya está configurado como barbero',
         );
@@ -164,7 +208,10 @@ export class BarberosService {
       }
     }
 
-    if (!usuario.administrador && usuario.rol !== 'SUPERADMIN') {
+    if (
+      !this.perfilAdministradorEnNegocio(usuario) &&
+      usuario.rol !== 'SUPERADMIN'
+    ) {
       throw new ConflictException(
         'El usuario no es un administrador ni superadmin',
       );
@@ -192,7 +239,7 @@ export class BarberosService {
       throw new ConflictException('El usuario no existe');
     }
 
-    if (!usuario.barbero) {
+    if (!this.perfilBarberoEnNegocio(usuario)) {
       throw new ConflictException('El usuario no es un barbero');
     }
 
@@ -220,7 +267,7 @@ export class BarberosService {
    *
    * El `id` devuelto es el `Barbero.id` (NO el `Usuario.id`): es la clave que
    * consumen la disponibilidad y la reserva, de modo que el cliente puede
-   * encadenar catálogo → disponibilidad → reserva sin traducir identificadores.
+   * encadenar catálogo â†’ disponibilidad â†’ reserva sin traducir identificadores.
    */
   async obtenerBarberosCatalogo(
     filtro?: FiltroBarberosDto,
@@ -263,13 +310,13 @@ export class BarberosService {
       estado: barbero.estado,
       fotoUrl: barbero.fotoUrl,
       esAdministrador: Boolean(
-        barbero.usuario.administrador &&
-        (barbero.usuario.administrador as any).estado === 'ACTIVO',
+        this.perfilAdministradorEnNegocio(barbero.usuario) &&
+        this.perfilAdministradorEnNegocio(barbero.usuario)?.estado === 'ACTIVO',
       ),
       esSuperAdmin: barbero.usuario.rol === 'SUPERADMIN',
-      estadoAdmin: barbero.usuario.administrador
-        ? (barbero.usuario.administrador as any).estado
-        : undefined,
+      estadoAdmin: this.perfilAdministradorEnNegocio(barbero.usuario)?.estado,
+      // El rol global ya no distingue administrador de barbero: los roles
+      // efectivos se derivan de los perfiles del negocio.
       estadoGlobal: barbero.usuario.estado,
     }));
   }
@@ -415,7 +462,7 @@ export class BarberosService {
       throw new ConflictException('El usuario no existe');
     }
 
-    if (!usuario.barbero) {
+    if (!this.perfilBarberoEnNegocio(usuario)) {
       throw new ConflictException('El usuario no es un barbero');
     }
 
@@ -438,8 +485,8 @@ export class BarberosService {
 
     if (!activo) {
       const esAdminActivo =
-        usuario.administrador?.estado === EstadoUsuario.ACTIVO ||
-        usuario.rol === 'ADMINISTRADOR';
+        this.perfilAdministradorEnNegocio(usuario)?.estado ===
+        EstadoUsuario.ACTIVO;
       const esSuperAdmin = usuario.rol === 'SUPERADMIN';
       if (!esSuperAdmin && !esAdminActivo) {
         await this.usuariosRepository.actualizarEstadoUsuario(

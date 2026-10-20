@@ -9,12 +9,12 @@
 
 */
 -- AlterTable
-ALTER TABLE `administrador` DROP COLUMN `nombre`;
+ALTER TABLE `Administrador` DROP COLUMN `nombre`;
 
 -- AlterTable
-ALTER TABLE `barbero` DROP COLUMN `apellido`,
+ALTER TABLE `Barbero` DROP COLUMN `apellido`,
     DROP COLUMN `nombre`;
 
 -- AlterTable
-ALTER TABLE `usuario` ADD COLUMN `apellido` VARCHAR(191) NOT NULL,
+ALTER TABLE `Usuario` ADD COLUMN `apellido` VARCHAR(191) NOT NULL,
     ADD COLUMN `nombre` VARCHAR(191) NOT NULL;

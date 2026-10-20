@@ -22,9 +22,9 @@ const NEGOCIO_ACTIVO = 1;
  * el aislamiento puede inyectarlo (`where`, `data` y los `data.create` /
  * `data.update` del upsert).
  */
-const sinNegocio = (valor: unknown): unknown => {
+const sinNegocio = (valor: unknown, conservar = false): unknown => {
   if (Array.isArray(valor)) {
-    return valor.map(sinNegocio);
+    return valor.map((item) => sinNegocio(item));
   }
 
   if (valor === null || typeof valor !== 'object') {
@@ -32,7 +32,7 @@ const sinNegocio = (valor: unknown): unknown => {
   }
 
   // Una `Date` (u otro objeto sin propiedades enumerables) se devuelve tal
-  // cual: recorrerla la convertiría en `{}` y la comparación fallaría.
+  // cual: recorrerla la convertirÃƒÆ’Ã‚Â­a en `{}` y la comparaciÃƒÆ’Ã‚Â³n fallarÃƒÆ’Ã‚Â­a.
   if (valor instanceof Date) {
     return valor;
   }
@@ -41,10 +41,16 @@ const sinNegocio = (valor: unknown): unknown => {
   const salida: Record<string, unknown> = {};
 
   for (const [clave, contenido] of Object.entries(entrada)) {
-    if (clave === 'negocioId') {
+    if (clave === 'negocioId' && !conservar) {
       continue;
     }
-    salida[clave] = sinNegocio(contenido);
+    // En una clave UNICA COMPUESTA el negocioId forma parte de la
+    // identidad de la fila: se conserva para poder comprobar que
+    // apunta al negocio activo.
+    salida[clave] = sinNegocio(
+      contenido,
+      clave.startsWith('negocioId_'),
+    );
   }
 
   return salida;
@@ -81,11 +87,11 @@ const negocioIdsDe = (valor: unknown): unknown[] => {
  * vez APLICADO el aislamiento multitenant.
  *
  * La consulta esperada por las pruebas existentes describe la consulta SIN
- * el filtro de negocio. Con el aislamiento, la consulta real incluye además
- * el `negocioId` del negocio activo. Esta función compara ambas ignorando
+ * el filtro de negocio. Con el aislamiento, la consulta real incluye ademÃƒÆ’Ã‚Â¡s
+ * el `negocioId` del negocio activo. Esta funciÃƒÆ’Ã‚Â³n compara ambas ignorando
  * ese campo, y exige que TODOS los `negocioId` de la consulta real sean el
  * del negocio activo: si el repositorio consultara o escribiera con otro
- * negocio (o sin filtro), la aserción fallaría.
+ * negocio (o sin filtro), la aserciÃƒÆ’Ã‚Â³n fallarÃƒÆ’Ã‚Â­a.
  */
 /**
  * Detecta el marcador `expect.objectContaining(...)`, que Jest expone con
@@ -146,7 +152,7 @@ const esperarConsultaAislada = (mock: unknown, esperado: unknown): void => {
 
   const coincide = llamadas.some((args) => {
     try {
-      expect(args.map(sinNegocio)).toEqual([esperado]);
+      expect(args.map((arg) => sinNegocio(arg))).toEqual([esperado]);
       return true;
     } catch {
       // El marcador `objectContaining` no se puede comparar con
@@ -298,7 +304,7 @@ describe('AdministradoresRepository', () => {
       );
 
       esperarConsultaAislada(mockPrismaService.administrador.update, {
-        where: { usuarioId: 1 },
+        where: { negocioId_usuarioId: { negocioId: 1, usuarioId: 1 } },
         data: { estado: 'INACTIVO' },
       });
       expect(result).toEqual({ usuarioId: 1, estado: 'INACTIVO' });

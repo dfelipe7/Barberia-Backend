@@ -295,8 +295,12 @@ export class ServiciosRepository {
         barberos:
           data.barberoIds && data.barberoIds.length > 0
             ? {
+                // Relación COMPUESTA: la base de datos exige que el barbero y
+                // el servicio pertenezcan al MISMO negocio que el vínculo (FK
+                // compuesta). Aquí se escriben los escalares; la integridad la
+                // garantiza el motor.
                 create: data.barberoIds.map((barberoId) => ({
-                  barbero: { connect: { id: barberoId } },
+                  barberoId,
                   negocioId,
                 })),
               }
@@ -338,8 +342,10 @@ export class ServiciosRepository {
           data.barberoIds !== undefined
             ? {
                 deleteMany: {},
+                // Relación COMPUESTA: la integridad la garantiza el motor
+                // (FK compuesta barbero-servicio-negocio).
                 create: data.barberoIds.map((barberoId) => ({
-                  barbero: { connect: { id: barberoId } },
+                  barberoId,
                   negocioId,
                 })),
               }
