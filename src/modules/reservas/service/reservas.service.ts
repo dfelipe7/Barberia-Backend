@@ -53,7 +53,11 @@ import { FechaBogotaService } from '../../horarios/common/fecha-bogota.service';
 import { ServiciosRepository } from '../../servicios/repository/servicios.repository';
 import { BarberosRepository } from '../../usuarios/repository/barberos.repository';
 import { ConfiguracionService } from '../../configuracion/service/configuracion.service';
-import { CLAVES_CONFIGURACION } from '../../configuracion/configuracion.constants';
+import {
+  CLAVES_CONFIGURACION,
+  LIMITES_MINUTOS_OPERATIVOS,
+  VALORES_POR_DEFECTO_OPERATIVOS,
+} from '../../configuracion/configuracion.constants';
 
 /** Mensajes de dominio exigidos por los criterios de aceptación (Excel HE-04). */
 export const MENSAJE_RESERVA_CREADA = 'Reserva creada exitosamente';
@@ -73,17 +77,21 @@ export const MENSAJE_RESERVA_NO_DISPONIBLE =
 /**
  * Reglas de agenda configurables en base de datos (HE-04).
  *
- * Los valores se leen de la tabla `configuraciones_sistema` a través de
- * `ConfiguracionService`. Estas constantes son los valores por defecto que se
- * aplican de forma segura si la configuración falta o es inválida.
+ * Los valores se leen, en el ámbito del NEGOCIO activo, a través de
+ * `ConfiguracionService` (tabla `configuraciones_negocio`). Estas constantes
+ * son los valores por defecto que se aplican de forma segura si la
+ * configuración falta o es inválida, y son la MISMA fuente que usa el servicio
+ * de configuración.
  *
  * - `MINUTOS_CANCELACION_ANTELACION_DEFAULT`: antelación mínima con la que un
  *   cliente puede cancelar su reserva en línea. El personal queda exento.
  * - `MINUTOS_NO_SHOW_TOLERANCIA_DEFAULT`: minutos de tolerancia tras la hora de
  *   inicio antes de poder marcar la reserva como `NO_SHOW`.
  */
-export const MINUTOS_CANCELACION_ANTELACION_DEFAULT = 120;
-export const MINUTOS_NO_SHOW_TOLERANCIA_DEFAULT = 15;
+export const MINUTOS_CANCELACION_ANTELACION_DEFAULT =
+  VALORES_POR_DEFECTO_OPERATIVOS.RESERVA_CANCELACION_ANTELACION_MINUTOS;
+export const MINUTOS_NO_SHOW_TOLERANCIA_DEFAULT =
+  VALORES_POR_DEFECTO_OPERATIVOS.RESERVA_NO_SHOW_TOLERANCIA_MINUTOS;
 
 /**
  * Identidad de un cliente autenticado resuelta desde su token de cliente. Es el
@@ -801,42 +809,28 @@ export class ReservasService {
 
   /**
    * Minutos de antelación mínima para cancelar en línea. Se leen de la
-   * configuración en base de datos vía `ConfiguracionService`; si faltan o son
-   * inválidos, se aplica el valor por defecto.
+   * configuración del NEGOCIO activo vía `ConfiguracionService`; si faltan o
+   * son inválidos, el servicio de configuración aplica el valor por defecto.
    */
   private async obtenerMinutosCancelacion(): Promise<number> {
-    const valor = await this.configuracionService.obtenerNumero(
+    return this.configuracionService.obtenerNumero(
       CLAVES_CONFIGURACION.RESERVA_CANCELACION_ANTELACION_MINUTOS,
       MINUTOS_CANCELACION_ANTELACION_DEFAULT,
-    );
-
-    return this.normalizarMinutos(
-      valor,
-      MINUTOS_CANCELACION_ANTELACION_DEFAULT,
+      LIMITES_MINUTOS_OPERATIVOS,
     );
   }
 
   /**
    * Minutos de tolerancia antes de poder marcar `NO_SHOW`. Se leen de la
-   * configuración en base de datos vía `ConfiguracionService`; si faltan o son
-   * inválidos, se aplica el valor por defecto.
+   * configuración del NEGOCIO activo vía `ConfiguracionService`; si faltan o
+   * son inválidos, el servicio de configuración aplica el valor por defecto.
    */
   private async obtenerMinutosToleranciaNoShow(): Promise<number> {
-    const valor = await this.configuracionService.obtenerNumero(
+    return this.configuracionService.obtenerNumero(
       CLAVES_CONFIGURACION.RESERVA_NO_SHOW_TOLERANCIA_MINUTOS,
       MINUTOS_NO_SHOW_TOLERANCIA_DEFAULT,
+      LIMITES_MINUTOS_OPERATIVOS,
     );
-
-    return this.normalizarMinutos(valor, MINUTOS_NO_SHOW_TOLERANCIA_DEFAULT);
-  }
-
-  /**
-   * Normaliza los minutos configurados: exige un entero positivo y, en caso
-   * contrario, aplica el valor por defecto. Conserva el comportamiento previo
-   * (no se aceptan 0 ni valores negativos).
-   */
-  private normalizarMinutos(valor: number, porDefecto: number): number {
-    return Number.isFinite(valor) && valor > 0 ? Math.floor(valor) : porDefecto;
   }
 
   /**

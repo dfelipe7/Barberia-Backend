@@ -128,7 +128,15 @@ async function main() {
   }
   console.log('✅ Servicios de la barbería listos.');
 
-  // Configuración funcional del sistema (parámetros editables en base de datos).
+  // Configuración funcional GLOBAL de plataforma (parámetros editables en base
+  // de datos).
+  //
+  // Desde la Fase 5, las políticas operativas de cada barbería viven en
+  // `configuraciones_negocio` (las crea el `BootstrapService` de forma
+  // idempotente, con estos mismos valores por defecto). Estas filas globales
+  // se conservan como VALOR DE RESPALDO para los negocios que todavía no
+  // tengan la clave (compatibilidad temporal).
+  //
   // El upsert con `update: {}` es idempotente: crea la clave si falta y, si ya
   // existe, respeta el valor editado (no lo sobrescribe).
   const configuracionesPorDefecto = [

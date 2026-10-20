@@ -1,9 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { TipoConfiguracion as TipoConfiguracionPrisma } from '../../../../generated/prisma/enums';
+import { CLAVES_CONFIGURACION_OPERATIVA } from '../configuracion.constants';
 
 /**
- * Representación desacoplada de una fila de `configuraciones_sistema`, para no
- * exponer los tipos generados de Prisma al resto de la aplicación.
+ * Representación desacoplada de una fila de configuración, para no exponer los
+ * tipos generados de Prisma al resto de la aplicación.
+ *
+ * Sirve tanto para `configuraciones_sistema` (ámbito global) como para
+ * `configuraciones_negocio` (ámbito de negocio): la forma de la fila es la
+ * misma, lo que cambia es el ámbito en el que se busca.
  */
 export interface ConfiguracionRegistro {
   clave: string;
@@ -13,19 +19,27 @@ export interface ConfiguracionRegistro {
 }
 
 /**
- * Acceso a `configuraciones_sistema`.
+ * Acceso a las tablas de configuración.
  *
  * Centraliza la lectura de parámetros funcionales almacenados en base de datos.
  * No contiene reglas de negocio ni conversión de tipos: eso vive en
  * `ConfiguracionService`.
+ *
+ * AISLAMIENTO
+ * -----------
+ * - `buscarPorClave` lee el ÁMBITO GLOBAL (`configuraciones_sistema`).
+ * - `buscarPorClaveEnNegocio` lee el ÁMBITO DE NEGOCIO
+ *   (`configuraciones_negocio`) exigiendo `negocioId` y `clave` de forma
+ *   EXPLÍCITA en la condición. Nunca se resuelve una configuración operativa
+ *   por la clave sola: eso podría devolver el valor de otra barbería.
  */
 @Injectable()
 export class ConfiguracionRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Devuelve la configuración con la clave indicada, o `null` si no existe.
-   * Usa `select` explícito para traer solo los campos necesarios.
+   * Devuelve la configuración GLOBAL con la clave indicada, o `null` si no
+   * existe. Usa `select` explícito para traer solo los campos necesarios.
    */
   async buscarPorClave(clave: string): Promise<ConfiguracionRegistro | null> {
     const registro = await this.prisma.configuracionSistema.findUnique({
@@ -36,11 +50,80 @@ export class ConfiguracionRepository {
     return registro ?? null;
   }
 
-  /** Devuelve todas las configuraciones registradas, ordenadas por clave. */
+  /**
+   * Devuelve la configuración del NEGOCIO indicado con esa clave, o `null` si
+   * el negocio no la tiene.
+   *
+   * La condición incluye `negocioId` y `clave` de forma explícita. Además, la
+   * extensión de aislamiento de Prisma acota la lectura al negocio del
+   * contexto en curso: si se pidiera una configuración de OTRO negocio desde
+   * una petición de otro, la operación se rechaza en lugar de devolverla.
+   */
+  async buscarPorClaveEnNegocio(
+    negocioId: number,
+    clave: string,
+  ): Promise<ConfiguracionRegistro | null> {
+    const registro = await this.prisma.configuracionNegocio.findFirst({
+      where: { negocioId, clave },
+      select: { clave: true, valor: true, tipo: true, editable: true },
+    });
+
+    return registro ?? null;
+  }
+
+  /** Devuelve todas las configuraciones globales, ordenadas por clave. */
   async listar(): Promise<ConfiguracionRegistro[]> {
     return this.prisma.configuracionSistema.findMany({
       select: { clave: true, valor: true, tipo: true, editable: true },
       orderBy: { clave: 'asc' },
     });
+  }
+
+  /**
+   * INICIALIZACIÓN IDEMPOTENTE de las configuraciones operativas de un negocio.
+   *
+   * Crea únicamente las claves que el negocio NO tiene, con el valor semilla
+   * de la política. Una clave ya existente se CONSERVA: su valor puede estar
+   * personalizado por un administrador y no debe sobrescribirse. Por eso la
+   * inicialización se puede repetir cuantas veces sea necesario.
+   *
+   * Las escrituras quedan asociadas al negocio indicado: la fila nace con su
+   * `negocioId` y, además, la extensión de aislamiento fuerza el negocio del
+   * contexto en curso (por eso debe ejecutarse dentro del contexto del
+   * negocio que se inicializa).
+   */
+  async inicializarValoresOperativos(negocioId: number): Promise<{
+    creadas: string[];
+    conservadas: string[];
+  }> {
+    const creadas: string[] = [];
+    const conservadas: string[] = [];
+
+    for (const config of CLAVES_CONFIGURACION_OPERATIVA) {
+      const existente = await this.prisma.configuracionNegocio.findFirst({
+        where: { negocioId, clave: config.clave },
+        select: { id: true },
+      });
+
+      if (existente) {
+        conservadas.push(config.clave);
+        continue;
+      }
+
+      await this.prisma.configuracionNegocio.create({
+        data: {
+          negocioId,
+          clave: config.clave,
+          valor: config.valorPorDefecto,
+          tipo: TipoConfiguracionPrisma.NUMERO,
+          descripcion: config.descripcion,
+          editable: true,
+        },
+      });
+
+      creadas.push(config.clave);
+    }
+
+    return { creadas, conservadas };
   }
 }

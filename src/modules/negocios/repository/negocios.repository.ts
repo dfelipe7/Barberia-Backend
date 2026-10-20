@@ -27,4 +27,26 @@ export class NegociosRepository {
       select: { id: true, slug: true },
     });
   }
+
+  /**
+   * Busca un negocio por su identificador interno, sea cual sea su estado.
+   *
+   * Se usa para las operaciones de plataforma (inicialización de su
+   * configuración operativa), donde el negocio es el objetivo de la operación
+   * y no el contexto de una petición.
+   */
+  async buscarPorId(id: number) {
+    return this.prisma.negocio.findUnique({
+      where: { id },
+      select: { id: true, slug: true, nombre: true },
+    });
+  }
+
+  /** Devuelve todos los negocios registrados, con su estado. */
+  async listar() {
+    return this.prisma.negocio.findMany({
+      select: { id: true, slug: true, nombre: true, estado: true },
+      orderBy: { id: 'asc' },
+    });
+  }
 }

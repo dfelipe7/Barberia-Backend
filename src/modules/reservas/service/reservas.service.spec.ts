@@ -152,6 +152,12 @@ describe('ReservasService', () => {
     service = module.get<ReservasService>(ReservasService);
     jest.clearAllMocks();
 
+    // La configuración del negocio manda: por defecto se aplica el valor por
+    // defecto (120 y 15 minutos). Cada prueba puede sobrescribirlo.
+    configuracionService.obtenerNumero.mockImplementation(
+      (_clave: string, porDefecto: number) => Promise.resolve(porDefecto),
+    );
+
     fechaBogotaService.esFechaCalendarioValida.mockReturnValue(true);
     fechaBogotaService.obtenerDiaSemana.mockReturnValue('SUNDAY');
     fechaBogotaService.obtenerFechaBogota.mockReturnValue('2026-11-01');
@@ -1389,6 +1395,28 @@ describe('ReservasService', () => {
       expect(reservasRepository.cancelar).not.toHaveBeenCalled();
     });
 
+    it('usa la antelación configurada en el negocio (y no el valor por defecto)', async () => {
+      // El negocio fija 30 minutos: con 45 minutos de margen, se puede cancelar.
+      configuracionService.obtenerNumero.mockResolvedValue(30);
+      fechaBogotaService.obtenerHoraBogota.mockReturnValue('13:15');
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ id: 42, status: ReservationStatus.CONFIRMED }),
+      );
+      reservasRepository.cancelar.mockResolvedValue({
+        id: 42,
+        status: ReservationStatus.CANCELLED,
+      });
+
+      const respuesta = await service.cancelarReserva(identidad, 42);
+
+      expect(respuesta.estado).toBe(ReservationStatus.CANCELLED);
+      expect(configuracionService.obtenerNumero).toHaveBeenCalledWith(
+        'reserva_cancelacion_antelacion_minutos',
+        120,
+        expect.objectContaining({ minimo: 1, maximo: 10080, entero: true }),
+      );
+    });
+
     it('permite al staff (admin) cancelar dentro de la ventana de antelación', async () => {
       fechaBogotaService.obtenerHoraBogota.mockReturnValue('13:30');
       reservasRepository.obtenerReservaConRelaciones.mockResolvedValue(
@@ -1618,7 +1646,11 @@ describe('ReservasService', () => {
       );
       reservasRepository.marcarNoShow.mockResolvedValue(true);
 
-      const respuesta = await service.noShowReserva(usuarioBarbero, ['BARBERO'], 42);
+      const respuesta = await service.noShowReserva(
+        usuarioBarbero,
+        ['BARBERO'],
+        42,
+      );
 
       expect(respuesta.mensaje).toBe(MENSAJE_RESERVA_NO_SHOW);
       expect(respuesta.id).toBe(42);

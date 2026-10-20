@@ -61,29 +61,11 @@ export const MODELOS_CON_NEGOCIO: ReadonlyArray<{
 /**
  * Configuraciones operativas que se copian al ámbito del negocio.
  *
- * Se mantienen los MISMOS nombres de clave que ya usa la aplicación, para que
- * la resolución del valor efectivo (negocio -> global -> valor por defecto) no
- * requiera renombrar nada. Los valores por defecto son los que ya define el
- * seed (120 y 15 minutos).
+ * La lista vive en el módulo de configuración (única fuente de las claves y de
+ * los valores por defecto) y se re-exporta aquí para que el script de
+ * migración de la Fase 2 siga usando el mismo contrato.
  */
-export const CLAVES_CONFIGURACION_OPERATIVA: ReadonlyArray<{
-  clave: string;
-  valorPorDefecto: string;
-  descripcion: string;
-}> = [
-  {
-    clave: 'reserva_cancelacion_antelacion_minutos',
-    valorPorDefecto: '120',
-    descripcion:
-      'Minutos mínimos de antelación para que un cliente cancele su reserva en línea.',
-  },
-  {
-    clave: 'reserva_no_show_tolerancia_minutos',
-    valorPorDefecto: '15',
-    descripcion:
-      'Minutos de tolerancia tras la hora de inicio antes de poder marcar una reserva como NO_SHOW.',
-  },
-];
+export { CLAVES_CONFIGURACION_OPERATIVA } from '../../configuracion/configuracion.constants';
 
 /** Variable de entorno con el nombre público del primer negocio. */
 export const NEGOCIO_INICIAL_NOMBRE_ENV = 'NEGOCIO_INICIAL_NOMBRE';

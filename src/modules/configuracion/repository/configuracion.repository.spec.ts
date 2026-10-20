@@ -7,6 +7,10 @@ const mockPrismaService = {
     findUnique: jest.fn(),
     findMany: jest.fn(),
   },
+  configuracionNegocio: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+  },
 };
 
 describe('ConfiguracionRepository', () => {
@@ -88,5 +92,89 @@ describe('ConfiguracionRepository', () => {
       orderBy: { clave: 'asc' },
     });
     expect(resultado).toEqual(registros);
+  });
+
+  describe('ámbito de negocio', () => {
+    it('busca la configuración exigiendo negocioId y clave en la condición', async () => {
+      const registro = {
+        clave: 'reserva_no_show_tolerancia_minutos',
+        valor: '15',
+        tipo: 'NUMERO',
+        editable: true,
+      };
+      mockPrismaService.configuracionNegocio.findFirst.mockResolvedValue(
+        registro,
+      );
+
+      const resultado = await repository.buscarPorClaveEnNegocio(
+        7,
+        'reserva_no_show_tolerancia_minutos',
+      );
+
+      expect(
+        mockPrismaService.configuracionNegocio.findFirst,
+      ).toHaveBeenCalledWith({
+        where: {
+          negocioId: 7,
+          clave: 'reserva_no_show_tolerancia_minutos',
+        },
+        select: { clave: true, valor: true, tipo: true, editable: true },
+      });
+      expect(resultado).toEqual(registro);
+    });
+
+    it('devuelve null si el negocio no tiene la clave', async () => {
+      mockPrismaService.configuracionNegocio.findFirst.mockResolvedValue(null);
+
+      await expect(
+        repository.buscarPorClaveEnNegocio(7, 'clave'),
+      ).resolves.toBeNull();
+    });
+  });
+
+  describe('inicialización idempotente', () => {
+    it('crea solo las claves que faltan y conserva las existentes', async () => {
+      mockPrismaService.configuracionNegocio.findFirst
+        // La primera clave ya existe; la segunda no.
+        .mockResolvedValueOnce({ id: 1 })
+        .mockResolvedValueOnce(null);
+      mockPrismaService.configuracionNegocio.create.mockResolvedValue({});
+
+      const resultado = await repository.inicializarValoresOperativos(7);
+
+      expect(resultado.conservadas).toEqual([
+        'reserva_cancelacion_antelacion_minutos',
+      ]);
+      expect(resultado.creadas).toEqual(['reserva_no_show_tolerancia_minutos']);
+      expect(
+        mockPrismaService.configuracionNegocio.create,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mockPrismaService.configuracionNegocio.create,
+      ).toHaveBeenCalledWith({
+        data: {
+          negocioId: 7,
+          clave: 'reserva_no_show_tolerancia_minutos',
+          valor: '15',
+          tipo: 'NUMERO',
+          descripcion:
+            'Minutos de tolerancia tras la hora de inicio antes de poder marcar una reserva como NO_SHOW.',
+          editable: true,
+        },
+      });
+    });
+
+    it('no sobrescribe el valor de una clave ya existente', async () => {
+      mockPrismaService.configuracionNegocio.findFirst.mockResolvedValue({
+        id: 1,
+      });
+
+      const resultado = await repository.inicializarValoresOperativos(7);
+
+      expect(resultado.creadas).toEqual([]);
+      expect(
+        mockPrismaService.configuracionNegocio.create,
+      ).not.toHaveBeenCalled();
+    });
   });
 });
