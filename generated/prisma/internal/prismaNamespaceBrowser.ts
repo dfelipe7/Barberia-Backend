@@ -51,6 +51,7 @@ export const AnyNull = runtime.AnyNull
 
 
 export const ModelName = {
+  Negocio: 'Negocio',
   Usuario: 'Usuario',
   Administrador: 'Administrador',
   Barbero: 'Barbero',
@@ -62,7 +63,8 @@ export const ModelName = {
   GeneralClosure: 'GeneralClosure',
   Reservation: 'Reservation',
   WhatsAppPlantilla: 'WhatsAppPlantilla',
-  ConfiguracionSistema: 'ConfiguracionSistema'
+  ConfiguracionSistema: 'ConfiguracionSistema',
+  ConfiguracionNegocio: 'ConfiguracionNegocio'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -81,6 +83,19 @@ export const TransactionIsolationLevel = runtime.makeStrictEnum({
 export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
 
 
+export const NegocioScalarFieldEnum = {
+  id: 'id',
+  slug: 'slug',
+  nombre: 'nombre',
+  estado: 'estado',
+  zonaHoraria: 'zonaHoraria',
+  creadoEn: 'creadoEn',
+  actualizadoEn: 'actualizadoEn'
+} as const
+
+export type NegocioScalarFieldEnum = (typeof NegocioScalarFieldEnum)[keyof typeof NegocioScalarFieldEnum]
+
+
 export const UsuarioScalarFieldEnum = {
   id: 'id',
   googleId: 'googleId',
@@ -97,6 +112,7 @@ export type UsuarioScalarFieldEnum = (typeof UsuarioScalarFieldEnum)[keyof typeo
 export const AdministradorScalarFieldEnum = {
   id: 'id',
   usuarioId: 'usuarioId',
+  negocioId: 'negocioId',
   estado: 'estado'
 } as const
 
@@ -106,6 +122,7 @@ export type AdministradorScalarFieldEnum = (typeof AdministradorScalarFieldEnum)
 export const BarberoScalarFieldEnum = {
   id: 'id',
   usuarioId: 'usuarioId',
+  negocioId: 'negocioId',
   telefono: 'telefono',
   porcentajeComision: 'porcentajeComision',
   fotoUrl: 'fotoUrl',
@@ -122,7 +139,8 @@ export const ClienteScalarFieldEnum = {
   telefono: 'telefono',
   googleId: 'googleId',
   email: 'email',
-  usuarioId: 'usuarioId'
+  usuarioId: 'usuarioId',
+  negocioId: 'negocioId'
 } as const
 
 export type ClienteScalarFieldEnum = (typeof ClienteScalarFieldEnum)[keyof typeof ClienteScalarFieldEnum]
@@ -136,6 +154,7 @@ export const ServicioScalarFieldEnum = {
   duracionMinutos: 'duracionMinutos',
   fotoUrl: 'fotoUrl',
   estado: 'estado',
+  negocioId: 'negocioId',
   creadoEn: 'creadoEn',
   actualizadoEn: 'actualizadoEn'
 } as const
@@ -146,6 +165,7 @@ export type ServicioScalarFieldEnum = (typeof ServicioScalarFieldEnum)[keyof typ
 export const BarberoServicioScalarFieldEnum = {
   barberoId: 'barberoId',
   servicioId: 'servicioId',
+  negocioId: 'negocioId',
   creadoEn: 'creadoEn'
 } as const
 
@@ -155,6 +175,7 @@ export type BarberoServicioScalarFieldEnum = (typeof BarberoServicioScalarFieldE
 export const BarberWeeklySlotScalarFieldEnum = {
   id: 'id',
   barberoId: 'barberoId',
+  negocioId: 'negocioId',
   dayOfWeek: 'dayOfWeek',
   startTime: 'startTime',
   endTime: 'endTime',
@@ -169,6 +190,7 @@ export type BarberWeeklySlotScalarFieldEnum = (typeof BarberWeeklySlotScalarFiel
 export const BarberScheduleBlockScalarFieldEnum = {
   id: 'id',
   barberoId: 'barberoId',
+  negocioId: 'negocioId',
   date: 'date',
   startTime: 'startTime',
   endTime: 'endTime',
@@ -186,6 +208,7 @@ export type BarberScheduleBlockScalarFieldEnum = (typeof BarberScheduleBlockScal
 
 export const GeneralClosureScalarFieldEnum = {
   id: 'id',
+  negocioId: 'negocioId',
   date: 'date',
   startTime: 'startTime',
   endTime: 'endTime',
@@ -212,6 +235,7 @@ export const ReservationScalarFieldEnum = {
   precioReservado: 'precioReservado',
   gestionTokenHash: 'gestionTokenHash',
   recordatorioEnviado: 'recordatorioEnviado',
+  negocioId: 'negocioId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   slotActivo: 'slotActivo'
@@ -246,12 +270,36 @@ export const ConfiguracionSistemaScalarFieldEnum = {
 export type ConfiguracionSistemaScalarFieldEnum = (typeof ConfiguracionSistemaScalarFieldEnum)[keyof typeof ConfiguracionSistemaScalarFieldEnum]
 
 
+export const ConfiguracionNegocioScalarFieldEnum = {
+  id: 'id',
+  negocioId: 'negocioId',
+  clave: 'clave',
+  valor: 'valor',
+  tipo: 'tipo',
+  descripcion: 'descripcion',
+  editable: 'editable',
+  creadoEn: 'creadoEn',
+  actualizadoEn: 'actualizadoEn'
+} as const
+
+export type ConfiguracionNegocioScalarFieldEnum = (typeof ConfiguracionNegocioScalarFieldEnum)[keyof typeof ConfiguracionNegocioScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
 } as const
 
 export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
+
+
+export const NegocioOrderByRelevanceFieldEnum = {
+  slug: 'slug',
+  nombre: 'nombre',
+  zonaHoraria: 'zonaHoraria'
+} as const
+
+export type NegocioOrderByRelevanceFieldEnum = (typeof NegocioOrderByRelevanceFieldEnum)[keyof typeof NegocioOrderByRelevanceFieldEnum]
 
 
 export const NullsOrder = {
@@ -350,4 +398,13 @@ export const ConfiguracionSistemaOrderByRelevanceFieldEnum = {
 } as const
 
 export type ConfiguracionSistemaOrderByRelevanceFieldEnum = (typeof ConfiguracionSistemaOrderByRelevanceFieldEnum)[keyof typeof ConfiguracionSistemaOrderByRelevanceFieldEnum]
+
+
+export const ConfiguracionNegocioOrderByRelevanceFieldEnum = {
+  clave: 'clave',
+  valor: 'valor',
+  descripcion: 'descripcion'
+} as const
+
+export type ConfiguracionNegocioOrderByRelevanceFieldEnum = (typeof ConfiguracionNegocioOrderByRelevanceFieldEnum)[keyof typeof ConfiguracionNegocioOrderByRelevanceFieldEnum]
 

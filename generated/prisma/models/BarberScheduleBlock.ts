@@ -32,18 +32,21 @@ export type AggregateBarberScheduleBlock = {
 export type BarberScheduleBlockAvgAggregateOutputType = {
   id: number | null
   barberoId: number | null
+  negocioId: number | null
   reactivatedBy: number | null
 }
 
 export type BarberScheduleBlockSumAggregateOutputType = {
   id: number | null
   barberoId: number | null
+  negocioId: number | null
   reactivatedBy: number | null
 }
 
 export type BarberScheduleBlockMinAggregateOutputType = {
   id: number | null
   barberoId: number | null
+  negocioId: number | null
   date: Date | null
   startTime: string | null
   endTime: string | null
@@ -59,6 +62,7 @@ export type BarberScheduleBlockMinAggregateOutputType = {
 export type BarberScheduleBlockMaxAggregateOutputType = {
   id: number | null
   barberoId: number | null
+  negocioId: number | null
   date: Date | null
   startTime: string | null
   endTime: string | null
@@ -74,6 +78,7 @@ export type BarberScheduleBlockMaxAggregateOutputType = {
 export type BarberScheduleBlockCountAggregateOutputType = {
   id: number
   barberoId: number
+  negocioId: number
   date: number
   startTime: number
   endTime: number
@@ -91,18 +96,21 @@ export type BarberScheduleBlockCountAggregateOutputType = {
 export type BarberScheduleBlockAvgAggregateInputType = {
   id?: true
   barberoId?: true
+  negocioId?: true
   reactivatedBy?: true
 }
 
 export type BarberScheduleBlockSumAggregateInputType = {
   id?: true
   barberoId?: true
+  negocioId?: true
   reactivatedBy?: true
 }
 
 export type BarberScheduleBlockMinAggregateInputType = {
   id?: true
   barberoId?: true
+  negocioId?: true
   date?: true
   startTime?: true
   endTime?: true
@@ -118,6 +126,7 @@ export type BarberScheduleBlockMinAggregateInputType = {
 export type BarberScheduleBlockMaxAggregateInputType = {
   id?: true
   barberoId?: true
+  negocioId?: true
   date?: true
   startTime?: true
   endTime?: true
@@ -133,6 +142,7 @@ export type BarberScheduleBlockMaxAggregateInputType = {
 export type BarberScheduleBlockCountAggregateInputType = {
   id?: true
   barberoId?: true
+  negocioId?: true
   date?: true
   startTime?: true
   endTime?: true
@@ -235,6 +245,7 @@ export type BarberScheduleBlockGroupByArgs<ExtArgs extends runtime.Types.Extensi
 export type BarberScheduleBlockGroupByOutputType = {
   id: number
   barberoId: number
+  negocioId: number | null
   date: Date
   startTime: string
   endTime: string
@@ -273,6 +284,7 @@ export type BarberScheduleBlockWhereInput = {
   NOT?: Prisma.BarberScheduleBlockWhereInput | Prisma.BarberScheduleBlockWhereInput[]
   id?: Prisma.IntFilter<"BarberScheduleBlock"> | number
   barberoId?: Prisma.IntFilter<"BarberScheduleBlock"> | number
+  negocioId?: Prisma.IntNullableFilter<"BarberScheduleBlock"> | number | null
   date?: Prisma.DateTimeFilter<"BarberScheduleBlock"> | Date | string
   startTime?: Prisma.StringFilter<"BarberScheduleBlock"> | string
   endTime?: Prisma.StringFilter<"BarberScheduleBlock"> | string
@@ -284,11 +296,13 @@ export type BarberScheduleBlockWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"BarberScheduleBlock"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"BarberScheduleBlock"> | Date | string
   barbero?: Prisma.XOR<Prisma.BarberoScalarRelationFilter, Prisma.BarberoWhereInput>
+  negocio?: Prisma.XOR<Prisma.NegocioNullableScalarRelationFilter, Prisma.NegocioWhereInput> | null
 }
 
 export type BarberScheduleBlockOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrderInput | Prisma.SortOrder
   date?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   endTime?: Prisma.SortOrder
@@ -300,6 +314,7 @@ export type BarberScheduleBlockOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   barbero?: Prisma.BarberoOrderByWithRelationInput
+  negocio?: Prisma.NegocioOrderByWithRelationInput
   _relevance?: Prisma.BarberScheduleBlockOrderByRelevanceInput
 }
 
@@ -309,6 +324,7 @@ export type BarberScheduleBlockWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.BarberScheduleBlockWhereInput[]
   NOT?: Prisma.BarberScheduleBlockWhereInput | Prisma.BarberScheduleBlockWhereInput[]
   barberoId?: Prisma.IntFilter<"BarberScheduleBlock"> | number
+  negocioId?: Prisma.IntNullableFilter<"BarberScheduleBlock"> | number | null
   date?: Prisma.DateTimeFilter<"BarberScheduleBlock"> | Date | string
   startTime?: Prisma.StringFilter<"BarberScheduleBlock"> | string
   endTime?: Prisma.StringFilter<"BarberScheduleBlock"> | string
@@ -320,11 +336,13 @@ export type BarberScheduleBlockWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"BarberScheduleBlock"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"BarberScheduleBlock"> | Date | string
   barbero?: Prisma.XOR<Prisma.BarberoScalarRelationFilter, Prisma.BarberoWhereInput>
+  negocio?: Prisma.XOR<Prisma.NegocioNullableScalarRelationFilter, Prisma.NegocioWhereInput> | null
 }, "id">
 
 export type BarberScheduleBlockOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrderInput | Prisma.SortOrder
   date?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   endTime?: Prisma.SortOrder
@@ -348,6 +366,7 @@ export type BarberScheduleBlockScalarWhereWithAggregatesInput = {
   NOT?: Prisma.BarberScheduleBlockScalarWhereWithAggregatesInput | Prisma.BarberScheduleBlockScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"BarberScheduleBlock"> | number
   barberoId?: Prisma.IntWithAggregatesFilter<"BarberScheduleBlock"> | number
+  negocioId?: Prisma.IntNullableWithAggregatesFilter<"BarberScheduleBlock"> | number | null
   date?: Prisma.DateTimeWithAggregatesFilter<"BarberScheduleBlock"> | Date | string
   startTime?: Prisma.StringWithAggregatesFilter<"BarberScheduleBlock"> | string
   endTime?: Prisma.StringWithAggregatesFilter<"BarberScheduleBlock"> | string
@@ -372,11 +391,13 @@ export type BarberScheduleBlockCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   barbero: Prisma.BarberoCreateNestedOneWithoutBlocksInput
+  negocio?: Prisma.NegocioCreateNestedOneWithoutBloqueosHorarioInput
 }
 
 export type BarberScheduleBlockUncheckedCreateInput = {
   id?: number
   barberoId: number
+  negocioId?: number | null
   date: Date | string
   startTime: string
   endTime: string
@@ -401,11 +422,13 @@ export type BarberScheduleBlockUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   barbero?: Prisma.BarberoUpdateOneRequiredWithoutBlocksNestedInput
+  negocio?: Prisma.NegocioUpdateOneWithoutBloqueosHorarioNestedInput
 }
 
 export type BarberScheduleBlockUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   barberoId?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startTime?: Prisma.StringFieldUpdateOperationsInput | string
   endTime?: Prisma.StringFieldUpdateOperationsInput | string
@@ -421,6 +444,7 @@ export type BarberScheduleBlockUncheckedUpdateInput = {
 export type BarberScheduleBlockCreateManyInput = {
   id?: number
   barberoId: number
+  negocioId?: number | null
   date: Date | string
   startTime: string
   endTime: string
@@ -449,6 +473,7 @@ export type BarberScheduleBlockUpdateManyMutationInput = {
 export type BarberScheduleBlockUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   barberoId?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startTime?: Prisma.StringFieldUpdateOperationsInput | string
   endTime?: Prisma.StringFieldUpdateOperationsInput | string
@@ -480,6 +505,7 @@ export type BarberScheduleBlockOrderByRelevanceInput = {
 export type BarberScheduleBlockCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   date?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   endTime?: Prisma.SortOrder
@@ -495,12 +521,14 @@ export type BarberScheduleBlockCountOrderByAggregateInput = {
 export type BarberScheduleBlockAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   reactivatedBy?: Prisma.SortOrder
 }
 
 export type BarberScheduleBlockMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   date?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   endTime?: Prisma.SortOrder
@@ -516,6 +544,7 @@ export type BarberScheduleBlockMaxOrderByAggregateInput = {
 export type BarberScheduleBlockMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   date?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   endTime?: Prisma.SortOrder
@@ -531,7 +560,50 @@ export type BarberScheduleBlockMinOrderByAggregateInput = {
 export type BarberScheduleBlockSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   reactivatedBy?: Prisma.SortOrder
+}
+
+export type BarberScheduleBlockCreateNestedManyWithoutNegocioInput = {
+  create?: Prisma.XOR<Prisma.BarberScheduleBlockCreateWithoutNegocioInput, Prisma.BarberScheduleBlockUncheckedCreateWithoutNegocioInput> | Prisma.BarberScheduleBlockCreateWithoutNegocioInput[] | Prisma.BarberScheduleBlockUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberScheduleBlockCreateOrConnectWithoutNegocioInput | Prisma.BarberScheduleBlockCreateOrConnectWithoutNegocioInput[]
+  createMany?: Prisma.BarberScheduleBlockCreateManyNegocioInputEnvelope
+  connect?: Prisma.BarberScheduleBlockWhereUniqueInput | Prisma.BarberScheduleBlockWhereUniqueInput[]
+}
+
+export type BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput = {
+  create?: Prisma.XOR<Prisma.BarberScheduleBlockCreateWithoutNegocioInput, Prisma.BarberScheduleBlockUncheckedCreateWithoutNegocioInput> | Prisma.BarberScheduleBlockCreateWithoutNegocioInput[] | Prisma.BarberScheduleBlockUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberScheduleBlockCreateOrConnectWithoutNegocioInput | Prisma.BarberScheduleBlockCreateOrConnectWithoutNegocioInput[]
+  createMany?: Prisma.BarberScheduleBlockCreateManyNegocioInputEnvelope
+  connect?: Prisma.BarberScheduleBlockWhereUniqueInput | Prisma.BarberScheduleBlockWhereUniqueInput[]
+}
+
+export type BarberScheduleBlockUpdateManyWithoutNegocioNestedInput = {
+  create?: Prisma.XOR<Prisma.BarberScheduleBlockCreateWithoutNegocioInput, Prisma.BarberScheduleBlockUncheckedCreateWithoutNegocioInput> | Prisma.BarberScheduleBlockCreateWithoutNegocioInput[] | Prisma.BarberScheduleBlockUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberScheduleBlockCreateOrConnectWithoutNegocioInput | Prisma.BarberScheduleBlockCreateOrConnectWithoutNegocioInput[]
+  upsert?: Prisma.BarberScheduleBlockUpsertWithWhereUniqueWithoutNegocioInput | Prisma.BarberScheduleBlockUpsertWithWhereUniqueWithoutNegocioInput[]
+  createMany?: Prisma.BarberScheduleBlockCreateManyNegocioInputEnvelope
+  set?: Prisma.BarberScheduleBlockWhereUniqueInput | Prisma.BarberScheduleBlockWhereUniqueInput[]
+  disconnect?: Prisma.BarberScheduleBlockWhereUniqueInput | Prisma.BarberScheduleBlockWhereUniqueInput[]
+  delete?: Prisma.BarberScheduleBlockWhereUniqueInput | Prisma.BarberScheduleBlockWhereUniqueInput[]
+  connect?: Prisma.BarberScheduleBlockWhereUniqueInput | Prisma.BarberScheduleBlockWhereUniqueInput[]
+  update?: Prisma.BarberScheduleBlockUpdateWithWhereUniqueWithoutNegocioInput | Prisma.BarberScheduleBlockUpdateWithWhereUniqueWithoutNegocioInput[]
+  updateMany?: Prisma.BarberScheduleBlockUpdateManyWithWhereWithoutNegocioInput | Prisma.BarberScheduleBlockUpdateManyWithWhereWithoutNegocioInput[]
+  deleteMany?: Prisma.BarberScheduleBlockScalarWhereInput | Prisma.BarberScheduleBlockScalarWhereInput[]
+}
+
+export type BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput = {
+  create?: Prisma.XOR<Prisma.BarberScheduleBlockCreateWithoutNegocioInput, Prisma.BarberScheduleBlockUncheckedCreateWithoutNegocioInput> | Prisma.BarberScheduleBlockCreateWithoutNegocioInput[] | Prisma.BarberScheduleBlockUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberScheduleBlockCreateOrConnectWithoutNegocioInput | Prisma.BarberScheduleBlockCreateOrConnectWithoutNegocioInput[]
+  upsert?: Prisma.BarberScheduleBlockUpsertWithWhereUniqueWithoutNegocioInput | Prisma.BarberScheduleBlockUpsertWithWhereUniqueWithoutNegocioInput[]
+  createMany?: Prisma.BarberScheduleBlockCreateManyNegocioInputEnvelope
+  set?: Prisma.BarberScheduleBlockWhereUniqueInput | Prisma.BarberScheduleBlockWhereUniqueInput[]
+  disconnect?: Prisma.BarberScheduleBlockWhereUniqueInput | Prisma.BarberScheduleBlockWhereUniqueInput[]
+  delete?: Prisma.BarberScheduleBlockWhereUniqueInput | Prisma.BarberScheduleBlockWhereUniqueInput[]
+  connect?: Prisma.BarberScheduleBlockWhereUniqueInput | Prisma.BarberScheduleBlockWhereUniqueInput[]
+  update?: Prisma.BarberScheduleBlockUpdateWithWhereUniqueWithoutNegocioInput | Prisma.BarberScheduleBlockUpdateWithWhereUniqueWithoutNegocioInput[]
+  updateMany?: Prisma.BarberScheduleBlockUpdateManyWithWhereWithoutNegocioInput | Prisma.BarberScheduleBlockUpdateManyWithWhereWithoutNegocioInput[]
+  deleteMany?: Prisma.BarberScheduleBlockScalarWhereInput | Prisma.BarberScheduleBlockScalarWhereInput[]
 }
 
 export type BarberScheduleBlockCreateNestedManyWithoutBarberoInput = {
@@ -588,7 +660,23 @@ export type NullableDateTimeFieldUpdateOperationsInput = {
   set?: Date | string | null
 }
 
-export type BarberScheduleBlockCreateWithoutBarberoInput = {
+export type BarberScheduleBlockCreateWithoutNegocioInput = {
+  date: Date | string
+  startTime: string
+  endTime: string
+  reason?: $Enums.ScheduleBlockReason | null
+  notes?: string | null
+  status?: $Enums.ScheduleBlockStatus
+  reactivatedAt?: Date | string | null
+  reactivatedBy?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  barbero: Prisma.BarberoCreateNestedOneWithoutBlocksInput
+}
+
+export type BarberScheduleBlockUncheckedCreateWithoutNegocioInput = {
+  id?: number
+  barberoId: number
   date: Date | string
   startTime: string
   endTime: string
@@ -601,8 +689,68 @@ export type BarberScheduleBlockCreateWithoutBarberoInput = {
   updatedAt?: Date | string
 }
 
+export type BarberScheduleBlockCreateOrConnectWithoutNegocioInput = {
+  where: Prisma.BarberScheduleBlockWhereUniqueInput
+  create: Prisma.XOR<Prisma.BarberScheduleBlockCreateWithoutNegocioInput, Prisma.BarberScheduleBlockUncheckedCreateWithoutNegocioInput>
+}
+
+export type BarberScheduleBlockCreateManyNegocioInputEnvelope = {
+  data: Prisma.BarberScheduleBlockCreateManyNegocioInput | Prisma.BarberScheduleBlockCreateManyNegocioInput[]
+  skipDuplicates?: boolean
+}
+
+export type BarberScheduleBlockUpsertWithWhereUniqueWithoutNegocioInput = {
+  where: Prisma.BarberScheduleBlockWhereUniqueInput
+  update: Prisma.XOR<Prisma.BarberScheduleBlockUpdateWithoutNegocioInput, Prisma.BarberScheduleBlockUncheckedUpdateWithoutNegocioInput>
+  create: Prisma.XOR<Prisma.BarberScheduleBlockCreateWithoutNegocioInput, Prisma.BarberScheduleBlockUncheckedCreateWithoutNegocioInput>
+}
+
+export type BarberScheduleBlockUpdateWithWhereUniqueWithoutNegocioInput = {
+  where: Prisma.BarberScheduleBlockWhereUniqueInput
+  data: Prisma.XOR<Prisma.BarberScheduleBlockUpdateWithoutNegocioInput, Prisma.BarberScheduleBlockUncheckedUpdateWithoutNegocioInput>
+}
+
+export type BarberScheduleBlockUpdateManyWithWhereWithoutNegocioInput = {
+  where: Prisma.BarberScheduleBlockScalarWhereInput
+  data: Prisma.XOR<Prisma.BarberScheduleBlockUpdateManyMutationInput, Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioInput>
+}
+
+export type BarberScheduleBlockScalarWhereInput = {
+  AND?: Prisma.BarberScheduleBlockScalarWhereInput | Prisma.BarberScheduleBlockScalarWhereInput[]
+  OR?: Prisma.BarberScheduleBlockScalarWhereInput[]
+  NOT?: Prisma.BarberScheduleBlockScalarWhereInput | Prisma.BarberScheduleBlockScalarWhereInput[]
+  id?: Prisma.IntFilter<"BarberScheduleBlock"> | number
+  barberoId?: Prisma.IntFilter<"BarberScheduleBlock"> | number
+  negocioId?: Prisma.IntNullableFilter<"BarberScheduleBlock"> | number | null
+  date?: Prisma.DateTimeFilter<"BarberScheduleBlock"> | Date | string
+  startTime?: Prisma.StringFilter<"BarberScheduleBlock"> | string
+  endTime?: Prisma.StringFilter<"BarberScheduleBlock"> | string
+  reason?: Prisma.EnumScheduleBlockReasonNullableFilter<"BarberScheduleBlock"> | $Enums.ScheduleBlockReason | null
+  notes?: Prisma.StringNullableFilter<"BarberScheduleBlock"> | string | null
+  status?: Prisma.EnumScheduleBlockStatusFilter<"BarberScheduleBlock"> | $Enums.ScheduleBlockStatus
+  reactivatedAt?: Prisma.DateTimeNullableFilter<"BarberScheduleBlock"> | Date | string | null
+  reactivatedBy?: Prisma.IntNullableFilter<"BarberScheduleBlock"> | number | null
+  createdAt?: Prisma.DateTimeFilter<"BarberScheduleBlock"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"BarberScheduleBlock"> | Date | string
+}
+
+export type BarberScheduleBlockCreateWithoutBarberoInput = {
+  date: Date | string
+  startTime: string
+  endTime: string
+  reason?: $Enums.ScheduleBlockReason | null
+  notes?: string | null
+  status?: $Enums.ScheduleBlockStatus
+  reactivatedAt?: Date | string | null
+  reactivatedBy?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  negocio?: Prisma.NegocioCreateNestedOneWithoutBloqueosHorarioInput
+}
+
 export type BarberScheduleBlockUncheckedCreateWithoutBarberoInput = {
   id?: number
+  negocioId?: number | null
   date: Date | string
   startTime: string
   endTime: string
@@ -641,26 +789,68 @@ export type BarberScheduleBlockUpdateManyWithWhereWithoutBarberoInput = {
   data: Prisma.XOR<Prisma.BarberScheduleBlockUpdateManyMutationInput, Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutBarberoInput>
 }
 
-export type BarberScheduleBlockScalarWhereInput = {
-  AND?: Prisma.BarberScheduleBlockScalarWhereInput | Prisma.BarberScheduleBlockScalarWhereInput[]
-  OR?: Prisma.BarberScheduleBlockScalarWhereInput[]
-  NOT?: Prisma.BarberScheduleBlockScalarWhereInput | Prisma.BarberScheduleBlockScalarWhereInput[]
-  id?: Prisma.IntFilter<"BarberScheduleBlock"> | number
-  barberoId?: Prisma.IntFilter<"BarberScheduleBlock"> | number
-  date?: Prisma.DateTimeFilter<"BarberScheduleBlock"> | Date | string
-  startTime?: Prisma.StringFilter<"BarberScheduleBlock"> | string
-  endTime?: Prisma.StringFilter<"BarberScheduleBlock"> | string
-  reason?: Prisma.EnumScheduleBlockReasonNullableFilter<"BarberScheduleBlock"> | $Enums.ScheduleBlockReason | null
-  notes?: Prisma.StringNullableFilter<"BarberScheduleBlock"> | string | null
-  status?: Prisma.EnumScheduleBlockStatusFilter<"BarberScheduleBlock"> | $Enums.ScheduleBlockStatus
-  reactivatedAt?: Prisma.DateTimeNullableFilter<"BarberScheduleBlock"> | Date | string | null
-  reactivatedBy?: Prisma.IntNullableFilter<"BarberScheduleBlock"> | number | null
-  createdAt?: Prisma.DateTimeFilter<"BarberScheduleBlock"> | Date | string
-  updatedAt?: Prisma.DateTimeFilter<"BarberScheduleBlock"> | Date | string
+export type BarberScheduleBlockCreateManyNegocioInput = {
+  id?: number
+  barberoId: number
+  date: Date | string
+  startTime: string
+  endTime: string
+  reason?: $Enums.ScheduleBlockReason | null
+  notes?: string | null
+  status?: $Enums.ScheduleBlockStatus
+  reactivatedAt?: Date | string | null
+  reactivatedBy?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type BarberScheduleBlockUpdateWithoutNegocioInput = {
+  date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  startTime?: Prisma.StringFieldUpdateOperationsInput | string
+  endTime?: Prisma.StringFieldUpdateOperationsInput | string
+  reason?: Prisma.NullableEnumScheduleBlockReasonFieldUpdateOperationsInput | $Enums.ScheduleBlockReason | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumScheduleBlockStatusFieldUpdateOperationsInput | $Enums.ScheduleBlockStatus
+  reactivatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reactivatedBy?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  barbero?: Prisma.BarberoUpdateOneRequiredWithoutBlocksNestedInput
+}
+
+export type BarberScheduleBlockUncheckedUpdateWithoutNegocioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  barberoId?: Prisma.IntFieldUpdateOperationsInput | number
+  date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  startTime?: Prisma.StringFieldUpdateOperationsInput | string
+  endTime?: Prisma.StringFieldUpdateOperationsInput | string
+  reason?: Prisma.NullableEnumScheduleBlockReasonFieldUpdateOperationsInput | $Enums.ScheduleBlockReason | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumScheduleBlockStatusFieldUpdateOperationsInput | $Enums.ScheduleBlockStatus
+  reactivatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reactivatedBy?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type BarberScheduleBlockUncheckedUpdateManyWithoutNegocioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  barberoId?: Prisma.IntFieldUpdateOperationsInput | number
+  date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  startTime?: Prisma.StringFieldUpdateOperationsInput | string
+  endTime?: Prisma.StringFieldUpdateOperationsInput | string
+  reason?: Prisma.NullableEnumScheduleBlockReasonFieldUpdateOperationsInput | $Enums.ScheduleBlockReason | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumScheduleBlockStatusFieldUpdateOperationsInput | $Enums.ScheduleBlockStatus
+  reactivatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reactivatedBy?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type BarberScheduleBlockCreateManyBarberoInput = {
   id?: number
+  negocioId?: number | null
   date: Date | string
   startTime: string
   endTime: string
@@ -684,10 +874,12 @@ export type BarberScheduleBlockUpdateWithoutBarberoInput = {
   reactivatedBy?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  negocio?: Prisma.NegocioUpdateOneWithoutBloqueosHorarioNestedInput
 }
 
 export type BarberScheduleBlockUncheckedUpdateWithoutBarberoInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startTime?: Prisma.StringFieldUpdateOperationsInput | string
   endTime?: Prisma.StringFieldUpdateOperationsInput | string
@@ -702,6 +894,7 @@ export type BarberScheduleBlockUncheckedUpdateWithoutBarberoInput = {
 
 export type BarberScheduleBlockUncheckedUpdateManyWithoutBarberoInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startTime?: Prisma.StringFieldUpdateOperationsInput | string
   endTime?: Prisma.StringFieldUpdateOperationsInput | string
@@ -719,6 +912,7 @@ export type BarberScheduleBlockUncheckedUpdateManyWithoutBarberoInput = {
 export type BarberScheduleBlockSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   barberoId?: boolean
+  negocioId?: boolean
   date?: boolean
   startTime?: boolean
   endTime?: boolean
@@ -730,6 +924,7 @@ export type BarberScheduleBlockSelect<ExtArgs extends runtime.Types.Extensions.I
   createdAt?: boolean
   updatedAt?: boolean
   barbero?: boolean | Prisma.BarberoDefaultArgs<ExtArgs>
+  negocio?: boolean | Prisma.BarberScheduleBlock$negocioArgs<ExtArgs>
 }, ExtArgs["result"]["barberScheduleBlock"]>
 
 
@@ -737,6 +932,7 @@ export type BarberScheduleBlockSelect<ExtArgs extends runtime.Types.Extensions.I
 export type BarberScheduleBlockSelectScalar = {
   id?: boolean
   barberoId?: boolean
+  negocioId?: boolean
   date?: boolean
   startTime?: boolean
   endTime?: boolean
@@ -749,19 +945,22 @@ export type BarberScheduleBlockSelectScalar = {
   updatedAt?: boolean
 }
 
-export type BarberScheduleBlockOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "barberoId" | "date" | "startTime" | "endTime" | "reason" | "notes" | "status" | "reactivatedAt" | "reactivatedBy" | "createdAt" | "updatedAt", ExtArgs["result"]["barberScheduleBlock"]>
+export type BarberScheduleBlockOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "barberoId" | "negocioId" | "date" | "startTime" | "endTime" | "reason" | "notes" | "status" | "reactivatedAt" | "reactivatedBy" | "createdAt" | "updatedAt", ExtArgs["result"]["barberScheduleBlock"]>
 export type BarberScheduleBlockInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   barbero?: boolean | Prisma.BarberoDefaultArgs<ExtArgs>
+  negocio?: boolean | Prisma.BarberScheduleBlock$negocioArgs<ExtArgs>
 }
 
 export type $BarberScheduleBlockPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "BarberScheduleBlock"
   objects: {
     barbero: Prisma.$BarberoPayload<ExtArgs>
+    negocio: Prisma.$NegocioPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
     barberoId: number
+    negocioId: number | null
     date: Date
     startTime: string
     endTime: string
@@ -1113,6 +1312,7 @@ readonly fields: BarberScheduleBlockFieldRefs;
 export interface Prisma__BarberScheduleBlockClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   barbero<T extends Prisma.BarberoDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BarberoDefaultArgs<ExtArgs>>): Prisma.Prisma__BarberoClient<runtime.Types.Result.GetResult<Prisma.$BarberoPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  negocio<T extends Prisma.BarberScheduleBlock$negocioArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BarberScheduleBlock$negocioArgs<ExtArgs>>): Prisma.Prisma__NegocioClient<runtime.Types.Result.GetResult<Prisma.$NegocioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1144,6 +1344,7 @@ export interface Prisma__BarberScheduleBlockClient<T, Null = never, ExtArgs exte
 export interface BarberScheduleBlockFieldRefs {
   readonly id: Prisma.FieldRef<"BarberScheduleBlock", 'Int'>
   readonly barberoId: Prisma.FieldRef<"BarberScheduleBlock", 'Int'>
+  readonly negocioId: Prisma.FieldRef<"BarberScheduleBlock", 'Int'>
   readonly date: Prisma.FieldRef<"BarberScheduleBlock", 'DateTime'>
   readonly startTime: Prisma.FieldRef<"BarberScheduleBlock", 'String'>
   readonly endTime: Prisma.FieldRef<"BarberScheduleBlock", 'String'>
@@ -1499,6 +1700,25 @@ export type BarberScheduleBlockDeleteManyArgs<ExtArgs extends runtime.Types.Exte
    * Limit how many BarberScheduleBlocks to delete.
    */
   limit?: number
+}
+
+/**
+ * BarberScheduleBlock.negocio
+ */
+export type BarberScheduleBlock$negocioArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Negocio
+   */
+  select?: Prisma.NegocioSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Negocio
+   */
+  omit?: Prisma.NegocioOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.NegocioInclude<ExtArgs> | null
+  where?: Prisma.NegocioWhereInput
 }
 
 /**

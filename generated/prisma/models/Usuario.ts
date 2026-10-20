@@ -432,24 +432,12 @@ export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
 }
 
-export type StringFieldUpdateOperationsInput = {
-  set?: string
-}
-
 export type EnumRolUsuarioFieldUpdateOperationsInput = {
   set?: $Enums.RolUsuario
 }
 
 export type EnumEstadoUsuarioFieldUpdateOperationsInput = {
   set?: $Enums.EstadoUsuario
-}
-
-export type IntFieldUpdateOperationsInput = {
-  set?: number
-  increment?: number
-  decrement?: number
-  multiply?: number
-  divide?: number
 }
 
 export type UsuarioCreateNestedOneWithoutAdministradorInput = {

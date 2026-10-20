@@ -29,18 +29,21 @@ export type AggregateBarbero = {
 export type BarberoAvgAggregateOutputType = {
   id: number | null
   usuarioId: number | null
+  negocioId: number | null
   porcentajeComision: runtime.Decimal | null
 }
 
 export type BarberoSumAggregateOutputType = {
   id: number | null
   usuarioId: number | null
+  negocioId: number | null
   porcentajeComision: runtime.Decimal | null
 }
 
 export type BarberoMinAggregateOutputType = {
   id: number | null
   usuarioId: number | null
+  negocioId: number | null
   telefono: string | null
   porcentajeComision: runtime.Decimal | null
   fotoUrl: string | null
@@ -50,6 +53,7 @@ export type BarberoMinAggregateOutputType = {
 export type BarberoMaxAggregateOutputType = {
   id: number | null
   usuarioId: number | null
+  negocioId: number | null
   telefono: string | null
   porcentajeComision: runtime.Decimal | null
   fotoUrl: string | null
@@ -59,6 +63,7 @@ export type BarberoMaxAggregateOutputType = {
 export type BarberoCountAggregateOutputType = {
   id: number
   usuarioId: number
+  negocioId: number
   telefono: number
   porcentajeComision: number
   fotoUrl: number
@@ -70,18 +75,21 @@ export type BarberoCountAggregateOutputType = {
 export type BarberoAvgAggregateInputType = {
   id?: true
   usuarioId?: true
+  negocioId?: true
   porcentajeComision?: true
 }
 
 export type BarberoSumAggregateInputType = {
   id?: true
   usuarioId?: true
+  negocioId?: true
   porcentajeComision?: true
 }
 
 export type BarberoMinAggregateInputType = {
   id?: true
   usuarioId?: true
+  negocioId?: true
   telefono?: true
   porcentajeComision?: true
   fotoUrl?: true
@@ -91,6 +99,7 @@ export type BarberoMinAggregateInputType = {
 export type BarberoMaxAggregateInputType = {
   id?: true
   usuarioId?: true
+  negocioId?: true
   telefono?: true
   porcentajeComision?: true
   fotoUrl?: true
@@ -100,6 +109,7 @@ export type BarberoMaxAggregateInputType = {
 export type BarberoCountAggregateInputType = {
   id?: true
   usuarioId?: true
+  negocioId?: true
   telefono?: true
   porcentajeComision?: true
   fotoUrl?: true
@@ -196,6 +206,7 @@ export type BarberoGroupByArgs<ExtArgs extends runtime.Types.Extensions.Internal
 export type BarberoGroupByOutputType = {
   id: number
   usuarioId: number
+  negocioId: number | null
   telefono: string
   porcentajeComision: runtime.Decimal
   fotoUrl: string | null
@@ -228,11 +239,13 @@ export type BarberoWhereInput = {
   NOT?: Prisma.BarberoWhereInput | Prisma.BarberoWhereInput[]
   id?: Prisma.IntFilter<"Barbero"> | number
   usuarioId?: Prisma.IntFilter<"Barbero"> | number
+  negocioId?: Prisma.IntNullableFilter<"Barbero"> | number | null
   telefono?: Prisma.StringFilter<"Barbero"> | string
   porcentajeComision?: Prisma.DecimalFilter<"Barbero"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: Prisma.StringNullableFilter<"Barbero"> | string | null
   estado?: Prisma.EnumEstadoUsuarioFilter<"Barbero"> | $Enums.EstadoUsuario
   usuario?: Prisma.XOR<Prisma.UsuarioScalarRelationFilter, Prisma.UsuarioWhereInput>
+  negocio?: Prisma.XOR<Prisma.NegocioNullableScalarRelationFilter, Prisma.NegocioWhereInput> | null
   servicios?: Prisma.BarberoServicioListRelationFilter
   weeklySlots?: Prisma.BarberWeeklySlotListRelationFilter
   blocks?: Prisma.BarberScheduleBlockListRelationFilter
@@ -242,11 +255,13 @@ export type BarberoWhereInput = {
 export type BarberoOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrderInput | Prisma.SortOrder
   telefono?: Prisma.SortOrder
   porcentajeComision?: Prisma.SortOrder
   fotoUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   estado?: Prisma.SortOrder
   usuario?: Prisma.UsuarioOrderByWithRelationInput
+  negocio?: Prisma.NegocioOrderByWithRelationInput
   servicios?: Prisma.BarberoServicioOrderByRelationAggregateInput
   weeklySlots?: Prisma.BarberWeeklySlotOrderByRelationAggregateInput
   blocks?: Prisma.BarberScheduleBlockOrderByRelationAggregateInput
@@ -260,11 +275,13 @@ export type BarberoWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.BarberoWhereInput | Prisma.BarberoWhereInput[]
   OR?: Prisma.BarberoWhereInput[]
   NOT?: Prisma.BarberoWhereInput | Prisma.BarberoWhereInput[]
+  negocioId?: Prisma.IntNullableFilter<"Barbero"> | number | null
   telefono?: Prisma.StringFilter<"Barbero"> | string
   porcentajeComision?: Prisma.DecimalFilter<"Barbero"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: Prisma.StringNullableFilter<"Barbero"> | string | null
   estado?: Prisma.EnumEstadoUsuarioFilter<"Barbero"> | $Enums.EstadoUsuario
   usuario?: Prisma.XOR<Prisma.UsuarioScalarRelationFilter, Prisma.UsuarioWhereInput>
+  negocio?: Prisma.XOR<Prisma.NegocioNullableScalarRelationFilter, Prisma.NegocioWhereInput> | null
   servicios?: Prisma.BarberoServicioListRelationFilter
   weeklySlots?: Prisma.BarberWeeklySlotListRelationFilter
   blocks?: Prisma.BarberScheduleBlockListRelationFilter
@@ -274,6 +291,7 @@ export type BarberoWhereUniqueInput = Prisma.AtLeast<{
 export type BarberoOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrderInput | Prisma.SortOrder
   telefono?: Prisma.SortOrder
   porcentajeComision?: Prisma.SortOrder
   fotoUrl?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -291,6 +309,7 @@ export type BarberoScalarWhereWithAggregatesInput = {
   NOT?: Prisma.BarberoScalarWhereWithAggregatesInput | Prisma.BarberoScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"Barbero"> | number
   usuarioId?: Prisma.IntWithAggregatesFilter<"Barbero"> | number
+  negocioId?: Prisma.IntNullableWithAggregatesFilter<"Barbero"> | number | null
   telefono?: Prisma.StringWithAggregatesFilter<"Barbero"> | string
   porcentajeComision?: Prisma.DecimalWithAggregatesFilter<"Barbero"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: Prisma.StringNullableWithAggregatesFilter<"Barbero"> | string | null
@@ -303,6 +322,7 @@ export type BarberoCreateInput = {
   fotoUrl?: string | null
   estado?: $Enums.EstadoUsuario
   usuario: Prisma.UsuarioCreateNestedOneWithoutBarberoInput
+  negocio?: Prisma.NegocioCreateNestedOneWithoutBarberosInput
   servicios?: Prisma.BarberoServicioCreateNestedManyWithoutBarberoInput
   weeklySlots?: Prisma.BarberWeeklySlotCreateNestedManyWithoutBarberoInput
   blocks?: Prisma.BarberScheduleBlockCreateNestedManyWithoutBarberoInput
@@ -312,6 +332,7 @@ export type BarberoCreateInput = {
 export type BarberoUncheckedCreateInput = {
   id?: number
   usuarioId: number
+  negocioId?: number | null
   telefono: string
   porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: string | null
@@ -328,6 +349,7 @@ export type BarberoUpdateInput = {
   fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
   usuario?: Prisma.UsuarioUpdateOneRequiredWithoutBarberoNestedInput
+  negocio?: Prisma.NegocioUpdateOneWithoutBarberosNestedInput
   servicios?: Prisma.BarberoServicioUpdateManyWithoutBarberoNestedInput
   weeklySlots?: Prisma.BarberWeeklySlotUpdateManyWithoutBarberoNestedInput
   blocks?: Prisma.BarberScheduleBlockUpdateManyWithoutBarberoNestedInput
@@ -337,6 +359,7 @@ export type BarberoUpdateInput = {
 export type BarberoUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   telefono?: Prisma.StringFieldUpdateOperationsInput | string
   porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -350,6 +373,7 @@ export type BarberoUncheckedUpdateInput = {
 export type BarberoCreateManyInput = {
   id?: number
   usuarioId: number
+  negocioId?: number | null
   telefono: string
   porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: string | null
@@ -366,10 +390,21 @@ export type BarberoUpdateManyMutationInput = {
 export type BarberoUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   telefono?: Prisma.StringFieldUpdateOperationsInput | string
   porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+}
+
+export type BarberoListRelationFilter = {
+  every?: Prisma.BarberoWhereInput
+  some?: Prisma.BarberoWhereInput
+  none?: Prisma.BarberoWhereInput
+}
+
+export type BarberoOrderByRelationAggregateInput = {
+  _count?: Prisma.SortOrder
 }
 
 export type BarberoNullableScalarRelationFilter = {
@@ -386,6 +421,7 @@ export type BarberoOrderByRelevanceInput = {
 export type BarberoCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   telefono?: Prisma.SortOrder
   porcentajeComision?: Prisma.SortOrder
   fotoUrl?: Prisma.SortOrder
@@ -395,12 +431,14 @@ export type BarberoCountOrderByAggregateInput = {
 export type BarberoAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   porcentajeComision?: Prisma.SortOrder
 }
 
 export type BarberoMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   telefono?: Prisma.SortOrder
   porcentajeComision?: Prisma.SortOrder
   fotoUrl?: Prisma.SortOrder
@@ -410,6 +448,7 @@ export type BarberoMaxOrderByAggregateInput = {
 export type BarberoMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   telefono?: Prisma.SortOrder
   porcentajeComision?: Prisma.SortOrder
   fotoUrl?: Prisma.SortOrder
@@ -419,12 +458,55 @@ export type BarberoMinOrderByAggregateInput = {
 export type BarberoSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   porcentajeComision?: Prisma.SortOrder
 }
 
 export type BarberoScalarRelationFilter = {
   is?: Prisma.BarberoWhereInput
   isNot?: Prisma.BarberoWhereInput
+}
+
+export type BarberoCreateNestedManyWithoutNegocioInput = {
+  create?: Prisma.XOR<Prisma.BarberoCreateWithoutNegocioInput, Prisma.BarberoUncheckedCreateWithoutNegocioInput> | Prisma.BarberoCreateWithoutNegocioInput[] | Prisma.BarberoUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberoCreateOrConnectWithoutNegocioInput | Prisma.BarberoCreateOrConnectWithoutNegocioInput[]
+  createMany?: Prisma.BarberoCreateManyNegocioInputEnvelope
+  connect?: Prisma.BarberoWhereUniqueInput | Prisma.BarberoWhereUniqueInput[]
+}
+
+export type BarberoUncheckedCreateNestedManyWithoutNegocioInput = {
+  create?: Prisma.XOR<Prisma.BarberoCreateWithoutNegocioInput, Prisma.BarberoUncheckedCreateWithoutNegocioInput> | Prisma.BarberoCreateWithoutNegocioInput[] | Prisma.BarberoUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberoCreateOrConnectWithoutNegocioInput | Prisma.BarberoCreateOrConnectWithoutNegocioInput[]
+  createMany?: Prisma.BarberoCreateManyNegocioInputEnvelope
+  connect?: Prisma.BarberoWhereUniqueInput | Prisma.BarberoWhereUniqueInput[]
+}
+
+export type BarberoUpdateManyWithoutNegocioNestedInput = {
+  create?: Prisma.XOR<Prisma.BarberoCreateWithoutNegocioInput, Prisma.BarberoUncheckedCreateWithoutNegocioInput> | Prisma.BarberoCreateWithoutNegocioInput[] | Prisma.BarberoUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberoCreateOrConnectWithoutNegocioInput | Prisma.BarberoCreateOrConnectWithoutNegocioInput[]
+  upsert?: Prisma.BarberoUpsertWithWhereUniqueWithoutNegocioInput | Prisma.BarberoUpsertWithWhereUniqueWithoutNegocioInput[]
+  createMany?: Prisma.BarberoCreateManyNegocioInputEnvelope
+  set?: Prisma.BarberoWhereUniqueInput | Prisma.BarberoWhereUniqueInput[]
+  disconnect?: Prisma.BarberoWhereUniqueInput | Prisma.BarberoWhereUniqueInput[]
+  delete?: Prisma.BarberoWhereUniqueInput | Prisma.BarberoWhereUniqueInput[]
+  connect?: Prisma.BarberoWhereUniqueInput | Prisma.BarberoWhereUniqueInput[]
+  update?: Prisma.BarberoUpdateWithWhereUniqueWithoutNegocioInput | Prisma.BarberoUpdateWithWhereUniqueWithoutNegocioInput[]
+  updateMany?: Prisma.BarberoUpdateManyWithWhereWithoutNegocioInput | Prisma.BarberoUpdateManyWithWhereWithoutNegocioInput[]
+  deleteMany?: Prisma.BarberoScalarWhereInput | Prisma.BarberoScalarWhereInput[]
+}
+
+export type BarberoUncheckedUpdateManyWithoutNegocioNestedInput = {
+  create?: Prisma.XOR<Prisma.BarberoCreateWithoutNegocioInput, Prisma.BarberoUncheckedCreateWithoutNegocioInput> | Prisma.BarberoCreateWithoutNegocioInput[] | Prisma.BarberoUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberoCreateOrConnectWithoutNegocioInput | Prisma.BarberoCreateOrConnectWithoutNegocioInput[]
+  upsert?: Prisma.BarberoUpsertWithWhereUniqueWithoutNegocioInput | Prisma.BarberoUpsertWithWhereUniqueWithoutNegocioInput[]
+  createMany?: Prisma.BarberoCreateManyNegocioInputEnvelope
+  set?: Prisma.BarberoWhereUniqueInput | Prisma.BarberoWhereUniqueInput[]
+  disconnect?: Prisma.BarberoWhereUniqueInput | Prisma.BarberoWhereUniqueInput[]
+  delete?: Prisma.BarberoWhereUniqueInput | Prisma.BarberoWhereUniqueInput[]
+  connect?: Prisma.BarberoWhereUniqueInput | Prisma.BarberoWhereUniqueInput[]
+  update?: Prisma.BarberoUpdateWithWhereUniqueWithoutNegocioInput | Prisma.BarberoUpdateWithWhereUniqueWithoutNegocioInput[]
+  updateMany?: Prisma.BarberoUpdateManyWithWhereWithoutNegocioInput | Prisma.BarberoUpdateManyWithWhereWithoutNegocioInput[]
+  deleteMany?: Prisma.BarberoScalarWhereInput | Prisma.BarberoScalarWhereInput[]
 }
 
 export type BarberoCreateNestedOneWithoutUsuarioInput = {
@@ -523,11 +605,76 @@ export type BarberoUpdateOneRequiredWithoutReservationsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.BarberoUpdateToOneWithWhereWithoutReservationsInput, Prisma.BarberoUpdateWithoutReservationsInput>, Prisma.BarberoUncheckedUpdateWithoutReservationsInput>
 }
 
+export type BarberoCreateWithoutNegocioInput = {
+  telefono: string
+  porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: string | null
+  estado?: $Enums.EstadoUsuario
+  usuario: Prisma.UsuarioCreateNestedOneWithoutBarberoInput
+  servicios?: Prisma.BarberoServicioCreateNestedManyWithoutBarberoInput
+  weeklySlots?: Prisma.BarberWeeklySlotCreateNestedManyWithoutBarberoInput
+  blocks?: Prisma.BarberScheduleBlockCreateNestedManyWithoutBarberoInput
+  reservations?: Prisma.ReservationCreateNestedManyWithoutBarberoInput
+}
+
+export type BarberoUncheckedCreateWithoutNegocioInput = {
+  id?: number
+  usuarioId: number
+  telefono: string
+  porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: string | null
+  estado?: $Enums.EstadoUsuario
+  servicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutBarberoInput
+  weeklySlots?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutBarberoInput
+  blocks?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutBarberoInput
+  reservations?: Prisma.ReservationUncheckedCreateNestedManyWithoutBarberoInput
+}
+
+export type BarberoCreateOrConnectWithoutNegocioInput = {
+  where: Prisma.BarberoWhereUniqueInput
+  create: Prisma.XOR<Prisma.BarberoCreateWithoutNegocioInput, Prisma.BarberoUncheckedCreateWithoutNegocioInput>
+}
+
+export type BarberoCreateManyNegocioInputEnvelope = {
+  data: Prisma.BarberoCreateManyNegocioInput | Prisma.BarberoCreateManyNegocioInput[]
+  skipDuplicates?: boolean
+}
+
+export type BarberoUpsertWithWhereUniqueWithoutNegocioInput = {
+  where: Prisma.BarberoWhereUniqueInput
+  update: Prisma.XOR<Prisma.BarberoUpdateWithoutNegocioInput, Prisma.BarberoUncheckedUpdateWithoutNegocioInput>
+  create: Prisma.XOR<Prisma.BarberoCreateWithoutNegocioInput, Prisma.BarberoUncheckedCreateWithoutNegocioInput>
+}
+
+export type BarberoUpdateWithWhereUniqueWithoutNegocioInput = {
+  where: Prisma.BarberoWhereUniqueInput
+  data: Prisma.XOR<Prisma.BarberoUpdateWithoutNegocioInput, Prisma.BarberoUncheckedUpdateWithoutNegocioInput>
+}
+
+export type BarberoUpdateManyWithWhereWithoutNegocioInput = {
+  where: Prisma.BarberoScalarWhereInput
+  data: Prisma.XOR<Prisma.BarberoUpdateManyMutationInput, Prisma.BarberoUncheckedUpdateManyWithoutNegocioInput>
+}
+
+export type BarberoScalarWhereInput = {
+  AND?: Prisma.BarberoScalarWhereInput | Prisma.BarberoScalarWhereInput[]
+  OR?: Prisma.BarberoScalarWhereInput[]
+  NOT?: Prisma.BarberoScalarWhereInput | Prisma.BarberoScalarWhereInput[]
+  id?: Prisma.IntFilter<"Barbero"> | number
+  usuarioId?: Prisma.IntFilter<"Barbero"> | number
+  negocioId?: Prisma.IntNullableFilter<"Barbero"> | number | null
+  telefono?: Prisma.StringFilter<"Barbero"> | string
+  porcentajeComision?: Prisma.DecimalFilter<"Barbero"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: Prisma.StringNullableFilter<"Barbero"> | string | null
+  estado?: Prisma.EnumEstadoUsuarioFilter<"Barbero"> | $Enums.EstadoUsuario
+}
+
 export type BarberoCreateWithoutUsuarioInput = {
   telefono: string
   porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: string | null
   estado?: $Enums.EstadoUsuario
+  negocio?: Prisma.NegocioCreateNestedOneWithoutBarberosInput
   servicios?: Prisma.BarberoServicioCreateNestedManyWithoutBarberoInput
   weeklySlots?: Prisma.BarberWeeklySlotCreateNestedManyWithoutBarberoInput
   blocks?: Prisma.BarberScheduleBlockCreateNestedManyWithoutBarberoInput
@@ -536,6 +683,7 @@ export type BarberoCreateWithoutUsuarioInput = {
 
 export type BarberoUncheckedCreateWithoutUsuarioInput = {
   id?: number
+  negocioId?: number | null
   telefono: string
   porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: string | null
@@ -567,6 +715,7 @@ export type BarberoUpdateWithoutUsuarioInput = {
   porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  negocio?: Prisma.NegocioUpdateOneWithoutBarberosNestedInput
   servicios?: Prisma.BarberoServicioUpdateManyWithoutBarberoNestedInput
   weeklySlots?: Prisma.BarberWeeklySlotUpdateManyWithoutBarberoNestedInput
   blocks?: Prisma.BarberScheduleBlockUpdateManyWithoutBarberoNestedInput
@@ -575,6 +724,7 @@ export type BarberoUpdateWithoutUsuarioInput = {
 
 export type BarberoUncheckedUpdateWithoutUsuarioInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   telefono?: Prisma.StringFieldUpdateOperationsInput | string
   porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -591,6 +741,7 @@ export type BarberoCreateWithoutServiciosInput = {
   fotoUrl?: string | null
   estado?: $Enums.EstadoUsuario
   usuario: Prisma.UsuarioCreateNestedOneWithoutBarberoInput
+  negocio?: Prisma.NegocioCreateNestedOneWithoutBarberosInput
   weeklySlots?: Prisma.BarberWeeklySlotCreateNestedManyWithoutBarberoInput
   blocks?: Prisma.BarberScheduleBlockCreateNestedManyWithoutBarberoInput
   reservations?: Prisma.ReservationCreateNestedManyWithoutBarberoInput
@@ -599,6 +750,7 @@ export type BarberoCreateWithoutServiciosInput = {
 export type BarberoUncheckedCreateWithoutServiciosInput = {
   id?: number
   usuarioId: number
+  negocioId?: number | null
   telefono: string
   porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: string | null
@@ -630,6 +782,7 @@ export type BarberoUpdateWithoutServiciosInput = {
   fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
   usuario?: Prisma.UsuarioUpdateOneRequiredWithoutBarberoNestedInput
+  negocio?: Prisma.NegocioUpdateOneWithoutBarberosNestedInput
   weeklySlots?: Prisma.BarberWeeklySlotUpdateManyWithoutBarberoNestedInput
   blocks?: Prisma.BarberScheduleBlockUpdateManyWithoutBarberoNestedInput
   reservations?: Prisma.ReservationUpdateManyWithoutBarberoNestedInput
@@ -638,6 +791,7 @@ export type BarberoUpdateWithoutServiciosInput = {
 export type BarberoUncheckedUpdateWithoutServiciosInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   telefono?: Prisma.StringFieldUpdateOperationsInput | string
   porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -653,6 +807,7 @@ export type BarberoCreateWithoutWeeklySlotsInput = {
   fotoUrl?: string | null
   estado?: $Enums.EstadoUsuario
   usuario: Prisma.UsuarioCreateNestedOneWithoutBarberoInput
+  negocio?: Prisma.NegocioCreateNestedOneWithoutBarberosInput
   servicios?: Prisma.BarberoServicioCreateNestedManyWithoutBarberoInput
   blocks?: Prisma.BarberScheduleBlockCreateNestedManyWithoutBarberoInput
   reservations?: Prisma.ReservationCreateNestedManyWithoutBarberoInput
@@ -661,6 +816,7 @@ export type BarberoCreateWithoutWeeklySlotsInput = {
 export type BarberoUncheckedCreateWithoutWeeklySlotsInput = {
   id?: number
   usuarioId: number
+  negocioId?: number | null
   telefono: string
   porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: string | null
@@ -692,6 +848,7 @@ export type BarberoUpdateWithoutWeeklySlotsInput = {
   fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
   usuario?: Prisma.UsuarioUpdateOneRequiredWithoutBarberoNestedInput
+  negocio?: Prisma.NegocioUpdateOneWithoutBarberosNestedInput
   servicios?: Prisma.BarberoServicioUpdateManyWithoutBarberoNestedInput
   blocks?: Prisma.BarberScheduleBlockUpdateManyWithoutBarberoNestedInput
   reservations?: Prisma.ReservationUpdateManyWithoutBarberoNestedInput
@@ -700,6 +857,7 @@ export type BarberoUpdateWithoutWeeklySlotsInput = {
 export type BarberoUncheckedUpdateWithoutWeeklySlotsInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   telefono?: Prisma.StringFieldUpdateOperationsInput | string
   porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -715,6 +873,7 @@ export type BarberoCreateWithoutBlocksInput = {
   fotoUrl?: string | null
   estado?: $Enums.EstadoUsuario
   usuario: Prisma.UsuarioCreateNestedOneWithoutBarberoInput
+  negocio?: Prisma.NegocioCreateNestedOneWithoutBarberosInput
   servicios?: Prisma.BarberoServicioCreateNestedManyWithoutBarberoInput
   weeklySlots?: Prisma.BarberWeeklySlotCreateNestedManyWithoutBarberoInput
   reservations?: Prisma.ReservationCreateNestedManyWithoutBarberoInput
@@ -723,6 +882,7 @@ export type BarberoCreateWithoutBlocksInput = {
 export type BarberoUncheckedCreateWithoutBlocksInput = {
   id?: number
   usuarioId: number
+  negocioId?: number | null
   telefono: string
   porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: string | null
@@ -754,6 +914,7 @@ export type BarberoUpdateWithoutBlocksInput = {
   fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
   usuario?: Prisma.UsuarioUpdateOneRequiredWithoutBarberoNestedInput
+  negocio?: Prisma.NegocioUpdateOneWithoutBarberosNestedInput
   servicios?: Prisma.BarberoServicioUpdateManyWithoutBarberoNestedInput
   weeklySlots?: Prisma.BarberWeeklySlotUpdateManyWithoutBarberoNestedInput
   reservations?: Prisma.ReservationUpdateManyWithoutBarberoNestedInput
@@ -762,6 +923,7 @@ export type BarberoUpdateWithoutBlocksInput = {
 export type BarberoUncheckedUpdateWithoutBlocksInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   telefono?: Prisma.StringFieldUpdateOperationsInput | string
   porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -777,6 +939,7 @@ export type BarberoCreateWithoutReservationsInput = {
   fotoUrl?: string | null
   estado?: $Enums.EstadoUsuario
   usuario: Prisma.UsuarioCreateNestedOneWithoutBarberoInput
+  negocio?: Prisma.NegocioCreateNestedOneWithoutBarberosInput
   servicios?: Prisma.BarberoServicioCreateNestedManyWithoutBarberoInput
   weeklySlots?: Prisma.BarberWeeklySlotCreateNestedManyWithoutBarberoInput
   blocks?: Prisma.BarberScheduleBlockCreateNestedManyWithoutBarberoInput
@@ -785,6 +948,7 @@ export type BarberoCreateWithoutReservationsInput = {
 export type BarberoUncheckedCreateWithoutReservationsInput = {
   id?: number
   usuarioId: number
+  negocioId?: number | null
   telefono: string
   porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
   fotoUrl?: string | null
@@ -816,12 +980,47 @@ export type BarberoUpdateWithoutReservationsInput = {
   fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
   usuario?: Prisma.UsuarioUpdateOneRequiredWithoutBarberoNestedInput
+  negocio?: Prisma.NegocioUpdateOneWithoutBarberosNestedInput
   servicios?: Prisma.BarberoServicioUpdateManyWithoutBarberoNestedInput
   weeklySlots?: Prisma.BarberWeeklySlotUpdateManyWithoutBarberoNestedInput
   blocks?: Prisma.BarberScheduleBlockUpdateManyWithoutBarberoNestedInput
 }
 
 export type BarberoUncheckedUpdateWithoutReservationsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  telefono?: Prisma.StringFieldUpdateOperationsInput | string
+  porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  servicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutBarberoNestedInput
+  weeklySlots?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutBarberoNestedInput
+  blocks?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutBarberoNestedInput
+}
+
+export type BarberoCreateManyNegocioInput = {
+  id?: number
+  usuarioId: number
+  telefono: string
+  porcentajeComision: runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: string | null
+  estado?: $Enums.EstadoUsuario
+}
+
+export type BarberoUpdateWithoutNegocioInput = {
+  telefono?: Prisma.StringFieldUpdateOperationsInput | string
+  porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  usuario?: Prisma.UsuarioUpdateOneRequiredWithoutBarberoNestedInput
+  servicios?: Prisma.BarberoServicioUpdateManyWithoutBarberoNestedInput
+  weeklySlots?: Prisma.BarberWeeklySlotUpdateManyWithoutBarberoNestedInput
+  blocks?: Prisma.BarberScheduleBlockUpdateManyWithoutBarberoNestedInput
+  reservations?: Prisma.ReservationUpdateManyWithoutBarberoNestedInput
+}
+
+export type BarberoUncheckedUpdateWithoutNegocioInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
   telefono?: Prisma.StringFieldUpdateOperationsInput | string
@@ -831,6 +1030,16 @@ export type BarberoUncheckedUpdateWithoutReservationsInput = {
   servicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutBarberoNestedInput
   weeklySlots?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutBarberoNestedInput
   blocks?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutBarberoNestedInput
+  reservations?: Prisma.ReservationUncheckedUpdateManyWithoutBarberoNestedInput
+}
+
+export type BarberoUncheckedUpdateManyWithoutNegocioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
+  telefono?: Prisma.StringFieldUpdateOperationsInput | string
+  porcentajeComision?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
 }
 
 
@@ -894,11 +1103,13 @@ export type BarberoCountOutputTypeCountReservationsArgs<ExtArgs extends runtime.
 export type BarberoSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   usuarioId?: boolean
+  negocioId?: boolean
   telefono?: boolean
   porcentajeComision?: boolean
   fotoUrl?: boolean
   estado?: boolean
   usuario?: boolean | Prisma.UsuarioDefaultArgs<ExtArgs>
+  negocio?: boolean | Prisma.Barbero$negocioArgs<ExtArgs>
   servicios?: boolean | Prisma.Barbero$serviciosArgs<ExtArgs>
   weeklySlots?: boolean | Prisma.Barbero$weeklySlotsArgs<ExtArgs>
   blocks?: boolean | Prisma.Barbero$blocksArgs<ExtArgs>
@@ -911,15 +1122,17 @@ export type BarberoSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
 export type BarberoSelectScalar = {
   id?: boolean
   usuarioId?: boolean
+  negocioId?: boolean
   telefono?: boolean
   porcentajeComision?: boolean
   fotoUrl?: boolean
   estado?: boolean
 }
 
-export type BarberoOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "usuarioId" | "telefono" | "porcentajeComision" | "fotoUrl" | "estado", ExtArgs["result"]["barbero"]>
+export type BarberoOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "usuarioId" | "negocioId" | "telefono" | "porcentajeComision" | "fotoUrl" | "estado", ExtArgs["result"]["barbero"]>
 export type BarberoInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   usuario?: boolean | Prisma.UsuarioDefaultArgs<ExtArgs>
+  negocio?: boolean | Prisma.Barbero$negocioArgs<ExtArgs>
   servicios?: boolean | Prisma.Barbero$serviciosArgs<ExtArgs>
   weeklySlots?: boolean | Prisma.Barbero$weeklySlotsArgs<ExtArgs>
   blocks?: boolean | Prisma.Barbero$blocksArgs<ExtArgs>
@@ -931,6 +1144,7 @@ export type $BarberoPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
   name: "Barbero"
   objects: {
     usuario: Prisma.$UsuarioPayload<ExtArgs>
+    negocio: Prisma.$NegocioPayload<ExtArgs> | null
     servicios: Prisma.$BarberoServicioPayload<ExtArgs>[]
     weeklySlots: Prisma.$BarberWeeklySlotPayload<ExtArgs>[]
     blocks: Prisma.$BarberScheduleBlockPayload<ExtArgs>[]
@@ -939,6 +1153,7 @@ export type $BarberoPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
     usuarioId: number
+    negocioId: number | null
     telefono: string
     porcentajeComision: runtime.Decimal
     fotoUrl: string | null
@@ -1284,6 +1499,7 @@ readonly fields: BarberoFieldRefs;
 export interface Prisma__BarberoClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   usuario<T extends Prisma.UsuarioDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UsuarioDefaultArgs<ExtArgs>>): Prisma.Prisma__UsuarioClient<runtime.Types.Result.GetResult<Prisma.$UsuarioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  negocio<T extends Prisma.Barbero$negocioArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Barbero$negocioArgs<ExtArgs>>): Prisma.Prisma__NegocioClient<runtime.Types.Result.GetResult<Prisma.$NegocioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   servicios<T extends Prisma.Barbero$serviciosArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Barbero$serviciosArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BarberoServicioPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   weeklySlots<T extends Prisma.Barbero$weeklySlotsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Barbero$weeklySlotsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BarberWeeklySlotPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   blocks<T extends Prisma.Barbero$blocksArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Barbero$blocksArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BarberScheduleBlockPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -1319,6 +1535,7 @@ export interface Prisma__BarberoClient<T, Null = never, ExtArgs extends runtime.
 export interface BarberoFieldRefs {
   readonly id: Prisma.FieldRef<"Barbero", 'Int'>
   readonly usuarioId: Prisma.FieldRef<"Barbero", 'Int'>
+  readonly negocioId: Prisma.FieldRef<"Barbero", 'Int'>
   readonly telefono: Prisma.FieldRef<"Barbero", 'String'>
   readonly porcentajeComision: Prisma.FieldRef<"Barbero", 'Decimal'>
   readonly fotoUrl: Prisma.FieldRef<"Barbero", 'String'>
@@ -1668,6 +1885,25 @@ export type BarberoDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Limit how many Barberos to delete.
    */
   limit?: number
+}
+
+/**
+ * Barbero.negocio
+ */
+export type Barbero$negocioArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Negocio
+   */
+  select?: Prisma.NegocioSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Negocio
+   */
+  omit?: Prisma.NegocioOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.NegocioInclude<ExtArgs> | null
+  where?: Prisma.NegocioWhereInput
 }
 
 /**

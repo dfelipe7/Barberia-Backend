@@ -29,8 +29,8 @@ export * from "./enums.js"
  * const prisma = new PrismaClient({
  *   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL })
  * })
- * // Fetch zero or more Usuarios
- * const usuarios = await prisma.usuario.findMany()
+ * // Fetch zero or more Negocios
+ * const negocios = await prisma.negocio.findMany()
  * ```
  * 
  * Read more in our [docs](https://pris.ly/d/client).
@@ -39,6 +39,20 @@ export const PrismaClient = $Class.getPrismaClientClass()
 export type PrismaClient<LogOpts extends Prisma.LogLevel = never, OmitOpts extends Prisma.PrismaClientOptions["omit"] = Prisma.PrismaClientOptions["omit"], ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = $Class.PrismaClient<LogOpts, OmitOpts, ExtArgs>
 export { Prisma }
 
+/**
+ * Model Negocio
+ * Negocio (barbería) dentro de la plataforma SaaS.
+ * 
+ * Es la entidad tenant: cada registro operativo (clientes, barberos,
+ * servicios, reservas, horarios, configuraciones) pertenece a un negocio.
+ * `Usuario` es global (identidad de la persona en la plataforma) y sus
+ * perfiles operativos son los que se asocian a un negocio.
+ * 
+ * `slug` es el identificador PÚBLICO y estable con el que se resuelve el
+ * negocio en cada petición (subdominio o cabecera `X-Negocio-Slug`).
+ * No debe contener información sensible: es visible en URLs y logs.
+ */
+export type Negocio = Prisma.NegocioModel
 /**
  * Model Usuario
  * 
@@ -143,3 +157,19 @@ export type WhatsAppPlantilla = Prisma.WhatsAppPlantillaModel
  * se migran aquí: permanecen en variables de entorno.
  */
 export type ConfiguracionSistema = Prisma.ConfiguracionSistemaModel
+/**
+ * Model ConfiguracionNegocio
+ * Parámetro funcional con ámbito de NEGOCIO (tenant).
+ * 
+ * Separado de `ConfiguracionSistema` (parámetros globales de plataforma):
+ * aquí viven las políticas operativas de cada barbería, como el plazo de
+ * antelación para cancelar o la tolerancia de NO_SHOW. El nombre de la
+ * clave se reutiliza para todos los negocios, pero el VALOR es propio de
+ * cada uno, y la caché de configuración debe segmentarse por `negocioId`
+ * para que un negocio nunca lea el valor de otro.
+ * 
+ * La unicidad es por `(negocioId, clave)`: un mismo negocio no puede tener
+ * dos filas con la misma clave, pero dos negocios sí pueden usar la misma
+ * clave con valores distintos.
+ */
+export type ConfiguracionNegocio = Prisma.ConfiguracionNegocioModel

@@ -26,6 +26,14 @@ export const RolUsuario = {
 export type RolUsuario = (typeof RolUsuario)[keyof typeof RolUsuario]
 
 
+export const EstadoNegocio = {
+  ACTIVO: 'ACTIVO',
+  INACTIVO: 'INACTIVO'
+} as const
+
+export type EstadoNegocio = (typeof EstadoNegocio)[keyof typeof EstadoNegocio]
+
+
 export const EstadoServicio = {
   ACTIVO: 'ACTIVO',
   INACTIVO: 'INACTIVO'
