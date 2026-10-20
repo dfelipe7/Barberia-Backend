@@ -9,8 +9,19 @@ import { ApiProperty } from '@nestjs/swagger';
  * para que el Frontend pueda renderizar la tabla de gestión directamente.
  */
 export class BarberoGestionDto {
-  @ApiProperty({ example: 3, description: 'ID del usuario' })
+  @ApiProperty({
+    example: 3,
+    description:
+      'ID del USUARIO (identidad global de la persona). Es la clave que consumen las rutas de gestión de usuarios y de estado de la cuenta.',
+  })
   id: number;
+
+  @ApiProperty({
+    example: 7,
+    description:
+      'ID del perfil de BARBERO (Barbero.id) dentro de la barbería. Es la clave que consumen la asignación de servicios a barberos y la disponibilidad.',
+  })
+  barberoId: number;
 
   @ApiProperty({ example: 'Carlos', description: 'Nombre del barbero' })
   nombre: string;

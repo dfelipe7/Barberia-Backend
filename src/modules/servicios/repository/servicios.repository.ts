@@ -52,20 +52,24 @@ export class ServiciosRepository {
    * Consulta los barberos que existen y se encuentran en estado ACTIVO (tanto el rol como la cuenta global).
    * Utilizado para validar que no se asocien barberos inactivos o inexistentes a un servicio.
    *
+   * Los identificadores son `Barbero.id` (NO `Usuario.id`): es la clave que
+   * consumen el resto de rutas públicas (disponibilidad, reservas) y la que
+   * devuelve el catálogo.
+   *
    * Restringido al negocio activo: no se pueden vincular barberos de otra
    * barbería al servicio.
    */
   async obtenerBarberosActivosPorIds(ids: number[]) {
     return this.prisma.barbero.findMany({
       where: this.aislamiento.filtroLectura({
-        usuarioId: { in: ids },
+        id: { in: ids },
         estado: EstadoUsuario.ACTIVO,
         usuario: {
           estado: EstadoUsuario.ACTIVO,
         },
       }),
       select: {
-        usuarioId: true,
+        id: true,
       },
     });
   }
@@ -116,6 +120,26 @@ export class ServiciosRepository {
       select: { barberoId: true },
     });
     return asignacion !== null;
+  }
+
+  /**
+   * Comprueba si el perfil de barbero (`Barbero.id`) pertenece al negocio
+   * activo y está ACTIVO.
+   *
+   * Se usa para validar las rutas públicas que reciben un `barberoId`: un
+   * barbero de otra barbería no existe para efectos de esta barbería.
+   */
+  async obtenerBarberoActivoEnNegocio(barberoId: number) {
+    return this.prisma.barbero.findFirst({
+      where: this.aislamiento.filtroLectura({
+        id: barberoId,
+        estado: EstadoUsuario.ACTIVO,
+        usuario: {
+          estado: EstadoUsuario.ACTIVO,
+        },
+      }),
+      select: { id: true },
+    });
   }
 
   /**
@@ -174,8 +198,13 @@ export class ServiciosRepository {
   }
 
   /**
-   * Consulta inversa: Retorna los servicios ACTIVOS asociados a un barbero específico.
-   * Utilizado cuando el cliente escoge primero a su barbero favorito.
+   * Consulta inversa: Retorna los servicios ACTIVOS asociados a un barbero
+   * específico.
+   *
+   * El identificador es `Barbero.id` (NO `Usuario.id`): es la misma clave que
+   * consumen la disponibilidad y la reserva. El filtro acota además el barbero
+   * al negocio activo, de modo que un barbero de otra barbería no devuelve
+   * servicios.
    */
   async listarServiciosPorBarbero(barberoId: number) {
     return await this.prisma.servicio.findMany({
@@ -183,8 +212,9 @@ export class ServiciosRepository {
         estado: EstadoServicio.ACTIVO,
         barberos: {
           some: {
+            barberoId,
             barbero: {
-              usuarioId: barberoId,
+              negocioId: this.aislamiento.negocioIdRequerido(),
             },
           },
         },
@@ -209,6 +239,7 @@ export class ServiciosRepository {
       where: this.aislamiento.filtroLectura({
         servicioId,
         barbero: {
+          negocioId: this.aislamiento.negocioIdRequerido(),
           estado: EstadoUsuario.ACTIVO,
           usuario: {
             estado: EstadoUsuario.ACTIVO,
@@ -238,7 +269,10 @@ export class ServiciosRepository {
 
   /**
    * Crea un nuevo servicio y, si se especificaron barberos,
-   * los vincula de forma atómica en la tabla intermedia BarberoServicio usando el usuarioId.
+   * los vincula de forma atómica en la tabla intermedia BarberoServicio.
+   *
+   * `barberoIds` contiene `Barbero.id` (NO `Usuario.id`): se conecta por la
+   * clave del perfil de barbero, que es la que usa el resto de la API.
    */
   async crearServicio(data: {
     nombre: string;
@@ -261,8 +295,8 @@ export class ServiciosRepository {
         barberos:
           data.barberoIds && data.barberoIds.length > 0
             ? {
-                create: data.barberoIds.map((usuarioId) => ({
-                  barbero: { connect: { usuarioId } },
+                create: data.barberoIds.map((barberoId) => ({
+                  barbero: { connect: { id: barberoId } },
                   negocioId,
                 })),
               }
@@ -275,7 +309,9 @@ export class ServiciosRepository {
   /**
    * Actualiza los datos de un servicio. Si se provee la lista de barberoIds,
    * sincroniza las asignaciones en la tabla intermedia eliminando las anteriores
-   * e insertando las nuevas en una sola transacción segura usando usuarioId.
+   * e insertando las nuevas en una sola transacción segura.
+   *
+   * `barberoIds` contiene `Barbero.id` (NO `Usuario.id`).
    */
   async actualizarServicio(
     id: number,
@@ -302,8 +338,8 @@ export class ServiciosRepository {
           data.barberoIds !== undefined
             ? {
                 deleteMany: {},
-                create: data.barberoIds.map((usuarioId) => ({
-                  barbero: { connect: { usuarioId } },
+                create: data.barberoIds.map((barberoId) => ({
+                  barbero: { connect: { id: barberoId } },
                   negocioId,
                 })),
               }

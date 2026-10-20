@@ -217,6 +217,10 @@ export class BarberosService {
   /**
    * Obtiene la lista de barberos para el catálogo público.
    * Filtra barberos inactivos y oculta datos sensibles (comisión, email).
+   *
+   * El `id` devuelto es el `Barbero.id` (NO el `Usuario.id`): es la clave que
+   * consumen la disponibilidad y la reserva, de modo que el cliente puede
+   * encadenar catálogo → disponibilidad → reserva sin traducir identificadores.
    */
   async obtenerBarberosCatalogo(
     filtro?: FiltroBarberosDto,
@@ -236,6 +240,11 @@ export class BarberosService {
   /**
    * Obtiene la lista completa de barberos para la gestión interna.
    * Incluye datos sensibles como la comisión y el correo.
+   *
+   * `id` es el `Usuario.id` (identidad global de la persona: es la clave que
+   * consume la gestión de usuarios y el estado de la cuenta). `barberoId` es
+   * el `Barbero.id`, la clave del perfil de barbero dentro de la barbería: es
+   * la que consumen la asignación de servicios a barberos y la disponibilidad.
    */
   async obtenerBarberosGestion(
     filtro?: FiltroBarberosDto,
@@ -245,6 +254,7 @@ export class BarberosService {
 
     return barberos.map((barbero) => ({
       id: barbero.usuario.id,
+      barberoId: barbero.id,
       nombre: barbero.usuario.nombre,
       apellido: barbero.usuario.apellido,
       email: barbero.usuario.email,

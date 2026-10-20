@@ -214,10 +214,15 @@ describe('ServiciosRepository', () => {
 
   describe('obtenerBarberosActivosPorIds', () => {
     it('should return active barberos by ids', async () => {
-      mockPrisma.barbero.findMany.mockResolvedValue([{ usuarioId: 1 }]);
+      mockPrisma.barbero.findMany.mockResolvedValue([{ id: 1 }]);
       const result = await repository.obtenerBarberosActivosPorIds([1]);
       expect(mockPrisma.barbero.findMany).toHaveBeenCalled();
-      expect(result).toEqual([{ usuarioId: 1 }]);
+      // Los identificadores son `Barbero.id` (NO `Usuario.id`).
+      esperarConsultaAislada(mockPrisma.barbero.findMany, {
+        where: expect.objectContaining({ id: { in: [1] } }),
+        select: { id: true },
+      });
+      expect(result).toEqual([{ id: 1 }]);
     });
   });
 
@@ -346,7 +351,7 @@ describe('ServiciosRepository', () => {
   });
 
   describe('listarServiciosPorBarbero', () => {
-    it('should return active services for a barbero', async () => {
+    it('should return active services for a barbero (Barbero.id)', async () => {
       mockPrisma.servicio.findMany.mockResolvedValue([{ id: 1 }]);
       const result = await repository.listarServiciosPorBarbero(5);
       esperarConsultaAislada(
@@ -354,7 +359,9 @@ describe('ServiciosRepository', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             estado: EstadoServicio.ACTIVO,
-            barberos: { some: { barbero: { usuarioId: 5 } } },
+            // El identificador del barbero es `Barbero.id` y el barbero debe
+            // pertenecer al negocio activo.
+            barberos: { some: { barberoId: 5, barbero: { negocioId: 1 } } },
           }),
         }),
       );

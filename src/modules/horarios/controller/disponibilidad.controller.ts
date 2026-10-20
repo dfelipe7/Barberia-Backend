@@ -11,6 +11,7 @@ import {
 import { DisponibilidadService } from '../service/disponibilidad.service';
 import { ConsultaDisponibilidadDto } from '../dto/dto-peticion/consulta-disponibilidad.dto';
 import { DisponibilidadPublicaResponseDto } from '../dto/dto-respuesta/disponibilidad-response.dto';
+import { ApiNegocioHeader } from '../../../common/decorators/api-negocio-header.decorator';
 
 /**
  * Endpoint público de disponibilidad (spec §9.8): no requiere autenticación,
@@ -29,10 +30,11 @@ export class DisponibilidadController {
    * GET /usuarios/barberos/:barberoId/disponibilidad?servicioId=&fecha=
    */
   @Get(':barberoId/disponibilidad')
+  @ApiNegocioHeader()
   @ApiOperation({
     summary: 'Consulta pública de disponibilidad de un barbero',
     description:
-      'Endpoint PÚBLICO (sin autenticación). Devuelve únicamente las franjas efectivamente disponibles del barbero para la fecha, sin exponer reservas, bloqueos, cierres ni reglas privadas. Si se informa servicioId, el barbero debe ofrecerlo.',
+      'Endpoint PÚBLICO (sin autenticación). El `barberoId` es el Barbero.id (el mismo que devuelve el catálogo). Solo se consultan horarios, bloqueos y cierres de la barbería de la petición: un barbero de otra barbería responde 404.',
   })
   @ApiParam({
     name: 'barberoId',

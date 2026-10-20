@@ -22,6 +22,7 @@ import {
   ApiOkResponse,
   ApiBadRequestResponse,
   ApiForbiddenResponse,
+  ApiParam,
 } from '@nestjs/swagger';
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
@@ -34,6 +35,7 @@ import { BarberoGestionDto } from '../dto/dto-respuesta/barbero-gestion.dto';
 import { BarberoCatalogoDto } from '../dto/dto-respuesta/barbero-catalogo.dto';
 import { BarberosService } from '../service/barberos.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
+import { ApiNegocioHeader } from '../../../common/decorators/api-negocio-header.decorator';
 
 @ApiTags('Barberos')
 @ApiBearerAuth()
@@ -73,8 +75,11 @@ export class BarberosController {
   }
 
   @Get()
+  @ApiNegocioHeader()
   @ApiOperation({
     summary: 'Obtiene la lista pública/catálogo de barberos con filtros',
+    description:
+      'Catálogo PÚBLICO de la barbería de la petición. El `id` devuelto es el Barbero.id: es el valor que consumen la disponibilidad y la reserva.',
   })
   @ApiOkResponse({
     description:
@@ -86,11 +91,26 @@ export class BarberosController {
     return this.barberosService.obtenerBarberosCatalogo(filtro);
   }
 
-  @Patch(':id/comision')
+  /**
+   * PATCH /usuarios/barberos/:usuarioId/comision
+   *
+   * `usuarioId` es el `Usuario.id` (identidad global de la persona), NO el
+   * `Barbero.id`: esta ruta gestiona el perfil de barbero de una persona
+   * concreta. Para operar sobre el perfil como recurso de la barbería (asignar
+   * servicios, consultar disponibilidad) se usa `Barbero.id`.
+   */
+  @Patch(':usuarioId/comision')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @ApiOperation({
     summary: 'Actualiza el porcentaje de comisión de un barbero',
+    description:
+      'El identificador es el Usuario.id de la persona cuyo perfil de barbero se actualiza.',
+  })
+  @ApiParam({
+    name: 'usuarioId',
+    description: 'ID del usuario (Usuario.id)',
+    type: Number,
   })
   @ApiOkResponse({ description: 'Comisión actualizada exitosamente.' })
   @ApiForbiddenResponse({
@@ -98,21 +118,31 @@ export class BarberosController {
       'No tienes permiso para actualizar la comisión de este usuario (ej. a un Superadmin).',
   })
   async actualizarComision(
-    @Param('id') id: string,
+    @Param('usuarioId') usuarioId: string,
     @Body() dto: ActualizarComisionDto,
     @Req() request: any,
   ) {
     return this.barberosService.actualizarComision(
-      Number(id),
+      Number(usuarioId),
       dto,
       request.user,
     );
   }
 
-  @Patch(':id/estado')
+  /**
+   * PATCH /usuarios/barberos/:usuarioId/estado
+   *
+   * `usuarioId` es el `Usuario.id` (identidad global de la persona).
+   */
+  @Patch(':usuarioId/estado')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @ApiOperation({ summary: 'Cambia el estado (activo/inactivo) de un barbero' })
+  @ApiParam({
+    name: 'usuarioId',
+    description: 'ID del usuario (Usuario.id)',
+    type: Number,
+  })
   @ApiOkResponse({
     description: 'Rol de barbero activado o desactivado exitosamente.',
   })
@@ -120,12 +150,12 @@ export class BarberosController {
     description: 'No tienes permiso para desactivar el rol de este usuario.',
   })
   async cambiarEstadoBarbero(
-    @Param('id') id: string,
+    @Param('usuarioId') usuarioId: string,
     @Body() dto: CambiarEstadoUsuarioDto,
     @Req() request: any,
   ) {
     return this.barberosService.cambiarEstadoBarbero(
-      Number(id),
+      Number(usuarioId),
       dto,
       request.user,
     );
@@ -176,15 +206,25 @@ export class BarberosController {
     return this.barberosService.eliminarFotoBarbero(usuario.id);
   }
 
-  @Post(':id/foto')
+  /**
+   * POST /usuarios/barberos/:usuarioId/foto
+   *
+   * `usuarioId` es el `Usuario.id` (identidad global de la persona).
+   */
+  @Post(':usuarioId/foto')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @UseInterceptors(FileInterceptor('foto', crearMulterOptions('barberos')))
   @ApiOperation({
     summary: 'Sube la foto de perfil de un barbero específico (Admin)',
   })
+  @ApiParam({
+    name: 'usuarioId',
+    description: 'ID del usuario (Usuario.id)',
+    type: Number,
+  })
   async subirFotoBarberoPorId(
-    @Param('id') id: string,
+    @Param('usuarioId') usuarioId: string,
     @UploadedFile() file: Express.Multer.File,
     @Req() request: any,
   ) {
@@ -192,7 +232,7 @@ export class BarberosController {
       throw new BadRequestException('Debe seleccionar un archivo de imagen');
     }
     return this.barberosService.subirFotoBarbero(
-      Number(id),
+      Number(usuarioId),
       file,
       request.user,
     );

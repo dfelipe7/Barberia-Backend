@@ -8,6 +8,12 @@ import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 import helmet from 'helmet';
 
+import {
+  construirOpcionesCors,
+  construirOrigenesPermitidos,
+} from './common/config/cors.config';
+import { swaggerHabilitado } from './common/config/swagger.config';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
@@ -27,25 +33,9 @@ async function bootstrap() {
   );
 
   // OWASP A05: Cross-Origin Resource Sharing (CORS)
-  // Restringe qué dominios pueden hacer peticiones a nuestra API. Solo permitimos a nuestro Frontend autorizado.
-  const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'https://barberia-frontend-production.up.railway.app',
-  ];
-  if (process.env.FRONTEND_URL) {
-    allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/$/, ''));
-  }
-
-  app.enableCors({
-    origin: allowedOrigins,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    // `X-Negocio-Slug` selecciona la barbería de la petición (alternativa al
-    // subdominio). No transporta credenciales: la autorización se resuelve
-    // aparte contra la pertenencia de la persona a ese negocio.
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Negocio-Slug'],
-    credentials: true,
-  });
+  // Restringe qué dominios pueden hacer peticiones a nuestra API: la lista es
+  // EXPLICITA (nunca `*`, porque la API sirve con credenciales).
+  app.enableCors(construirOpcionesCors(construirOrigenesPermitidos()));
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -56,15 +46,18 @@ async function bootstrap() {
   );
 
   // OWASP A05: Ocultar documentación en Producción
-  // Swagger expone todos nuestros endpoints. En este caso lo habilitamos siempre para facilitar pruebas.
-  const config = new DocumentBuilder()
-    .setTitle('Barbería API')
-    .setDescription('La API del sistema de gestión de Barbería VIP')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, documentFactory);
+  // Swagger expone la superficie completa de la API. En producción NO se publica
+  // por defecto; se puede habilitar explícitamente con SWAGGER_HABILITADO=true.
+  if (swaggerHabilitado()) {
+    const config = new DocumentBuilder()
+      .setTitle('Barbería API')
+      .setDescription('La API del sistema de gestión de Barbería VIP')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const documentFactory = () => SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, documentFactory);
+  }
 
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }

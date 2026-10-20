@@ -37,6 +37,7 @@ import { BarberoPorServicioDto } from '../dto/dto-respuesta/barbero-por-servicio
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
+import { ApiNegocioHeader } from '../../../common/decorators/api-negocio-header.decorator';
 
 @ApiTags('servicios')
 @Controller('servicios')
@@ -107,15 +108,23 @@ export class ServiciosController {
    * GET /servicios/barbero/:barberoId
    * Retorna los servicios activos que ofrece un barbero específico.
    * Endpoint PÚBLICO: Utilizado cuando el cliente selecciona primero a su barbero favorito.
+   *
+   * `barberoId` es el `Barbero.id` (no el `Usuario.id`): es la misma clave que
+   * devuelve el catálogo y que consume la disponibilidad. Un barbero de otra
+   * barbería responde 404.
    */
   @Get('barbero/:barberoId')
+  @ApiNegocioHeader()
   @ApiOperation({
     summary: 'Obtiene los servicios activos que realiza un barbero específico',
+    description:
+      'Endpoint PÚBLICO. El identificador es el Barbero.id (el mismo que devuelve el catálogo y que consume la disponibilidad). Si el barbero no pertenece a la barbería de la petición, responde 404.',
   })
   @ApiParam({
     name: 'barberoId',
-    description: 'ID numérico del barbero',
+    description: 'ID del perfil de barbero (Barbero.id)',
     type: Number,
+    example: 3,
   })
   @ApiResponse({
     status: 200,
@@ -123,8 +132,17 @@ export class ServiciosController {
     type: ServicioResponseDto,
     isArray: true,
   })
-  async obtenerServiciosPorBarbero(@Param('barberoId') barberoId: string) {
-    return this.serviciosService.obtenerServiciosPorBarbero(Number(barberoId));
+  @ApiResponse({
+    status: 400,
+    description: 'El identificador de barbero no es un número válido',
+  })
+  @ApiNotFoundResponse({
+    description: 'El barbero no existe en esta barbería o no está activo',
+  })
+  async obtenerServiciosPorBarbero(
+    @Param('barberoId', ParseIntPipe) barberoId: number,
+  ) {
+    return this.serviciosService.obtenerServiciosPorBarbero(barberoId);
   }
 
   /**
@@ -134,6 +152,7 @@ export class ServiciosController {
    * prestarlo. Devuelve el `Barbero.id`, listo para consultar disponibilidad.
    */
   @Get(':servicioId/barberos')
+  @ApiNegocioHeader()
   @ApiOperation({
     summary: 'Obtiene los barberos activos que pueden realizar un servicio',
     description:
@@ -170,9 +189,12 @@ export class ServiciosController {
    * puedan consultar el catálogo e iniciar su reserva sin restricciones.
    */
   @Get()
+  @ApiNegocioHeader()
   @ApiOperation({
     summary:
       'Obtiene el catálogo público de servicios activos para clientes y reservas con soporte de búsqueda',
+    description:
+      'Catálogo PÚBLICO de la barbería de la petición. Solo devuelve servicios del negocio resuelto por el contexto (subdominio o cabecera X-Negocio-Slug), con los barberos que los prestan (Barbero.id).',
   })
   @ApiResponse({
     status: 200,
