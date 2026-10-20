@@ -71,6 +71,7 @@ model Negocio {
   bloqueosHorario   BarberScheduleBlock[]
   cierresGenerales  GeneralClosure[]
   configuraciones   ConfiguracionNegocio[]
+  plantillasWhatsApp WhatsAppPlantilla[]
 
   @@map("negocios")
 }
@@ -441,14 +442,42 @@ model Reservation {
 // ---------------------------------------------------------------------------
 // Plantillas de mensajes dinámicos de WhatsApp
 // ---------------------------------------------------------------------------
+/// Plantilla de mensaje de WhatsApp.
+///
+/// ALCANCE (HU-11): la plantilla puede ser GLOBAL de plataforma
+/// (`negocioId = NULL`) o propia de un negocio (`negocioId = X`).
+///
+/// REGLA DE RESOLUCIÓN: la plantilla DEL NEGOCIO tiene prioridad; si no
+/// existe, se usa la plantilla GLOBAL; si tampoco existe, el texto por defecto
+/// del código. Las filas globales son el VALOR POR DEFECTO de la plataforma
+/// (su propósito es explícito: el texto inicial de una barbería que aún no ha
+/// personalizado sus mensajes) y nunca sustituyen a la de un negocio.
+///
+/// `claveGlobal` es una columna GENERADA (creada en la migración SQL) que
+/// contiene el `tipo` cuando la plantilla es global y `NULL` cuando es de un
+/// negocio. Su índice único garantiza como máximo UNA plantilla global por
+/// tipo: en MySQL/MariaDB los `NULL` de un índice único no colisionan, de
+/// modo que las plantillas de negocio pueden repetirse el tipo que-sea.
 model WhatsAppPlantilla {
-  id        String   @id @default(cuid())
-  tipo      String   @unique @db.VarChar(50) // CONFIRMACION, RECORDATORIO, CANCELACION, etc.
-  mensaje   String   @db.Text
-  activo    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id      Int     @id @default(autoincrement())
+  tipo    String  @db.VarChar(50) // CONFIRMACION, RECORDATORIO, etc.
+  mensaje String  @db.Text
+  activo  Boolean @default(true)
+  /// Negocio al que pertenece la plantilla. `NULL` = plantilla GLOBAL de
+  /// plataforma.
+  negocioId Int?
+  /// Columna generada: `tipo` si la plantilla es global, `NULL` si es de un
+  /// negocio. Prisma no expresa columnas generadas: se declara para que no
+  /// genere drift, y la expresión solo existe en la migración SQL. Es ÚNICA:
+  /// garantiza como máximo una plantilla global por tipo.
+  claveGlobal String? @unique @db.VarChar(50)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
+  negocio Negocio? @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+
+  @@unique([negocioId, tipo])
+  @@index([negocioId])
   @@map("whatsapp_plantillas")
 }
 

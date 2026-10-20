@@ -146,7 +146,22 @@ export type GeneralClosure = Prisma.GeneralClosureModel
 export type Reservation = Prisma.ReservationModel
 /**
  * Model WhatsAppPlantilla
+ * Plantilla de mensaje de WhatsApp.
  * 
+ * ALCANCE (HU-11): la plantilla puede ser GLOBAL de plataforma
+ * (`negocioId = NULL`) o propia de un negocio (`negocioId = X`).
+ * 
+ * REGLA DE RESOLUCIÓN: la plantilla DEL NEGOCIO tiene prioridad; si no
+ * existe, se usa la plantilla GLOBAL; si tampoco existe, el texto por defecto
+ * del código. Las filas globales son el VALOR POR DEFECTO de la plataforma
+ * (su propósito es explícito: el texto inicial de una barbería que aún no ha
+ * personalizado sus mensajes) y nunca sustituyen a la de un negocio.
+ * 
+ * `claveGlobal` es una columna GENERADA (creada en la migración SQL) que
+ * contiene el `tipo` cuando la plantilla es global y `NULL` cuando es de un
+ * negocio. Su índice único garantiza como máximo UNA plantilla global por
+ * tipo: en MySQL/MariaDB los `NULL` de un índice único no colisionan, de
+ * modo que las plantillas de negocio pueden repetirse el tipo que-sea.
  */
 export type WhatsAppPlantilla = Prisma.WhatsAppPlantillaModel
 /**

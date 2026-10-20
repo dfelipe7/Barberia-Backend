@@ -21,6 +21,14 @@ import * as os from 'node:os';
 import { Boom } from '@hapi/boom';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActualizarPlantillasDto } from './dto/actualizar-plantillas.dto';
+import {
+  PlantillaWhatsApp,
+  WhatsAppPlantillasRepository,
+} from './whatsapp-plantillas.repository';
+import { ConfiguracionService } from '../configuracion/service/configuracion.service';
+import { CLAVES_CONFIGURACION } from '../configuracion/configuracion.constants';
+import { NegocioContextoService } from '../negocios/negocio-contexto.service';
+import { NegociosRepository } from '../negocios/repository/negocios.repository';
 
 // Filtro para silenciar logs internos ruidosos de libsignal (mensajes históricos entrantes o estados no relevantes para notificaciones salientes)
 const esLogRuidosoLibsignal = (...args: any[]): boolean => {
@@ -56,7 +64,7 @@ console.error = (...args: any[]) => {
 };
 
 export const PLANTILLA_CONFIRMACION_DEFAULT =
-  `💈 *KYRIOS BARBER STUDIO*\n` +
+  `💈 *{negocio}*\n` +
   `¡Hola {cliente}! Tu cita ha sido agendada con éxito.\n\n` +
   `📅 *Fecha:* {fecha}\n` +
   `⏰ *Hora:* {hora}\n` +
@@ -67,7 +75,7 @@ export const PLANTILLA_CONFIRMACION_DEFAULT =
   `_Te esperamos 5 minutos antes de tu cita. ¡Gracias por elegirnos!_`;
 
 export const PLANTILLA_RECORDATORIO_DEFAULT =
-  `⏰ *RECORDATORIO DE TU CITA - KYRIOS BARBER*\n` +
+  `⏰ *RECORDATORIO DE TU CITA - {negocio}*\n` +
   `¡Hola {cliente}! Te recordamos que tienes una cita programada para hoy:\n\n` +
   `⏰ *Hora:* {hora}\n` +
   `✂️ *Servicio:* {servicio}\n` +
@@ -76,6 +84,9 @@ export const PLANTILLA_RECORDATORIO_DEFAULT =
   `_Si no puedes asistir o necesitas reprogramar, por favor avísanos con tiempo._`;
 
 export const MINUTOS_ANTICIPACION_DEFAULT = 120;
+
+/** Nombre mostrado cuando no hay contexto de negocio (uso de plataforma). */
+export const NOMBRE_NEGOCIO_POR_DEFECTO = 'Barbería';
 
 export interface DatosConfirmacionWhatsApp {
   telefono: string;
@@ -116,7 +127,13 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   private qrInactivityTimer: NodeJS.Timeout | null = null;
   private enReposo = true;
 
-  constructor(@Optional() private readonly prisma?: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly plantillasRepository: WhatsAppPlantillasRepository,
+    private readonly configuracionService: ConfiguracionService,
+    private readonly contextoService: NegocioContextoService,
+    private readonly negociosRepository: NegociosRepository,
+  ) {
     this.sessionDir =
       process.env.WHATSAPP_SESSION_PATH ||
       path.join(os.homedir(), '.kyrios_whatsapp_session');
@@ -529,48 +546,150 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Reemplaza las variables dinámicas de una plantilla con los datos reales de la reserva.
+   * Sustituye las variables dinámicas de una plantilla con los datos reales de
+   * la reserva.
+   *
+   * `{negocio}` y `{ubicacion}` son datos COMERCIALES de la barbería: se
+   * resuelven con la información del negocio CONTEXTO (nunca con la de otro).
    */
   reemplazarVariables(
     plantilla: string,
     datos: DatosConfirmacionWhatsApp,
+    comercial?: { nombre: string; direccion: string },
   ): string {
     const precioTexto = datos.precio
       ? `\n💰 *Valor:* $${Number(datos.precio).toLocaleString('es-CO')}`
       : '';
 
-    return plantilla
+    const nombreNegocio =
+      comercial?.nombre?.trim() || NOMBRE_NEGOCIO_POR_DEFECTO;
+    const direccion = comercial?.direccion?.trim() ?? '';
+
+    const conComerciales = plantilla
+      .replace(/{negocio}/g, nombreNegocio)
+      .replace(
+        /📍 \*Ubicación:\* \{ubicacion\}\n?/g,
+        direccion ? `📍 *Ubicación:* ${direccion}\n` : '',
+      );
+
+    return conComerciales
       .replace(/{cliente}/g, datos.clienteNombre)
       .replace(/{servicio}/g, datos.servicioNombre)
       .replace(/{barbero}/g, datos.barberoNombre)
       .replace(/{fecha}/g, datos.fecha)
       .replace(/{hora}/g, datos.hora)
       .replace(/{precio}/g, precioTexto)
-      .replace(/{ubicacion}/g, 'Carrera 6 # 3-45, Centro Histórico, Popayán');
+      .replace(/{ubicacion}/g, direccion);
   }
 
   /**
-   * Obtiene los minutos de anticipación configurados para enviar el recordatorio automático.
-   * Por defecto: 120 minutos (2 horas antes de la cita).
+   * Datos COMERCIALES del negocio del contexto actual.
+   *
+   * Sin contexto de negocio (uso de plataforma) se devuelven los valores por
+   * defecto: nunca los de OTRO negocio.
+   */
+  private async datosComercialesDelNegocio(): Promise<{
+    nombre: string;
+    direccion: string;
+  }> {
+    const contexto = this.contextoService.obtenerContexto();
+
+    if (!contexto) {
+      return { nombre: NOMBRE_NEGOCIO_POR_DEFECTO, direccion: '' };
+    }
+
+    const negocio = await this.negociosRepository.buscarPorId(contexto.id);
+
+    let direccion = '';
+    try {
+      direccion = await this.configuracionService.obtenerTexto(
+        CLAVES_CONFIGURACION.NEGOCIO_DIRECCION,
+        '',
+      );
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo leer la dirección del negocio ${contexto.slug}: ${(error as Error)?.message}`,
+      );
+    }
+
+    return {
+      nombre: negocio?.nombre?.trim() || NOMBRE_NEGOCIO_POR_DEFECTO,
+      direccion,
+    };
+  }
+
+  /**
+   * Identificador del negocio del contexto actual, o `null` si la operación es
+   * de plataforma (gestión de las plantillas globales).
+   */
+  private negocioIdDelContexto(): number | null {
+    return this.contextoService.obtenerContexto()?.id ?? null;
+  }
+
+  /**
+   * Obtiene los minutos de anticipación configurados para enviar el recordatorio
+   * automático.
+   *
+   * ORDEN DE RESOLUCIÓN (HU-11): la configuración del NEGOCIO tiene prioridad;
+   * si no existe, se usa la plantilla GLOBAL de plataforma; si tampoco existe,
+   * el valor por defecto (120 minutos).
    */
   async obtenerMinutosAnticipacion(): Promise<number> {
-    if (!this.prisma) return MINUTOS_ANTICIPACION_DEFAULT;
-    try {
-      const config = await this.prisma.whatsAppPlantilla.findUnique({
-        where: { tipo: 'CONFIG_RECORDATORIO_MINUTOS' },
-      });
-      if (config?.mensaje) {
-        const parsed = parseInt(config.mensaje, 10);
-        if (!isNaN(parsed) && parsed > 0) return parsed;
+    const negocioId = this.negocioIdDelContexto();
+
+    if (negocioId !== null) {
+      try {
+        const valor = await this.configuracionService.obtenerNumero(
+          CLAVES_CONFIGURACION.RECORDATORIO_MINUTOS_ANTICIPACION,
+          0,
+          { minimo: 1, maximo: 10080, entero: true },
+        );
+
+        if (valor > 0) {
+          return valor;
+        }
+      } catch (error) {
+        this.logger.warn(
+          `No se pudo leer la anticipación del negocio ${negocioId}: ${(error as Error)?.message}`,
+        );
       }
-    } catch (err) {
-      this.logger.warn(`Error leyendo tiempo de anticipación de BD: ${err}`);
     }
+
+    const plantilla = await this.obtenerPlantillaGlobal(
+      'CONFIG_RECORDATORIO_MINUTOS',
+    );
+
+    if (plantilla?.mensaje) {
+      const parsed = parseInt(plantilla.mensaje, 10);
+      if (!isNaN(parsed) && parsed > 0) return parsed;
+    }
+
     return MINUTOS_ANTICIPACION_DEFAULT;
   }
 
   /**
-   * Obtiene las plantillas de mensajes configuradas en la base de datos o retorna las predeterminadas.
+   * Obtiene la plantilla GLOBAL de plataforma de un tipo (`negocioId = NULL`).
+   */
+  private async obtenerPlantillaGlobal(
+    tipo: string,
+  ): Promise<PlantillaWhatsApp | null> {
+    try {
+      const plantillas =
+        await this.plantillasRepository.obtenerPlantillas(null);
+      return plantillas.find((p) => p.tipo === tipo) ?? null;
+    } catch (err) {
+      this.logger.warn(`Error leyendo la plantilla global '${tipo}': ${err}`);
+      return null;
+    }
+  }
+
+  /**
+   * Obtiene las plantillas de mensajes configuradas en la base de datos o
+   * retorna las predeterminadas.
+   *
+   * REGLA DE RESOLUCIÓN (HU-11): la plantilla del NEGOCIO tiene prioridad
+   * sobre la GLOBAL de plataforma, que a su vez tiene prioridad sobre el texto
+   * por defecto del código.
    */
   async obtenerPlantillas(): Promise<{
     confirmacion: string;
@@ -578,87 +697,85 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     minutosAnticipacion: number;
   }> {
     const minutosAnticipacion = await this.obtenerMinutosAnticipacion();
+    const negocioId = this.negocioIdDelContexto();
 
-    if (!this.prisma) {
-      return {
-        confirmacion: PLANTILLA_CONFIRMACION_DEFAULT,
-        recordatorio: PLANTILLA_RECORDATORIO_DEFAULT,
-        minutosAnticipacion,
-      };
-    }
+    let plantillas: PlantillaWhatsApp[] = [];
 
     try {
-      const plantillasDb = await this.prisma.whatsAppPlantilla.findMany({
-        where: { tipo: { in: ['CONFIRMACION', 'RECORDATORIO'] }, activo: true },
-      });
-
-      const confirmacion =
-        plantillasDb.find((p) => p.tipo === 'CONFIRMACION')?.mensaje ||
-        PLANTILLA_CONFIRMACION_DEFAULT;
-
-      const recordatorio =
-        plantillasDb.find((p) => p.tipo === 'RECORDATORIO')?.mensaje ||
-        PLANTILLA_RECORDATORIO_DEFAULT;
-
-      return { confirmacion, recordatorio, minutosAnticipacion };
+      plantillas = await this.plantillasRepository.obtenerPlantillas(negocioId);
     } catch (err) {
       this.logger.warn(
         `Error leyendo plantillas de BD, usando valores por defecto: ${err}`,
       );
-      return {
-        confirmacion: PLANTILLA_CONFIRMACION_DEFAULT,
-        recordatorio: PLANTILLA_RECORDATORIO_DEFAULT,
-        minutosAnticipacion,
-      };
     }
+
+    const elegir = (tipo: string, porDefecto: string): string => {
+      const propia = plantillas.find(
+        (p) => p.tipo === tipo && p.negocioId === negocioId,
+      );
+      if (propia?.mensaje) {
+        return propia.mensaje;
+      }
+
+      const global = plantillas.find(
+        (p) => p.tipo === tipo && p.negocioId === null,
+      );
+
+      return global?.mensaje || porDefecto;
+    };
+
+    return {
+      confirmacion: elegir('CONFIRMACION', PLANTILLA_CONFIRMACION_DEFAULT),
+      recordatorio: elegir('RECORDATORIO', PLANTILLA_RECORDATORIO_DEFAULT),
+      minutosAnticipacion,
+    };
   }
 
   /**
-   * Actualiza o crea las plantillas de mensajes y configuración en la base de datos.
+   * Actualiza o crea las plantillas de mensajes y configuración en la base de
+   * datos.
+   *
+   * HU-11: las plantillas se guardan PARA EL NEGOCIO DEL CONTEXTO. Sin
+   * contexto (operación de plataforma) se guardan como plantillas GLOBALES.
    */
   async guardarPlantillas(dto: ActualizarPlantillasDto): Promise<{
     confirmacion: string;
     recordatorio: string;
     minutosAnticipacion: number;
   }> {
-    if (this.prisma) {
-      if (dto.confirmacion !== undefined && dto.confirmacion.trim() !== '') {
-        await this.prisma.whatsAppPlantilla.upsert({
-          where: { tipo: 'CONFIRMACION' },
-          update: { mensaje: dto.confirmacion.trim(), activo: true },
-          create: {
-            tipo: 'CONFIRMACION',
-            mensaje: dto.confirmacion.trim(),
-            activo: true,
-          },
-        });
-      }
+    const negocioId = this.negocioIdDelContexto();
 
-      if (dto.recordatorio !== undefined && dto.recordatorio.trim() !== '') {
-        await this.prisma.whatsAppPlantilla.upsert({
-          where: { tipo: 'RECORDATORIO' },
-          update: { mensaje: dto.recordatorio.trim(), activo: true },
-          create: {
-            tipo: 'RECORDATORIO',
-            mensaje: dto.recordatorio.trim(),
-            activo: true,
-          },
-        });
-      }
+    if (dto.confirmacion !== undefined && dto.confirmacion.trim() !== '') {
+      await this.plantillasRepository.guardarPlantilla(
+        negocioId,
+        'CONFIRMACION',
+        dto.confirmacion.trim(),
+      );
+    }
 
-      if (
-        dto.minutosAnticipacion !== undefined &&
-        dto.minutosAnticipacion > 0
-      ) {
-        await this.prisma.whatsAppPlantilla.upsert({
-          where: { tipo: 'CONFIG_RECORDATORIO_MINUTOS' },
-          update: { mensaje: String(dto.minutosAnticipacion), activo: true },
-          create: {
-            tipo: 'CONFIG_RECORDATORIO_MINUTOS',
-            mensaje: String(dto.minutosAnticipacion),
-            activo: true,
-          },
-        });
+    if (dto.recordatorio !== undefined && dto.recordatorio.trim() !== '') {
+      await this.plantillasRepository.guardarPlantilla(
+        negocioId,
+        'RECORDATORIO',
+        dto.recordatorio.trim(),
+      );
+    }
+
+    if (dto.minutosAnticipacion !== undefined && dto.minutosAnticipacion > 0) {
+      // La anticipación es una POLÍTICA del negocio: se guarda en su
+      // configuración, no en la plantilla global.
+      if (negocioId !== null) {
+        await this.configuracionService.guardarNumero(
+          negocioId,
+          CLAVES_CONFIGURACION.RECORDATORIO_MINUTOS_ANTICIPACION,
+          dto.minutosAnticipacion,
+        );
+      } else {
+        await this.plantillasRepository.guardarPlantilla(
+          null,
+          'CONFIG_RECORDATORIO_MINUTOS',
+          String(dto.minutosAnticipacion),
+        );
       }
     }
 
@@ -667,48 +784,68 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Restablece las plantillas a los textos oficiales por defecto.
+   *
+   * HU-11: se eliminan las plantillas DEL NEGOCIO DEL CONTEXTO (las globales
+   * se conservan: son el valor por defecto de la plataforma). Sin contexto se
+   * eliminan las globales.
    */
   async resetPlantillas(): Promise<{
     confirmacion: string;
     recordatorio: string;
     minutosAnticipacion: number;
   }> {
-    if (this.prisma) {
-      await this.prisma.whatsAppPlantilla.deleteMany({
-        where: {
-          tipo: {
-            in: ['CONFIRMACION', 'RECORDATORIO', 'CONFIG_RECORDATORIO_MINUTOS'],
-          },
-        },
-      });
+    const negocioId = this.negocioIdDelContexto();
+
+    if (negocioId !== null) {
+      await this.plantillasRepository.eliminarPlantillas(negocioId, [
+        'CONFIRMACION',
+        'RECORDATORIO',
+      ]);
+
+      // La anticipación del negocio vive en su configuración: se restablece
+      // también, para que el valor efectivo y la respuesta coincidan.
+      await this.configuracionService.guardarNumero(
+        negocioId,
+        CLAVES_CONFIGURACION.RECORDATORIO_MINUTOS_ANTICIPACION,
+        MINUTOS_ANTICIPACION_DEFAULT,
+      );
+    } else {
+      await this.plantillasRepository.eliminarPlantillas(null, [
+        'CONFIRMACION',
+        'RECORDATORIO',
+        'CONFIG_RECORDATORIO_MINUTOS',
+      ]);
     }
 
-    return {
-      confirmacion: PLANTILLA_CONFIRMACION_DEFAULT,
-      recordatorio: PLANTILLA_RECORDATORIO_DEFAULT,
-      minutosAnticipacion: MINUTOS_ANTICIPACION_DEFAULT,
-    };
+    return this.obtenerPlantillas();
   }
 
   /**
-   * Envía la confirmación inmediata de reserva al cliente usando la plantilla configurada.
+   * Envía la confirmación inmediata de reserva al cliente usando la plantilla
+   * configurada.
+   *
+   * La plantilla, la dirección y el nombre son los del NEGOCIO del contexto:
+   * una reserva de A nunca produce un mensaje con los datos de B.
    */
   async enviarConfirmacionReserva(
     datos: DatosConfirmacionWhatsApp,
   ): Promise<boolean> {
     const { confirmacion } = await this.obtenerPlantillas();
-    const mensaje = this.reemplazarVariables(confirmacion, datos);
+    const comercial = await this.datosComercialesDelNegocio();
+    const mensaje = this.reemplazarVariables(confirmacion, datos, comercial);
     return this.enviarMensaje(datos.telefono, mensaje);
   }
 
   /**
-   * Envía el recordatorio automático 2 horas antes de la cita usando la plantilla configurada.
+   * Envía el recordatorio automático antes de la cita usando la plantilla
+   * configurada.
    */
   async enviarRecordatorioReserva(
     datos: DatosConfirmacionWhatsApp,
   ): Promise<boolean> {
     const { recordatorio } = await this.obtenerPlantillas();
-    const mensaje = this.reemplazarVariables(recordatorio, datos);
+    const comercial = await this.datosComercialesDelNegocio();
+    const mensaje = this.reemplazarVariables(recordatorio, datos, comercial);
     return this.enviarMensaje(datos.telefono, mensaje);
   }
 
@@ -718,10 +855,16 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   async enviarCancelacionReserva(
     datos: DatosConfirmacionWhatsApp,
   ): Promise<boolean> {
+    const comercial = await this.datosComercialesDelNegocio();
+    const ubicacion = comercial.direccion
+      ? `\n📍 *Ubicación:* ${comercial.direccion}`
+      : '';
+
     const mensaje =
-      `❌ *CITA CANCELADA - KYRIOS BARBER*\n` +
+      `❌ *CITA CANCELADA - ${comercial.nombre}*\n` +
       `Hola ${datos.clienteNombre}, te confirmamos que tu cita de ${datos.servicioNombre} para el día *${datos.fecha}* a las *${datos.hora}* ha sido cancelada.\n\n` +
-      `Si deseas volver a agendar, puedes hacerlo en cualquier momento desde nuestro sitio web o escribiéndonos aquí. ¡Esperamos verte pronto!`;
+      `Si deseas volver a agendar, puedes hacerlo en cualquier momento desde nuestro sitio web o escribiéndonos aquí. ¡Esperamos verte pronto!` +
+      ubicacion;
 
     return this.enviarMensaje(datos.telefono, mensaje);
   }
@@ -732,10 +875,12 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   async enviarCompletadoReserva(
     datos: DatosConfirmacionWhatsApp,
   ): Promise<boolean> {
+    const comercial = await this.datosComercialesDelNegocio();
+
     const mensaje =
-      `✅ *CITA COMPLETADA - KYRIOS BARBER*\n` +
+      `✅ *CITA COMPLETADA - ${comercial.nombre}*\n` +
       `¡Hola ${datos.clienteNombre}! Tu cita de ${datos.servicioNombre} del día *${datos.fecha}* a las *${datos.hora}* ha sido marcada como completada.\n\n` +
-      `¡Gracias por tu visita! Esperamos verte de nuevo pronto en Kyrios Barber Studio.`;
+      `¡Gracias por tu visita! Esperamos verte de nuevo pronto en ${comercial.nombre}.`;
 
     return this.enviarMensaje(datos.telefono, mensaje);
   }
@@ -746,14 +891,19 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   async enviarReprogramacionReserva(
     datos: DatosConfirmacionWhatsApp,
   ): Promise<boolean> {
+    const comercial = await this.datosComercialesDelNegocio();
+    const ubicacion = comercial.direccion
+      ? `\n📍 *Ubicación:* ${comercial.direccion}\n`
+      : '';
+
     const mensaje =
-      `🔄 *CITA REPROGRAMADA - KYRIOS BARBER*\n` +
+      `🔄 *CITA REPROGRAMADA - ${comercial.nombre}*\n` +
       `¡Hola ${datos.clienteNombre}! Tu cita ha sido actualizada con éxito:\n\n` +
       `📅 *Nueva Fecha:* ${datos.fecha}\n` +
       `⏰ *Nueva Hora:* ${datos.hora}\n` +
       `✂️ *Servicio:* ${datos.servicioNombre}\n` +
-      `💈 *Barbero:* ${datos.barberoNombre}\n\n` +
-      `📍 *Ubicación:* Carrera 6 # 3-45, Centro Histórico, Popayán\n` +
+      `💈 *Barbero:* ${datos.barberoNombre}\n` +
+      ubicacion +
       `_¡Te esperamos!_`;
 
     return this.enviarMensaje(datos.telefono, mensaje);

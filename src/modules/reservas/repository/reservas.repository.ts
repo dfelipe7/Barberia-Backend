@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import { Prisma } from '../../../../generated/prisma/client';
@@ -420,6 +420,8 @@ export function esErrorReintentableTransaccion(error: unknown): boolean {
 
 @Injectable()
 export class ReservasRepository {
+  private readonly logger = new Logger(ReservasRepository.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly aislamiento: NegocioAislamientoService,
@@ -867,152 +869,94 @@ export class ReservasRepository {
    * Obtiene las reservas de una fecha con estado PENDING o CONFIRMED
    * que aún no han recibido el recordatorio automático por WhatsApp.
    *
-   * ⚠️ AISLAMIENDO POR NEGOCIO, SIN TOCAR HU-11 ⚠️
+   * ⚠️ AISLAMIENDO POR NEGOCIO (HU-11) ⚠️
    *
    * Esta consulta la consume el cron de recordatorios
-   * (`src/modules/reservas/cron/recordatorios.cron.ts`), que es propiedad de
-   * HU-11 y no puede modificarse en esta fase.
+   * (`src/modules/reservas/cron/recordatorios.cron.ts`).
    *
-   * El cron no fija contexto de negocio: recorre TODOS los negocios. En vez
-   * de dejar que su consulta atraviese los negocios (una fuga), este método
-   * RECORRE LOS NEGOCIOS UNO A UNO, fijando el contexto de cada uno antes de
-   * consultarlo. El resultado es el mismo conjunto de reservas que
-   * devolvía antes, pero cada fila se obtiene dentro de su ámbito: la capa de
-   * aislamiento sigue siendo efectiva y el cron de HU-11 no se modifica ni
-   * se interrumpe.
+   * El cron establece el contexto de negocio ANTES de llamar a este método
+   * (`NegocioContextoService.ejecutarEnContexto`), de modo que la consulta
+   * está acotada al negocio que se está procesando. El repositorio NO recorre
+   * los negocios por su cuenta: el aislamiento es responsabilidad del
+   * proceso que fija el contexto, y la extensión de Prisma lo verifica.
+   *
+   * Sin contexto de negocio, la llamada FALLA (el filtro exige un negocio
+   * autorizado): nunca devuelve citas de todos los negocios.
    *
    * El `await` se hace DENTRO del contexto (y no fuera): Prisma devuelve una
    * promesa perezosa y la consulta se ejecuta cuando se espera. Esperarla
    * fuera del contexto ejecutaría la consulta ya fuera del ámbito.
    */
   async obtenerCitasPendientesRecordatorio(fecha: Date) {
-    const negocios = await this.prisma.negocio.findMany({
-      where: { estado: 'ACTIVO' },
-      select: { id: true, slug: true },
-    });
-
-    const citas: Array<{
-      id: number;
-      startTime: string;
-      endTime: string;
-      precioReservado: Prisma.Decimal | null;
-      date: Date;
-      cliente: {
-        id: number;
-        nombre: string;
-        apellido: string | null;
-        telefono: string | null;
-      } | null;
-      barbero: {
-        id: number;
-        usuario: { nombre: string; apellido: string };
-      } | null;
-      servicio: { id: number; nombre: string; precio: Prisma.Decimal } | null;
-    }> = [];
-
-    for (const negocio of negocios) {
-      // Cada negocio se consulta con SU contexto: la capa de aislamiento
-      // sigue aplicando y ninguna consulta sale de su ámbito.
-      //
-      // El `await` va DENTRO del callback a propósito: Prisma devuelve una
-      // promesa perezosa y la consulta se ejecuta cuando se espera. Si se
-      // esperase fuera del contexto, la ejecución ocurriría ya fuera del
-      // ámbito y la extensión de aislamiento la rechazaría (o, sin ella, la
-      // consulta cruzaría negocios).
-      const propias = await this.aislamiento.ejecutarEnNegocio(
-        negocio,
-        async () =>
-          this.prisma.reservation.findMany({
-            where: this.aislamiento.filtroLectura({
-              date: fecha,
-              status: {
-                in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED],
-              },
-              recordatorioEnviado: false,
-            }),
-            select: {
-              id: true,
-              startTime: true,
-              endTime: true,
-              precioReservado: true,
-              date: true,
-              cliente: {
-                select: {
-                  id: true,
-                  nombre: true,
-                  apellido: true,
-                  telefono: true,
-                },
-              },
-              barbero: {
-                select: {
-                  id: true,
-                  usuario: {
-                    select: {
-                      nombre: true,
-                      apellido: true,
-                    },
-                  },
-                },
-              },
-              servicio: {
-                select: {
-                  id: true,
-                  nombre: true,
-                  precio: true,
-                },
+    return this.prisma.reservation.findMany({
+      where: this.aislamiento.filtroLectura({
+        date: fecha,
+        status: {
+          in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED],
+        },
+        recordatorioEnviado: false,
+      }),
+      select: {
+        id: true,
+        startTime: true,
+        endTime: true,
+        precioReservado: true,
+        date: true,
+        cliente: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            telefono: true,
+          },
+        },
+        barbero: {
+          select: {
+            id: true,
+            usuario: {
+              select: {
+                nombre: true,
+                apellido: true,
               },
             },
-          }),
-      );
-
-      citas.push(...propias);
-    }
-
-    return citas;
+          },
+        },
+        servicio: {
+          select: {
+            id: true,
+            nombre: true,
+            precio: true,
+          },
+        },
+      },
+    });
   }
 
   /**
    * Marca el recordatorio de una reserva como enviado para no retransmitirlo.
    *
-   * Lo invoca el cron de recordatorios. La escritura se acota al negocio de
-   * la propia reserva: si la reserva pertenece a un negocio, la marca se
-   * escribe dentro de ese ámbito y no puede alcanzar reservas de otro
-   * negocio. La marca se aplica dentro del contexto de la reserva, de modo que
-   * el cron de HU-11 no necesita fijarlo (y no se modifica).
+   * Lo invoca el cron de recordatorios, que ya ha establecido el contexto del
+   * negocio que está procesando.
+   *
+   * AISLAMIENTO: la escritura usa el negocio del CONTEXTO, no el de la fila
+   * leída. De este modo, marcar un recordatorio de OTRO negocio es imposible:
+   * la actualización se acota al negocio del contexto y, si la reserva no
+   * pertenece a él, no afecta a ninguna fila.
+   *
+   * Sin contexto de negocio, la llamada FALLA (`negocioIdRequerido`): no
+   * degrada a una marca global.
    */
   async marcarRecordatorioEnviado(id: number): Promise<void> {
-    const reserva = await this.prisma.reservation.findUnique({
-      where: { id },
-      select: {
-        negocioId: true,
-        negocio: { select: { id: true, slug: true } },
-      },
+    const actualizadas = await this.prisma.reservation.updateMany({
+      where: this.aislamiento.filtroEscritura({ id }),
+      data: { recordatorioEnviado: true },
     });
 
-    if (!reserva) {
-      return;
+    if (actualizadas.count === 0) {
+      this.logger.warn(
+        `No se marcó el recordatorio de la reserva ${id}: no pertenece al negocio del contexto.`,
+      );
     }
-
-    if (!reserva.negocio) {
-      // Reserva sin negocio (estado transitorio previo al backfill): no hay
-      // ámbito al que acotar la escritura, y marcarla afectaría a un recurso
-      // sin negocio identificado. Se deja sin marcar: el cron vuelve a
-      // intentarlo cuando la reserva tenga negocio asignado.
-      return;
-    }
-
-    // El `await` va dentro del callback: Prisma devuelve una promesa perezosa
-    // y la escritura se ejecuta cuando se espera. Esperarla fuera del
-    // contexto la ejecutaría fuera del ámbito del negocio de la reserva.
-    await this.aislamiento.ejecutarEnNegocio(
-      { id: reserva.negocio.id, slug: reserva.negocio.slug },
-      async () =>
-        this.prisma.reservation.update({
-          where: this.aislamiento.filtroEscritura({ id }),
-          data: { recordatorioEnviado: true },
-        }),
-    );
   }
 
   /**

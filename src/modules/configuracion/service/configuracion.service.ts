@@ -278,6 +278,77 @@ export class ConfiguracionService {
   }
 
   /**
+   * Guarda el valor textual de una clave de configuración de un NEGOCIO.
+   *
+   * La escritura se ejecuta DENTRO del contexto del negocio: así la fila queda
+   * asociada a ese negocio y la extensión de aislamiento impide que se toque
+   * la configuración de otro. La caché de ese negocio se invalida.
+   *
+   * Si la clave ya existe con OTRO tipo (por ejemplo, una clave numérica), la
+   * escritura FALLA y el registro se conserva: el tipo de una configuración no
+   * cambia por el hecho de guardar un valor nuevo. La corrección de un
+   * registro heredado con tipo incorrecto es explícita (`corregirTipo`).
+   */
+  async guardarTexto(
+    negocioId: number,
+    clave: string,
+    valor: string,
+    opciones: { corregirTipo?: boolean } = {},
+  ): Promise<void> {
+    await this.guardarEnNegocio(negocioId, clave, valor, 'TEXTO', opciones);
+  }
+
+  /**
+   * Guarda un valor NUMERO de la configuración de un negocio.
+   *
+   * El tipo importa: un número guardado como texto NO sería válido al leerlo
+   * con `obtenerNumero` (la resolución descarta los valores de tipo
+   * incorrecto) y la política se perdería. Por eso el tipo se escribe de
+   * forma explícita y NO se degrada por una escritura posterior de texto.
+   */
+  async guardarNumero(
+    negocioId: number,
+    clave: string,
+    valor: number,
+    opciones: { corregirTipo?: boolean } = {},
+  ): Promise<void> {
+    await this.guardarEnNegocio(
+      negocioId,
+      clave,
+      String(valor),
+      'NUMERO',
+      opciones,
+    );
+  }
+
+  /** Escritura de la configuración de un negocio, dentro de SU contexto. */
+  private async guardarEnNegocio(
+    negocioId: number,
+    clave: string,
+    valor: string,
+    tipo: 'TEXTO' | 'NUMERO',
+    opciones: { corregirTipo?: boolean },
+  ): Promise<void> {
+    const negocio = await this.negociosRepository.buscarPorId(negocioId);
+
+    if (!negocio) {
+      throw new NotFoundException('El negocio no existe');
+    }
+
+    await this.aislamientoService.ejecutarEnNegocio(negocio, () =>
+      this.configuracionRepository.guardarEnNegocio(
+        negocio.id,
+        clave,
+        valor,
+        tipo,
+        opciones,
+      ),
+    );
+
+    this.invalidarCacheNegocio(negocio.id, clave);
+  }
+
+  /**
    * Resolución tipada del valor efectivo.
    *
    * Se recorren los candidatos EN ORDEN (negocio -> global -> defecto) y gana

@@ -17,6 +17,10 @@ export const CLAVES_CONFIGURACION = {
   RESERVA_CANCELACION_ANTELACION_MINUTOS:
     'reserva_cancelacion_antelacion_minutos',
   RESERVA_NO_SHOW_TOLERANCIA_MINUTOS: 'reserva_no_show_tolerancia_minutos',
+  /** Dirección comercial de la barbería (HU-11). */
+  NEGOCIO_DIRECCION: 'negocio_direccion',
+  /** Minutos de anticipación del recordatorio (HU-11). */
+  RECORDATORIO_MINUTOS_ANTICIPACION: 'recordatorio_minutos_anticipacion',
 } as const;
 
 export type ClaveConfiguracion =
@@ -33,6 +37,8 @@ export type ClaveConfiguracion =
 export const VALORES_POR_DEFECTO_OPERATIVOS = {
   RESERVA_CANCELACION_ANTELACION_MINUTOS: 120,
   RESERVA_NO_SHOW_TOLERANCIA_MINUTOS: 15,
+  /** Ventana de anticipación del recordatorio por defecto (HU-11). */
+  RECORDATORIO_MINUTOS_ANTICIPACION: 120,
 } as const;
 
 /**
@@ -47,6 +53,7 @@ export const CLAVES_CONFIGURACION_OPERATIVA: ReadonlyArray<{
   clave: string;
   valorPorDefecto: string;
   descripcion: string;
+  tipo: 'TEXTO' | 'NUMERO';
 }> = [
   {
     clave: CLAVES_CONFIGURACION.RESERVA_CANCELACION_ANTELACION_MINUTOS,
@@ -55,6 +62,7 @@ export const CLAVES_CONFIGURACION_OPERATIVA: ReadonlyArray<{
     ),
     descripcion:
       'Minutos mínimos de antelación para que un cliente cancele su reserva en línea.',
+    tipo: 'NUMERO',
   },
   {
     clave: CLAVES_CONFIGURACION.RESERVA_NO_SHOW_TOLERANCIA_MINUTOS,
@@ -63,6 +71,23 @@ export const CLAVES_CONFIGURACION_OPERATIVA: ReadonlyArray<{
     ),
     descripcion:
       'Minutos de tolerancia tras la hora de inicio antes de poder marcar una reserva como NO_SHOW.',
+    tipo: 'NUMERO',
+  },
+  {
+    clave: CLAVES_CONFIGURACION.NEGOCIO_DIRECCION,
+    valorPorDefecto: '',
+    descripcion:
+      'Dirección comercial de la barbería. Se usa en los mensajes de WhatsApp; si está vacía, el mensaje se envía sin la línea de ubicación.',
+    tipo: 'TEXTO',
+  },
+  {
+    clave: CLAVES_CONFIGURACION.RECORDATORIO_MINUTOS_ANTICIPACION,
+    valorPorDefecto: String(
+      VALORES_POR_DEFECTO_OPERATIVOS.RECORDATORIO_MINUTOS_ANTICIPACION,
+    ),
+    descripcion:
+      'Minutos de anticipación con los que se envía el recordatorio automático de cita.',
+    tipo: 'NUMERO',
   },
 ];
 

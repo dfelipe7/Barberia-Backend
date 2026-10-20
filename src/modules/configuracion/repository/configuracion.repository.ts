@@ -1,6 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { TipoConfiguracion as TipoConfiguracionPrisma } from '../../../../generated/prisma/enums';
 import { CLAVES_CONFIGURACION_OPERATIVA } from '../configuracion.constants';
 
 /**
@@ -80,6 +79,55 @@ export class ConfiguracionRepository {
   }
 
   /**
+   * Guarda (o actualiza) el valor de una clave de un NEGOCIO.
+   *
+   * PROTECCIÓN DEL TIPO
+   * -------------------
+   * El `tipo` de una fila NO se cambia por el hecho de guardar un valor nuevo:
+   * una escritura de texto no puede degradar una clave numérica (ni al revés),
+   * porque la resolución descarta los valores de tipo incorrecto y el cambio
+   * sería silencioso.
+   *
+   * Si la fila existe con un tipo DISTINTO al de la escritura, la operación
+   * FALLA con un error controlado y el registro existente se conserva intacto.
+   * La única forma de corregir el tipo de un registro heredado es pedirlo de
+   * forma explícita (`corregirTipo: true`), que queda reservada a una
+   * reparación validada.
+   *
+   * La escritura se hace dentro del contexto del negocio indicado: la
+   * extensión de aislamiento fuerza el `negocioId`, de modo que la fila solo
+   * puede pertenecer a ese negocio.
+   */
+  async guardarEnNegocio(
+    negocioId: number,
+    clave: string,
+    valor: string,
+    tipo: 'TEXTO' | 'NUMERO',
+    opciones: { corregirTipo?: boolean } = {},
+  ): Promise<void> {
+    const existente = await this.buscarPorClaveEnNegocio(negocioId, clave);
+
+    if (existente && existente.tipo !== tipo && !opciones.corregirTipo) {
+      throw new ConflictException(
+        `La configuración '${clave}' del negocio ya está guardada con tipo '${existente.tipo}' y no admite un valor de tipo '${tipo}'.`,
+      );
+    }
+
+    // El tipo solo se escribe cuando la fila es nueva o cuando la reparación
+    // del tipo ha sido solicitada de forma explícita.
+    const tipoAEscribir =
+      !existente || (opciones.corregirTipo && existente.tipo !== tipo)
+        ? { tipo }
+        : {};
+
+    await this.prisma.configuracionNegocio.upsert({
+      where: { negocioId_clave: { negocioId, clave } },
+      update: { valor, ...tipoAEscribir },
+      create: { negocioId, clave, valor, tipo, editable: true },
+    });
+  }
+
+  /**
    * INICIALIZACIÓN IDEMPOTENTE de las configuraciones operativas de un negocio.
    *
    * Crea únicamente las claves que el negocio NO tiene, con el valor semilla
@@ -115,7 +163,7 @@ export class ConfiguracionRepository {
           negocioId,
           clave: config.clave,
           valor: config.valorPorDefecto,
-          tipo: TipoConfiguracionPrisma.NUMERO,
+          tipo: config.tipo,
           descripcion: config.descripcion,
           editable: true,
         },

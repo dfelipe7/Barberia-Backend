@@ -1559,6 +1559,8 @@ export const WhatsAppPlantillaScalarFieldEnum = {
   tipo: 'tipo',
   mensaje: 'mensaje',
   activo: 'activo',
+  negocioId: 'negocioId',
+  claveGlobal: 'claveGlobal',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -1694,9 +1696,9 @@ export type ReservationOrderByRelevanceFieldEnum = (typeof ReservationOrderByRel
 
 
 export const WhatsAppPlantillaOrderByRelevanceFieldEnum = {
-  id: 'id',
   tipo: 'tipo',
-  mensaje: 'mensaje'
+  mensaje: 'mensaje',
+  claveGlobal: 'claveGlobal'
 } as const
 
 export type WhatsAppPlantillaOrderByRelevanceFieldEnum = (typeof WhatsAppPlantillaOrderByRelevanceFieldEnum)[keyof typeof WhatsAppPlantillaOrderByRelevanceFieldEnum]

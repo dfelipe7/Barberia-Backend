@@ -1,130 +1,276 @@
-jest.mock('@nestjs/schedule', () => ({
-  Cron: () => () => {},
-  CronExpression: { EVERY_10_MINUTES: '*/10 * * * *' },
-}));
-
 import { Test, TestingModule } from '@nestjs/testing';
 import { RecordatoriosCron } from './recordatorios.cron';
 import { ReservasRepository } from '../repository/reservas.repository';
 import { WhatsAppService } from '../../whatsapp/whatsapp.service';
 import { FechaBogotaService } from '../../horarios/common/fecha-bogota.service';
+import { NegocioContextoService } from '../../negocios/negocio-contexto.service';
+import { NegociosRepository } from '../../negocios/repository/negocios.repository';
+import { EstadoNegocio } from '../../../../generated/prisma/enums';
 
-describe('RecordatoriosCron (HU-11 - WhatsApp Recordatorios)', () => {
+// `@nestjs/schedule` se distribuye como ESM y Jest lo ejecuta en CommonJS:
+// se sustituye por un doble mínimo (el decorador `@Cron` no aporta nada a la
+// lógica que se prueba aquí).
+jest.mock('@nestjs/schedule', () => ({
+  Cron: () => () => undefined,
+  CronExpression: { EVERY_10_MINUTES: '*/10 * * * *' },
+}));
+
+/** Cita simulada que devuelve el repositorio. */
+interface CitaSimulada {
+  id: number;
+  startTime: string;
+  precioReservado: number | null;
+  cliente: { nombre: string; apellido: string; telefono: string | null };
+  barbero: { usuario: { nombre: string; apellido: string } };
+  servicio: { nombre: string; precio: number };
+}
+
+/** Datos con los que el cron envía el recordatorio. */
+interface DatosEnvio {
+  clienteNombre: string;
+  hora: string;
+}
+
+/**
+ * Cron de recordatorios en un mundo MULTI-NEGOCIO.
+ *
+ * Lo que se comprueba aquí es el CONTRATO de aislamiento del proceso de
+ * fondo:
+ *   1. Cada negocio se procesa dentro de SU contexto.
+ *   2. Un fallo en un negocio NO impide procesar los demás.
+ *   3. Solo se procesan los negocios activos.
+ *   4. La ventana de anticipación es la del negocio que se procesa.
+ *   5. Solo se marcan como enviados los recordatorios realmente enviados.
+ */
+describe('RecordatoriosCron (multitenant)', () => {
   let cron: RecordatoriosCron;
-  let reservasRepo: {
-    obtenerCitasPendientesRecordatorio: jest.Mock;
-    marcarRecordatorioEnviado: jest.Mock;
+
+  const NEGOCIO_A = { id: 1, slug: 'negocio-a', nombre: 'Negocio A' };
+  const NEGOCIO_B = { id: 2, slug: 'negocio-b', nombre: 'Negocio B' };
+  const NEGOCIO_INACTIVO = {
+    id: 3,
+    slug: 'negocio-inactivo',
+    nombre: 'Negocio Inactivo',
   };
-  let whatsappService: {
-    getStatus: jest.Mock;
-    enviarRecordatorioReserva: jest.Mock;
-  };
-  let fechaBogotaService: {
-    obtenerComponentesBogota: jest.Mock;
-  };
+
+  /** Negocio del contexto simulado en cada momento. */
+  let contextoActual: { id: number; slug: string } | undefined;
+
+  /** Citas que el repositorio devuelve, en función del contexto vigente. */
+  let citasPorNegocio: Record<number, CitaSimulada[]> = {};
+
+  /** Minutos de anticipación configurados por negocio. */
+  let anticipacionPorNegocio: Record<number, number> = {};
+
+  const ejecutarEnContexto = jest.fn(
+    (
+      contexto: { id: number; slug: string },
+      operacion: () => Promise<unknown>,
+    ) => {
+      contextoActual = contexto;
+      return operacion();
+    },
+  );
+
+  const obtenerCitasPendientesRecordatorio = jest
+    .fn<Promise<CitaSimulada[]>, [Date]>()
+    .mockImplementation(() => {
+      if (!contextoActual) {
+        return Promise.reject(
+          new Error('Consulta sin contexto de negocio: no debe ocurrir.'),
+        );
+      }
+      return Promise.resolve(citasPorNegocio[contextoActual.id] ?? []);
+    });
+
+  const marcarRecordatorioEnviado = jest
+    .fn<Promise<void>, [number]>()
+    .mockResolvedValue(undefined);
+
+  const enviarRecordatorioReserva = jest
+    .fn<Promise<boolean>, [DatosEnvio]>()
+    .mockResolvedValue(true);
+
+  const getStatus = jest.fn(() => ({ conectado: true }));
+
+  const obtenerMinutosAnticipacion = jest
+    .fn<Promise<number>, []>()
+    .mockImplementation(() =>
+      Promise.resolve(anticipacionPorNegocio[contextoActual?.id ?? 0] ?? 120),
+    );
+
+  const listar = jest.fn(() =>
+    Promise.resolve([
+      { ...NEGOCIO_A, estado: EstadoNegocio.ACTIVO },
+      { ...NEGOCIO_B, estado: EstadoNegocio.ACTIVO },
+      { ...NEGOCIO_INACTIVO, estado: EstadoNegocio.INACTIVO },
+    ]),
+  );
+
+  /** Cita de ejemplo (dentro de la ventana de 120 min a las 09:00). */
+  const cita = (id: number, startTime: string) => ({
+    id,
+    startTime,
+    precioReservado: 25000,
+    cliente: { nombre: 'Carlos', apellido: 'Pérez', telefono: '3001234567' },
+    barbero: { usuario: { nombre: 'Duvan', apellido: 'Reyes' } },
+    servicio: { nombre: 'Corte clásico', precio: 25000 },
+  });
 
   beforeEach(async () => {
-    reservasRepo = {
-      obtenerCitasPendientesRecordatorio: jest.fn(),
-      marcarRecordatorioEnviado: jest.fn(),
-    };
-
-    whatsappService = {
-      getStatus: jest.fn(),
-      enviarRecordatorioReserva: jest.fn(),
-    };
-
-    fechaBogotaService = {
-      obtenerComponentesBogota: jest.fn(),
+    jest.clearAllMocks();
+    getStatus.mockReturnValue({ conectado: true });
+    contextoActual = undefined;
+    anticipacionPorNegocio = {};
+    citasPorNegocio = {
+      [NEGOCIO_A.id]: [cita(101, '09:30'), cita(102, '15:00')],
+      [NEGOCIO_B.id]: [cita(201, '10:00')],
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RecordatoriosCron,
-        { provide: ReservasRepository, useValue: reservasRepo },
-        { provide: WhatsAppService, useValue: whatsappService },
-        { provide: FechaBogotaService, useValue: fechaBogotaService },
+        {
+          provide: ReservasRepository,
+          useValue: {
+            obtenerCitasPendientesRecordatorio,
+            marcarRecordatorioEnviado,
+          },
+        },
+        {
+          provide: WhatsAppService,
+          useValue: {
+            getStatus,
+            obtenerMinutosAnticipacion,
+            enviarRecordatorioReserva,
+          },
+        },
+        {
+          provide: FechaBogotaService,
+          useValue: {
+            obtenerComponentesBogota: () => ({
+              fecha: '2026-11-02',
+              hora24: 9,
+              minuto: 0,
+            }),
+          },
+        },
+        { provide: NegocioContextoService, useValue: { ejecutarEnContexto } },
+        { provide: NegociosRepository, useValue: { listar } },
       ],
     }).compile();
 
     cron = module.get<RecordatoriosCron>(RecordatoriosCron);
   });
 
-  it('debe salir sin procesar si WhatsApp no está conectado', async () => {
-    whatsappService.getStatus.mockReturnValue({
-      conectado: false,
-      qr: null,
-      telefonoConectado: null,
-    });
+  it('no consulta nada si WhatsApp no está conectado', async () => {
+    getStatus.mockReturnValue({ conectado: false });
 
     await cron.procesarRecordatorios();
 
-    expect(
-      reservasRepo.obtenerCitasPendientesRecordatorio,
-    ).not.toHaveBeenCalled();
-    expect(whatsappService.enviarRecordatorioReserva).not.toHaveBeenCalled();
+    expect(listar).not.toHaveBeenCalled();
+    expect(obtenerCitasPendientesRecordatorio).not.toHaveBeenCalled();
   });
 
-  it('debe procesar citas dentro de la ventana de 120 minutos y marcar recordatorioEnviado', async () => {
-    whatsappService.getStatus.mockReturnValue({
-      conectado: true,
-      qr: null,
-      telefonoConectado: '573001234567',
+  it('procesa cada negocio activo dentro de SU propio contexto', async () => {
+    await cron.procesarRecordatorios();
+
+    expect(ejecutarEnContexto).toHaveBeenCalledTimes(2);
+    expect(ejecutarEnContexto.mock.calls[0][0]).toMatchObject({
+      id: NEGOCIO_A.id,
+      slug: NEGOCIO_A.slug,
     });
-    fechaBogotaService.obtenerComponentesBogota.mockReturnValue({
-      fecha: '2026-11-20',
-      hora24: 10,
-      minuto: 0,
-      segundo: 0,
-    } as any);
+    expect(ejecutarEnContexto.mock.calls[1][0]).toMatchObject({
+      id: NEGOCIO_B.id,
+      slug: NEGOCIO_B.slug,
+    });
+  });
 
-    // Cita a las 11:30 (dentro de 90 minutos)
-    const mockReservaEnRango = {
-      id: 42,
-      startTime: '11:30',
-      precioReservado: 25000,
-      cliente: { nombre: 'Pedro', apellido: 'Pérez', telefono: '3001112233' },
-      barbero: { usuario: { nombre: 'Duvan', apellido: 'Armero' } },
-      servicio: { nombre: 'Corte Clásico', precio: '25000' },
-    };
+  it('no procesa los negocios inactivos', async () => {
+    await cron.procesarRecordatorios();
 
-    // Cita a las 15:00 (dentro de 300 minutos, fuera de la ventana de 120)
-    const mockReservaFueraDeRango = {
-      id: 43,
-      startTime: '15:00',
-      precioReservado: 30000,
-      cliente: { nombre: 'Luis', apellido: 'García', telefono: '3004445566' },
-      barbero: { usuario: { nombre: 'Duvan', apellido: 'Armero' } },
-      servicio: { nombre: 'Barba', precio: '30000' },
-    };
+    const contextos = ejecutarEnContexto.mock.calls.map((c) => c[0]);
+    expect(contextos.map((c) => c.id)).not.toContain(NEGOCIO_INACTIVO.id);
+  });
 
-    reservasRepo.obtenerCitasPendientesRecordatorio.mockResolvedValue([
-      mockReservaEnRango,
-      mockReservaFueraDeRango,
-    ] as any);
+  it('el fallo de un negocio NO impide procesar el siguiente', async () => {
+    obtenerCitasPendientesRecordatorio.mockImplementationOnce(() =>
+      Promise.reject(new Error('Fallo simulado en el negocio A')),
+    );
+
+    await expect(cron.procesarRecordatorios()).resolves.toBeUndefined();
+
+    // El negocio B se sigue procesando.
+    expect(enviarRecordatorioReserva).toHaveBeenCalledTimes(1);
+    expect(enviarRecordatorioReserva.mock.calls[0][0]).toMatchObject({
+      clienteNombre: 'Carlos Pérez',
+    });
+  });
+
+  it('envía el recordatorio solo a las citas dentro de la ventana de anticipación', async () => {
+    await cron.procesarRecordatorios();
+
+    // A: 09:30 entra en la ventana de 120 min; 15:00 no.
+    // B: 10:00 entra en la ventana.
+    expect(enviarRecordatorioReserva).toHaveBeenCalledTimes(2);
+    const llamadas = enviarRecordatorioReserva.mock.calls.map((c) => c[0]);
+    expect(llamadas.map((c) => c.hora)).toEqual(['09:30', '10:00']);
+  });
+
+  it('usa la anticipación configurada por cada negocio', async () => {
+    anticipacionPorNegocio[NEGOCIO_A.id] = 15;
 
     await cron.procesarRecordatorios();
 
-    // Solo se debe enviar recordatorio para la cita en rango (id: 42)
-    expect(whatsappService.enviarRecordatorioReserva).toHaveBeenCalledTimes(1);
-    expect(whatsappService.enviarRecordatorioReserva).toHaveBeenCalledWith({
-      telefono: '3001112233',
-      clienteNombre: 'Pedro Pérez',
-      servicioNombre: 'Corte Clásico',
-      barberoNombre: 'Duvan Armero',
-      fecha: '2026-11-20',
-      hora: '11:30',
+    // Con 15 min de anticipación, la cita de A (09:30) queda fuera y la de B
+    // (10:00, dentro de 60 min) sigue dentro.
+    expect(obtenerMinutosAnticipacion).toHaveBeenCalled();
+    const llamadas = enviarRecordatorioReserva.mock.calls.map((c) => c[0]);
+    expect(llamadas.map((c) => c.hora)).toEqual(['10:00']);
+  });
+
+  it('envía el recordatorio con los datos de la cita', async () => {
+    await cron.procesarRecordatorios();
+
+    expect(enviarRecordatorioReserva).toHaveBeenCalledWith({
+      telefono: '3001234567',
+      clienteNombre: 'Carlos Pérez',
+      servicioNombre: 'Corte clásico',
+      barberoNombre: 'Duvan Reyes',
+      fecha: '2026-11-02',
+      hora: '09:30',
       precio: 25000,
     });
-    expect(reservasRepo.marcarRecordatorioEnviado).toHaveBeenCalledWith(42);
-    expect(reservasRepo.marcarRecordatorioEnviado).not.toHaveBeenCalledWith(43);
   });
 
-  it('no debe lanzar excepción no controlada si ocurre un error en la ejecución', async () => {
-    whatsappService.getStatus.mockImplementation(() => {
+  it('no propaga un error inesperado del estado de la conexión', async () => {
+    getStatus.mockImplementation(() => {
       throw new Error('Fallo de conexión');
     });
 
     await expect(cron.procesarRecordatorios()).resolves.toBeUndefined();
+  });
+
+  it('marca como enviado SOLO los recordatorios realmente enviados', async () => {
+    await cron.procesarRecordatorios();
+
+    expect(marcarRecordatorioEnviado).toHaveBeenCalledTimes(2);
+    expect(marcarRecordatorioEnviado).toHaveBeenCalledWith(101);
+    expect(marcarRecordatorioEnviado).toHaveBeenCalledWith(201);
+    expect(marcarRecordatorioEnviado).not.toHaveBeenCalledWith(102);
+  });
+
+  it('no vuelve a enviar las citas ya marcadas (idempotencia)', async () => {
+    // El repositorio excluye las citas con `recordatorioEnviado = true`.
+    citasPorNegocio[NEGOCIO_A.id] = [cita(101, '09:30')];
+
+    await cron.procesarRecordatorios();
+    jest.clearAllMocks();
+    obtenerCitasPendientesRecordatorio.mockResolvedValue([]);
+
+    await cron.procesarRecordatorios();
+
+    expect(enviarRecordatorioReserva).not.toHaveBeenCalled();
+    expect(marcarRecordatorioEnviado).not.toHaveBeenCalled();
   });
 });

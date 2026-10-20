@@ -171,7 +171,70 @@ X-Reservation-Management-Token
   declararlo explícitamente: `SWAGGER_HABILITADO=true`.
 - `SWAGGER_HABILITADO=false` la desactiva en cualquier entorno.
 
-## 6. Lo que NO cambió
+## 6. WhatsApp y recordatorios por negocio (Fase 9)
+
+Las plantillas, la dirección y la anticipación del recordatorio son **de cada
+barbería**: el texto que un administrador personaliza para su negocio no altera
+los mensajes de los demás.
+
+### 6.1 Plantillas de mensajes
+
+| Endpoint | Ámbito |
+|---|---|
+| `GET /whatsapp/plantillas` | devuelve la plantilla **efectiva** del negocio del contexto |
+| `PUT /whatsapp/plantillas` | guarda la plantilla **de ese negocio** |
+| `POST /whatsapp/plantillas/reset` | borra la plantilla **de ese negocio** (las globales de plataforma se conservan) |
+
+La respuesta mantiene la forma actual:
+
+```json
+{
+  "confirmacion": "💈 *{negocio}*\n¡Hola {cliente}! ...",
+  "recordatorio": "💈 *{negocio}*\nHola {cliente}, tu cita es el {fecha} a las {hora} ...",
+  "minutosAnticipacion": 120
+}
+```
+
+Resolución de cada campo:
+
+1. la plantilla **del negocio** (si existe);
+2. la plantilla **global de plataforma**;
+3. el texto **por defecto** del backend.
+
+Variables disponibles en los textos: `{negocio}`, `{cliente}`,
+`{servicio}`, `{barbero}`, `{fecha}`, `{hora}`, `{precio}` y
+`{ubicacion}` (la dirección del negocio; si no está configurada, la línea de
+ubicación **no** se envía). `{negocio}` es el nombre comercial del negocio del
+contexto: nunca el de otra barbería.
+
+> Estos endpoints **siempre** operan sobre el negocio del contexto: el
+> guard de autenticación del personal exige un contexto de negocio
+> autorizado (sin él, la respuesta es `403`), así que una petición sin
+> `X-Negocio-Slug` no llega al servicio. Las plantillas **GLOBALES** de
+> plataforma no se editan por esta vía: son el valor por defecto que hereda
+> el negocio que no tiene plantilla propia.
+
+### 6.2 Dirección y anticipación del recordatorio
+
+Dos claves de la configuración operativa del negocio
+(`configuraciones_negocio`), sin cambio de esquema:
+
+| Clave | Tipo | Efecto |
+|---|---|---|
+| `negocio_direccion` | TEXTO | dirección que aparece en `{ubicacion}` |
+| `recordatorio_minutos_anticipacion` | NUMERO | ventana de aviso previo del recordatorio (defecto: 120 min) |
+
+Se inicializan de forma idempotente al crear el negocio: si ya existen (valor
+personalizado), **no se sobrescriben**.
+
+### 6.3 Proceso de fondo
+
+El recordatorio automático lo dispara un proceso programado (cada 10 minutos)
+que **no pasa por el middleware**: fija él mismo el contexto de cada negocio
+activo y envía los mensajes de uno en uno. Un fallo en una barbería no detiene
+a las demás.
+
+## 7. Lo que NO cambió
 
 - Las reglas de reservas (antelación de cancelación, tolerancia de `NO_SHOW`,
   estados, concurrencia y ocupación de franjas) siguen siendo las de la Fase 4

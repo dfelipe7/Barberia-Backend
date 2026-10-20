@@ -1056,27 +1056,44 @@ describe('Aislamiento negativo entre negocios (MariaDB real)', () => {
   it('8.1 el camino de datos del cron de recordatorios está acotado por negocio', async () => {
     if (OMITIR_SIN_DOCKER) return;
 
-    const { reservaA, reservaB } = await sembrar();
+    const { reservaA, reservaB, kyrios, negocioB } = await sembrar();
 
-    // El cron NO fija contexto: delega en el repositorio, que recorre los
-    // negocios uno a uno con SU contexto. Se comprueba el CONTRATO del
-    // repositorio (el aislamiento efectivo) sin tocar el cron de HU-11.
-    const citas = await reservasRepository.obtenerCitasPendientesRecordatorio(
-      new Date(`${FECHA}T00:00:00.000Z`),
+    // HU-11: el cron fija el contexto de cada negocio ANTES de consultar y
+    // el repositorio NO recorre los negocios: la consulta queda acotada al
+    // negocio del contexto.
+    const citasA = await contextoService.ejecutarEnContexto(kyrios, () =>
+      reservasRepository.obtenerCitasPendientesRecordatorio(
+        new Date(`${FECHA}T00:00:00.000Z`),
+      ),
+    );
+    const citasB = await contextoService.ejecutarEnContexto(negocioB, () =>
+      reservasRepository.obtenerCitasPendientesRecordatorio(
+        new Date(`${FECHA}T00:00:00.000Z`),
+      ),
     );
 
-    // El contrato del cron es "todas las citas de la plataforma": las de A y
-    // las de B, cada una consultada en su ámbito.
-    const ids = citas.map((c) => c.id);
-    expect(ids).toContain(reservaA.id);
-    expect(ids).toContain(reservaB.id);
+    const idsA = citasA.map((c) => c.id);
+    const idsB = citasB.map((c) => c.id);
+
+    expect(idsA).toContain(reservaA.id);
+    expect(idsA).not.toContain(reservaB.id);
+    expect(idsB).toContain(reservaB.id);
+    expect(idsB).not.toContain(reservaA.id);
+
+    // Sin contexto, la consulta FALLA: nunca devuelve las citas de todos.
+    await expect(
+      reservasRepository.obtenerCitasPendientesRecordatorio(
+        new Date(`${FECHA}T00:00:00.000Z`),
+      ),
+    ).rejects.toBeTruthy();
   });
 
   it('8.2 el cron de recordatorios NO consulta Prisma directamente (contrato de aislamiento)', async () => {
-    // Comprobación CONTRACTUAL: mientras el cron no acceda a Prisma por su
-    // cuenta, el aislamiento depende del repositorio, que itera los negocios
-    // fijando su contexto. Si alguien introduce una consulta directa, esta
-    // comprobación falla y avisa de que hay que revisar el aislamiento.
+    // Comprobación CONTRACTUAL: el cron no accede a Prisma por su cuenta; el
+    // aislamiento depende del repositorio, que exige el contexto de negocio
+    // (Fase 9: el cron itera por los negocios y fija SU contexto). Si alguien
+    // introduce una consulta directa, esta comprobación falla y avisa de que
+    // hay que revisar el aislamiento.
     const fuente = readFileSync(
       join(
         __dirname,

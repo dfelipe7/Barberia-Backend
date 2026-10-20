@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { ConfiguracionService } from './configuracion.service';
 import {
   ConfiguracionRepository,
@@ -33,6 +33,7 @@ describe('ConfiguracionService', () => {
     buscarPorClaveEnNegocio: jest.fn(),
     listar: jest.fn(),
     inicializarValoresOperativos: jest.fn(),
+    guardarEnNegocio: jest.fn(),
   };
 
   const contextoService = {
@@ -184,6 +185,68 @@ describe('ConfiguracionService', () => {
       );
 
       await expect(service.obtenerNumero('clave', 120)).resolves.toBe(0);
+    });
+  });
+
+  describe('escritura de configuración (protección del tipo)', () => {
+    const CLAVE_NUMERO =
+      CLAVES_CONFIGURACION.RECORDATORIO_MINUTOS_ANTICIPACION;
+    const CLAVE_TEXTO = CLAVES_CONFIGURACION.NEGOCIO_DIRECCION;
+
+    it('guardarNumero escribe con el tipo NUMERO', async () => {
+      repository.guardarEnNegocio.mockResolvedValue(undefined);
+
+      await service.guardarNumero(1, CLAVE_NUMERO, 45);
+
+      expect(repository.guardarEnNegocio).toHaveBeenCalledWith(
+        1,
+        CLAVE_NUMERO,
+        '45',
+        'NUMERO',
+        {},
+      );
+    });
+
+    it('guardarTexto escribe con el tipo TEXTO', async () => {
+      repository.guardarEnNegocio.mockResolvedValue(undefined);
+
+      await service.guardarTexto(1, CLAVE_TEXTO, 'Carrera 6 # 3-45');
+
+      expect(repository.guardarEnNegocio).toHaveBeenCalledWith(
+        1,
+        CLAVE_TEXTO,
+        'Carrera 6 # 3-45',
+        'TEXTO',
+        {},
+      );
+    });
+
+    it('un conflicto de tipo se propaga y NO invalida la caché', async () => {
+      repository.guardarEnNegocio.mockRejectedValue(
+        new ConflictException('La configuración ya existe con otro tipo.'),
+      );
+      const spy = jest.spyOn(service, 'invalidarCacheNegocio');
+
+      await expect(
+        service.guardarNumero(1, CLAVE_NUMERO, 45),
+      ).rejects.toBeInstanceOf(ConflictException);
+
+      // La escritura falló: el valor almacenado sigue siendo el anterior.
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('la reparación explícita del tipo se envía al repositorio', async () => {
+      repository.guardarEnNegocio.mockResolvedValue(undefined);
+
+      await service.guardarNumero(1, CLAVE_NUMERO, 45, { corregirTipo: true });
+
+      expect(repository.guardarEnNegocio).toHaveBeenCalledWith(
+        1,
+        CLAVE_NUMERO,
+        '45',
+        'NUMERO',
+        { corregirTipo: true },
+      );
     });
   });
 

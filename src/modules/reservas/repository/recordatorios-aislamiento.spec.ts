@@ -6,23 +6,20 @@ import { NegocioContextoService } from '../../negocios/negocio-contexto.service'
 import { ReservasRepository } from '../repository/reservas.repository';
 
 /**
- * PRUEBA DEL AISLAMIENTO DEL CRON DE RECORDATORIOS (HU-11).
+ * PRUEBA DEL AISLAMIENTO DEL CRON DE RECORDATORIOS (HU-11, Fase 9).
  *
- * El cron (`src/modules/reservas/cron/recordatorios.cron.ts`) es propiedad de
- * HU-11 y NO se modifica en esta fase. Esta prueba comprueba que la capa que
- * lo alimenta (`ReservasRepository`) mantiene el aislamiento:
+ * El cron (`src/modules/reservas/cron/recordatorios.cron.ts`) fija él mismo el
+ * contexto de cada negocio. Esta prueba comprueba el CONTRATO de la capa que
+ * lo alimenta (`ReservasRepository`):
  *
- *  1. `obtenerCitasPendientesRecordatorio` RECORRE LOS NEGOCIOS UNO A UNO:
- *     cada consulta se hace con el contexto de su negocio, de modo que la
- *     extensión de Prisma sigue aplicando y ninguna consulta sale de su
- *     ámbito. Devuelve el mismo conjunto de citas que antes, por lo que el
- *     cron de HU-11 no necesita cambios ni se interrumpe.
- *  2. `marcarRecordatorioEnviado` acota la escritura al negocio de la
- *     reserva.
+ *  1. `obtenerCitasPendientesRecordatorio` está acotada al negocio del
+ *     CONTEXTO y **falla** si no hay contexto (no degrada a "todas las citas").
+ *  2. `marcarRecordatorioEnviado` escribe con el negocio del contexto: marcar
+ *     una reserva de OTRO negocio no afecta a ninguna fila.
  *
  * Usa un cliente Prisma SIMULADO: se comprueba el MECANISMO, no la
  * persistencia (que se comprueba contra MariaDB en
- * `test/multitenant-aislamiento.e2e-spec.ts`).
+ * `test/multitenant-hu11.e2e-spec.ts`).
  */
 
 /** Reserva simulada. */
@@ -37,10 +34,6 @@ interface ReservaSimulada extends Record<string, unknown> {
 /** Cliente Prisma simulado que registra las consultas por negocio. */
 class ClientePrismaSimulado {
   readonly reservas: ReservaSimulada[] = [];
-  readonly negocios = [
-    { id: 1, slug: 'negocio-a' },
-    { id: 2, slug: 'negocio-b' },
-  ];
 
   /** Consultas de `findMany` registradas: modelo y where. */
   readonly consultas: Array<{ where: Record<string, unknown> }> = [];
@@ -50,10 +43,6 @@ class ClientePrismaSimulado {
     where: Record<string, unknown>;
     data: Record<string, unknown>;
   }> = [];
-
-  negocio = {
-    findMany: () => Promise.resolve(this.negocios),
-  };
 
   reservation = {
     findMany: (args: { where: Record<string, unknown> }) => {
@@ -67,35 +56,23 @@ class ClientePrismaSimulado {
         ),
       );
     },
-    findUnique: (args: { where: Record<string, unknown> }) => {
-      const id = args.where.id as number;
-      const reserva = this.reservas.find((r) => r.id === id);
-
-      return Promise.resolve(
-        reserva
-          ? {
-              negocioId: reserva.negocioId,
-              negocio: reserva.negocioId
-                ? this.negocios.find((n) => n.id === reserva.negocioId)
-                : null,
-            }
-          : null,
-      );
-    },
-    update: (args: {
+    updateMany: (args: {
       where: Record<string, unknown>;
       data: Record<string, unknown>;
     }) => {
       this.actualizaciones.push({ where: args.where, data: args.data });
 
       const id = args.where.id as number;
-      const reserva = this.reservas.find((r) => r.id === id);
+      const negocioId = args.where.negocioId as number | undefined;
+      const reserva = this.reservas.find(
+        (r) => r.id === id && r.negocioId === negocioId,
+      );
 
       if (reserva) {
         Object.assign(reserva, args.data);
       }
 
-      return Promise.resolve(reserva ?? null);
+      return Promise.resolve({ count: reserva ? 1 : 0 });
     },
   };
 }
@@ -103,6 +80,11 @@ class ClientePrismaSimulado {
 describe('Aislamiento del cron de recordatorios (HU-11)', () => {
   let prisma: ClientePrismaSimulado;
   let repository: ReservasRepository;
+  let contextoService: NegocioContextoService;
+
+  const NEGOCIO_A = { id: 1, slug: 'negocio-a' };
+  const NEGOCIO_B = { id: 2, slug: 'negocio-b' };
+  const FECHA = new Date('2026-11-01T00:00:00.000Z');
 
   beforeEach(async () => {
     prisma = new ClientePrismaSimulado();
@@ -134,73 +116,71 @@ describe('Aislamiento del cron de recordatorios (HU-11)', () => {
     }).compile();
 
     repository = module.get(ReservasRepository);
+    contextoService = module.get(NegocioContextoService);
   });
 
-  it('recorre los negocios uno a uno, cada consulta acotada a su negocio', async () => {
-    const fecha = new Date('2026-11-01T00:00:00.000Z');
-
-    await repository.obtenerCitasPendientesRecordatorio(fecha);
-
-    // Una consulta por negocio, cada una con su propio `negocioId`.
-    expect(prisma.consultas).toHaveLength(2);
-    expect(prisma.consultas[0].where.negocioId).toBe(1);
-    expect(prisma.consultas[1].where.negocioId).toBe(2);
-  });
-
-  it('devuelve las citas de TODOS los negocios, como espera el cron de HU-11', async () => {
-    const fecha = new Date('2026-11-01T00:00:00.000Z');
-
-    const citas = await repository.obtenerCitasPendientesRecordatorio(fecha);
-
-    // El cron sigue recibiendo el conjunto completo: no se interrumpe.
-    expect(citas).toHaveLength(2);
-    expect(citas.map((c) => c.id).sort()).toEqual([1, 2]);
-  });
-
-  it('no devuelve citas de un negocio distinto del que se consulta', async () => {
-    const fecha = new Date('2026-11-01T00:00:00.000Z');
-
-    await repository.obtenerCitasPendientesRecordatorio(fecha);
-
-    // Cada consulta devuelve únicamente las filas de su negocio.
-    expect(prisma.consultas.every((c) => c.where.negocioId !== undefined)).toBe(
-      true,
+  it('consulta acotada al negocio del contexto', async () => {
+    await contextoService.ejecutarEnContexto(NEGOCIO_A, () =>
+      repository.obtenerCitasPendientesRecordatorio(FECHA),
     );
+
+    expect(prisma.consultas).toHaveLength(1);
+    expect(prisma.consultas[0].where.negocioId).toBe(1);
   });
 
-  it('marca el recordatorio acotado al negocio de la reserva', async () => {
-    await repository.marcarRecordatorioEnviado(1);
+  it('devuelve únicamente las citas del negocio del contexto', async () => {
+    const citas = await contextoService.ejecutarEnContexto(NEGOCIO_A, () =>
+      repository.obtenerCitasPendientesRecordatorio(FECHA),
+    );
+
+    expect(citas.map((c) => c.id)).toEqual([1]);
+  });
+
+  it('cada negocio ve SUS citas: el contexto de B no ve las de A', async () => {
+    const citas = await contextoService.ejecutarEnContexto(NEGOCIO_B, () =>
+      repository.obtenerCitasPendientesRecordatorio(FECHA),
+    );
+
+    expect(citas.map((c) => c.id)).toEqual([2]);
+  });
+
+  it('sin contexto FALLA: nunca devuelve las citas de todos los negocios', async () => {
+    await expect(
+      repository.obtenerCitasPendientesRecordatorio(FECHA),
+    ).rejects.toBeTruthy();
+
+    expect(prisma.consultas).toHaveLength(0);
+  });
+
+  it('marca el recordatorio acotado al negocio del contexto', async () => {
+    await contextoService.ejecutarEnContexto(NEGOCIO_A, () =>
+      repository.marcarRecordatorioEnviado(1),
+    );
 
     expect(prisma.actualizaciones).toHaveLength(1);
     expect(prisma.actualizaciones[0].where.negocioId).toBe(1);
     expect(prisma.actualizaciones[0].data).toEqual({
       recordatorioEnviado: true,
     });
+    expect(prisma.reservas.find((r) => r.id === 1)?.recordatorioEnviado).toBe(
+      true,
+    );
   });
 
-  it('no marca una reserva que no tiene negocio asignado', async () => {
-    prisma.reservas.push({
-      id: 3,
-      negocioId: null,
-      date: new Date('2026-11-01T00:00:00.000Z'),
-      status: ReservationStatus.PENDING,
-      recordatorioEnviado: false,
-    });
-
-    await repository.marcarRecordatorioEnviado(3);
-
-    // Sin negocio no hay ámbito al que acotar: no se escribe.
-    expect(prisma.actualizaciones).toHaveLength(0);
-  });
-
-  it('ignora un negocio inexistente en la lista de negocios', async () => {
-    prisma.negocios.length = 0;
-
-    const citas = await repository.obtenerCitasPendientesRecordatorio(
-      new Date('2026-11-01T00:00:00.000Z'),
+  it('NO marca una reserva de otro negocio', async () => {
+    await contextoService.ejecutarEnContexto(NEGOCIO_A, () =>
+      repository.marcarRecordatorioEnviado(2),
     );
 
-    expect(citas).toEqual([]);
-    expect(prisma.consultas).toHaveLength(0);
+    // La escritura va acotada al negocio del contexto: no afecta a la fila.
+    expect(prisma.reservas.find((r) => r.id === 2)?.recordatorioEnviado).toBe(
+      false,
+    );
+  });
+
+  it('sin contexto, marcar el recordatorio FALLA', async () => {
+    await expect(repository.marcarRecordatorioEnviado(1)).rejects.toBeTruthy();
+
+    expect(prisma.actualizaciones).toHaveLength(0);
   });
 });

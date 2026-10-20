@@ -5,13 +5,67 @@ import {
   PLANTILLA_RECORDATORIO_DEFAULT,
   enmascararTelefono,
 } from './whatsapp.service';
+import { WhatsAppPlantillasRepository } from './whatsapp-plantillas.repository';
+import { ConfiguracionService } from '../configuracion/service/configuracion.service';
+import { NegocioContextoService } from '../negocios/negocio-contexto.service';
+import { NegociosRepository } from '../negocios/repository/negocios.repository';
+import { PrismaService } from '../../prisma/prisma.service';
 
 describe('WhatsAppService', () => {
   let service: WhatsAppService;
 
+  /** Dobles de las dependencias con las que se comprueba el AISLAMIENTO. */
+  const plantillasRepositoryMock = {
+    obtenerPlantillas: jest.fn(),
+    guardarPlantilla: jest.fn(),
+    eliminarPlantillas: jest.fn(),
+  };
+  const configuracionServiceMock = {
+    obtenerTexto: jest.fn(),
+    obtenerNumero: jest.fn(),
+    guardarTexto: jest.fn(),
+    guardarNumero: jest.fn(),
+  };
+  const contextoServiceMock = {
+    obtenerContexto: jest.fn(),
+  };
+
+  const NEGOCIO_A = { id: 7, slug: 'negocio-a' };
+
   beforeEach(async () => {
+    jest.clearAllMocks();
+
+    // Valores por defecto de los dobles: sin contexto de negocio.
+    plantillasRepositoryMock.obtenerPlantillas.mockResolvedValue([]);
+    plantillasRepositoryMock.guardarPlantilla.mockResolvedValue(undefined);
+    plantillasRepositoryMock.eliminarPlantillas.mockResolvedValue(0);
+    configuracionServiceMock.obtenerTexto.mockResolvedValue('');
+    configuracionServiceMock.obtenerNumero.mockResolvedValue(0);
+    configuracionServiceMock.guardarTexto.mockResolvedValue(undefined);
+    configuracionServiceMock.guardarNumero.mockResolvedValue(undefined);
+    contextoServiceMock.obtenerContexto.mockReturnValue(undefined);
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [WhatsAppService],
+      providers: [
+        WhatsAppService,
+        { provide: PrismaService, useValue: { whatsappPlantilla: {} } },
+        {
+          provide: WhatsAppPlantillasRepository,
+          useValue: plantillasRepositoryMock,
+        },
+        {
+          provide: ConfiguracionService,
+          useValue: configuracionServiceMock,
+        },
+        {
+          provide: NegocioContextoService,
+          useValue: contextoServiceMock,
+        },
+        {
+          provide: NegociosRepository,
+          useValue: { buscarPorId: jest.fn().mockResolvedValue(null) },
+        },
+      ],
     }).compile();
 
     service = module.get<WhatsAppService>(WhatsAppService);
@@ -81,7 +135,7 @@ describe('WhatsAppService', () => {
   });
 
   describe('plantillas y reemplazo de variables', () => {
-    it('debe retornar plantillas por defecto si no hay base de datos inyectada', async () => {
+    it('debe retornar las plantillas por defecto si el repositorio no devuelve ninguna', async () => {
       const plantillas = await service.obtenerPlantillas();
       expect(plantillas.confirmacion).toBe(PLANTILLA_CONFIRMACION_DEFAULT);
       expect(plantillas.recordatorio).toBe(PLANTILLA_RECORDATORIO_DEFAULT);
@@ -119,9 +173,17 @@ describe('WhatsAppService', () => {
       });
 
       expect(resultado).toBe(true);
+      // El nombre del negocio se resuelve con el del CONTEXTO; sin contexto
+      // se usa el valor por defecto (nunca el de otro negocio).
       expect(spy).toHaveBeenCalledWith(
         '3001234567',
-        expect.stringContaining('KYRIOS BARBER STUDIO'),
+        expect.stringContaining('Barbería'),
+      );
+      // Sin dirección configurada, el mensaje NO incluye la línea de ubicación
+      // (no se usa una dirección ajena).
+      expect(spy).toHaveBeenCalledWith(
+        '3001234567',
+        expect.not.stringContaining('Ubicación'),
       );
       expect(spy).toHaveBeenCalledWith(
         '3001234567',
@@ -150,6 +212,121 @@ describe('WhatsAppService', () => {
         '3001234567',
         expect.stringContaining('RECORDATORIO DE TU CITA'),
       );
+    });
+  });
+
+  describe('resolución de plantillas por negocio (HU-11)', () => {
+    it('gana la plantilla del NEGOCIO sobre la global del mismo tipo', async () => {
+      contextoServiceMock.obtenerContexto.mockReturnValue(NEGOCIO_A);
+      plantillasRepositoryMock.obtenerPlantillas.mockResolvedValue([
+        {
+          tipo: 'CONFIRMACION',
+          mensaje: 'Propia de A',
+          negocioId: NEGOCIO_A.id,
+        },
+        {
+          tipo: 'CONFIRMACION',
+          mensaje: 'Global de plataforma',
+          negocioId: null,
+        },
+      ]);
+
+      const plantillas = await service.obtenerPlantillas();
+
+      expect(plantillas.confirmacion).toBe('Propia de A');
+      // La consulta se hace EN EL ÁMBITO del negocio del contexto.
+      expect(plantillasRepositoryMock.obtenerPlantillas).toHaveBeenCalledWith(
+        NEGOCIO_A.id,
+      );
+    });
+
+    it('sin plantilla propia, gana la GLOBAL antes que el texto por defecto', async () => {
+      contextoServiceMock.obtenerContexto.mockReturnValue(NEGOCIO_A);
+      plantillasRepositoryMock.obtenerPlantillas.mockResolvedValue([
+        {
+          tipo: 'CONFIRMACION',
+          mensaje: 'Global de plataforma',
+          negocioId: null,
+        },
+      ]);
+
+      const plantillas = await service.obtenerPlantillas();
+
+      expect(plantillas.confirmacion).toBe('Global de plataforma');
+      expect(plantillas.confirmacion).not.toBe(PLANTILLA_CONFIRMACION_DEFAULT);
+    });
+
+    it('guardar plantillas persiste ÚNICAMENTE en el negocio del contexto', async () => {
+      contextoServiceMock.obtenerContexto.mockReturnValue(NEGOCIO_A);
+
+      await service.guardarPlantillas({
+        confirmacion: '  Confirmación de A  ',
+        recordatorio: 'Recordatorio de A',
+        minutosAnticipacion: 45,
+      });
+
+      expect(plantillasRepositoryMock.guardarPlantilla).toHaveBeenCalledWith(
+        NEGOCIO_A.id,
+        'CONFIRMACION',
+        'Confirmación de A',
+      );
+      expect(plantillasRepositoryMock.guardarPlantilla).toHaveBeenCalledWith(
+        NEGOCIO_A.id,
+        'RECORDATORIO',
+        'Recordatorio de A',
+      );
+      // La anticipación es una política del negocio: va a SU configuración.
+      expect(configuracionServiceMock.guardarNumero).toHaveBeenCalledWith(
+        NEGOCIO_A.id,
+        'recordatorio_minutos_anticipacion',
+        45,
+      );
+      // NO se escribe en el ámbito global (ni en otro negocio).
+      expect(
+        plantillasRepositoryMock.guardarPlantilla,
+      ).not.toHaveBeenCalledWith(null, expect.anything(), expect.anything());
+      expect(configuracionServiceMock.guardarNumero).not.toHaveBeenCalledWith(
+        null,
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('reset de un negocio NO toca las plantillas globales ni las de otro', async () => {
+      contextoServiceMock.obtenerContexto.mockReturnValue(NEGOCIO_A);
+
+      await service.resetPlantillas();
+
+      // Solo se borran las plantillas PROPIAS del negocio del contexto.
+      expect(plantillasRepositoryMock.eliminarPlantillas).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(plantillasRepositoryMock.eliminarPlantillas).toHaveBeenCalledWith(
+        NEGOCIO_A.id,
+        ['CONFIRMACION', 'RECORDATORIO'],
+      );
+      expect(
+        plantillasRepositoryMock.eliminarPlantillas,
+      ).not.toHaveBeenCalledWith(null, expect.anything());
+      // La anticipación del negocio se restablece a 120 (no la global).
+      expect(configuracionServiceMock.guardarNumero).toHaveBeenCalledWith(
+        NEGOCIO_A.id,
+        'recordatorio_minutos_anticipacion',
+        120,
+      );
+    });
+
+    it('sin contexto (operación de plataforma) se escriben las plantillas GLOBALES', async () => {
+      contextoServiceMock.obtenerContexto.mockReturnValue(undefined);
+
+      await service.guardarPlantillas({ confirmacion: 'Global' });
+
+      expect(plantillasRepositoryMock.guardarPlantilla).toHaveBeenCalledWith(
+        null,
+        'CONFIRMACION',
+        'Global',
+      );
+      expect(configuracionServiceMock.guardarNumero).not.toHaveBeenCalled();
     });
   });
 

@@ -255,6 +255,7 @@ export type NegocioWhereInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockListRelationFilter
   cierresGenerales?: Prisma.GeneralClosureListRelationFilter
   configuraciones?: Prisma.ConfiguracionNegocioListRelationFilter
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaListRelationFilter
 }
 
 export type NegocioOrderByWithRelationInput = {
@@ -275,6 +276,7 @@ export type NegocioOrderByWithRelationInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockOrderByRelationAggregateInput
   cierresGenerales?: Prisma.GeneralClosureOrderByRelationAggregateInput
   configuraciones?: Prisma.ConfiguracionNegocioOrderByRelationAggregateInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaOrderByRelationAggregateInput
   _relevance?: Prisma.NegocioOrderByRelevanceInput
 }
 
@@ -299,6 +301,7 @@ export type NegocioWhereUniqueInput = Prisma.AtLeast<{
   bloqueosHorario?: Prisma.BarberScheduleBlockListRelationFilter
   cierresGenerales?: Prisma.GeneralClosureListRelationFilter
   configuraciones?: Prisma.ConfiguracionNegocioListRelationFilter
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaListRelationFilter
 }, "id" | "slug">
 
 export type NegocioOrderByWithAggregationInput = {
@@ -346,6 +349,7 @@ export type NegocioCreateInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioUncheckedCreateInput = {
@@ -366,6 +370,7 @@ export type NegocioUncheckedCreateInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioUpdateInput = {
@@ -385,6 +390,7 @@ export type NegocioUpdateInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioUncheckedUpdateInput = {
@@ -405,6 +411,7 @@ export type NegocioUncheckedUpdateInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioCreateManyInput = {
@@ -483,6 +490,11 @@ export type NegocioSumOrderByAggregateInput = {
 export type NegocioScalarRelationFilter = {
   is?: Prisma.NegocioWhereInput
   isNot?: Prisma.NegocioWhereInput
+}
+
+export type NegocioNullableScalarRelationFilter = {
+  is?: Prisma.NegocioWhereInput | null
+  isNot?: Prisma.NegocioWhereInput | null
 }
 
 export type StringFieldUpdateOperationsInput = {
@@ -631,6 +643,22 @@ export type NegocioUpdateOneRequiredWithoutReservasNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.NegocioUpdateToOneWithWhereWithoutReservasInput, Prisma.NegocioUpdateWithoutReservasInput>, Prisma.NegocioUncheckedUpdateWithoutReservasInput>
 }
 
+export type NegocioCreateNestedOneWithoutPlantillasWhatsAppInput = {
+  create?: Prisma.XOR<Prisma.NegocioCreateWithoutPlantillasWhatsAppInput, Prisma.NegocioUncheckedCreateWithoutPlantillasWhatsAppInput>
+  connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutPlantillasWhatsAppInput
+  connect?: Prisma.NegocioWhereUniqueInput
+}
+
+export type NegocioUpdateOneWithoutPlantillasWhatsAppNestedInput = {
+  create?: Prisma.XOR<Prisma.NegocioCreateWithoutPlantillasWhatsAppInput, Prisma.NegocioUncheckedCreateWithoutPlantillasWhatsAppInput>
+  connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutPlantillasWhatsAppInput
+  upsert?: Prisma.NegocioUpsertWithoutPlantillasWhatsAppInput
+  disconnect?: Prisma.NegocioWhereInput | boolean
+  delete?: Prisma.NegocioWhereInput | boolean
+  connect?: Prisma.NegocioWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.NegocioUpdateToOneWithWhereWithoutPlantillasWhatsAppInput, Prisma.NegocioUpdateWithoutPlantillasWhatsAppInput>, Prisma.NegocioUncheckedUpdateWithoutPlantillasWhatsAppInput>
+}
+
 export type NegocioCreateNestedOneWithoutConfiguracionesInput = {
   create?: Prisma.XOR<Prisma.NegocioCreateWithoutConfiguracionesInput, Prisma.NegocioUncheckedCreateWithoutConfiguracionesInput>
   connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutConfiguracionesInput
@@ -661,6 +689,7 @@ export type NegocioCreateWithoutAdministradoresInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioUncheckedCreateWithoutAdministradoresInput = {
@@ -680,6 +709,7 @@ export type NegocioUncheckedCreateWithoutAdministradoresInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioCreateOrConnectWithoutAdministradoresInput = {
@@ -714,6 +744,7 @@ export type NegocioUpdateWithoutAdministradoresInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioUncheckedUpdateWithoutAdministradoresInput = {
@@ -733,6 +764,7 @@ export type NegocioUncheckedUpdateWithoutAdministradoresInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioCreateWithoutBarberosInput = {
@@ -751,6 +783,7 @@ export type NegocioCreateWithoutBarberosInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioUncheckedCreateWithoutBarberosInput = {
@@ -770,6 +803,7 @@ export type NegocioUncheckedCreateWithoutBarberosInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioCreateOrConnectWithoutBarberosInput = {
@@ -804,6 +838,7 @@ export type NegocioUpdateWithoutBarberosInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioUncheckedUpdateWithoutBarberosInput = {
@@ -823,6 +858,7 @@ export type NegocioUncheckedUpdateWithoutBarberosInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioCreateWithoutClientesInput = {
@@ -841,6 +877,7 @@ export type NegocioCreateWithoutClientesInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioUncheckedCreateWithoutClientesInput = {
@@ -860,6 +897,7 @@ export type NegocioUncheckedCreateWithoutClientesInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioCreateOrConnectWithoutClientesInput = {
@@ -894,6 +932,7 @@ export type NegocioUpdateWithoutClientesInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioUncheckedUpdateWithoutClientesInput = {
@@ -913,6 +952,7 @@ export type NegocioUncheckedUpdateWithoutClientesInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioCreateWithoutServiciosInput = {
@@ -931,6 +971,7 @@ export type NegocioCreateWithoutServiciosInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioUncheckedCreateWithoutServiciosInput = {
@@ -950,6 +991,7 @@ export type NegocioUncheckedCreateWithoutServiciosInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioCreateOrConnectWithoutServiciosInput = {
@@ -984,6 +1026,7 @@ export type NegocioUpdateWithoutServiciosInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioUncheckedUpdateWithoutServiciosInput = {
@@ -1003,6 +1046,7 @@ export type NegocioUncheckedUpdateWithoutServiciosInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioCreateWithoutBarberoServiciosInput = {
@@ -1021,6 +1065,7 @@ export type NegocioCreateWithoutBarberoServiciosInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioUncheckedCreateWithoutBarberoServiciosInput = {
@@ -1040,6 +1085,7 @@ export type NegocioUncheckedCreateWithoutBarberoServiciosInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioCreateOrConnectWithoutBarberoServiciosInput = {
@@ -1074,6 +1120,7 @@ export type NegocioUpdateWithoutBarberoServiciosInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioUncheckedUpdateWithoutBarberoServiciosInput = {
@@ -1093,6 +1140,7 @@ export type NegocioUncheckedUpdateWithoutBarberoServiciosInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioCreateWithoutFranjasSemanalesInput = {
@@ -1111,6 +1159,7 @@ export type NegocioCreateWithoutFranjasSemanalesInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioUncheckedCreateWithoutFranjasSemanalesInput = {
@@ -1130,6 +1179,7 @@ export type NegocioUncheckedCreateWithoutFranjasSemanalesInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioCreateOrConnectWithoutFranjasSemanalesInput = {
@@ -1164,6 +1214,7 @@ export type NegocioUpdateWithoutFranjasSemanalesInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioUncheckedUpdateWithoutFranjasSemanalesInput = {
@@ -1183,6 +1234,7 @@ export type NegocioUncheckedUpdateWithoutFranjasSemanalesInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioCreateWithoutBloqueosHorarioInput = {
@@ -1201,6 +1253,7 @@ export type NegocioCreateWithoutBloqueosHorarioInput = {
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioUncheckedCreateWithoutBloqueosHorarioInput = {
@@ -1220,6 +1273,7 @@ export type NegocioUncheckedCreateWithoutBloqueosHorarioInput = {
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioCreateOrConnectWithoutBloqueosHorarioInput = {
@@ -1254,6 +1308,7 @@ export type NegocioUpdateWithoutBloqueosHorarioInput = {
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioUncheckedUpdateWithoutBloqueosHorarioInput = {
@@ -1273,6 +1328,7 @@ export type NegocioUncheckedUpdateWithoutBloqueosHorarioInput = {
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioCreateWithoutCierresGeneralesInput = {
@@ -1291,6 +1347,7 @@ export type NegocioCreateWithoutCierresGeneralesInput = {
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
   bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioUncheckedCreateWithoutCierresGeneralesInput = {
@@ -1310,6 +1367,7 @@ export type NegocioUncheckedCreateWithoutCierresGeneralesInput = {
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioCreateOrConnectWithoutCierresGeneralesInput = {
@@ -1344,6 +1402,7 @@ export type NegocioUpdateWithoutCierresGeneralesInput = {
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioUncheckedUpdateWithoutCierresGeneralesInput = {
@@ -1363,6 +1422,7 @@ export type NegocioUncheckedUpdateWithoutCierresGeneralesInput = {
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioCreateWithoutReservasInput = {
@@ -1381,6 +1441,7 @@ export type NegocioCreateWithoutReservasInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioUncheckedCreateWithoutReservasInput = {
@@ -1400,6 +1461,7 @@ export type NegocioUncheckedCreateWithoutReservasInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedCreateNestedManyWithoutNegocioInput
   configuraciones?: Prisma.ConfiguracionNegocioUncheckedCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioCreateOrConnectWithoutReservasInput = {
@@ -1434,6 +1496,7 @@ export type NegocioUpdateWithoutReservasInput = {
   bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUpdateManyWithoutNegocioNestedInput
   configuraciones?: Prisma.ConfiguracionNegocioUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioUncheckedUpdateWithoutReservasInput = {
@@ -1449,6 +1512,101 @@ export type NegocioUncheckedUpdateWithoutReservasInput = {
   clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
+  bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
+  cierresGenerales?: Prisma.GeneralClosureUncheckedUpdateManyWithoutNegocioNestedInput
+  configuraciones?: Prisma.ConfiguracionNegocioUncheckedUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioNestedInput
+}
+
+export type NegocioCreateWithoutPlantillasWhatsAppInput = {
+  slug: string
+  nombre: string
+  estado?: $Enums.EstadoNegocio
+  zonaHoraria?: string
+  creadoEn?: Date | string
+  actualizadoEn?: Date | string
+  administradores?: Prisma.AdministradorCreateNestedManyWithoutNegocioInput
+  barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
+  clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
+  servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
+  reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
+  franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
+  bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
+  cierresGenerales?: Prisma.GeneralClosureCreateNestedManyWithoutNegocioInput
+  configuraciones?: Prisma.ConfiguracionNegocioCreateNestedManyWithoutNegocioInput
+}
+
+export type NegocioUncheckedCreateWithoutPlantillasWhatsAppInput = {
+  id?: number
+  slug: string
+  nombre: string
+  estado?: $Enums.EstadoNegocio
+  zonaHoraria?: string
+  creadoEn?: Date | string
+  actualizadoEn?: Date | string
+  administradores?: Prisma.AdministradorUncheckedCreateNestedManyWithoutNegocioInput
+  barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
+  clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
+  servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
+  reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
+  franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
+  bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
+  cierresGenerales?: Prisma.GeneralClosureUncheckedCreateNestedManyWithoutNegocioInput
+  configuraciones?: Prisma.ConfiguracionNegocioUncheckedCreateNestedManyWithoutNegocioInput
+}
+
+export type NegocioCreateOrConnectWithoutPlantillasWhatsAppInput = {
+  where: Prisma.NegocioWhereUniqueInput
+  create: Prisma.XOR<Prisma.NegocioCreateWithoutPlantillasWhatsAppInput, Prisma.NegocioUncheckedCreateWithoutPlantillasWhatsAppInput>
+}
+
+export type NegocioUpsertWithoutPlantillasWhatsAppInput = {
+  update: Prisma.XOR<Prisma.NegocioUpdateWithoutPlantillasWhatsAppInput, Prisma.NegocioUncheckedUpdateWithoutPlantillasWhatsAppInput>
+  create: Prisma.XOR<Prisma.NegocioCreateWithoutPlantillasWhatsAppInput, Prisma.NegocioUncheckedCreateWithoutPlantillasWhatsAppInput>
+  where?: Prisma.NegocioWhereInput
+}
+
+export type NegocioUpdateToOneWithWhereWithoutPlantillasWhatsAppInput = {
+  where?: Prisma.NegocioWhereInput
+  data: Prisma.XOR<Prisma.NegocioUpdateWithoutPlantillasWhatsAppInput, Prisma.NegocioUncheckedUpdateWithoutPlantillasWhatsAppInput>
+}
+
+export type NegocioUpdateWithoutPlantillasWhatsAppInput = {
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  estado?: Prisma.EnumEstadoNegocioFieldUpdateOperationsInput | $Enums.EstadoNegocio
+  zonaHoraria?: Prisma.StringFieldUpdateOperationsInput | string
+  creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  actualizadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  administradores?: Prisma.AdministradorUpdateManyWithoutNegocioNestedInput
+  barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
+  clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
+  servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
+  reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
+  franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
+  bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
+  cierresGenerales?: Prisma.GeneralClosureUpdateManyWithoutNegocioNestedInput
+  configuraciones?: Prisma.ConfiguracionNegocioUpdateManyWithoutNegocioNestedInput
+}
+
+export type NegocioUncheckedUpdateWithoutPlantillasWhatsAppInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  estado?: Prisma.EnumEstadoNegocioFieldUpdateOperationsInput | $Enums.EstadoNegocio
+  zonaHoraria?: Prisma.StringFieldUpdateOperationsInput | string
+  creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  actualizadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  administradores?: Prisma.AdministradorUncheckedUpdateManyWithoutNegocioNestedInput
+  barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
+  clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
+  servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedUpdateManyWithoutNegocioNestedInput
@@ -1471,6 +1629,7 @@ export type NegocioCreateWithoutConfiguracionesInput = {
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
   bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioUncheckedCreateWithoutConfiguracionesInput = {
@@ -1490,6 +1649,7 @@ export type NegocioUncheckedCreateWithoutConfiguracionesInput = {
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedCreateNestedManyWithoutNegocioInput
 }
 
 export type NegocioCreateOrConnectWithoutConfiguracionesInput = {
@@ -1524,6 +1684,7 @@ export type NegocioUpdateWithoutConfiguracionesInput = {
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUpdateManyWithoutNegocioNestedInput
 }
 
 export type NegocioUncheckedUpdateWithoutConfiguracionesInput = {
@@ -1543,6 +1704,7 @@ export type NegocioUncheckedUpdateWithoutConfiguracionesInput = {
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
   cierresGenerales?: Prisma.GeneralClosureUncheckedUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioNestedInput
 }
 
 
@@ -1561,6 +1723,7 @@ export type NegocioCountOutputType = {
   bloqueosHorario: number
   cierresGenerales: number
   configuraciones: number
+  plantillasWhatsApp: number
 }
 
 export type NegocioCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1574,6 +1737,7 @@ export type NegocioCountOutputTypeSelect<ExtArgs extends runtime.Types.Extension
   bloqueosHorario?: boolean | NegocioCountOutputTypeCountBloqueosHorarioArgs
   cierresGenerales?: boolean | NegocioCountOutputTypeCountCierresGeneralesArgs
   configuraciones?: boolean | NegocioCountOutputTypeCountConfiguracionesArgs
+  plantillasWhatsApp?: boolean | NegocioCountOutputTypeCountPlantillasWhatsAppArgs
 }
 
 /**
@@ -1656,6 +1820,13 @@ export type NegocioCountOutputTypeCountConfiguracionesArgs<ExtArgs extends runti
   where?: Prisma.ConfiguracionNegocioWhereInput
 }
 
+/**
+ * NegocioCountOutputType without action
+ */
+export type NegocioCountOutputTypeCountPlantillasWhatsAppArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.WhatsAppPlantillaWhereInput
+}
+
 
 export type NegocioSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1675,6 +1846,7 @@ export type NegocioSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   bloqueosHorario?: boolean | Prisma.Negocio$bloqueosHorarioArgs<ExtArgs>
   cierresGenerales?: boolean | Prisma.Negocio$cierresGeneralesArgs<ExtArgs>
   configuraciones?: boolean | Prisma.Negocio$configuracionesArgs<ExtArgs>
+  plantillasWhatsApp?: boolean | Prisma.Negocio$plantillasWhatsAppArgs<ExtArgs>
   _count?: boolean | Prisma.NegocioCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["negocio"]>
 
@@ -1702,6 +1874,7 @@ export type NegocioInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   bloqueosHorario?: boolean | Prisma.Negocio$bloqueosHorarioArgs<ExtArgs>
   cierresGenerales?: boolean | Prisma.Negocio$cierresGeneralesArgs<ExtArgs>
   configuraciones?: boolean | Prisma.Negocio$configuracionesArgs<ExtArgs>
+  plantillasWhatsApp?: boolean | Prisma.Negocio$plantillasWhatsAppArgs<ExtArgs>
   _count?: boolean | Prisma.NegocioCountOutputTypeDefaultArgs<ExtArgs>
 }
 
@@ -1718,6 +1891,7 @@ export type $NegocioPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     bloqueosHorario: Prisma.$BarberScheduleBlockPayload<ExtArgs>[]
     cierresGenerales: Prisma.$GeneralClosurePayload<ExtArgs>[]
     configuraciones: Prisma.$ConfiguracionNegocioPayload<ExtArgs>[]
+    plantillasWhatsApp: Prisma.$WhatsAppPlantillaPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
@@ -2077,6 +2251,7 @@ export interface Prisma__NegocioClient<T, Null = never, ExtArgs extends runtime.
   bloqueosHorario<T extends Prisma.Negocio$bloqueosHorarioArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Negocio$bloqueosHorarioArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BarberScheduleBlockPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   cierresGenerales<T extends Prisma.Negocio$cierresGeneralesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Negocio$cierresGeneralesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GeneralClosurePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   configuraciones<T extends Prisma.Negocio$configuracionesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Negocio$configuracionesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConfiguracionNegocioPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  plantillasWhatsApp<T extends Prisma.Negocio$plantillasWhatsAppArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Negocio$plantillasWhatsAppArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WhatsAppPlantillaPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2698,6 +2873,30 @@ export type Negocio$configuracionesArgs<ExtArgs extends runtime.Types.Extensions
   take?: number
   skip?: number
   distinct?: Prisma.ConfiguracionNegocioScalarFieldEnum | Prisma.ConfiguracionNegocioScalarFieldEnum[]
+}
+
+/**
+ * Negocio.plantillasWhatsApp
+ */
+export type Negocio$plantillasWhatsAppArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WhatsAppPlantilla
+   */
+  select?: Prisma.WhatsAppPlantillaSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WhatsAppPlantilla
+   */
+  omit?: Prisma.WhatsAppPlantillaOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppPlantillaInclude<ExtArgs> | null
+  where?: Prisma.WhatsAppPlantillaWhereInput
+  orderBy?: Prisma.WhatsAppPlantillaOrderByWithRelationInput | Prisma.WhatsAppPlantillaOrderByWithRelationInput[]
+  cursor?: Prisma.WhatsAppPlantillaWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.WhatsAppPlantillaScalarFieldEnum | Prisma.WhatsAppPlantillaScalarFieldEnum[]
 }
 
 /**

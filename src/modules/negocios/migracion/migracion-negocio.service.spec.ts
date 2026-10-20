@@ -324,10 +324,12 @@ describe('Lógica de migración al modelo multitenant (sin base de datos)', () =
       expect(tablas).not.toContain('whatsapp_plantillas');
     });
 
-    it('las dos claves operativas son las esperadas', () => {
+    it('las claves operativas son las esperadas', () => {
       expect(CLAVES_CONFIGURACION_OPERATIVA.map((c) => c.clave)).toEqual([
         'reserva_cancelacion_antelacion_minutos',
         'reserva_no_show_tolerancia_minutos',
+        'negocio_direccion',
+        'recordatorio_minutos_anticipacion',
       ]);
     });
   });
