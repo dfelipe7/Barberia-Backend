@@ -6,5 +6,8 @@
   "transform": {
     "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "<rootDir>/tsconfig.e2e.json" }]
   },
-  "transformIgnorePatterns": ["node_modules/(?!(@nestjs/(config|jwt))/)"]
+  "transformIgnorePatterns": ["node_modules/(?!(@nestjs/(config|jwt))/)"],
+  "moduleNameMapper": {
+    "^(\\.{1,2}/.*)\\.js$": "$1"
+  }
 }

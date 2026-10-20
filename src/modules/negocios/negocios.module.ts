@@ -4,6 +4,7 @@ import { NegocioContextoService } from './negocio-contexto.service';
 import { NegocioContextoMiddleware } from './middleware/negocio-contexto.middleware';
 import { NegociosRepository } from './repository/negocios.repository';
 import { NegocioResolucionService } from './service/negocio-resolucion.service';
+import { NegocioRolesService } from './service/negocio-roles.service';
 
 /**
  * Módulo de negocios (tenants) de la plataforma.
@@ -23,6 +24,7 @@ import { NegocioResolucionService } from './service/negocio-resolucion.service';
     NegocioContextoService,
     NegocioAislamientoService,
     NegocioResolucionService,
+    NegocioRolesService,
     NegociosRepository,
     NegocioContextoMiddleware,
   ],
@@ -30,6 +32,7 @@ import { NegocioResolucionService } from './service/negocio-resolucion.service';
     NegocioContextoService,
     NegocioAislamientoService,
     NegocioResolucionService,
+    NegocioRolesService,
     NegociosRepository,
     NegocioContextoMiddleware,
   ],

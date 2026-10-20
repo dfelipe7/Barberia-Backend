@@ -628,7 +628,7 @@ export class ReservasService {
    */
   async completarReserva(
     usuarioAutenticado: unknown,
-    rol: string | undefined,
+    roles: string[] | undefined,
     reservaId: number,
   ): Promise<ReservaCompletadaResponseDto> {
     const reserva =
@@ -640,7 +640,7 @@ export class ReservasService {
 
     // Anti-BOLA/IDOR: un BARBERO solo puede completar sus propias reservas. Se
     // responde 404 uniforme para no revelar la existencia de reservas ajenas.
-    if (rol === 'BARBERO') {
+    if (roles?.includes('BARBERO')) {
       const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
 
       if (reserva.barberoId !== barbero.id) {
@@ -669,7 +669,7 @@ export class ReservasService {
 
     if (transiciono) {
       this.logger.log(
-        `AUDIT: reserva completada id=${reserva.id} barberoId=${reserva.barberoId} rol=${rol ?? 'desconocido'}`,
+        `AUDIT: reserva completada id=${reserva.id} barberoId=${reserva.barberoId} roles=${roles?.join(',') ?? 'desconocido'}`,
       );
       this.dispararCompletadoWhatsApp(reserva);
     }
@@ -691,7 +691,7 @@ export class ReservasService {
    */
   async noShowReserva(
     usuarioAutenticado: unknown,
-    rol: string | undefined,
+    roles: string[] | undefined,
     reservaId: number,
   ): Promise<ReservaNoShowResponseDto> {
     const reserva =
@@ -703,7 +703,7 @@ export class ReservasService {
 
     // Anti-BOLA/IDOR: un BARBERO solo puede marcar sus propias reservas. Se
     // responde 404 uniforme para no revelar la existencia de reservas ajenas.
-    if (rol === 'BARBERO') {
+    if (roles?.includes('BARBERO')) {
       const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
 
       if (reserva.barberoId !== barbero.id) {
@@ -738,7 +738,7 @@ export class ReservasService {
 
     if (transiciono) {
       this.logger.log(
-        `AUDIT: reserva marcada como no asistida id=${reserva.id} barberoId=${reserva.barberoId} rol=${rol ?? 'desconocido'}`,
+        `AUDIT: reserva marcada como no asistida id=${reserva.id} barberoId=${reserva.barberoId} roles=${roles?.join(',') ?? 'desconocido'}`,
       );
     }
 

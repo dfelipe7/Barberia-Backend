@@ -51,3 +51,20 @@ export const ORIGEN_RESOLUCION_NEGOCIO = {
 
 export type OrigenResolucionNegocio =
   (typeof ORIGEN_RESOLUCION_NEGOCIO)[keyof typeof ORIGEN_RESOLUCION_NEGOCIO];
+
+/**
+ * Roles del personal.
+ *
+ * `ADMINISTRADOR` y `BARBERO` son roles OPERATIVOS: se derivan de los
+ * perfiles (`Administrador` / `Barbero`) de la persona en un negocio, nunca
+ * del campo global `Usuario.rol`.
+ *
+ * `SUPERADMIN` es la identidad global de plataforma: no es un rol de negocio.
+ *
+ * Se declaran aquí, y no en el servicio de roles, para que el guard de
+ * autorización (que vive en `src/auth`) no arrastre la cadena de importaciones
+ * de Prisma.
+ */
+export const ROL_ADMINISTRADOR = 'ADMINISTRADOR';
+export const ROL_BARBERO = 'BARBERO';
+export const ROL_SUPERADMIN = 'SUPERADMIN';

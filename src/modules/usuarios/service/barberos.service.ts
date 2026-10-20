@@ -13,6 +13,7 @@ import { BarberoCatalogoDto } from '../dto/dto-respuesta/barbero-catalogo.dto';
 import { BarberoGestionDto } from '../dto/dto-respuesta/barbero-gestion.dto';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { construirActorSesion } from '../../../auth/sesion/sesion-personal';
 
 @Injectable()
 export class BarberosService {
@@ -203,7 +204,10 @@ export class BarberosService {
         'El usuario autenticado no existe en la base de datos',
       );
     }
-    this.authorizationService.verificarPermisosComision(usuarioActual, usuario);
+    this.authorizationService.verificarPermisosComision(
+      construirActorSesion(usuarioAutenticado),
+      usuario,
+    );
     return this.barberosRepository.actualizarComision(
       usuarioId,
       dto.porcentajeComision,
@@ -329,7 +333,7 @@ export class BarberosService {
 
     try {
       this.authorizationService.verificarPermisosEdicion(
-        usuarioActual,
+        construirActorSesion(usuarioAutenticado),
         usuarioObjetivo,
       );
     } catch (error) {
@@ -415,7 +419,7 @@ export class BarberosService {
     }
 
     this.authorizationService.verificarPermisosCambioEstadoBarbero(
-      usuarioActual,
+      construirActorSesion(usuarioAutenticado),
       usuario,
     );
 

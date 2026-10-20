@@ -1,11 +1,19 @@
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ClienteJwtAuthGuard } from './cliente-jwt-auth.guard';
 import { ClienteJwtService } from '../cliente-jwt.service';
+import { NegocioContextoService } from '../../../modules/negocios/negocio-contexto.service';
 
 describe('ClienteJwtAuthGuard', () => {
   let guard: ClienteJwtAuthGuard;
 
   const clienteJwtService = { verificar: jest.fn() };
+  const contextoService = {
+    obtenerContexto: jest.fn().mockReturnValue({ id: 10, slug: 'kyrios' }),
+  };
 
   const crearContexto = (headers: Record<string, string> = {}) => {
     const request: {
@@ -20,8 +28,13 @@ describe('ClienteJwtAuthGuard', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    contextoService.obtenerContexto.mockReturnValue({
+      id: 10,
+      slug: 'kyrios',
+    });
     guard = new ClienteJwtAuthGuard(
       clienteJwtService as unknown as ClienteJwtService,
+      contextoService as unknown as NegocioContextoService,
     );
   });
 
@@ -50,6 +63,7 @@ describe('ClienteJwtAuthGuard', () => {
       clienteId: 7,
       email: 'ana@gmail.com',
       nombre: 'Ana',
+      negocioId: 10,
     });
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
@@ -58,7 +72,24 @@ describe('ClienteJwtAuthGuard', () => {
       clienteId: 7,
       email: 'ana@gmail.com',
       nombre: 'Ana',
+      negocioId: 10,
     });
+  });
+
+  it('rechaza (403) una sesión de cliente de OTRA barbería', async () => {
+    const { context } = crearContexto({
+      authorization: 'Bearer token-cliente',
+    });
+    clienteJwtService.verificar.mockResolvedValue({
+      clienteId: 7,
+      email: 'ana@gmail.com',
+      nombre: 'Ana',
+      negocioId: 20,
+    });
+
+    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 
   it('propaga el 401 del verificador (p. ej. token de personal)', async () => {

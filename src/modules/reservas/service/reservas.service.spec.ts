@@ -1447,7 +1447,7 @@ describe('ReservasService', () => {
 
       const respuesta = await service.completarReserva(
         usuarioBarbero,
-        'BARBERO',
+        ['BARBERO'],
         42,
       );
 
@@ -1465,7 +1465,7 @@ describe('ReservasService', () => {
 
       const respuesta = await service.completarReserva(
         usuarioSuperadmin,
-        'SUPERADMIN',
+        ['SUPERADMIN'],
         42,
       );
 
@@ -1481,7 +1481,7 @@ describe('ReservasService', () => {
       );
 
       await expect(
-        service.completarReserva(usuarioBarbero, 'BARBERO', 42),
+        service.completarReserva(usuarioBarbero, ['BARBERO'], 42),
       ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
 
       expect(reservasRepository.completar).not.toHaveBeenCalled();
@@ -1493,7 +1493,7 @@ describe('ReservasService', () => {
       );
 
       await expect(
-        service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+        service.completarReserva(usuarioSuperadmin, ['SUPERADMIN'], 42),
       ).rejects.toThrow('No es posible completar una reserva cancelada');
 
       expect(reservasRepository.completar).not.toHaveBeenCalled();
@@ -1506,7 +1506,7 @@ describe('ReservasService', () => {
 
       const respuesta = await service.completarReserva(
         usuarioSuperadmin,
-        'SUPERADMIN',
+        ['SUPERADMIN'],
         42,
       );
 
@@ -1521,7 +1521,7 @@ describe('ReservasService', () => {
       );
 
       await expect(
-        service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+        service.completarReserva(usuarioSuperadmin, ['SUPERADMIN'], 42),
       ).rejects.toThrow(
         'No es posible completar una reserva antes de su hora de finalización',
       );
@@ -1533,7 +1533,7 @@ describe('ReservasService', () => {
       reservasRepository.obtenerReservaParaCompletar.mockResolvedValue(null);
 
       await expect(
-        service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 999),
+        service.completarReserva(usuarioSuperadmin, ['SUPERADMIN'], 999),
       ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
 
       expect(reservasRepository.completar).not.toHaveBeenCalled();
@@ -1551,7 +1551,7 @@ describe('ReservasService', () => {
         service as unknown as { whatsappService: typeof whatsapp }
       ).whatsappService = whatsapp;
 
-      await service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 42);
+      await service.completarReserva(usuarioSuperadmin, ['SUPERADMIN'], 42);
 
       expect(whatsapp.enviarCompletadoReserva).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1573,7 +1573,7 @@ describe('ReservasService', () => {
         service as unknown as { whatsappService: typeof whatsapp }
       ).whatsappService = whatsapp;
 
-      await service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 42);
+      await service.completarReserva(usuarioSuperadmin, ['SUPERADMIN'], 42);
 
       expect(whatsapp.enviarCompletadoReserva).not.toHaveBeenCalled();
     });
@@ -1618,7 +1618,7 @@ describe('ReservasService', () => {
       );
       reservasRepository.marcarNoShow.mockResolvedValue(true);
 
-      const respuesta = await service.noShowReserva(usuarioBarbero, 'BARBERO', 42);
+      const respuesta = await service.noShowReserva(usuarioBarbero, ['BARBERO'], 42);
 
       expect(respuesta.mensaje).toBe(MENSAJE_RESERVA_NO_SHOW);
       expect(respuesta.id).toBe(42);
@@ -1634,7 +1634,7 @@ describe('ReservasService', () => {
 
       const respuesta = await service.noShowReserva(
         usuarioSuperadmin,
-        'SUPERADMIN',
+        ['SUPERADMIN'],
         42,
       );
 
@@ -1650,7 +1650,7 @@ describe('ReservasService', () => {
       );
 
       await expect(
-        service.noShowReserva(usuarioBarbero, 'BARBERO', 42),
+        service.noShowReserva(usuarioBarbero, ['BARBERO'], 42),
       ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
 
       expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
@@ -1662,7 +1662,7 @@ describe('ReservasService', () => {
       );
 
       await expect(
-        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+        service.noShowReserva(usuarioSuperadmin, ['SUPERADMIN'], 42),
       ).rejects.toThrow(
         'No es posible marcar como no asistida una reserva cancelada',
       );
@@ -1676,7 +1676,7 @@ describe('ReservasService', () => {
       );
 
       await expect(
-        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+        service.noShowReserva(usuarioSuperadmin, ['SUPERADMIN'], 42),
       ).rejects.toThrow(
         'No es posible marcar como no asistida una reserva completada',
       );
@@ -1691,7 +1691,7 @@ describe('ReservasService', () => {
 
       const respuesta = await service.noShowReserva(
         usuarioSuperadmin,
-        'SUPERADMIN',
+        ['SUPERADMIN'],
         42,
       );
 
@@ -1706,7 +1706,7 @@ describe('ReservasService', () => {
       );
 
       await expect(
-        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+        service.noShowReserva(usuarioSuperadmin, ['SUPERADMIN'], 42),
       ).rejects.toThrow(
         'No es posible marcar la reserva como no asistida antes de 15 minutos',
       );
@@ -1718,7 +1718,7 @@ describe('ReservasService', () => {
       reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(null);
 
       await expect(
-        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 999),
+        service.noShowReserva(usuarioSuperadmin, ['SUPERADMIN'], 999),
       ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
 
       expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();

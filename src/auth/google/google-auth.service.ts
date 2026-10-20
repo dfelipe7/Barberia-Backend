@@ -4,22 +4,50 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GoogleTokenVerifier } from './google-token-verifier.service';
+import { SesionPersonalService } from '../sesion/sesion-personal.service';
+import {
+  NegocioRolesService,
+  ROL_SUPERADMIN,
+} from '../../modules/negocios/service/negocio-roles.service';
+import { NegocioContextoService } from '../../modules/negocios/negocio-contexto.service';
 
+/**
+ * Inicio de sesión del PERSONAL (barbería) con Google OAuth 2.0.
+ *
+ * IDENTIDAD GLOBAL, ROLES POR NEGOCIO
+ * -----------------------------------
+ * La identidad es GLOBAL (`Usuario`): la misma persona en toda la plataforma.
+ * Lo que cambia por barbería son los ROLES EFECTIVOS, que se derivan de los
+ * perfiles operativos (`Administrador` / `Barbero`) de esa persona EN EL
+ * NEGOCIO DE LA PETICIÓN. El campo global `Usuario.rol` heredado no autoriza
+ * nada.
+ *
+ * DOS TIPOS DE SESIÓN
+ * -------------------
+ * - Personal con perfil en una barbería: la sesión queda VINCULADA a ese
+ *   negocio (`negocioId`). Sin contexto de negocio o sin perfil activo, el
+ *   acceso se rechaza.
+ * - `SUPERADMIN`: identidad GLOBAL de plataforma. Su sesión NO lleva negocio
+ *   y NO habilita por sí sola las rutas de negocio: para operar dentro de una
+ *   barbería debe hacer la transición explícita `POST /auth/tenant/:slug`,
+ *   que queda acotada al negocio de destino.
+ */
 @Injectable()
 export class GoogleAuthService {
   private readonly logger = new Logger(GoogleAuthService.name);
 
   constructor(
-    private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly googleTokenVerifier: GoogleTokenVerifier,
+    private readonly sesionService: SesionPersonalService,
+    private readonly rolesService: NegocioRolesService,
+    private readonly contextoService: NegocioContextoService,
   ) {}
 
   /**
-   * Valida el token emitido por Google OAuth 2.0 y genera la sesión en la Barbería.
+   * Valida el token emitido por Google OAuth 2.0 y genera la sesión.
    * Si el usuario no existe en la base de datos, rechaza el acceso (Sistema cerrado).
    */
   async loginConGoogle(idToken: string) {
@@ -34,10 +62,6 @@ export class GoogleAuthService {
     const email = payload.email.toLowerCase().trim();
     const usuario = await this.prisma.usuario.findUnique({
       where: { email },
-      include: {
-        administrador: true,
-        barbero: true,
-      },
     });
 
     if (!usuario) {
@@ -64,115 +88,65 @@ export class GoogleAuthService {
       });
     }
 
-    const sesion = this.construirSesion(usuario, payload.picture);
+    const sesion = await this.emitirSesion(usuario, payload.picture);
 
     this.logger.log(
-      `LOGIN EXITOSO: ${usuario.nombre} (${usuario.email}) - Roles: ${sesion.usuario.roles.join(', ')}`,
+      `LOGIN EXITOSO: ${usuario.nombre} (${usuario.email}) - Roles: ${sesion.usuario.roles.join(', ')} - Negocio: ${sesion.negocio?.slug ?? 'PLATAFORMA'}`,
     );
 
     return sesion;
   }
 
   /**
-   * Revalida los roles vigentes en la base de datos y emite un nuevo JWT actualizado
-   * sin requerir que el usuario cierre sesión.
+   * Emite la sesión según la identidad y la pertenencia de la persona.
    */
-  async refrescarSesion(usuarioId: number, fotoUrlActual?: string | null) {
-    const usuario = await this.prisma.usuario.findUnique({
-      where: { id: usuarioId },
-      include: {
-        administrador: true,
-        barbero: true,
-      },
-    });
-
-    if (!usuario) {
-      throw new UnauthorizedException(
-        'El usuario no existe en la base de datos.',
+  private async emitirSesion(
+    usuario: {
+      id: number;
+      email: string;
+      nombre: string;
+      apellido: string;
+      rol: string;
+      estado: string;
+    },
+    fotoUrlGoogle?: string | null,
+  ) {
+    if (usuario.rol === ROL_SUPERADMIN) {
+      // Identidad global de plataforma: la sesión no queda vinculada a ningún
+      // negocio y no habilita por sí sola las rutas de negocio.
+      return this.sesionService.emitirParaPlataforma(
+        usuario,
+        fotoUrlGoogle ?? null,
       );
     }
 
-    if (usuario.estado === 'INACTIVO') {
+    const contexto = this.contextoService.obtenerContexto();
+
+    if (!contexto) {
       throw new ForbiddenException(
-        'Tu cuenta ha sido desactivada por un administrador.',
+        'No se pudo determinar la barbería de la sesión. Accede desde el dominio de tu barbería.',
       );
     }
 
-    const sesion = this.construirSesion(usuario, fotoUrlActual);
-
-    this.logger.debug(
-      `TOKEN RENOVADO: ${usuario.nombre} (${usuario.email}) - Roles: ${sesion.usuario.roles.join(', ')}`,
+    const perfil = await this.rolesService.perfilOperativo(
+      usuario.id,
+      contexto,
     );
 
-    return sesion;
-  }
-
-  private construirSesion(usuario: any, fotoUrlGoogle?: string | null) {
-    const esSuperAdmin = usuario.rol === 'SUPERADMIN';
-    const esAdminActivo = usuario.administrador?.estado === 'ACTIVO';
-    const esBarberoActivo = usuario.barbero?.estado === 'ACTIVO';
-
-    if (!esSuperAdmin && !esAdminActivo && !esBarberoActivo) {
+    if (perfil.roles.length === 0) {
       this.logger.warn(
-        `Acceso denegado: ${usuario.email} no tiene roles activos.`,
+        `Acceso denegado: ${usuario.email} no tiene un perfil activo en ${contexto.slug}.`,
       );
       throw new ForbiddenException(
-        'Tu cuenta no tiene ningún rol activo asignado.',
+        'Tu cuenta no tiene ningún perfil activo en esta barbería.',
       );
     }
 
-    // Resolver todos los roles activos del usuario
-    const roles: string[] = [];
-    if (esSuperAdmin) {
-      roles.push('SUPERADMIN');
-    }
-    if (
-      esAdminActivo ||
-      (usuario.rol === 'ADMINISTRADOR' && !usuario.administrador)
-    ) {
-      if (!roles.includes('ADMINISTRADOR')) {
-        roles.push('ADMINISTRADOR');
-      }
-    }
-    if (esBarberoActivo || (usuario.rol === 'BARBERO' && !usuario.barbero)) {
-      if (!roles.includes('BARBERO')) {
-        roles.push('BARBERO');
-      }
-    }
-
-    // Prioridad de foto:
-    // 1. Foto personalizada de barbero en la base de datos
-    // 2. Foto de la cuenta de Google
-    // 3. null (iniciales)
-    const fotoUrl = usuario.barbero?.fotoUrl || fotoUrlGoogle || null;
-
-    // Generar el JWT oficial de la Barbería con sus roles y reclamos
-    const tokenPayload = {
-      sub: String(usuario.id),
-      id: usuario.id,
-      email: usuario.email,
-      nombre: usuario.nombre,
-      apellido: usuario.apellido,
-      rol: usuario.rol,
-      roles,
-      estado: usuario.estado,
-      fotoUrl,
-    };
-
-    const accessToken = this.jwtService.sign(tokenPayload);
-
-    return {
-      accessToken,
-      usuario: {
-        id: usuario.id,
-        email: usuario.email,
-        nombre: usuario.nombre,
-        apellido: usuario.apellido,
-        rol: usuario.rol,
-        roles,
-        estado: usuario.estado,
-        fotoUrl,
-      },
-    };
+    return this.sesionService.emitirParaNegocio(
+      usuario,
+      contexto,
+      perfil.roles,
+      perfil.fotoUrl ?? fotoUrlGoogle ?? null,
+    );
   }
 }

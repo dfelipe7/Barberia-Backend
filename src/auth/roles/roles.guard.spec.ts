@@ -26,50 +26,57 @@ describe('RolesGuard', () => {
 
   it('debe permitir acceso si la ruta no tiene roles requeridos', () => {
     reflector.getAllAndOverride.mockReturnValue(undefined);
-    const context = createMockContext({ rol: 'CLIENTE' });
+    const context = createMockContext({ roles: [] });
 
     expect(guard.canActivate(context)).toBe(true);
   });
 
-  it('debe permitir acceso si el usuario tiene rol único coincidente (user.rol)', () => {
+  it('debe permitir acceso si el usuario tiene un rol efectivo coincidente', () => {
     reflector.getAllAndOverride.mockReturnValue([
       'ADMINISTRADOR',
       'SUPERADMIN',
     ]);
-    const context = createMockContext({ rol: 'ADMINISTRADOR' });
+    const context = createMockContext({ roles: ['ADMINISTRADOR'] });
 
     expect(guard.canActivate(context)).toBe(true);
   });
 
-  it('debe permitir acceso si el usuario tiene un array de roles con coincidencia (user.roles)', () => {
+  it('debe permitir acceso si el array de roles efectivos incluye el requerido', () => {
     reflector.getAllAndOverride.mockReturnValue(['BARBERO']);
-    const context = createMockContext({ roles: ['BARBERO', 'CLIENTE'] });
+    const context = createMockContext({ roles: ['BARBERO', 'ADMINISTRADOR'] });
 
     expect(guard.canActivate(context)).toBe(true);
   });
 
-  it('debe permitir acceso si el usuario tiene rol principal diferente pero roles incluye el requerido', () => {
-    reflector.getAllAndOverride.mockReturnValue(['BARBERO']);
+  it('debe permitir acceso a un SUPERADMIN de plataforma', () => {
+    reflector.getAllAndOverride.mockReturnValue(['SUPERADMIN']);
     const context = createMockContext({
-      rol: 'ADMINISTRADOR',
-      roles: ['ADMINISTRADOR', 'BARBERO'],
+      roles: ['ADMINISTRADOR'],
+      superadmin: true,
     });
 
     expect(guard.canActivate(context)).toBe(true);
   });
 
-  it('debe permitir acceso si el usuario tiene roles en realm_access', () => {
+  it('NO debe autorizar por el rol global heredado (user.rol)', () => {
+    reflector.getAllAndOverride.mockReturnValue(['ADMINISTRADOR']);
+    const context = createMockContext({ rol: 'ADMINISTRADOR', roles: [] });
+
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+  });
+
+  it('NO debe autorizar por roles ajenos al modelo (realm_access)', () => {
     reflector.getAllAndOverride.mockReturnValue(['SUPERADMIN']);
     const context = createMockContext({
       realm_access: { roles: ['SUPERADMIN'] },
     });
 
-    expect(guard.canActivate(context)).toBe(true);
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
   });
 
   it('debe lanzar ForbiddenException si el usuario no tiene los roles requeridos', () => {
     reflector.getAllAndOverride.mockReturnValue(['SUPERADMIN']);
-    const context = createMockContext({ rol: 'BARBERO' });
+    const context = createMockContext({ roles: ['BARBERO'] });
 
     expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
     expect(() => guard.canActivate(context)).toThrow(

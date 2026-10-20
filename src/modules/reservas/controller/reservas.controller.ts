@@ -68,7 +68,7 @@ interface PeticionConCliente {
 
 /** Petición con la identidad del personal autenticado (rol e id del token). */
 interface PeticionPersonal {
-  user?: { id?: number; sub?: string; rol?: string };
+  user?: { id?: number; sub?: string; rol?: string; roles?: string[] };
 }
 
 /**
@@ -347,7 +347,7 @@ export class ReservasController {
 
     return this.reservasService.completarReserva(
       request.user,
-      request.user?.rol,
+      request.user?.roles,
       reservaId,
     );
   }
@@ -394,7 +394,7 @@ export class ReservasController {
 
     return this.reservasService.noShowReserva(
       request.user,
-      request.user?.rol,
+      request.user?.roles,
       reservaId,
     );
   }

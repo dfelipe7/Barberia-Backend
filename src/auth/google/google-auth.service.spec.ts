@@ -1,24 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GoogleAuthService } from './google-auth.service';
 import { GoogleTokenVerifier } from './google-token-verifier.service';
-import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { SesionPersonalService } from '../sesion/sesion-personal.service';
+import { NegocioRolesService } from '../../modules/negocios/service/negocio-roles.service';
+import { NegocioContextoService } from '../../modules/negocios/negocio-contexto.service';
 
 describe('GoogleAuthService', () => {
   let service: GoogleAuthService;
-  let jwtService: jest.Mocked<JwtService>;
   let googleTokenVerifier: { verificar: jest.Mock };
   let prisma: any;
+  let sesionService: jest.Mocked<SesionPersonalService>;
+  let rolesService: jest.Mocked<NegocioRolesService>;
+  let contextoService: jest.Mocked<NegocioContextoService>;
+
+  const contexto = { id: 10, slug: 'kyrios-studio' };
 
   beforeEach(async () => {
-    const mockJwtService = {
-      sign: jest.fn().mockReturnValue('signed-jwt-token'),
-    };
-
-    const mockVerifier = {
-      verificar: jest.fn(),
-    };
+    const mockVerifier = { verificar: jest.fn() };
 
     const mockPrisma = {
       usuario: {
@@ -27,19 +27,36 @@ describe('GoogleAuthService', () => {
       },
     };
 
+    const mockSesionService = {
+      emitirParaPlataforma: jest.fn(),
+      emitirParaNegocio: jest.fn(),
+    };
+
+    const mockRolesService = {
+      perfilOperativo: jest.fn(),
+    };
+
+    const mockContextoService = {
+      obtenerContexto: jest.fn().mockReturnValue(contexto),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GoogleAuthService,
-        { provide: JwtService, useValue: mockJwtService },
         { provide: PrismaService, useValue: mockPrisma },
         { provide: GoogleTokenVerifier, useValue: mockVerifier },
+        { provide: SesionPersonalService, useValue: mockSesionService },
+        { provide: NegocioRolesService, useValue: mockRolesService },
+        { provide: NegocioContextoService, useValue: mockContextoService },
       ],
     }).compile();
 
     service = module.get<GoogleAuthService>(GoogleAuthService);
-    jwtService = module.get(JwtService);
     googleTokenVerifier = module.get(GoogleTokenVerifier);
     prisma = module.get(PrismaService);
+    sesionService = module.get(SesionPersonalService);
+    rolesService = module.get(NegocioRolesService);
+    contextoService = module.get(NegocioContextoService);
   });
 
   it('debe estar definido', () => {
@@ -97,54 +114,7 @@ describe('GoogleAuthService', () => {
     );
   });
 
-  it('debe lanzar ForbiddenException si el usuario no tiene roles activos', async () => {
-    googleTokenVerifier.verificar.mockResolvedValue({
-      email: 'sinrol@gmail.com',
-      sub: '123',
-    });
-
-    prisma.usuario.findUnique.mockResolvedValue({
-      id: 3,
-      email: 'sinrol@gmail.com',
-      estado: 'ACTIVO',
-      rol: 'CLIENTE',
-      nombre: 'Sin',
-      apellido: 'Rol',
-      administrador: null,
-      barbero: null,
-    } as any);
-
-    await expect(service.loginConGoogle('valid-token')).rejects.toThrow(
-      ForbiddenException,
-    );
-  });
-
-  it('debe permitir login a un administrador activo sin foto de Google pero con foto propia de barbero', async () => {
-    googleTokenVerifier.verificar.mockResolvedValue({
-      email: 'admin@gmail.com',
-      sub: '12345',
-    });
-
-    prisma.usuario.findUnique.mockResolvedValue({
-      id: 4,
-      email: 'admin@gmail.com',
-      estado: 'ACTIVO',
-      rol: 'ADMINISTRADOR',
-      nombre: 'Admin',
-      apellido: 'Local',
-      googleId: '12345',
-      administrador: { estado: 'ACTIVO' },
-      barbero: { fotoUrl: '/uploads/foto.jpg', estado: 'INACTIVO' },
-    } as any);
-
-    const result = await service.loginConGoogle('valid-token');
-
-    expect(result.usuario.fotoUrl).toBe('/uploads/foto.jpg');
-    // Como ya tenía googleId no vuelve a hacer update
-    expect(prisma.usuario.update).not.toHaveBeenCalled();
-  });
-
-  it('debe retornar accessToken y usuario si el login es exitoso para superadmin', async () => {
+  it('debe emitir una sesión GLOBAL de plataforma para un SUPERADMIN', async () => {
     googleTokenVerifier.verificar.mockResolvedValue({
       email: 'admin@gmail.com',
       sub: '12345',
@@ -159,29 +129,77 @@ describe('GoogleAuthService', () => {
       nombre: 'Felipe',
       apellido: 'Armero',
       googleId: null,
-      barbero: null,
+    } as any);
+
+    sesionService.emitirParaPlataforma.mockReturnValue({
+      accessToken: 'token-plataforma',
+      usuario: { id: 1, roles: ['SUPERADMIN'] },
+      negocio: null,
     } as any);
 
     const result = await service.loginConGoogle('valid-token');
 
-    expect(result).toHaveProperty('accessToken', 'signed-jwt-token');
-    expect(result.usuario).toEqual({
-      id: 1,
-      email: 'admin@gmail.com',
-      nombre: 'Felipe',
-      apellido: 'Armero',
-      rol: 'SUPERADMIN',
-      roles: ['SUPERADMIN'],
-      estado: 'ACTIVO',
-      fotoUrl: 'https://photo.url',
-    });
+    expect(sesionService.emitirParaPlataforma).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1, rol: 'SUPERADMIN' }),
+      'https://photo.url',
+    );
+    expect(sesionService.emitirParaNegocio).not.toHaveBeenCalled();
+    expect(result.negocio).toBeNull();
     expect(prisma.usuario.update).toHaveBeenCalledWith({
       where: { id: 1 },
       data: { googleId: '12345' },
     });
   });
 
-  it('debe asignar múltiples roles si el usuario es administrador y barbero activos', async () => {
+  it('debe rechazar el login del personal si la petición no tiene contexto de negocio', async () => {
+    googleTokenVerifier.verificar.mockResolvedValue({
+      email: 'barbero@gmail.com',
+      sub: '123',
+    });
+
+    prisma.usuario.findUnique.mockResolvedValue({
+      id: 3,
+      email: 'barbero@gmail.com',
+      estado: 'ACTIVO',
+      rol: 'BARBERO',
+      nombre: 'Beto',
+      apellido: 'Perez',
+      googleId: '123',
+    } as any);
+
+    contextoService.obtenerContexto.mockReturnValue(undefined);
+
+    await expect(service.loginConGoogle('valid-token')).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(sesionService.emitirParaNegocio).not.toHaveBeenCalled();
+  });
+
+  it('debe rechazar el login si la persona no tiene perfil activo en ese negocio', async () => {
+    googleTokenVerifier.verificar.mockResolvedValue({
+      email: 'barbero@gmail.com',
+      sub: '123',
+    });
+
+    prisma.usuario.findUnique.mockResolvedValue({
+      id: 3,
+      email: 'barbero@gmail.com',
+      estado: 'ACTIVO',
+      rol: 'BARBERO',
+      nombre: 'Beto',
+      apellido: 'Perez',
+      googleId: '123',
+    } as any);
+
+    rolesService.perfilOperativo.mockResolvedValue({ roles: [], fotoUrl: null });
+
+    await expect(service.loginConGoogle('valid-token')).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(sesionService.emitirParaNegocio).not.toHaveBeenCalled();
+  });
+
+  it('debe emitir una sesión VINCULADA al negocio con los roles efectivos', async () => {
     googleTokenVerifier.verificar.mockResolvedValue({
       email: 'adminbarbero@gmail.com',
       sub: '99999',
@@ -195,88 +213,28 @@ describe('GoogleAuthService', () => {
       nombre: 'Carlos',
       apellido: 'Perez',
       googleId: '99999',
-      administrador: { estado: 'ACTIVO' },
-      barbero: { estado: 'ACTIVO', fotoUrl: '/foto.jpg' },
+    } as any);
+
+    rolesService.perfilOperativo.mockResolvedValue({
+      roles: ['ADMINISTRADOR', 'BARBERO'],
+      fotoUrl: '/foto.jpg',
+    });
+
+    sesionService.emitirParaNegocio.mockReturnValue({
+      accessToken: 'token-negocio',
+      usuario: { id: 10, roles: ['ADMINISTRADOR', 'BARBERO'] },
+      negocio: { id: 10, slug: 'kyrios-studio' },
     } as any);
 
     const result = await service.loginConGoogle('valid-token');
 
-    expect(result.usuario.roles).toEqual(['ADMINISTRADOR', 'BARBERO']);
-    expect(jwtService.sign).toHaveBeenCalledWith(
-      expect.objectContaining({
-        roles: ['ADMINISTRADOR', 'BARBERO'],
-      }),
+    expect(rolesService.perfilOperativo).toHaveBeenCalledWith(10, contexto);
+    expect(sesionService.emitirParaNegocio).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 10 }),
+      contexto,
+      ['ADMINISTRADOR', 'BARBERO'],
+      '/foto.jpg',
     );
-  });
-
-  describe('refrescarSesion', () => {
-    it('debe lanzar UnauthorizedException si el usuario no existe', async () => {
-      prisma.usuario.findUnique.mockResolvedValue(null);
-
-      await expect(service.refrescarSesion(999)).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('debe lanzar ForbiddenException si el usuario está INACTIVO', async () => {
-      prisma.usuario.findUnique.mockResolvedValue({
-        id: 999,
-        estado: 'INACTIVO',
-      });
-
-      await expect(service.refrescarSesion(999)).rejects.toThrow(
-        ForbiddenException,
-      );
-    });
-
-    it('debe emitir un nuevo token con roles actualizados de la BD', async () => {
-      prisma.usuario.findUnique.mockResolvedValue({
-        id: 10,
-        email: 'carlos@gmail.com',
-        nombre: 'Carlos',
-        apellido: 'Perez',
-        rol: 'ADMINISTRADOR',
-        estado: 'ACTIVO',
-        administrador: { estado: 'ACTIVO' },
-        barbero: { estado: 'ACTIVO', fotoUrl: '/foto.jpg' },
-      });
-
-      const result = await service.refrescarSesion(10);
-
-      expect(result.accessToken).toBe('signed-jwt-token');
-      expect(result.usuario.roles).toEqual(['ADMINISTRADOR', 'BARBERO']);
-      expect(jwtService.sign).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sub: '10',
-          roles: ['ADMINISTRADOR', 'BARBERO'],
-          fotoUrl: '/foto.jpg',
-        }),
-      );
-    });
-
-    it('debe preservar la foto de Google si el usuario no tiene foto propia en la BD', async () => {
-      prisma.usuario.findUnique.mockResolvedValue({
-        id: 11,
-        email: 'admin@gmail.com',
-        nombre: 'Admin',
-        apellido: 'Puro',
-        rol: 'ADMINISTRADOR',
-        estado: 'ACTIVO',
-        administrador: { estado: 'ACTIVO' },
-        barbero: null,
-      });
-
-      const googlePhoto =
-        'https://lh3.googleusercontent.com/a/google-avatar.jpg';
-      const result = await service.refrescarSesion(11, googlePhoto);
-
-      expect(result.usuario.fotoUrl).toBe(googlePhoto);
-      expect(jwtService.sign).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sub: '11',
-          fotoUrl: googlePhoto,
-        }),
-      );
-    });
+    expect(result.negocio).toEqual({ id: 10, slug: 'kyrios-studio' });
   });
 });

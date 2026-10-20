@@ -9,6 +9,8 @@ import {
 import { ClienteJwtAuthGuard } from '../src/auth/clientes/guards/cliente-jwt-auth.guard';
 import { ClienteOpcionalJwtAuthGuard } from '../src/auth/clientes/guards/cliente-opcional-jwt-auth.guard';
 import { JwtAuthGuard } from '../src/auth/guards/jwt-auth.guard';
+import { PersonalJwtService } from '../src/auth/sesion/personal-jwt.service';
+import { NegocioContextoService } from '../src/modules/negocios/negocio-contexto.service';
 
 /**
  * Prueba de criptografía REAL (sin mocks de `@nestjs/jwt`): este archivo vive
@@ -22,6 +24,8 @@ const SECRETO_PERSONAL = 'secreto-personal-de-prueba-e2e';
 const SECRETO_CLIENTE = 'secreto-cliente-de-prueba-e2e';
 const SECRETO_COMPARTIDO = 'secreto-compartido-por-error';
 
+const NEGOCIO = 10;
+
 const configPara = (...secretos: string[]): ConfigService =>
   ({
     getOrThrow: (clave: string) => {
@@ -30,7 +34,17 @@ const configPara = (...secretos: string[]): ConfigService =>
       }
       throw new Error(`Configuración ausente: ${clave}`);
     },
+    get: (clave: string) => {
+      if (clave === 'JWT_SECRET' && secretos[0] !== undefined) {
+        return secretos[0];
+      }
+      return undefined;
+    },
   }) as unknown as ConfigService;
+
+const contextoServicio = {
+  obtenerContexto: () => ({ id: NEGOCIO, slug: 'negocio-a' }),
+} as unknown as NegocioContextoService;
 
 const crearContexto = (authorization?: string) => {
   const request: { headers: Record<string, string>; cliente?: unknown } = {
@@ -45,10 +59,12 @@ const crearContexto = (authorization?: string) => {
 
 describe('Separación criptográfica de tokens (cliente vs personal)', () => {
   describe('con secretos distintos (configuración correcta)', () => {
-    const jwtPersonal = new JwtService({ secret: SECRETO_PERSONAL });
-    const jwtCliente = new JwtService();
+    const personalJwt = new PersonalJwtService(
+      new JwtService(),
+      configPara(SECRETO_PERSONAL),
+    );
     const clienteJwtService = new ClienteJwtService(
-      jwtCliente,
+      new JwtService(),
       configPara(SECRETO_CLIENTE),
     );
 
@@ -57,8 +73,9 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
         clienteId: 7,
         email: 'ana@gmail.com',
         nombre: 'Ana',
+        negocioId: NEGOCIO,
       });
-      const guard = new JwtAuthGuard(jwtPersonal);
+      const guard = new JwtAuthGuard(personalJwt, contextoServicio);
       const { context } = crearContexto(`Bearer ${token}`);
 
       await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
@@ -67,7 +84,19 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
     });
 
     it('el token de personal no supera la verificación de cliente', async () => {
-      const token = jwtPersonal.sign({ sub: '1', id: 1, rol: 'SUPERADMIN' });
+      const token = personalJwt.firmar({
+        sub: '1',
+        id: 1,
+        email: 'a@b.com',
+        nombre: 'A',
+        apellido: 'B',
+        rol: 'SUPERADMIN',
+        roles: ['SUPERADMIN'],
+        superadmin: true,
+        ambito: 'PLATAFORMA',
+        estado: 'ACTIVO',
+        fotoUrl: null,
+      });
 
       await expect(clienteJwtService.verificar(token)).rejects.toBeInstanceOf(
         UnauthorizedException,
@@ -79,20 +108,25 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
         clienteId: 42,
         email: 'ana@gmail.com',
         nombre: 'Ana',
+        negocioId: NEGOCIO,
       });
 
       await expect(clienteJwtService.verificar(token)).resolves.toEqual({
         clienteId: 42,
         email: 'ana@gmail.com',
         nombre: 'Ana',
+        negocioId: NEGOCIO,
       });
     });
   });
 
   describe('con el mismo secreto por error de configuración', () => {
-    const jwtCompartido = new JwtService({ secret: SECRETO_COMPARTIDO });
+    const personalJwt = new PersonalJwtService(
+      new JwtService(),
+      configPara(SECRETO_COMPARTIDO),
+    );
     const clienteJwtService = new ClienteJwtService(
-      jwtCompartido,
+      new JwtService(),
       configPara(SECRETO_COMPARTIDO),
     );
 
@@ -101,8 +135,9 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
         clienteId: 7,
         email: 'ana@gmail.com',
         nombre: 'Ana',
+        negocioId: NEGOCIO,
       });
-      const guard = new JwtAuthGuard(jwtCompartido);
+      const guard = new JwtAuthGuard(personalJwt, contextoServicio);
       const { context } = crearContexto(`Bearer ${token}`);
 
       await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
@@ -111,7 +146,19 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
     });
 
     it('el token de personal rebota en la verificación de cliente por su audiencia', async () => {
-      const token = jwtCompartido.sign({ sub: '1', id: 1, rol: 'SUPERADMIN' });
+      const token = personalJwt.firmar({
+        sub: '1',
+        id: 1,
+        email: 'a@b.com',
+        nombre: 'A',
+        apellido: 'B',
+        rol: 'SUPERADMIN',
+        roles: ['SUPERADMIN'],
+        superadmin: true,
+        ambito: 'PLATAFORMA',
+        estado: 'ACTIVO',
+        fotoUrl: null,
+      });
 
       await expect(clienteJwtService.verificar(token)).rejects.toBeInstanceOf(
         UnauthorizedException,
@@ -120,9 +167,8 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
   });
 
   describe('guards de cliente', () => {
-    const jwtCliente = new JwtService();
     const clienteJwtService = new ClienteJwtService(
-      jwtCliente,
+      new JwtService(),
       configPara(SECRETO_CLIENTE),
     );
 
@@ -131,8 +177,12 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
         clienteId: 7,
         email: 'ana@gmail.com',
         nombre: 'Ana',
+        negocioId: NEGOCIO,
       });
-      const guard = new ClienteJwtAuthGuard(clienteJwtService);
+      const guard = new ClienteJwtAuthGuard(
+        clienteJwtService,
+        contextoServicio,
+      );
 
       const { context: sinToken } = crearContexto();
       await expect(guard.canActivate(sinToken)).rejects.toBeInstanceOf(
@@ -145,19 +195,36 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
         clienteId: 7,
         email: 'ana@gmail.com',
         nombre: 'Ana',
+        negocioId: NEGOCIO,
       });
     });
 
     it('ClienteOpcionalJwtAuthGuard admite invitado pero no degrada un Bearer inválido', async () => {
-      const guard = new ClienteOpcionalJwtAuthGuard(clienteJwtService);
+      const guard = new ClienteOpcionalJwtAuthGuard(
+        clienteJwtService,
+        contextoServicio,
+      );
 
       const { context: invitado } = crearContexto();
       await expect(guard.canActivate(invitado)).resolves.toBe(true);
 
-      const tokenPersonal = jwtCliente.sign(
-        { sub: '1', id: 1, rol: 'SUPERADMIN' },
-        { secret: SECRETO_PERSONAL },
+      const personalJwt = new PersonalJwtService(
+        new JwtService(),
+        configPara(SECRETO_PERSONAL),
       );
+      const tokenPersonal = personalJwt.firmar({
+        sub: '1',
+        id: 1,
+        email: 'a@b.com',
+        nombre: 'A',
+        apellido: 'B',
+        rol: 'SUPERADMIN',
+        roles: ['SUPERADMIN'],
+        superadmin: true,
+        ambito: 'PLATAFORMA',
+        estado: 'ACTIVO',
+        fotoUrl: null,
+      });
       const { context: conPersonal } = crearContexto(`Bearer ${tokenPersonal}`);
       await expect(guard.canActivate(conPersonal)).rejects.toBeInstanceOf(
         UnauthorizedException,
@@ -169,9 +236,10 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
         clienteId: 5,
         email: null,
         nombre: 'Leo',
+        negocioId: NEGOCIO,
       });
 
-      const payload = jwtCliente.verify<{ tipo?: string; aud?: string }>(
+      const payload = new JwtService().verify<{ tipo?: string; aud?: string }>(
         token,
         { secret: SECRETO_CLIENTE },
       );
@@ -181,10 +249,12 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
   });
 
   describe('protección de la agenda del barbero contra clientes y administradores', () => {
-    const jwtPersonal = new JwtService({ secret: SECRETO_PERSONAL });
-    const jwtCliente = new JwtService();
+    const personalJwt = new PersonalJwtService(
+      new JwtService(),
+      configPara(SECRETO_PERSONAL),
+    );
     const clienteJwtService = new ClienteJwtService(
-      jwtCliente,
+      new JwtService(),
       configPara(SECRETO_CLIENTE),
     );
 
@@ -193,8 +263,9 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
         clienteId: 99,
         email: 'cliente@test.com',
         nombre: 'Cliente',
+        negocioId: NEGOCIO,
       });
-      const guard = new JwtAuthGuard(jwtPersonal);
+      const guard = new JwtAuthGuard(personalJwt, contextoServicio);
       const { context } = crearContexto(`Bearer ${token}`);
 
       await expect(guard.canActivate(context)).rejects.toThrow(

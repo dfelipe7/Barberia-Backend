@@ -1,11 +1,15 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { ClienteOpcionalJwtAuthGuard } from './cliente-opcional-jwt-auth.guard';
 import { ClienteJwtService } from '../cliente-jwt.service';
+import { NegocioContextoService } from '../../../modules/negocios/negocio-contexto.service';
 
 describe('ClienteOpcionalJwtAuthGuard', () => {
   let guard: ClienteOpcionalJwtAuthGuard;
 
   const clienteJwtService = { verificar: jest.fn() };
+  const contextoService = {
+    obtenerContexto: jest.fn().mockReturnValue({ id: 10, slug: 'kyrios' }),
+  };
 
   const crearContexto = (headers: Record<string, string> = {}) => {
     const request: {
@@ -20,8 +24,13 @@ describe('ClienteOpcionalJwtAuthGuard', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    contextoService.obtenerContexto.mockReturnValue({
+      id: 10,
+      slug: 'kyrios',
+    });
     guard = new ClienteOpcionalJwtAuthGuard(
       clienteJwtService as unknown as ClienteJwtService,
+      contextoService as unknown as NegocioContextoService,
     );
   });
 
@@ -56,9 +65,12 @@ describe('ClienteOpcionalJwtAuthGuard', () => {
     const { context, request } = crearContexto({
       authorization: 'Bearer token-cliente',
     });
-    clienteJwtService.verificar.mockResolvedValue({ clienteId: 7 });
+    clienteJwtService.verificar.mockResolvedValue({
+      clienteId: 7,
+      negocioId: 10,
+    });
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
-    expect(request.cliente).toEqual({ clienteId: 7 });
+    expect(request.cliente).toEqual({ clienteId: 7, negocioId: 10 });
   });
 });

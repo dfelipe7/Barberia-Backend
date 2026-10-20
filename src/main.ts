@@ -40,7 +40,10 @@ async function bootstrap() {
   app.enableCors({
     origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    // `X-Negocio-Slug` selecciona la barbería de la petición (alternativa al
+    // subdominio). No transporta credenciales: la autorización se resuelve
+    // aparte contra la pertenencia de la persona a ese negocio.
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Negocio-Slug'],
     credentials: true,
   });
 
