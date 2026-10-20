@@ -875,11 +875,15 @@ export class ReservasRepository {
    *
    * El cron no fija contexto de negocio: recorre TODOS los negocios. En vez
    * de dejar que su consulta atraviese los negocios (una fuga), este método
-   * RECORRE LOS NEGOCIOS UNO A UNO, fijando el contexto de cada uno antes
-   * de consultarlo. El resultado es el mismo conjunto de reservas que
+   * RECORRE LOS NEGOCIOS UNO A UNO, fijando el contexto de cada uno antes de
+   * consultarlo. El resultado es el mismo conjunto de reservas que
    * devolvía antes, pero cada fila se obtiene dentro de su ámbito: la capa de
    * aislamiento sigue siendo efectiva y el cron de HU-11 no se modifica ni
    * se interrumpe.
+   *
+   * El `await` se hace DENTRO del contexto (y no fuera): Prisma devuelve una
+   * promesa perezosa y la consulta se ejecuta cuando se espera. Esperarla
+   * fuera del contexto ejecutaría la consulta ya fuera del ámbito.
    */
   async obtenerCitasPendientesRecordatorio(fecha: Date) {
     const negocios = await this.prisma.negocio.findMany({
@@ -909,49 +913,57 @@ export class ReservasRepository {
     for (const negocio of negocios) {
       // Cada negocio se consulta con SU contexto: la capa de aislamiento
       // sigue aplicando y ninguna consulta sale de su ámbito.
-      const propias = await this.aislamiento.ejecutarEnNegocio(negocio, () =>
-        this.prisma.reservation.findMany({
-          where: this.aislamiento.filtroLectura({
-            date: fecha,
-            status: {
-              in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED],
-            },
-            recordatorioEnviado: false,
-          }),
-          select: {
-            id: true,
-            startTime: true,
-            endTime: true,
-            precioReservado: true,
-            date: true,
-            cliente: {
-              select: {
-                id: true,
-                nombre: true,
-                apellido: true,
-                telefono: true,
+      //
+      // El `await` va DENTRO del callback a propósito: Prisma devuelve una
+      // promesa perezosa y la consulta se ejecuta cuando se espera. Si se
+      // esperase fuera del contexto, la ejecución ocurriría ya fuera del
+      // ámbito y la extensión de aislamiento la rechazaría (o, sin ella, la
+      // consulta cruzaría negocios).
+      const propias = await this.aislamiento.ejecutarEnNegocio(
+        negocio,
+        async () =>
+          this.prisma.reservation.findMany({
+            where: this.aislamiento.filtroLectura({
+              date: fecha,
+              status: {
+                in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED],
               },
-            },
-            barbero: {
-              select: {
-                id: true,
-                usuario: {
-                  select: {
-                    nombre: true,
-                    apellido: true,
+              recordatorioEnviado: false,
+            }),
+            select: {
+              id: true,
+              startTime: true,
+              endTime: true,
+              precioReservado: true,
+              date: true,
+              cliente: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  apellido: true,
+                  telefono: true,
+                },
+              },
+              barbero: {
+                select: {
+                  id: true,
+                  usuario: {
+                    select: {
+                      nombre: true,
+                      apellido: true,
+                    },
                   },
                 },
               },
-            },
-            servicio: {
-              select: {
-                id: true,
-                nombre: true,
-                precio: true,
+              servicio: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  precio: true,
+                },
               },
             },
-          },
-        }),
+          }),
       );
 
       citas.push(...propias);
@@ -990,9 +1002,12 @@ export class ReservasRepository {
       return;
     }
 
+    // El `await` va dentro del callback: Prisma devuelve una promesa perezosa
+    // y la escritura se ejecuta cuando se espera. Esperarla fuera del
+    // contexto la ejecutaría fuera del ámbito del negocio de la reserva.
     await this.aislamiento.ejecutarEnNegocio(
       { id: reserva.negocio.id, slug: reserva.negocio.slug },
-      () =>
+      async () =>
         this.prisma.reservation.update({
           where: this.aislamiento.filtroEscritura({ id }),
           data: { recordatorioEnviado: true },

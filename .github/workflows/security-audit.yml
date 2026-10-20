@@ -25,5 +25,11 @@ jobs:
       - name: Instalar dependencias exactas
         run: npm ci
 
-      - name: Escaneo de Seguridad (Falla si hay Críticos o Altos)
-        run: npm audit --audit-level=critical
+      - name: Escaneo de Seguridad (Falla si hay vulnerabilidades Altas o Críticas)
+        # Umbral `high`: la auditoría de dependencias no puede dejar pasar
+        # vulnerabilidades altas. En el momento de subir este umbral, la
+        # auditoría del árbol de dependencias declarado en package-lock.json
+        # devolvía 0 vulnerabilidades (también con `--audit-level=low`), de
+        # modo que endurecerlo no oculta ningún problema preexistente: si
+        # aparece una vulnerabilidad, la CI falla.
+        run: npm audit --audit-level=high
