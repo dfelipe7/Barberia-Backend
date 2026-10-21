@@ -22,7 +22,11 @@
     "test:multitenant": "jest --config ./test/jest-multitenant.json",
     "seed": "tsc -p tsconfig.seed.json && node dist/seed/prisma/seed.js",
     "multitenant:build": "tsc -p tsconfig.multitenant.json",
-    "multitenant:migrar": "npm run multitenant:build && node dist/multitenant/prisma/multitenant/migrar-negocio.js"
+    "multitenant:migrar": "npm run multitenant:build && node dist/multitenant/prisma/multitenant/migrar-negocio.js",
+    "multitenant:fundadores": "npm run multitenant:build && node dist/multitenant/prisma/multitenant/asignar-fundadores.js",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
+    "db:migrate:diff": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script"
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^3.0.2",

@@ -95,16 +95,6 @@ describe('UsuariosService', () => {
     barberosService = module.get(BarberosService);
   });
 
-  describe('sincronizarSuperadmin', () => {
-    it('debe devolver confirmación de superadministradores verificados', async () => {
-      const resultados = await service.sincronizarSuperadmin();
-      expect(resultados).toHaveLength(1);
-      expect(resultados[0].mensaje).toContain(
-        'Superadministradores verificados',
-      );
-    });
-  });
-
   describe('obtenerMiPerfil', () => {
     it('debe devolver el usuario si existe', async () => {
       const mockUser = {

@@ -18,6 +18,13 @@ import type * as Prisma from "../internal/prismaNamespace.js"
  * 
  * `usuarioId` es ÚNICO POR NEGOCIO: la misma persona puede ser administradora
  * de varias barberías (y de ninguna).
+ * 
+ * `superadmin` es el CARÁCTER de la membresía, no un atributo de la
+ * persona: `true` significa SUPERADMIN **de este negocio** y `false`
+ * ADMINISTRADOR de este negocio. El alcance es siempre el negocio de la fila:
+ * en este SaaS NO existe un superadmin de plataforma ni una sesión de
+ * plataforma. La columna es aditiva y no promueve a nadie: las membresías
+ * existentes siguen siendo ADMINISTRADOR.
  */
 export type AdministradorModel = runtime.Types.Result.DefaultSelection<Prisma.$AdministradorPayload>
 
@@ -46,6 +53,7 @@ export type AdministradorMinAggregateOutputType = {
   usuarioId: number | null
   negocioId: number | null
   estado: $Enums.EstadoUsuario | null
+  superadmin: boolean | null
 }
 
 export type AdministradorMaxAggregateOutputType = {
@@ -53,6 +61,7 @@ export type AdministradorMaxAggregateOutputType = {
   usuarioId: number | null
   negocioId: number | null
   estado: $Enums.EstadoUsuario | null
+  superadmin: boolean | null
 }
 
 export type AdministradorCountAggregateOutputType = {
@@ -60,6 +69,7 @@ export type AdministradorCountAggregateOutputType = {
   usuarioId: number
   negocioId: number
   estado: number
+  superadmin: number
   _all: number
 }
 
@@ -81,6 +91,7 @@ export type AdministradorMinAggregateInputType = {
   usuarioId?: true
   negocioId?: true
   estado?: true
+  superadmin?: true
 }
 
 export type AdministradorMaxAggregateInputType = {
@@ -88,6 +99,7 @@ export type AdministradorMaxAggregateInputType = {
   usuarioId?: true
   negocioId?: true
   estado?: true
+  superadmin?: true
 }
 
 export type AdministradorCountAggregateInputType = {
@@ -95,6 +107,7 @@ export type AdministradorCountAggregateInputType = {
   usuarioId?: true
   negocioId?: true
   estado?: true
+  superadmin?: true
   _all?: true
 }
 
@@ -189,6 +202,7 @@ export type AdministradorGroupByOutputType = {
   usuarioId: number
   negocioId: number
   estado: $Enums.EstadoUsuario
+  superadmin: boolean
   _count: AdministradorCountAggregateOutputType | null
   _avg: AdministradorAvgAggregateOutputType | null
   _sum: AdministradorSumAggregateOutputType | null
@@ -219,6 +233,7 @@ export type AdministradorWhereInput = {
   usuarioId?: Prisma.IntFilter<"Administrador"> | number
   negocioId?: Prisma.IntFilter<"Administrador"> | number
   estado?: Prisma.EnumEstadoUsuarioFilter<"Administrador"> | $Enums.EstadoUsuario
+  superadmin?: Prisma.BoolFilter<"Administrador"> | boolean
   usuario?: Prisma.XOR<Prisma.UsuarioScalarRelationFilter, Prisma.UsuarioWhereInput>
   negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
 }
@@ -228,6 +243,7 @@ export type AdministradorOrderByWithRelationInput = {
   usuarioId?: Prisma.SortOrder
   negocioId?: Prisma.SortOrder
   estado?: Prisma.SortOrder
+  superadmin?: Prisma.SortOrder
   usuario?: Prisma.UsuarioOrderByWithRelationInput
   negocio?: Prisma.NegocioOrderByWithRelationInput
 }
@@ -242,6 +258,7 @@ export type AdministradorWhereUniqueInput = Prisma.AtLeast<{
   usuarioId?: Prisma.IntFilter<"Administrador"> | number
   negocioId?: Prisma.IntFilter<"Administrador"> | number
   estado?: Prisma.EnumEstadoUsuarioFilter<"Administrador"> | $Enums.EstadoUsuario
+  superadmin?: Prisma.BoolFilter<"Administrador"> | boolean
   usuario?: Prisma.XOR<Prisma.UsuarioScalarRelationFilter, Prisma.UsuarioWhereInput>
   negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
 }, "id" | "negocioId_usuarioId" | "negocioId_id">
@@ -251,6 +268,7 @@ export type AdministradorOrderByWithAggregationInput = {
   usuarioId?: Prisma.SortOrder
   negocioId?: Prisma.SortOrder
   estado?: Prisma.SortOrder
+  superadmin?: Prisma.SortOrder
   _count?: Prisma.AdministradorCountOrderByAggregateInput
   _avg?: Prisma.AdministradorAvgOrderByAggregateInput
   _max?: Prisma.AdministradorMaxOrderByAggregateInput
@@ -266,10 +284,12 @@ export type AdministradorScalarWhereWithAggregatesInput = {
   usuarioId?: Prisma.IntWithAggregatesFilter<"Administrador"> | number
   negocioId?: Prisma.IntWithAggregatesFilter<"Administrador"> | number
   estado?: Prisma.EnumEstadoUsuarioWithAggregatesFilter<"Administrador"> | $Enums.EstadoUsuario
+  superadmin?: Prisma.BoolWithAggregatesFilter<"Administrador"> | boolean
 }
 
 export type AdministradorCreateInput = {
   estado?: $Enums.EstadoUsuario
+  superadmin?: boolean
   usuario: Prisma.UsuarioCreateNestedOneWithoutAdministradoresInput
   negocio: Prisma.NegocioCreateNestedOneWithoutAdministradoresInput
 }
@@ -279,10 +299,12 @@ export type AdministradorUncheckedCreateInput = {
   usuarioId: number
   negocioId: number
   estado?: $Enums.EstadoUsuario
+  superadmin?: boolean
 }
 
 export type AdministradorUpdateInput = {
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  superadmin?: Prisma.BoolFieldUpdateOperationsInput | boolean
   usuario?: Prisma.UsuarioUpdateOneRequiredWithoutAdministradoresNestedInput
   negocio?: Prisma.NegocioUpdateOneRequiredWithoutAdministradoresNestedInput
 }
@@ -292,6 +314,7 @@ export type AdministradorUncheckedUpdateInput = {
   usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
   negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  superadmin?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type AdministradorCreateManyInput = {
@@ -299,10 +322,12 @@ export type AdministradorCreateManyInput = {
   usuarioId: number
   negocioId: number
   estado?: $Enums.EstadoUsuario
+  superadmin?: boolean
 }
 
 export type AdministradorUpdateManyMutationInput = {
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  superadmin?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type AdministradorUncheckedUpdateManyInput = {
@@ -310,6 +335,7 @@ export type AdministradorUncheckedUpdateManyInput = {
   usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
   negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  superadmin?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type AdministradorListRelationFilter = {
@@ -337,6 +363,7 @@ export type AdministradorCountOrderByAggregateInput = {
   usuarioId?: Prisma.SortOrder
   negocioId?: Prisma.SortOrder
   estado?: Prisma.SortOrder
+  superadmin?: Prisma.SortOrder
 }
 
 export type AdministradorAvgOrderByAggregateInput = {
@@ -350,6 +377,7 @@ export type AdministradorMaxOrderByAggregateInput = {
   usuarioId?: Prisma.SortOrder
   negocioId?: Prisma.SortOrder
   estado?: Prisma.SortOrder
+  superadmin?: Prisma.SortOrder
 }
 
 export type AdministradorMinOrderByAggregateInput = {
@@ -357,6 +385,7 @@ export type AdministradorMinOrderByAggregateInput = {
   usuarioId?: Prisma.SortOrder
   negocioId?: Prisma.SortOrder
   estado?: Prisma.SortOrder
+  superadmin?: Prisma.SortOrder
 }
 
 export type AdministradorSumOrderByAggregateInput = {
@@ -449,8 +478,13 @@ export type AdministradorUncheckedUpdateManyWithoutUsuarioNestedInput = {
   deleteMany?: Prisma.AdministradorScalarWhereInput | Prisma.AdministradorScalarWhereInput[]
 }
 
+export type BoolFieldUpdateOperationsInput = {
+  set?: boolean
+}
+
 export type AdministradorCreateWithoutNegocioInput = {
   estado?: $Enums.EstadoUsuario
+  superadmin?: boolean
   usuario: Prisma.UsuarioCreateNestedOneWithoutAdministradoresInput
 }
 
@@ -458,6 +492,7 @@ export type AdministradorUncheckedCreateWithoutNegocioInput = {
   id?: number
   usuarioId: number
   estado?: $Enums.EstadoUsuario
+  superadmin?: boolean
 }
 
 export type AdministradorCreateOrConnectWithoutNegocioInput = {
@@ -494,10 +529,12 @@ export type AdministradorScalarWhereInput = {
   usuarioId?: Prisma.IntFilter<"Administrador"> | number
   negocioId?: Prisma.IntFilter<"Administrador"> | number
   estado?: Prisma.EnumEstadoUsuarioFilter<"Administrador"> | $Enums.EstadoUsuario
+  superadmin?: Prisma.BoolFilter<"Administrador"> | boolean
 }
 
 export type AdministradorCreateWithoutUsuarioInput = {
   estado?: $Enums.EstadoUsuario
+  superadmin?: boolean
   negocio: Prisma.NegocioCreateNestedOneWithoutAdministradoresInput
 }
 
@@ -505,6 +542,7 @@ export type AdministradorUncheckedCreateWithoutUsuarioInput = {
   id?: number
   negocioId: number
   estado?: $Enums.EstadoUsuario
+  superadmin?: boolean
 }
 
 export type AdministradorCreateOrConnectWithoutUsuarioInput = {
@@ -537,10 +575,12 @@ export type AdministradorCreateManyNegocioInput = {
   id?: number
   usuarioId: number
   estado?: $Enums.EstadoUsuario
+  superadmin?: boolean
 }
 
 export type AdministradorUpdateWithoutNegocioInput = {
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  superadmin?: Prisma.BoolFieldUpdateOperationsInput | boolean
   usuario?: Prisma.UsuarioUpdateOneRequiredWithoutAdministradoresNestedInput
 }
 
@@ -548,22 +588,26 @@ export type AdministradorUncheckedUpdateWithoutNegocioInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  superadmin?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type AdministradorUncheckedUpdateManyWithoutNegocioInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   usuarioId?: Prisma.IntFieldUpdateOperationsInput | number
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  superadmin?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type AdministradorCreateManyUsuarioInput = {
   id?: number
   negocioId: number
   estado?: $Enums.EstadoUsuario
+  superadmin?: boolean
 }
 
 export type AdministradorUpdateWithoutUsuarioInput = {
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  superadmin?: Prisma.BoolFieldUpdateOperationsInput | boolean
   negocio?: Prisma.NegocioUpdateOneRequiredWithoutAdministradoresNestedInput
 }
 
@@ -571,12 +615,14 @@ export type AdministradorUncheckedUpdateWithoutUsuarioInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  superadmin?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type AdministradorUncheckedUpdateManyWithoutUsuarioInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   estado?: Prisma.EnumEstadoUsuarioFieldUpdateOperationsInput | $Enums.EstadoUsuario
+  superadmin?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 
@@ -586,6 +632,7 @@ export type AdministradorSelect<ExtArgs extends runtime.Types.Extensions.Interna
   usuarioId?: boolean
   negocioId?: boolean
   estado?: boolean
+  superadmin?: boolean
   usuario?: boolean | Prisma.UsuarioDefaultArgs<ExtArgs>
   negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["administrador"]>
@@ -597,9 +644,10 @@ export type AdministradorSelectScalar = {
   usuarioId?: boolean
   negocioId?: boolean
   estado?: boolean
+  superadmin?: boolean
 }
 
-export type AdministradorOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "usuarioId" | "negocioId" | "estado", ExtArgs["result"]["administrador"]>
+export type AdministradorOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "usuarioId" | "negocioId" | "estado" | "superadmin", ExtArgs["result"]["administrador"]>
 export type AdministradorInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   usuario?: boolean | Prisma.UsuarioDefaultArgs<ExtArgs>
   negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
@@ -620,6 +668,12 @@ export type $AdministradorPayload<ExtArgs extends runtime.Types.Extensions.Inter
      */
     negocioId: number
     estado: $Enums.EstadoUsuario
+    /**
+     * SUPERADMIN de ESTE negocio (`true`) o ADMINISTRADOR (`false`).
+     * La autorización depende exclusivamente de esta membresía activa y del
+     * contexto del negocio: `Usuario.rol` no concede ningún privilegio.
+     */
+    superadmin: boolean
   }, ExtArgs["result"]["administrador"]>
   composites: {}
 }
@@ -995,6 +1049,7 @@ export interface AdministradorFieldRefs {
   readonly usuarioId: Prisma.FieldRef<"Administrador", 'Int'>
   readonly negocioId: Prisma.FieldRef<"Administrador", 'Int'>
   readonly estado: Prisma.FieldRef<"Administrador", 'EstadoUsuario'>
+  readonly superadmin: Prisma.FieldRef<"Administrador", 'Boolean'>
 }
     
 

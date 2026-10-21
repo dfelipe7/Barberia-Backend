@@ -208,12 +208,12 @@ export class BarberosService {
       }
     }
 
-    if (
-      !this.perfilAdministradorEnNegocio(usuario) &&
-      usuario.rol !== 'SUPERADMIN'
-    ) {
+    if (!this.perfilAdministradorEnNegocio(usuario)) {
+      // La condición es la MEMBRESÍA en ESTE negocio: una persona que es
+      // administradora (o superadmin) de OTRA barbería no puede convertirse
+      // en barbero aquí, y `Usuario.rol` no concede ningún privilegio.
       throw new ConflictException(
-        'El usuario no es un administrador ni superadmin',
+        'El usuario no es administrador de esta barbería',
       );
     }
 
@@ -299,26 +299,33 @@ export class BarberosService {
     const barberos =
       await this.barberosRepository.obtenerBarberosGestion(filtro);
 
-    return barberos.map((barbero) => ({
-      id: barbero.usuario.id,
-      barberoId: barbero.id,
-      nombre: barbero.usuario.nombre,
-      apellido: barbero.usuario.apellido,
-      email: barbero.usuario.email,
-      telefono: barbero.telefono,
-      porcentajeComision: Number(barbero.porcentajeComision),
-      estado: barbero.estado,
-      fotoUrl: barbero.fotoUrl,
-      esAdministrador: Boolean(
-        this.perfilAdministradorEnNegocio(barbero.usuario) &&
-        this.perfilAdministradorEnNegocio(barbero.usuario)?.estado === 'ACTIVO',
-      ),
-      esSuperAdmin: barbero.usuario.rol === 'SUPERADMIN',
-      estadoAdmin: this.perfilAdministradorEnNegocio(barbero.usuario)?.estado,
-      // El rol global ya no distingue administrador de barbero: los roles
-      // efectivos se derivan de los perfiles del negocio.
-      estadoGlobal: barbero.usuario.estado,
-    }));
+    return barberos.map((barbero) => {
+      // El carácter SUPERADMIN es de la MEMBRESÍA del negocio: un barbero es
+      // SUPERADMIN de esta barbería si su perfil de administrador aquí lo es.
+      const perfilAdmin = this.perfilAdministradorEnNegocio(
+        barbero.usuario,
+      ) as { estado?: string; superadmin?: boolean } | null;
+
+      return {
+        id: barbero.usuario.id,
+        barberoId: barbero.id,
+        nombre: barbero.usuario.nombre,
+        apellido: barbero.usuario.apellido,
+        email: barbero.usuario.email,
+        telefono: barbero.telefono,
+        porcentajeComision: Number(barbero.porcentajeComision),
+        estado: barbero.estado,
+        fotoUrl: barbero.fotoUrl,
+        esAdministrador: Boolean(
+          perfilAdmin && perfilAdmin.estado === 'ACTIVO',
+        ),
+        esSuperAdmin: perfilAdmin?.superadmin === true,
+        estadoAdmin: perfilAdmin?.estado,
+        // El rol global ya no distingue administrador de barbero: los roles
+        // efectivos se derivan de los perfiles del negocio.
+        estadoGlobal: barbero.usuario.estado,
+      };
+    });
   }
 
   /**
@@ -484,10 +491,14 @@ export class BarberosService {
     const activo = nuevoEstado === EstadoUsuario.ACTIVO;
 
     if (!activo) {
-      const esAdminActivo =
-        this.perfilAdministradorEnNegocio(usuario)?.estado ===
-        EstadoUsuario.ACTIVO;
-      const esSuperAdmin = usuario.rol === 'SUPERADMIN';
+      // El carácter SUPERADMIN es de la MEMBRESÍA de este negocio, no del
+      // `Usuario.rol` global.
+      const perfilAdmin = this.perfilAdministradorEnNegocio(usuario) as {
+        estado?: string;
+        superadmin?: boolean;
+      } | null;
+      const esAdminActivo = perfilAdmin?.estado === EstadoUsuario.ACTIVO;
+      const esSuperAdmin = perfilAdmin?.superadmin === true;
       if (!esSuperAdmin && !esAdminActivo) {
         await this.usuariosRepository.actualizarEstadoUsuario(
           usuarioId,

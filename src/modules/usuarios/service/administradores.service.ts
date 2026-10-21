@@ -1,4 +1,9 @@
-import { Injectable, ConflictException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { UsuariosRepository } from '../repository/usuarios.repository';
 import { AdministradoresRepository } from '../repository/administradores.repository';
 import { CrearAdministradorDto } from '../dto/dto-peticion/crear-administrador.dto';
@@ -137,14 +142,33 @@ export class AdministradoresService {
       throw new ConflictException('El usuario no existe');
     }
 
-    if (usuario.rol === 'SUPERADMIN') {
-      throw new ConflictException(
-        'No se pueden modificar los privilegios del SUPERADMIN',
+    if (estado === 'ACTIVO') {
+      // ALTA: se crea (o reactiva) la membresía de administrador de ESTA
+      // barbería. La pertenencia la decide el SUPERADMIN de la barbería
+      // (lo exige el endpoint), no el `Usuario.rol` global.
+      return this.promoverAdministrador(usuario);
+    }
+
+    // BAJA: solo se puede revocar una membresía que exista en ESTA
+    // barbería. La pertenencia se decide por la MEMBRESÍA
+    // (`Administrador.negocioId`), nunca por el `Usuario.rol` global.
+    const perfilAdmin = this.perfilAdministradorEnNegocio(usuario) as {
+      estado?: string;
+      superadmin?: boolean;
+    } | null;
+
+    if (!perfilAdmin) {
+      throw new NotFoundException(
+        'El usuario no es administrador de esta barbería',
       );
     }
 
-    if (estado === 'ACTIVO') {
-      return this.promoverAdministrador(usuario);
+    // El SUPERADMIN DE ESTA BARBERÍA no se degrada con este endpoint (su
+    // carácter es de la membresía, no del `Usuario.rol` global).
+    if (perfilAdmin.superadmin === true) {
+      throw new ConflictException(
+        'No se pueden modificar los privilegios del SUPERADMIN de esta barbería',
+      );
     }
 
     return this.revocarAdministrador(usuario);

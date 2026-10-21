@@ -113,7 +113,8 @@ export const AdministradorScalarFieldEnum = {
   id: 'id',
   usuarioId: 'usuarioId',
   negocioId: 'negocioId',
-  estado: 'estado'
+  estado: 'estado',
+  superadmin: 'superadmin'
 } as const
 
 export type AdministradorScalarFieldEnum = (typeof AdministradorScalarFieldEnum)[keyof typeof AdministradorScalarFieldEnum]

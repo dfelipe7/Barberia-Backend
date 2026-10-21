@@ -43,12 +43,12 @@ import { PrismaModule } from '../src/prisma/prisma.module';
  *  1. El login del personal emite un token con los roles del negocio.
  *  2. El login sin contexto de barbería se rechaza.
  *  3. El login de quien no tiene perfil activo en la barbería se rechaza.
- *  4. El SUPERADMIN recibe una sesión global de plataforma (sin negocio).
+ *  4. El SUPERADMIN recibe una sesión de SU barbería (no hay sesión global).
  *  5. El token de una barbería no opera en otra.
  *  6. El cambio explícito de negocio emite un token del negocio de destino.
  *  7. El cambio explícito a una barbería sin pertenencia se rechaza.
  *  8. El cambio explícito a una barbería inexistente se rechaza.
- *  9. La sesión de plataforma no habilita las rutas de negocio.
+ *  9. No existe sesión de plataforma: el login sin contexto se rechaza.
  * 10. El refresh renueva la sesión con los roles recalculados.
  * 11. Un barbero no entra en una ruta de administrador.
  * 12. Un token de cliente no vale en las rutas de personal.
@@ -226,6 +226,18 @@ describe('Autenticación y autorización por negocio (MariaDB real)', () => {
       update: {},
       create: { usuarioId: cross.id, negocioId: negocioA.id },
     });
+    // El SUPERADMIN lo es DE UNA BARBERÍA: lo decide su membresía.
+    await prisma.administrador.upsert({
+      where: {
+        negocioId_usuarioId: { negocioId: negocioA.id, usuarioId: superadmin.id },
+      },
+      update: { superadmin: true },
+      create: {
+        usuarioId: superadmin.id,
+        negocioId: negocioA.id,
+        superadmin: true,
+      },
+    });
     await prisma.barbero.upsert({
       where: { negocioId_usuarioId: { negocioId: negocioA.id, usuarioId: barberoA.id } },
       update: {},
@@ -297,7 +309,7 @@ describe('Autenticación y autorización por negocio (MariaDB real)', () => {
     expect(respuesta.status).toBe(403);
   });
 
-  it('4. el SUPERADMIN recibe una sesión global de plataforma', async () => {
+  it('4. el SUPERADMIN recibe una sesión de SU barbería (no hay sesión global)', async () => {
     if (OMITIR_SIN_DOCKER) return;
 
     await sembrar();
@@ -305,7 +317,8 @@ describe('Autenticación y autorización por negocio (MariaDB real)', () => {
     const respuesta = await login('super@test.local', 'negocio-a');
 
     expect(respuesta.status).toBe(201);
-    expect(respuesta.body.negocio).toBeNull();
+    expect(respuesta.body.negocio).not.toBeNull();
+    expect(respuesta.body.negocio.slug).toBe('negocio-a');
     expect(respuesta.body.usuario.roles).toEqual(['SUPERADMIN']);
   });
 
@@ -399,11 +412,20 @@ describe('Autenticación y autorización por negocio (MariaDB real)', () => {
     expect(cambio.status).toBe(403);
   });
 
-  it('9. la sesión de plataforma no habilita las rutas de negocio', async () => {
+  it('9. no existe sesión de plataforma: el login sin contexto se rechaza', async () => {
     if (OMITIR_SIN_DOCKER) return;
 
     await sembrar();
 
+    // Sin contexto de barbería, el login se rechaza: toda sesión está
+    // ligada a un negocio.
+    const sinContexto = await request(app.getHttpServer())
+      .post('/auth/google')
+      .send({ idToken: 'super@test.local' });
+
+    expect(sinContexto.status).toBe(403);
+
+    // Y con contexto, el SUPERADMIN opera en SU barbería.
     const loginSuper = await login('super@test.local', 'negocio-a');
     const token = loginSuper.body.accessToken as string;
 
@@ -412,7 +434,8 @@ describe('Autenticación y autorización por negocio (MariaDB real)', () => {
       .set('Authorization', `Bearer ${token}`)
       .set('X-Negocio-Slug', 'negocio-a');
 
-    expect(respuesta.status).toBe(401);
+    expect(respuesta.status).toBe(200);
+    expect(respuesta.body.roles).toEqual(['SUPERADMIN']);
   });
 
   it('10. el refresh renueva la sesión con los roles recalculados', async () => {

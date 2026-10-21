@@ -99,6 +99,10 @@ export class GoogleAuthService {
 
   /**
    * Emite la sesión según la identidad y la pertenencia de la persona.
+   *
+   * TODA sesión es operativa y está ligada a UNA barbería: no existe sesión
+   * de plataforma. Los roles efectivos salen de las membresías activas de la
+   * persona en el negocio del contexto; `Usuario.rol` no concede nada.
    */
   private async emitirSesion(
     usuario: {
@@ -111,15 +115,6 @@ export class GoogleAuthService {
     },
     fotoUrlGoogle?: string | null,
   ) {
-    if (usuario.rol === ROL_SUPERADMIN) {
-      // Identidad global de plataforma: la sesión no queda vinculada a ningún
-      // negocio y no habilita por sí sola las rutas de negocio.
-      return this.sesionService.emitirParaPlataforma(
-        usuario,
-        fotoUrlGoogle ?? null,
-      );
-    }
-
     const contexto = this.contextoService.obtenerContexto();
 
     if (!contexto) {

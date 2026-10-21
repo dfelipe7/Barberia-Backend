@@ -13,22 +13,21 @@ import {
 
 /**
  * Emisión de las sesiones de personal: la que nace al iniciar sesión, la que
- * se renueva y la que se obtiene al cambiar de negocio de forma explícita.
+ * renueva y la que se obtiene al cambiar de negocio de forma explícita.
  *
  * SEPARACIÓN DE CONTEXTOS
  * ----------------------
  * - Sesión OPERATIVA (`ambito: NEGOCIO`): lleva `negocioId` y los roles
- *   EFECTIVOS de la persona en ese negocio. Es la única que autoriza las
- *   rutas de negocio (reservas, clientes, servicios, horarios, usuarios).
- * - Sesión GLOBAL DE PLATAFORMA (`ambito: PLATAFORMA`): no lleva `negocioId`.
- *   Solo autoriza las rutas de plataforma, que son explícitas. Un token
- *   global NO habilita por sí solo las rutas normales de negocio.
+ *   EFECTIVOS de la persona en ese negocio (derivados de sus membresías
+ *   activas). Es la ÚNICA clase de sesión de personal que existe.
  *
  * Los roles de una sesión operativa NUNCA se derivan del campo global
- * `Usuario.rol` (`ADMINISTRADOR` / `BARBERO`): se derivan de los PERFILES
- * operativos (`Administrador` / `Barbero`) de la persona en ese negocio. La
- * única excepción es `SUPERADMIN`, que es una identidad global de plataforma
- * por diseño y queda acotada al negocio de la sesión.
+ * `Usuario.rol`: se derivan de las MEMBRESÍAS (`Administrador` / `Barbero`)
+ * de la persona en ese negocio. El carácter SUPERADMIN es de la membresía
+ * (`Administrador.superadmin`) y su alcance es ese negocio.
+ *
+ * NO existe identidad de plataforma ni sesión de plataforma: en este SaaS
+ * todo el personal opera dentro de una barbería concreta.
  */
 @Injectable()
 export class SesionPersonalService {
@@ -56,8 +55,6 @@ export class SesionPersonalService {
     roles: string[],
     fotoUrl: string | null,
   ): RespuestaSesion {
-    const rolesEfectivos = this.completarRoles(usuario, roles);
-
     const claims: Omit<ClaimsSesionPersonal, 'tipo'> = {
       sub: String(usuario.id),
       id: usuario.id,
@@ -65,8 +62,10 @@ export class SesionPersonalService {
       nombre: usuario.nombre,
       apellido: usuario.apellido,
       rol: usuario.rol,
-      roles: rolesEfectivos,
-      superadmin: usuario.rol === ROL_SUPERADMIN,
+      roles,
+      // Derivado de los roles efectivos de ESTE negocio: nunca del `rol`
+      // global de la persona.
+      superadmin: roles.includes(ROL_SUPERADMIN),
       ambito: 'NEGOCIO',
       negocioId: negocio.id,
       negocioSlug: negocio.slug,
@@ -78,53 +77,17 @@ export class SesionPersonalService {
 
     return {
       accessToken,
-      usuario: this.mapearUsuario(usuario, rolesEfectivos, fotoUrl),
+      usuario: this.mapearUsuario(usuario, roles, fotoUrl),
       negocio: { id: negocio.id, slug: negocio.slug },
     };
   }
 
   /**
-   * Emite una sesión global de plataforma (identidad `SUPERADMIN`).
+   * Renueva una sesión conservando su ámbito (siempre un negocio).
    *
-   * No lleva `negocioId`: por diseño NO autoriza las rutas de negocio. Para
-   * operar dentro de una barbería hay que hacer la transición explícita
-   * (`POST /auth/tenant/:slug`), que queda acotada al negocio de destino.
-   */
-  emitirParaPlataforma(
-    usuario: UsuarioSesion,
-    fotoUrl: string | null,
-  ): RespuestaSesion {
-    const claims: Omit<ClaimsSesionPersonal, 'tipo'> = {
-      sub: String(usuario.id),
-      id: usuario.id,
-      email: usuario.email,
-      nombre: usuario.nombre,
-      apellido: usuario.apellido,
-      rol: usuario.rol,
-      roles: [ROL_SUPERADMIN],
-      superadmin: true,
-      ambito: 'PLATAFORMA',
-      estado: usuario.estado,
-      fotoUrl,
-    };
-
-    const accessToken = this.personalJwt.firmar(claims);
-
-    return {
-      accessToken,
-      usuario: this.mapearUsuario(usuario, [ROL_SUPERADMIN], fotoUrl),
-      negocio: null,
-    };
-  }
-
-  /**
-   * Renueva una sesión conservando su ámbito.
-   *
-   * - Sesión operativa: se vuelve a validar el negocio (sigue activo) y la
-   *   pertenencia de la persona; los roles se RECALCULAN contra la base de
-   *   datos, de modo que revocar un perfil surte efecto en la renovación.
-   * - Sesión de plataforma: se mantiene global, pero solo si la identidad
-   *   sigue siendo de plataforma y está activa.
+   * - El negocio se revalida (sigue activo) y la pertenencia de la persona.
+   * - Los roles se RECALCULAN contra la base de datos, de modo que revocar un
+   *   perfil surte efecto en la renovación.
    */
   async renovar(
     sesion: SesionPersonal,
@@ -136,12 +99,8 @@ export class SesionPersonalService {
       );
     }
 
-    if (sesion.ambito === 'PLATAFORMA' || !sesion.negocioId) {
-      if (!sesion.superadmin || usuario.rol !== ROL_SUPERADMIN) {
-        throw new ForbiddenException('La sesión ya no es válida');
-      }
-
-      return this.emitirParaPlataforma(usuario, sesion.fotoUrl);
+    if (!sesion.negocioId) {
+      throw new ForbiddenException('La sesión ya no es válida');
     }
 
     const negocio = await this.negociosRepository.buscarActivoPorSlug(
@@ -156,7 +115,7 @@ export class SesionPersonalService {
 
     const perfil = await this.rolesService.perfilOperativo(usuario.id, negocio);
 
-    const roles = this.completarRoles(usuario, perfil.roles);
+    const roles = perfil.roles;
 
     if (roles.length === 0) {
       throw new ForbiddenException(
@@ -180,11 +139,9 @@ export class SesionPersonalService {
    * de negocio de la petición NO interviene: así el middleware ordinario no
    * puede dirigir la transición a un negocio distinto del solicitado.
    *
-   * Para el personal se exige un perfil operativo ACTIVO en el negocio de
-   * destino y se recalculan los roles allí (no se heredan del token previo).
-   *
-   * Para `SUPERADMIN` la transición es un acceso PRIVILEGIADO: queda acotado
-   * al negocio de destino y se registra en el log de auditoría del proyecto.
+   * Se exige un perfil operativo ACTIVO en el negocio de destino, PARA
+   * TODAS LAS PERSONAS: el rol SUPERADMIN de una barbería NO habilita el
+   * cambio a otra. En este SaaS no existe ninguna transición privilegiada.
    */
   async cambiarNegocio(
     sesion: SesionPersonal,
@@ -204,7 +161,7 @@ export class SesionPersonalService {
 
     const perfil = await this.rolesService.perfilOperativo(usuario.id, negocio);
 
-    const roles = this.completarRoles(usuario, perfil.roles);
+    const roles = perfil.roles;
 
     if (roles.length === 0) {
       throw new ForbiddenException(
@@ -212,13 +169,7 @@ export class SesionPersonalService {
       );
     }
 
-    if (sesion.superadmin) {
-      this.auditarAccesoPrivilegiado(
-        usuario.id,
-        negocio,
-        'cambio explícito de negocio',
-      );
-    }
+    this.auditarCambioNegocio(usuario.id, negocio);
 
     return this.emitirParaNegocio(usuario, negocio, roles, perfil.fotoUrl);
   }
@@ -246,39 +197,27 @@ export class SesionPersonalService {
   }
 
   /**
-   * Registra en el log de auditoría el acceso privilegiado de un
-   * `SUPERADMIN` a un negocio concreto.
+   * Registra en el log de auditoría el cambio de negocio de una persona.
    *
    * Se usa el mecanismo de auditoría YA existente en el proyecto (el logger
    * con el prefijo `AUDIT:`), no se inventa infraestructura nueva.
+   *
+   * Ya no existe el acceso PRIVILEGIADO (no hay identidad de plataforma): el
+   * cambio siempre parte de una membresía en el destino, y se audita
+   * igualmente por ser un cambio de ámbito de la sesión.
    */
-  auditarAccesoPrivilegiado(
+  auditarCambioNegocio(
     usuarioId: number,
     negocio: { id: number; slug: string },
-    motivo: string,
   ): void {
     this.logger.log(
-      `AUDIT: acceso de plataforma al negocio ${negocio.slug} (id=${negocio.id}) por el usuario ${usuarioId}. Motivo: ${motivo}`,
+      `AUDIT: cambio de negocio al '${negocio.slug}' (id=${negocio.id}) por el usuario ${usuarioId}.`,
     );
   }
 
   /** Contexto de negocio de la petición, si lo hay. */
   contextoActual(): { id: number; slug: string } | null {
     return this.contextoService.obtenerContexto() ?? null;
-  }
-
-  /**
-   * Completa los roles de una sesión con la identidad global de plataforma.
-   *
-   * `SUPERADMIN` es la ÚNICA identidad que conserva significado global: se
-   * mantiene dentro del negocio de la sesión, nunca por encima de ella.
-   */
-  private completarRoles(usuario: UsuarioSesion, roles: string[]): string[] {
-    if (usuario.rol === ROL_SUPERADMIN && !roles.includes(ROL_SUPERADMIN)) {
-      return [...roles, ROL_SUPERADMIN];
-    }
-
-    return roles;
   }
 
   private mapearUsuario(

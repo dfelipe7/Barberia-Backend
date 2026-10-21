@@ -76,6 +76,13 @@ export type Usuario = Prisma.UsuarioModel
  * 
  * `usuarioId` es ÚNICO POR NEGOCIO: la misma persona puede ser administradora
  * de varias barberías (y de ninguna).
+ * 
+ * `superadmin` es el CARÁCTER de la membresía, no un atributo de la
+ * persona: `true` significa SUPERADMIN **de este negocio** y `false`
+ * ADMINISTRADOR de este negocio. El alcance es siempre el negocio de la fila:
+ * en este SaaS NO existe un superadmin de plataforma ni una sesión de
+ * plataforma. La columna es aditiva y no promueve a nadie: las membresías
+ * existentes siguen siendo ADMINISTRADOR.
  */
 export type Administrador = Prisma.AdministradorModel
 /**

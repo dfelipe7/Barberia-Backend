@@ -1,4 +1,5 @@
 import { UnauthorizedException } from '@nestjs/common';
+import { ROL_SUPERADMIN } from '../../modules/negocios/negocios.constants';
 
 /**
  * Sesión de PERSONAL (barbería) verificada a partir de su token.
@@ -8,15 +9,26 @@ import { UnauthorizedException } from '@nestjs/common';
  * `Usuario.rol`, que no dice en qué barbería se puede operar.
  */
 
-/** Ámbito de la sesión de personal. */
-export type AmbitoSesion = 'NEGOCIO' | 'PLATAFORMA';
+/**
+ * Ámbito de la sesión de personal.
+ *
+ * Solo existe `NEGOCIO`: en este SaaS no hay identidad de plataforma ni
+ * sesión de plataforma. Toda sesión operativa está ligada a UNA barbería, y su
+ * autorización depende de la membresía activa de la persona en ese negocio.
+ */
+export type AmbitoSesion = 'NEGOCIO';
+
+/**
+ * Sesión de PERSONAL (barbería) verificada a partir de su token.
+ *
+ * Es la forma NORMALIZADA de lo que el guard deja en `request.user`. Los
+ * servicios de autorización consumen esta sesión en lugar del campo global
+ * `Usuario.rol`, que no dice en qué barbería se puede operar.
+ */
 
 /**
  * `NEGOCIO`: sesión operativa vinculada a un negocio concreto. Autoriza las
  * rutas de reservas, clientes, servicios, horarios y usuarios de ESE negocio.
- *
- * `PLATAFORMA`: sesión global de la identidad `SUPERADMIN`. NO autoriza las
- * rutas de negocio: solo las rutas de plataforma marcadas de forma explícita.
  */
 export interface SesionPersonal {
   /** Identificador global de la persona (`Usuario.id`). */
@@ -26,19 +38,24 @@ export interface SesionPersonal {
   /**
    * Roles efectivos de la sesión.
    *
-   * - Sesión de negocio: `ADMINISTRADOR` y/o `BARBERO` según los perfiles
-   *   operativos ACTIVOS de la persona en ese negocio. `SUPERADMIN` aparece
-   *   solo si la identidad global es de plataforma.
-   * - Sesión de plataforma: `['SUPERADMIN']`.
+   * Se derivan de las MEMBRESÍAS activas de la persona en el negocio de la
+   * sesión: `SUPERADMIN` (membresía de administrador con `superadmin = true`),
+   * `ADMINISTRADOR` y/o `BARBERO`. `Usuario.rol` no interviene.
    */
   roles: string[];
-  /** Negocio de la sesión. `null` en la sesión global de plataforma. */
+  /** Negocio de la sesión. */
   negocioId: number | null;
   /** Slug público del negocio de la sesión. */
   negocioSlug: string | null;
-  /** Ámbito de la sesión. */
+  /** Ámbito de la sesión. Siempre `NEGOCIO`. */
   ambito: AmbitoSesion;
-  /** Identidad global de plataforma (`Usuario.rol === 'SUPERADMIN'`). */
+  /**
+   * Indica que la sesión incluye el rol `SUPERADMIN` **de su negocio**.
+   *
+   * Es un ATRIBUTO DERIVADO de `roles` (y no una identidad global): se
+   * mantiene por compatibilidad del contrato, pero nunca sustituye la
+   * comprobación de roles.
+   */
   superadmin: boolean;
   /** Estado de la cuenta global en el momento de emitir la sesión. */
   estado: string;
@@ -59,9 +76,12 @@ export interface ActorSesion {
   id: number;
   /** Roles efectivos en el negocio de la sesión. */
   roles: string[];
-  /** Identidad global de plataforma. */
+  /**
+   * `true` si la sesión incluye el rol `SUPERADMIN` **de su negocio**.
+   * Derivado de `roles`; nunca un privilegio de plataforma.
+   */
   superadmin: boolean;
-  /** Negocio de la sesión. `null` en una sesión de plataforma. */
+  /** Negocio de la sesión. */
   negocioId: number | null;
 }
 
@@ -94,13 +114,18 @@ export interface ClaimsSesionPersonal {
   tipo: string;
   /** Valor global heredado de `Usuario.rol`. Informativo, no autorizante. */
   rol: string;
-  /** Roles efectivos de la sesión. */
+  /** Roles efectivos de la sesión (derivados de las membresías). */
   roles: string[];
-  /** Identidad global de plataforma. */
+  /**
+   * `true` si la sesión incluye `SUPERADMIN` **de su negocio**.
+   *
+   * Se deriva de `roles` al emitir y NO se toma del claim recibido: un token
+   * antiguo que dijera `superadmin: true` no conserva ningún privilegio.
+   */
   superadmin: boolean;
-  /** Ámbito de la sesión. */
+  /** Ámbito de la sesión. Siempre `NEGOCIO`. */
   ambito: AmbitoSesion;
-  /** Identificador del negocio autorizado. Ausente en sesión de plataforma. */
+  /** Identificador del negocio autorizado. */
   negocioId?: number;
   /** Slug del negocio autorizado. */
   negocioSlug?: string;
@@ -134,9 +159,6 @@ export function extraerSesionPersonal(payload: unknown): SesionPersonal {
     ? contenido.roles.filter((rol): rol is string => typeof rol === 'string')
     : [];
 
-  const ambito: AmbitoSesion =
-    contenido.ambito === 'PLATAFORMA' ? 'PLATAFORMA' : 'NEGOCIO';
-
   const negocioIdCrudo = contenido.negocioId;
   const negocioId =
     typeof negocioIdCrudo === 'number' && Number.isInteger(negocioIdCrudo)
@@ -150,8 +172,10 @@ export function extraerSesionPersonal(payload: unknown): SesionPersonal {
     negocioId,
     negocioSlug:
       typeof contenido.negocioSlug === 'string' ? contenido.negocioSlug : null,
-    ambito,
-    superadmin: contenido.superadmin === true,
+    ambito: 'NEGOCIO',
+    // El carácter SUPERADMIN se DERIVA de los roles efectivos: el claim
+    // recibido no se acepta (un token antiguo no conserva privilegios).
+    superadmin: roles.includes(ROL_SUPERADMIN),
     estado: typeof contenido.estado === 'string' ? contenido.estado : '',
     fotoUrl: typeof contenido.fotoUrl === 'string' ? contenido.fotoUrl : null,
   };
@@ -179,7 +203,8 @@ export function construirActorSesion(payload: unknown): ActorSesion {
   return {
     id: Number.isInteger(id) && id > 0 ? id : 0,
     roles,
-    superadmin: contenido.superadmin === true,
+    // Derivado de los roles efectivos: nunca del claim global recibido.
+    superadmin: roles.includes(ROL_SUPERADMIN),
     negocioId:
       typeof negocioIdCrudo === 'number' && Number.isInteger(negocioIdCrudo)
         ? negocioIdCrudo

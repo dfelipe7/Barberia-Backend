@@ -55,11 +55,14 @@ export type OrigenResolucionNegocio =
 /**
  * Roles del personal.
  *
- * `ADMINISTRADOR` y `BARBERO` son roles OPERATIVOS: se derivan de los
- * perfiles (`Administrador` / `Barbero`) de la persona en un negocio, nunca
+ * `ADMINISTRADOR` y `BARBERO` son roles OPERATIVOS: se derivan de las
+ * MEMBRESÍAS (`Administrador` / `Barbero`) de la persona en un negocio, nunca
  * del campo global `Usuario.rol`.
  *
- * `SUPERADMIN` es la identidad global de plataforma: no es un rol de negocio.
+ * `SUPERADMIN` es un rol de NEGOCIO: se deriva de la membresía
+ * `Administrador` con `superadmin = true` en ESE negocio. Su alcance es ese
+ * negocio: en este SaaS no existe un superadmin de plataforma ni una sesión
+ * de plataforma.
  *
  * Se declaran aquí, y no en el servicio de roles, para que el guard de
  * autorización (que vive en `src/auth`) no arrastre la cadena de importaciones

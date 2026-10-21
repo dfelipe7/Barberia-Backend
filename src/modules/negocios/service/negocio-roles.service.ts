@@ -20,18 +20,18 @@ export { ROL_ADMINISTRADOR, ROL_BARBERO, ROL_SUPERADMIN };
  * su propio estado.
  *
  * Relación con `Usuario.rol`:
- *  - `SUPERADMIN` conserva significado GLOBAL de plataforma (identidad de
- *    plataforma, no de negocio). Se trata aparte, en el flujo de sesiones.
+ *  - `SUPERADMIN` ya NO es una identidad global de plataforma: el carácter
+ *    SUPERADMIN vive en la MEMBRESÍA (`Administrador.superadmin`) y su alcance
+ *    es el negocio de esa fila. `Usuario.rol` no concede ningún privilegio.
  *  - `ADMINISTRADOR` y `BARBERO` NO autorizan por sí solos: sin perfil
  *    operativo ACTIVO en el negocio, la persona no tiene ningún rol allí.
  *
- * LIMITACIÓN DEL ESQUEMA ACTUAL (se resuelve en la fase 8): `Administrador` y
- * `Barbero` tienen `usuarioId` ÚNICO, de modo que una persona solo puede
- * tener un perfil de administrador y uno de barbero en toda la plataforma.
- * Sí puede tener ambos a la vez (son tablas distintas) y puede estar en
- * negocios distintos: administrador en A y barbero en B. No puede, en cambio,
- * ser administrador de dos negocios, porque eso exigiría la clave compuesta
- * `(usuarioId, negocioId)`.
+ * ALCANCE POR NEGOCIO
+ * -------------------
+ * `Administrador` y `Barbero` son MEMBRESÍAS: la misma persona puede ser
+ * administradora de una barbería y no de otra. El único índice
+ * `(negocioId, usuarioId)` y la clave foránea compuesta `(negocioId, id)`
+ * garantizan que un perfil pertenece a un único negocio.
  */
 
 /** Identificador de negocio con el que se puede trabajar (id + slug). */
@@ -70,6 +70,10 @@ export class NegocioRolesService {
    * Devuelve roles vacíos cuando la persona no tiene ningún perfil operativo
    * ACTIVO en ese negocio. Los perfiles INACTIVOS no otorgan ningún rol.
    *
+   * El carácter del rol administrativo sale de la MEMBRESÍA: una membresía
+   * con `superadmin = true` otorga `SUPERADMIN` **de ese negocio**; con
+   * `false`, otorga `ADMINISTRADOR`. `Usuario.rol` no interviene.
+   *
    * @param usuarioId Identificador global de la persona.
    * @param negocio Negocio evaluado (id + slug).
    */
@@ -83,11 +87,15 @@ export class NegocioRolesService {
 
       const administrador = await this.prisma.administrador.findFirst({
         where: { usuarioId, estado: EstadoUsuario.ACTIVO },
-        select: { id: true },
+        select: { id: true, superadmin: true },
       });
 
       if (administrador) {
-        roles.push(ROL_ADMINISTRADOR);
+        // El carácter SUPERADMIN es de la MEMBRESÍA: el alcance es el
+        // negocio que se está evaluando, nunca la plataforma.
+        roles.push(
+          administrador.superadmin ? ROL_SUPERADMIN : ROL_ADMINISTRADOR,
+        );
       }
 
       const barbero = await this.prisma.barbero.findFirst({

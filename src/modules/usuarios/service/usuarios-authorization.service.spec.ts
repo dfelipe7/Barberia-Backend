@@ -7,17 +7,25 @@ describe('UsuariosAuthorizationService', () => {
   let service: UsuariosAuthorizationService;
 
   const NEGOCIO = 10;
+  const OTRO_NEGOCIO = 20;
 
   /**
    * Actor de la petición: identidad global + roles EFECTIVOS en el negocio.
-   * El campo global `Usuario.rol` ya no autoriza nada.
+   *
+   * El campo global `Usuario.rol` no autoriza nada, y el carácter
+   * `superadmin` se deriva de los roles efectivos (como hace
+   * `construirActorSesion`).
    */
   const actor = (
     id: number,
     roles: string[],
     negocioId: number | null = NEGOCIO,
-    superadmin = false,
-  ): ActorSesion => ({ id, roles, superadmin, negocioId });
+  ): ActorSesion => ({
+    id,
+    roles,
+    superadmin: roles.includes('SUPERADMIN'),
+    negocioId,
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -34,14 +42,29 @@ describe('UsuariosAuthorizationService', () => {
   });
 
   describe('verificarPermisosConsulta', () => {
-    it('SUPERADMIN puede ver cualquier perfil', () => {
+    it('SUPERADMIN de SU barbería puede ver a un barbero de esa barbería', () => {
       expect(() =>
         service.verificarPermisosConsulta(
-          actor(1, ['SUPERADMIN'], NEGOCIO, true),
-          { id: 2, rol: 'PERSONAL', barbero: { negocioId: NEGOCIO } },
+          actor(1, ['SUPERADMIN']),
+          { id: 2, rol: 'PERSONAL', barbero: { id: 5, negocioId: NEGOCIO } },
         ),
       ).not.toThrow();
     });
+
+    it('SUPERADMIN de SU barbería NO puede ver a una persona de OTRA barbería', () => {
+      expect(() =>
+        service.verificarPermisosConsulta(
+          actor(1, ['SUPERADMIN']),
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: null,
+            barbero: { id: 5, negocioId: OTRO_NEGOCIO },
+          },
+        ),
+      ).toThrow(ForbiddenException);
+    });
+
     it('ADMINISTRADOR puede ver su propio perfil', () => {
       expect(() =>
         service.verificarPermisosConsulta(
@@ -50,6 +73,7 @@ describe('UsuariosAuthorizationService', () => {
         ),
       ).not.toThrow();
     });
+
     it('ADMINISTRADOR puede ver a un barbero de SU barbería', () => {
       expect(() =>
         service.verificarPermisosConsulta(
@@ -58,22 +82,34 @@ describe('UsuariosAuthorizationService', () => {
         ),
       ).not.toThrow();
     });
+
     it('ADMINISTRADOR NO puede ver a un barbero de OTRA barbería', () => {
       expect(() =>
         service.verificarPermisosConsulta(
           actor(1, ['ADMINISTRADOR']),
-          { id: 2, rol: 'PERSONAL', barbero: { id: 5, negocioId: 20 } },
+          { id: 2, rol: 'PERSONAL', barbero: { id: 5, negocioId: OTRO_NEGOCIO } },
         ),
       ).toThrow(ForbiddenException);
     });
+
     it('ADMINISTRADOR NO puede ver a otro ADMINISTRADOR', () => {
       expect(() =>
         service.verificarPermisosConsulta(
           actor(1, ['ADMINISTRADOR']),
-          { id: 2, rol: 'PERSONAL', barbero: null },
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: {
+              estado: 'ACTIVO',
+              negocioId: NEGOCIO,
+              superadmin: false,
+            },
+            barbero: null,
+          },
         ),
       ).toThrow(ForbiddenException);
     });
+
     it('BARBERO puede ver su propio perfil', () => {
       expect(() =>
         service.verificarPermisosConsulta(
@@ -82,6 +118,7 @@ describe('UsuariosAuthorizationService', () => {
         ),
       ).not.toThrow();
     });
+
     it('BARBERO NO puede ver el perfil de otro usuario', () => {
       expect(() =>
         service.verificarPermisosConsulta(
@@ -90,6 +127,7 @@ describe('UsuariosAuthorizationService', () => {
         ),
       ).toThrow(ForbiddenException);
     });
+
     it('Sin roles efectivos lanza ForbiddenException', () => {
       expect(() =>
         service.verificarPermisosConsulta(
@@ -101,22 +139,59 @@ describe('UsuariosAuthorizationService', () => {
   });
 
   describe('verificarPermisosEdicion', () => {
-    it('SUPERADMIN puede editar cualquier perfil', () => {
+    it('SUPERADMIN de SU barbería puede editar a un administrador de esa barbería', () => {
       expect(() =>
         service.verificarPermisosEdicion(
-          actor(1, ['SUPERADMIN'], NEGOCIO, true),
-          { id: 2, rol: 'PERSONAL' },
+          actor(1, ['SUPERADMIN']),
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: {
+              estado: 'ACTIVO',
+              negocioId: NEGOCIO,
+              superadmin: false,
+            },
+            barbero: null,
+          },
         ),
       ).not.toThrow();
     });
-    it('ADMINISTRADOR NO puede editar a un SUPERADMIN', () => {
+
+    it('SUPERADMIN de SU barbería NO puede editar a una persona de OTRA barbería', () => {
+      expect(() =>
+        service.verificarPermisosEdicion(
+          actor(1, ['SUPERADMIN']),
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: {
+              estado: 'ACTIVO',
+              negocioId: OTRO_NEGOCIO,
+              superadmin: true,
+            },
+            barbero: null,
+          },
+        ),
+      ).toThrow(ForbiddenException);
+    });
+
+    it('ADMINISTRADOR NO puede editar al SUPERADMIN de su barbería', () => {
       expect(() =>
         service.verificarPermisosEdicion(
           actor(1, ['ADMINISTRADOR']),
-          { id: 2, rol: 'SUPERADMIN' },
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: {
+              estado: 'ACTIVO',
+              negocioId: NEGOCIO,
+              superadmin: true,
+            },
+          },
         ),
       ).toThrow('Un administrador no puede editar a un superadmin');
     });
+
     it('ADMINISTRADOR puede editar su propio perfil', () => {
       expect(() =>
         service.verificarPermisosEdicion(
@@ -125,6 +200,7 @@ describe('UsuariosAuthorizationService', () => {
         ),
       ).not.toThrow();
     });
+
     it('ADMINISTRADOR NO puede editar a otro ADMINISTRADOR activo de su barbería', () => {
       expect(() =>
         service.verificarPermisosEdicion(
@@ -132,11 +208,16 @@ describe('UsuariosAuthorizationService', () => {
           {
             id: 3,
             rol: 'PERSONAL',
-            administrador: { estado: 'ACTIVO', negocioId: NEGOCIO },
+            administrador: {
+              estado: 'ACTIVO',
+              negocioId: NEGOCIO,
+              superadmin: false,
+            },
           },
         ),
       ).toThrow(ForbiddenException);
     });
+
     it('ADMINISTRADOR puede editar a un barbero puro de su barbería', () => {
       expect(() =>
         service.verificarPermisosEdicion(
@@ -150,6 +231,7 @@ describe('UsuariosAuthorizationService', () => {
         ),
       ).not.toThrow();
     });
+
     it('ADMINISTRADOR NO puede editar a un barbero de OTRA barbería', () => {
       expect(() =>
         service.verificarPermisosEdicion(
@@ -158,11 +240,12 @@ describe('UsuariosAuthorizationService', () => {
             id: 4,
             rol: 'PERSONAL',
             administrador: null,
-            barbero: { id: 5, negocioId: 20 },
+            barbero: { id: 5, negocioId: OTRO_NEGOCIO },
           },
         ),
       ).toThrow(ForbiddenException);
     });
+
     it('ADMINISTRADOR NO puede editar a un usuario sin perfil de barbero', () => {
       expect(() =>
         service.verificarPermisosEdicion(
@@ -171,6 +254,7 @@ describe('UsuariosAuthorizationService', () => {
         ),
       ).toThrow(ForbiddenException);
     });
+
     it('BARBERO puede editar su propio perfil', () => {
       expect(() =>
         service.verificarPermisosEdicion(
@@ -179,6 +263,7 @@ describe('UsuariosAuthorizationService', () => {
         ),
       ).not.toThrow();
     });
+
     it('BARBERO NO puede editar el perfil de otra persona', () => {
       expect(() =>
         service.verificarPermisosEdicion(
@@ -187,6 +272,7 @@ describe('UsuariosAuthorizationService', () => {
         ),
       ).toThrow('Solo puedes editar tu propio perfil');
     });
+
     it('Sin roles efectivos lanza ForbiddenException al editar', () => {
       expect(() =>
         service.verificarPermisosEdicion(
@@ -201,29 +287,60 @@ describe('UsuariosAuthorizationService', () => {
     it('Nadie puede cambiar su propio estado de cuenta', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoCuenta(
-          actor(1, ['SUPERADMIN'], NEGOCIO, true),
-          { id: 1, rol: 'SUPERADMIN' },
+          actor(1, ['SUPERADMIN']),
+          { id: 1, rol: 'PERSONAL' },
         ),
       ).toThrow(
         'No puedes cambiar el estado de tu propio usuario (cuenta global)',
       );
     });
-    it('SUPERADMIN puede cambiar el estado de cualquier otro usuario', () => {
+
+    it('SUPERADMIN de SU barbería puede cambiar el estado de un miembro de esa barbería', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoCuenta(
-          actor(1, ['SUPERADMIN'], NEGOCIO, true),
-          { id: 2, rol: 'PERSONAL', administrador: null, barbero: {} },
+          actor(1, ['SUPERADMIN']),
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: null,
+            barbero: { id: 5, negocioId: NEGOCIO },
+          },
         ),
       ).not.toThrow();
     });
-    it('ADMINISTRADOR NO puede cambiar el estado de un SUPERADMIN', () => {
+
+    it('SUPERADMIN de SU barbería NO puede cambiar el estado de una persona de OTRA barbería', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoCuenta(
-          actor(1, ['ADMINISTRADOR']),
-          { id: 2, rol: 'SUPERADMIN', administrador: null, barbero: null },
+          actor(1, ['SUPERADMIN']),
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: null,
+            barbero: { id: 5, negocioId: OTRO_NEGOCIO },
+          },
         ),
       ).toThrow(ForbiddenException);
     });
+
+    it('ADMINISTRADOR NO puede cambiar el estado del SUPERADMIN de su barbería', () => {
+      expect(() =>
+        service.verificarPermisosCambioEstadoCuenta(
+          actor(1, ['ADMINISTRADOR']),
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: {
+              estado: 'ACTIVO',
+              negocioId: NEGOCIO,
+              superadmin: true,
+            },
+            barbero: null,
+          },
+        ),
+      ).toThrow(ForbiddenException);
+    });
+
     it('ADMINISTRADOR NO puede cambiar el estado de otro ADMINISTRADOR activo', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoCuenta(
@@ -231,12 +348,17 @@ describe('UsuariosAuthorizationService', () => {
           {
             id: 2,
             rol: 'PERSONAL',
-            administrador: { estado: 'ACTIVO', negocioId: NEGOCIO },
+            administrador: {
+              estado: 'ACTIVO',
+              negocioId: NEGOCIO,
+              superadmin: false,
+            },
             barbero: null,
           },
         ),
       ).toThrow(ForbiddenException);
     });
+
     it('ADMINISTRADOR puede cambiar el estado de un barbero puro de su barbería', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoCuenta(
@@ -250,6 +372,7 @@ describe('UsuariosAuthorizationService', () => {
         ),
       ).not.toThrow();
     });
+
     it('ADMINISTRADOR NO puede cambiar el estado de un barbero de OTRA barbería', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoCuenta(
@@ -258,11 +381,12 @@ describe('UsuariosAuthorizationService', () => {
             id: 3,
             rol: 'PERSONAL',
             administrador: null,
-            barbero: { id: 5, negocioId: 20 },
+            barbero: { id: 5, negocioId: OTRO_NEGOCIO },
           },
         ),
       ).toThrow(ForbiddenException);
     });
+
     it('ADMINISTRADOR NO puede cambiar el estado de un usuario sin perfil de barbero', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoCuenta(
@@ -271,6 +395,7 @@ describe('UsuariosAuthorizationService', () => {
         ),
       ).toThrow(ForbiddenException);
     });
+
     it('Sin roles efectivos lanza ForbiddenException al cambiar estado de cuenta', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoCuenta(
@@ -282,22 +407,52 @@ describe('UsuariosAuthorizationService', () => {
   });
 
   describe('verificarPermisosCambioEstadoBarbero', () => {
-    it('SUPERADMIN puede cambiar el estado del perfil de cualquier barbero', () => {
+    it('SUPERADMIN de SU barbería puede cambiar el estado del perfil de barbero de esa barbería', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoBarbero(
-          actor(1, ['SUPERADMIN'], NEGOCIO, true),
-          { id: 2, rol: 'PERSONAL' },
+          actor(1, ['SUPERADMIN']),
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: null,
+            barbero: { id: 5, negocioId: NEGOCIO },
+          },
         ),
       ).not.toThrow();
     });
-    it('ADMINISTRADOR NO puede cambiar el perfil de barbero de un SUPERADMIN', () => {
+
+    it('SUPERADMIN de SU barbería NO puede tocar el perfil de barbero de OTRA barbería', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoBarbero(
-          actor(1, ['ADMINISTRADOR']),
-          { id: 2, rol: 'SUPERADMIN' },
+          actor(1, ['SUPERADMIN']),
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: null,
+            barbero: { id: 5, negocioId: OTRO_NEGOCIO },
+          },
         ),
       ).toThrow(ForbiddenException);
     });
+
+    it('ADMINISTRADOR NO puede cambiar el perfil de barbero del SUPERADMIN de su barbería', () => {
+      expect(() =>
+        service.verificarPermisosCambioEstadoBarbero(
+          actor(1, ['ADMINISTRADOR']),
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: {
+              estado: 'ACTIVO',
+              negocioId: NEGOCIO,
+              superadmin: true,
+            },
+            barbero: null,
+          },
+        ),
+      ).toThrow(ForbiddenException);
+    });
+
     it('ADMINISTRADOR puede cambiar su propio perfil de barbero', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoBarbero(
@@ -305,11 +460,16 @@ describe('UsuariosAuthorizationService', () => {
           {
             id: 1,
             rol: 'PERSONAL',
-            administrador: { estado: 'ACTIVO', negocioId: NEGOCIO },
+            administrador: {
+              estado: 'ACTIVO',
+              negocioId: NEGOCIO,
+              superadmin: false,
+            },
           },
         ),
       ).not.toThrow();
     });
+
     it('ADMINISTRADOR NO puede cambiar el perfil de barbero de otro ADMINISTRADOR', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoBarbero(
@@ -317,19 +477,30 @@ describe('UsuariosAuthorizationService', () => {
           {
             id: 2,
             rol: 'PERSONAL',
-            administrador: { estado: 'ACTIVO', negocioId: NEGOCIO },
+            administrador: {
+              estado: 'ACTIVO',
+              negocioId: NEGOCIO,
+              superadmin: false,
+            },
           },
         ),
       ).toThrow(ForbiddenException);
     });
+
     it('ADMINISTRADOR puede cambiar el estado de un barbero puro', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoBarbero(
           actor(1, ['ADMINISTRADOR']),
-          { id: 2, rol: 'PERSONAL', administrador: null },
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: null,
+            barbero: { id: 5, negocioId: NEGOCIO },
+          },
         ),
       ).not.toThrow();
     });
+
     it('BARBERO no puede cambiar estado de ningún perfil de barbero', () => {
       expect(() =>
         service.verificarPermisosCambioEstadoBarbero(
@@ -341,32 +512,68 @@ describe('UsuariosAuthorizationService', () => {
   });
 
   describe('verificarPermisosComision', () => {
-    it('SUPERADMIN puede modificar cualquier comisión', () => {
+    it('SUPERADMIN de SU barbería puede modificar la comisión de un barbero de esa barbería', () => {
       expect(() =>
         service.verificarPermisosComision(
-          actor(1, ['SUPERADMIN'], NEGOCIO, true),
-          { id: 2, rol: 'PERSONAL' },
+          actor(1, ['SUPERADMIN']),
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: null,
+            barbero: { id: 5, negocioId: NEGOCIO },
+          },
         ),
       ).not.toThrow();
     });
-    it('ADMINISTRADOR puede modificar la comisión de un BARBERO', () => {
+
+    it('SUPERADMIN de SU barbería NO puede modificar la comisión de un barbero de OTRA barbería', () => {
+      expect(() =>
+        service.verificarPermisosComision(
+          actor(1, ['SUPERADMIN']),
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: null,
+            barbero: { id: 5, negocioId: OTRO_NEGOCIO },
+          },
+        ),
+      ).toThrow(ForbiddenException);
+    });
+
+    it('ADMINISTRADOR puede modificar la comisión de un BARBERO de su barbería', () => {
       expect(() =>
         service.verificarPermisosComision(
           actor(1, ['ADMINISTRADOR']),
-          { id: 4, rol: 'PERSONAL' },
+          {
+            id: 4,
+            rol: 'PERSONAL',
+            administrador: null,
+            barbero: { id: 5, negocioId: NEGOCIO },
+          },
         ),
       ).not.toThrow();
     });
-    it('ADMINISTRADOR NO puede modificar la comisión de un SUPERADMIN', () => {
+
+    it('ADMINISTRADOR NO puede modificar la comisión del SUPERADMIN de su barbería', () => {
       expect(() =>
         service.verificarPermisosComision(
           actor(1, ['ADMINISTRADOR']),
-          { id: 2, rol: 'SUPERADMIN' },
+          {
+            id: 2,
+            rol: 'PERSONAL',
+            administrador: {
+              estado: 'ACTIVO',
+              negocioId: NEGOCIO,
+              superadmin: true,
+            },
+            barbero: null,
+          },
         ),
       ).toThrow(
         'Un administrador no puede modificar la comisión de un superadmin',
       );
     });
+
     it('BARBERO no puede modificar ninguna comisión', () => {
       expect(() =>
         service.verificarPermisosComision(

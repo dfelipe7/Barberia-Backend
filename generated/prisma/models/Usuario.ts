@@ -774,6 +774,15 @@ export type $UsuarioPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     email: string
     nombre: string
     apellido: string
+    /**
+     * Valor GLOBAL heredado del modelo de negocio único. **NO concede ningún
+     * privilegio**: los roles efectivos se derivan de las MEMBRESÍAS
+     * (`Administrador` / `Barbero`) de la persona en el negocio del contexto.
+     * Un `SUPERADMIN` aquí NO significa superadmin de plataforma: el carácter
+     * SUPERADMIN vive en `Administrador.superadmin` (membresía por negocio).
+     * Se conserva por compatibilidad de datos y de contrato, y es
+     * INFORMATIVO.
+     */
     rol: $Enums.RolUsuario
     estado: $Enums.EstadoUsuario
   }, ExtArgs["result"]["usuario"]>

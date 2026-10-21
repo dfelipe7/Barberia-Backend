@@ -243,7 +243,6 @@ describe('AdministradoresRepository', () => {
       esperarConsultaAislada(mockPrismaService.administrador.findMany, {
         where: {
           usuario: {
-            rol: { not: 'SUPERADMIN' },
             estado: 'ACTIVO',
           },
           estado: 'ACTIVO',
@@ -260,9 +259,6 @@ describe('AdministradoresRepository', () => {
 
       esperarConsultaAislada(mockPrismaService.administrador.findMany, {
         where: {
-          usuario: {
-            rol: { not: 'SUPERADMIN' },
-          },
           OR: [{ estado: 'INACTIVO' }, { usuario: { estado: 'INACTIVO' } }],
         },
         include: expect.any(Object),
@@ -278,7 +274,6 @@ describe('AdministradoresRepository', () => {
       esperarConsultaAislada(mockPrismaService.administrador.findMany, {
         where: {
           usuario: {
-            rol: { not: 'SUPERADMIN' },
             OR: [
               { nombre: { contains: 'Juan' } },
               { apellido: { contains: 'Juan' } },

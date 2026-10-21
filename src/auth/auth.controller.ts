@@ -42,7 +42,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Iniciar sesión con Google OAuth 2.0',
     description:
-      'Valida el ID Token de Google, busca al usuario en la plataforma y devuelve el JWT de sesión. Los roles del token son los EFECTIVOS en la barbería de la petición (perfiles Administrador/Barbero activos).',
+      'Valida el ID Token de Google, busca al usuario en la plataforma y devuelve el JWT de sesión. Los roles del token son los EFECTIVOS en la barbería de la petición (membresías Administrador/Barbero activas). El carácter SUPERADMIN es de la membresía: no existe sesión de plataforma.',
   })
   @ApiOkResponse({
     description: 'Sesión iniciada exitosamente con Google.',
@@ -54,7 +54,7 @@ export class AuthController {
           email: 'armeroduvan8@gmail.com',
           nombre: 'Duvan Felipe',
           apellido: 'Armero',
-          rol: 'SUPERADMIN',
+          rol: 'PERSONAL',
           roles: ['SUPERADMIN'],
           estado: 'ACTIVO',
           fotoUrl: 'https://lh3.googleusercontent.com/...',
@@ -110,7 +110,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Cambia explícitamente el negocio de la sesión',
     description:
-      'Emite una sesión vinculada al negocio indicado por su slug. El destino se resuelve por el slug de la ruta contra los negocios activos, nunca por el contexto de la petición. Exige un perfil operativo activo en el negocio de destino; para un SUPERADMIN es un acceso privilegiado que queda registrado en la auditoría.',
+      'Emite una sesión vinculada al negocio indicado por su slug. El destino se resuelve por el slug de la ruta contra los negocios activos, nunca por el contexto de la petición. Exige una MEMBRESÍA activa (Administrador/Barbero) en el negocio de destino para TODAS las personas: el rol SUPERADMIN de una barbería no habilita el cambio a otra. El cambio queda registrado en la auditoría.',
   })
   @ApiParam({
     name: 'slug',

@@ -37,18 +37,6 @@ export class UsuariosService {
   ) {}
 
   /**
-   * Sincroniza y verifica al usuario SUPERADMIN inicial en la base de datos local.
-   */
-  async sincronizarSuperadmin() {
-    return [
-      {
-        mensaje:
-          'Superadministradores verificados correctamente en la base de datos MySQL local.',
-      },
-    ];
-  }
-
-  /**
    * Actor de la petición: la SESIÓN (identidad global + roles efectivos en el
    * negocio). Es lo que se usa para autorizar; el registro de `Usuario` solo
    * se usa para saber que la identidad existe.
@@ -197,7 +185,7 @@ export class UsuariosService {
     usuario: any,
     actor: ActorSesion,
   ): Promise<void> {
-    if (dto.esAdministrador === undefined || usuario.rol === 'SUPERADMIN') {
+    if (dto.esAdministrador === undefined) {
       return;
     }
 
@@ -209,9 +197,12 @@ export class UsuariosService {
       return;
     }
 
-    if (!actor.superadmin) {
+    // Otorgar o revocar el rol de ADMINISTRADOR es una decisión del
+    // SUPERADMIN **de este negocio**: el poder del superadmin se agota en su
+    // barbería y no existe ninguna identidad de plataforma.
+    if (!actor.roles.includes('SUPERADMIN')) {
       throw new ForbiddenException(
-        'Solo el Superadministrador puede otorgar o revocar el rol de Administrador',
+        'Solo el Superadministrador de esta barbería puede otorgar o revocar el rol de Administrador',
       );
     }
     if (actor.id === usuario.id && !dto.esAdministrador) {

@@ -1,0 +1,32 @@
+-- ===========================================================================
+-- FASE 10: SUPERADMIN POR NEGOCIO (membresía, no identidad de plataforma)
+-- ===========================================================================
+--
+-- Objetivo: que el carácter SUPERADMIN esté associated a UNA barbería
+-- concreta, igual que ADMINISTRADOR y BARBERO. En este SaaS NO existe un
+-- superadmin de plataforma ni una sesión de plataforma.
+--
+-- Qué hace (ADITIVA, en un solo paso):
+--   Añade a `Administrador` la columna `superadmin`:
+--     - `false` (por defecto) -> la persona es ADMINISTRADOR de ese negocio.
+--     - `true`                -> la persona es SUPERADMIN **de ese negocio**.
+--
+-- Garantías de la migración:
+--   1. NO promueve a nadie: las membresías existentes conservan su carácter
+--      de ADMINISTRADOR (`DEFAULT false`).
+--   2. NO modifica ni borra datos, índices, claves ni restricciones.
+--   3. NO toca `Usuario.rol`: esa columna deja de conceder privilegios, pero
+--      su limpieza (normalizar filas heredadas) es una operación de DATOS
+--      explícita y posterior, no parte de este cambio de esquema.
+--   4. Es compatible con las filas existentes: la columna es NOT NULL con
+--      valor por defecto, así que el motor la rellena sin fallar.
+--
+-- El alcance del SUPERADMIN lo da la FILA: la membresía
+-- `(negocioId, usuarioId)` es la que autoriza, y el contexto del negocio es
+-- el que acota la sesión. `Administrador` ya tiene el índice único
+-- `(negocioId, usuarioId)` y la clave foránea compuesta `(negocioId, id)`,
+-- de modo que la pertenencia al negocio ya está garantizada por el motor.
+-- ===========================================================================
+
+ALTER TABLE `Administrador`
+  ADD COLUMN `superadmin` BOOLEAN NOT NULL DEFAULT false;

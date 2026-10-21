@@ -234,7 +234,55 @@ que **no pasa por el middleware**: fija él mismo el contexto de cada negocio
 activo y envía los mensajes de uno en uno. Un fallo en una barbería no detiene
 a las demás.
 
-## 7. Lo que NO cambió
+## 7. Roles y sesiones POR NEGOCIO (Fase 10)
+
+En este SaaS **no existe un SUPERADMIN global de plataforma**. El rol
+`SUPERADMIN` pertenece a UNA barbería concreta y su alcance es esa barbería.
+
+### 7.1 De dónde salen los roles
+
+| Rol | Origen | Alcance |
+|---|---|---|
+| `ADMINISTRADOR` | membresía `Administrador` (`negocioId`, `estado = ACTIVO`) | el negocio de la membresía |
+| `SUPERADMIN` | membresía `Administrador` con `superadmin = true` | el negocio de la membresía |
+| `BARBERO` | membresía `Barbero` (`negocioId`, `estado = ACTIVO`) | el negocio de la membresía |
+
+El campo `usuario.rol` (valores heredados `SUPERADMIN` | `PERSONAL`) **no
+concede ningún privilegio**: es informativo. El frontend **debe** decidir con
+`usuario.roles` (los roles efectivos de la sesión) y **nunca** con
+`usuario.rol`.
+
+### 7.2 Sesiones
+
+- Toda sesión de personal está **ligada a un negocio** (`negocio.negocioId`).
+  **No existe sesión de plataforma**: un login sin contexto de barbería se
+  rechaza con `403`.
+- El claim `superadmin` del token se **deriva** de `roles`; no sustituye a
+  la comprobación de roles.
+- `POST /auth/tenant/:slug` exige una **membresía activa en el negocio de
+  destino**, también para el `SUPERADMIN` de otra barbería (`403` si no la
+  tiene). El cambio queda registrado en la auditoría.
+
+### 7.3 Endpoint retirado
+
+| Endpoint | Motivo | Alternativa |
+|---|---|---|
+| `POST /usuarios/sincronizar-superadmin` | Solo tenía sentido con un superadmin de plataforma; su respuesta era un mensaje estático y **no tenía consumidores** (frontend ni otros clientes) | La pertenencia a una barbería se configura con el comando explícito `npm run multitenant:fundadores` |
+
+### 7.4 Dependencia del frontend (breaking)
+
+El frontend debe dejar de leer `usuario.rol` para decidir permisos:
+
+- `AuthContext.tsx`: no añadir `SUPERADMIN` a los roles a partir de
+  `usuarioDb.rol`; usar solo `usuario.roles`.
+- `MiPerfilPage.tsx` y `EditarUsuarioPage.tsx`: el indicador de "superadmin"
+  debe salir de `usuario.roles`, no del `rol` global.
+
+Mientras el frontend use `usuario.rol`, una persona con el valor heredado
+`SUPERADMIN` en la base (sin membresía superadmin) **parecería** tener
+poderes que el backend no le concede.
+
+## 8. Lo que NO cambió
 
 - Las reglas de reservas (antelación de cancelación, tolerancia de `NO_SHOW`,
   estados, concurrencia y ocupación de franjas) siguen siendo las de la Fase 4
@@ -246,3 +294,6 @@ a las demás.
 - Los identificadores de negocio (`negocioId`, `Barbero.id`, `Usuario.id`,
   `Servicio.id`, `Cliente.id`) no cambian de valor: lo que cambia es qué
   identificador ACEPTA cada ruta (fila 0 y filas 1-6 de la tabla).
+- La autenticación de personal (token con `negocioId` y roles efectivos) y la
+  de clientes (token con `negocioId` y secreto propio) no cambian.
+- `POST /usuarios/sincronizar-superadmin` se retira (ver §7.3).

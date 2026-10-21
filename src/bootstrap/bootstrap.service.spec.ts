@@ -47,45 +47,28 @@ describe('BootstrapService', () => {
   });
 
   describe('onModuleInit', () => {
-    it('debe crear los superadministradores fundadores que no existan en la BD', async () => {
+    it('NO crea superadministradores (ni de plataforma ni de negocio)', async () => {
       mockUsuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue(null);
-      mockUsuariosRepository.crearUsuario.mockResolvedValue({});
 
       await service.onModuleInit();
 
-      expect(mockUsuariosRepository.crearUsuario).toHaveBeenCalledWith(
-        expect.objectContaining({
-          email: 'armeroduvan8@gmail.com',
-          rol: 'SUPERADMIN',
-        }),
-      );
-      expect(mockUsuariosRepository.crearUsuario).toHaveBeenCalledWith(
-        expect.objectContaining({
-          email: 'csbalcazar@unicauca.edu.co',
-          rol: 'SUPERADMIN',
-        }),
-      );
-      expect(mockUsuariosRepository.crearUsuario).toHaveBeenCalledWith(
-        expect.objectContaining({
-          email: 'javieraceron@unicauca.edu.co',
-          rol: 'SUPERADMIN',
-        }),
-      );
-      expect(mockUsuariosRepository.crearUsuario).toHaveBeenCalledWith(
-        expect.objectContaining({
-          email: 'rromero@unicauca.edu.co',
-          rol: 'SUPERADMIN',
-        }),
-      );
+      // El arranque NO crea personas ni promueve a nadie: las membresías se
+      // configuran con el comando explícito `multitenant:fundadores`.
+      expect(mockUsuariosRepository.crearUsuario).not.toHaveBeenCalled();
+      expect(mockUsuariosRepository.actualizarRol).not.toHaveBeenCalled();
+      expect(
+        mockUsuariosRepository.actualizarEstadoUsuario,
+      ).not.toHaveBeenCalled();
+      expect(mockUsuariosRepository.obtenerUsuarioPorEmail).not.toHaveBeenCalled();
     });
 
-    it('debe conservar los datos existentes sin sobrescribir cuando los usuarios ya existen', async () => {
+    it('no consulta ni modifica ninguna cuenta de usuario al arrancar', async () => {
       mockUsuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({
         id: 1,
         email: 'armeroduvan8@gmail.com',
         nombre: 'Felipe',
-        rol: 'PERSONAL',
-        estado: 'INACTIVO',
+        rol: 'SUPERADMIN',
+        estado: 'ACTIVO',
       });
 
       await service.onModuleInit();
@@ -98,7 +81,7 @@ describe('BootstrapService', () => {
     });
 
     it('debe manejar errores de base de datos sin lanzar excepción no controlada', async () => {
-      mockUsuariosRepository.obtenerUsuarioPorEmail.mockRejectedValue(
+      mockNegociosRepository.listar.mockRejectedValue(
         new Error('DB connection lost'),
       );
 
@@ -110,7 +93,7 @@ describe('BootstrapService', () => {
     it('inicializa la configuración operativa de cada negocio', async () => {
       mockNegociosRepository.listar.mockResolvedValue([
         { id: 1, slug: 'kyrios-studio', nombre: 'KYRIOS STUDIO' },
-        { id: 2, slug: 'negocio-b', nombre: 'Negocio B' },
+        { id: 2, slug: 'barberia-demo-2', nombre: 'Barbería Demo 2' },
       ]);
 
       await service.onModuleInit();

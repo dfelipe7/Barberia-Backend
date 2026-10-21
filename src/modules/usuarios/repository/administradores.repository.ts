@@ -2,6 +2,21 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 
+/**
+ * Condición de búsqueda de administradores.
+ *
+ * Se declara como `type` (y no como `interface`) para que sea asignable a
+ * `Record<string, unknown>`, que es lo que exige el filtro de aislamiento.
+ */
+type CondicionAdministradores = {
+  estado?: 'ACTIVO' | 'INACTIVO';
+  usuario?: {
+    estado?: 'ACTIVO' | 'INACTIVO';
+    OR?: Array<Record<string, unknown>>;
+  };
+  OR?: Array<Record<string, unknown>>;
+};
+
 @Injectable()
 export class AdministradoresRepository {
   constructor(
@@ -19,18 +34,20 @@ export class AdministradoresRepository {
     nombre?: string;
     estado?: 'ACTIVO' | 'INACTIVO';
   }) {
-    const whereCondition: any = {
-      usuario: {
-        rol: {
-          not: 'SUPERADMIN',
-        },
-      },
-    };
+    // El listado es el de LOS ADMINISTRADORES DE ESTE NEGOCIO: el filtro de
+    // negocio lo aporta `filtroLectura`. Ya no se excluye a nadie por su
+    // `Usuario.rol` global: el carácter SUPERADMIN es de la membresía
+    // (`Administrador.superadmin`) y un superadmin de esta barbería es, igual
+    // que el resto, un administrador de ella.
+    const whereCondition: CondicionAdministradores = {};
 
     if (filtro?.estado) {
       if (filtro.estado === 'ACTIVO') {
         whereCondition.estado = 'ACTIVO';
-        whereCondition.usuario.estado = 'ACTIVO';
+        whereCondition.usuario = {
+          ...whereCondition.usuario,
+          estado: 'ACTIVO',
+        };
       } else {
         whereCondition.OR = [
           { estado: 'INACTIVO' },
@@ -40,11 +57,14 @@ export class AdministradoresRepository {
     }
 
     if (filtro?.nombre) {
-      whereCondition.usuario.OR = [
-        { nombre: { contains: filtro.nombre } },
-        { apellido: { contains: filtro.nombre } },
-        { email: { contains: filtro.nombre } },
-      ];
+      whereCondition.usuario = {
+        ...whereCondition.usuario,
+        OR: [
+          { nombre: { contains: filtro.nombre } },
+          { apellido: { contains: filtro.nombre } },
+          { email: { contains: filtro.nombre } },
+        ],
+      };
     }
 
     return this.prisma.administrador.findMany({

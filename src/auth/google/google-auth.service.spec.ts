@@ -114,7 +114,7 @@ describe('GoogleAuthService', () => {
     );
   });
 
-  it('debe emitir una sesión GLOBAL de plataforma para un SUPERADMIN', async () => {
+  it('NO emite sesión de plataforma: un Usuario.rol SUPERADMIN sin membresía es rechazado', async () => {
     googleTokenVerifier.verificar.mockResolvedValue({
       email: 'admin@gmail.com',
       sub: '12345',
@@ -131,20 +131,53 @@ describe('GoogleAuthService', () => {
       googleId: null,
     } as any);
 
-    sesionService.emitirParaPlataforma.mockReturnValue({
-      accessToken: 'token-plataforma',
+    // Sin contexto de negocio, `Usuario.rol` no abre la puerta: se rechaza.
+    contextoService.obtenerContexto.mockReturnValue(undefined);
+
+    await expect(service.loginConGoogle('valid-token')).rejects.toThrow(
+      ForbiddenException,
+    );
+
+    expect(sesionService.emitirParaNegocio).not.toHaveBeenCalled();
+  });
+
+  it('un Usuario.rol SUPERADMIN con membresía entra con los roles de SU negocio', async () => {
+    googleTokenVerifier.verificar.mockResolvedValue({
+      email: 'admin@gmail.com',
+      sub: '12345',
+      picture: 'https://photo.url',
+    });
+
+    prisma.usuario.findUnique.mockResolvedValue({
+      id: 1,
+      email: 'admin@gmail.com',
+      estado: 'ACTIVO',
+      rol: 'SUPERADMIN',
+      nombre: 'Felipe',
+      apellido: 'Armero',
+      googleId: null,
+    } as any);
+
+    rolesService.perfilOperativo.mockResolvedValue({
+      roles: ['SUPERADMIN'],
+      fotoUrl: null,
+    });
+
+    sesionService.emitirParaNegocio.mockReturnValue({
+      accessToken: 'token-negocio',
       usuario: { id: 1, roles: ['SUPERADMIN'] },
-      negocio: null,
+      negocio: { id: 7, slug: 'kyrios-studio' },
     } as any);
 
     const result = await service.loginConGoogle('valid-token');
 
-    expect(sesionService.emitirParaPlataforma).toHaveBeenCalledWith(
+    expect(sesionService.emitirParaNegocio).toHaveBeenCalledWith(
       expect.objectContaining({ id: 1, rol: 'SUPERADMIN' }),
+      expect.objectContaining({ slug: 'kyrios-studio' }),
+      ['SUPERADMIN'],
       'https://photo.url',
     );
-    expect(sesionService.emitirParaNegocio).not.toHaveBeenCalled();
-    expect(result.negocio).toBeNull();
+    expect(result.negocio).toEqual({ id: 7, slug: 'kyrios-studio' });
     expect(prisma.usuario.update).toHaveBeenCalledWith({
       where: { id: 1 },
       data: { googleId: '12345' },

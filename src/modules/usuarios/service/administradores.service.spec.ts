@@ -115,14 +115,30 @@ describe('AdministradoresService', () => {
       ).rejects.toThrow('El usuario no existe');
     });
 
-    it('no debe permitir alterar a un SUPERADMIN', async () => {
+    it('no debe permitir alterar al SUPERADMIN de ESTA barbería', async () => {
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
         id: 1,
-        rol: 'SUPERADMIN',
+        rol: 'PERSONAL',
+        // Membresía SUPERADMIN en el negocio del contexto.
+        administradores: [
+          { negocioId: 1, estado: 'ACTIVO', superadmin: true },
+        ],
       } as any);
       await expect(
         service.cambiarEstadoAdministrador(1, 'INACTIVO'),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('un Usuario.rol SUPERADMIN sin membresía NO goza de protección ni de acceso', async () => {
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        rol: 'SUPERADMIN',
+        administradores: [],
+      } as any);
+      // No es administrador de esta barbería: no existe aquí.
+      await expect(
+        service.cambiarEstadoAdministrador(1, 'INACTIVO'),
+      ).rejects.toThrow('El usuario no es administrador de esta barbería');
     });
 
     it('debe rechazar activación si ya es administrador activo', async () => {
@@ -184,7 +200,7 @@ describe('AdministradoresService', () => {
 
       await expect(
         service.cambiarEstadoAdministrador(1, 'INACTIVO'),
-      ).rejects.toThrow('Este usuario no tiene privilegios de Administrador');
+      ).rejects.toThrow('El usuario no es administrador de esta barbería');
     });
 
     it('debe restaurar rol a BARBERO si el usuario degradado también es barbero', async () => {

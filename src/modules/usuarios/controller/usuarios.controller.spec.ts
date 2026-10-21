@@ -7,7 +7,6 @@ import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 
 const mockUsuariosService = {
-  sincronizarSuperadmin: jest.fn(),
   obtenerMiPerfil: jest.fn(),
   obtenerUsuarioPorId: jest.fn(),
   actualizarUsuario: jest.fn(),
@@ -55,17 +54,6 @@ describe('UsuariosController', () => {
         dto,
       );
       expect(result).toEqual({ id: 1 });
-    });
-  });
-
-  describe('sincronizarSuperadmin', () => {
-    it('should call sincronizarSuperadmin', async () => {
-      mockUsuariosService.sincronizarSuperadmin.mockResolvedValue([
-        { mensaje: 'ok' },
-      ]);
-      const result = await controller.sincronizarSuperadmin();
-      expect(mockUsuariosService.sincronizarSuperadmin).toHaveBeenCalled();
-      expect(result).toHaveLength(1);
     });
   });
 

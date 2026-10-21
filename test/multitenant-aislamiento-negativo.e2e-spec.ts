@@ -242,17 +242,30 @@ describe('Aislamiento negativo entre negocios (MariaDB real)', () => {
       },
     });
 
-    // El SUPERADMIN tiene perfil de administrador en A (para poder operar
-    // dentro de la barbería) pero NO en B.
+    // El SUPERADMIN tiene perfil de administrador de SU barbería con
+    // `superadmin = true`: el carácter es de la MEMBRESÍA (Fase 10), no del
+    // `Usuario.rol` global.
     await prisma.administrador.upsert({
-      where: { negocioId_usuarioId: { negocioId: kyrios.id, usuarioId: adminA.id } },
-      update: {},
-      create: { usuarioId: adminA.id, negocioId: kyrios.id },
+      where: {
+        negocioId_usuarioId: { negocioId: kyrios.id, usuarioId: superadmin.id },
+      },
+      update: { superadmin: true },
+      create: {
+        usuarioId: superadmin.id,
+        negocioId: kyrios.id,
+        superadmin: true,
+      },
     });
     await prisma.administrador.upsert({
-      where: { negocioId_usuarioId: { negocioId: kyrios.id, usuarioId: superadmin.id } },
+      where: {
+        negocioId_usuarioId: { negocioId: kyrios.id, usuarioId: adminA.id },
+      },
       update: {},
-      create: { usuarioId: superadmin.id, negocioId: kyrios.id },
+      create: {
+        usuarioId: adminA.id,
+        negocioId: kyrios.id,
+        superadmin: false,
+      },
     });
 
     const servicioA = await prisma.servicio.upsert({
@@ -440,33 +453,18 @@ describe('Aislamiento negativo entre negocios (MariaDB real)', () => {
   /**
    * Token OPERATIVO (de negocio) para el correo indicado.
    *
-   * El personal con perfil en la barbería obtiene una sesión de negocio en el
-   * login. El SUPERADMIN obtiene SIEMPRE una sesión global de plataforma, así
-   * que necesita la transición explícita (`POST /auth/tenant/:slug`).
+   * Toda sesión está ligada a una barbería (no hay sesión de plataforma): el
+   * login exige el contexto de negocio y una membresía activa en él.
    */
   const tokenOperativo = async (correo: string, slug: string) => {
     const sesion = await login(correo, slug);
 
-    if (sesion.negocio) {
-      return sesion.accessToken;
-    }
-
-    const cambio = await request(app.getHttpServer())
-      .post(`/auth/tenant/${slug}`)
-      .set('Authorization', `Bearer ${sesion.accessToken}`);
-
-    if (cambio.status !== 201) {
+    if (!sesion.negocio) {
       throw new Error(
-        `No se pudo obtener la sesión operativa de '${slug}' (HTTP ${cambio.status})`,
+        `No se pudo obtener la sesión operativa de '${slug}'`,
       );
     }
 
-    return cambio.body.accessToken as string;
-  };
-
-  /** Token global de plataforma (SUPERADMIN sin contexto de negocio). */
-  const tokenGlobal = async (correo: string) => {
-    const sesion = await login(correo);
     return sesion.accessToken;
   };
 
@@ -705,20 +703,18 @@ describe('Aislamiento negativo entre negocios (MariaDB real)', () => {
     expect(respuesta.body.message).toContain('otro negocio');
   });
 
-  it('3.2 un token de plataforma no autoriza rutas operativas', async () => {
+  it('3.2 NO existe sesión de plataforma: el login exige contexto de negocio', async () => {
     if (OMITIR_SIN_DOCKER) return;
 
     await sembrar();
 
-    const token = await tokenGlobal('super@pruebas.local');
-
+    // Sin contexto de barbería, el login se rechaza: no hay identidad global
+    // de plataforma en este SaaS.
     const respuesta = await request(app.getHttpServer())
-      .get('/reservas/admin')
-      .set('Authorization', `Bearer ${token}`)
-      .set('X-Negocio-Slug', 'kyrios-studio');
+      .post('/auth/google')
+      .send({ idToken: 'super@pruebas.local' });
 
-    // 401: la sesión global no está vinculada a un negocio.
-    expect(respuesta.status).toBe(401);
+    expect(respuesta.status).toBe(403);
   });
 
   it('3.3 el cambio explícito de negocio valida la pertenencia', async () => {
@@ -735,12 +731,20 @@ describe('Aislamiento negativo entre negocios (MariaDB real)', () => {
 
     expect(adminAB.status).toBe(403);
 
-    // El SUPERADMIN es una identidad GLOBAL de plataforma: su transición es un
-    // acceso PRIVILEGIADO (auditado), no una pertenencia de barbería. Lo que
-    // NO puede es saltarse la transición: su sesión global no abre rutas
-    // operativas (caso 3.2).
-    const tokenSuper = await tokenGlobal('super@pruebas.local');
+    // El SUPERADMIN es un rol de NEGOCIO: su transición exige la MEMBRESÍA en
+    // el destino, igual que para el resto. No hay accesos privilegiados.
+    const tokenSuper = await tokenOperativo(
+      'super@pruebas.local',
+      'kyrios-studio',
+    );
 
+    const superAB = await request(app.getHttpServer())
+      .post('/auth/tenant/negocio-b')
+      .set('Authorization', `Bearer ${tokenSuper}`);
+
+    expect(superAB.status).toBe(403);
+
+    // A su propia barbería sí puede cambiar (tiene la membresía).
     const superAA = await request(app.getHttpServer())
       .post('/auth/tenant/kyrios-studio')
       .set('Authorization', `Bearer ${tokenSuper}`);
@@ -1002,41 +1006,36 @@ describe('Aislamiento negativo entre negocios (MariaDB real)', () => {
     expect(await prisma.reservation.count()).toBe(antes);
   });
 
-  it('6.4 los endpoints globales legítimos funcionan sin contexto operativo', async () => {
+  it('6.4 el login sin contexto de negocio se rechaza (no hay ámbito global)', async () => {
     if (OMITIR_SIN_DOCKER) return;
 
     await sembrar();
 
-    // El login de plataforma (SUPERADMIN) es global: no exige contexto.
+    // Toda sesión operativa está ligada a una barbería: sin contexto, el
+    // login se rechaza con 403.
     const respuesta = await request(app.getHttpServer())
       .post('/auth/google')
       .send({ idToken: 'super@pruebas.local' });
 
-    expect(respuesta.status).toBe(201);
-    expect(respuesta.body.negocio).toBeNull();
+    expect(respuesta.status).toBe(403);
   });
 
   // ---------------------------------------------------------------------
-  // CASO 7: acceso global de SUPERADMIN
+  // CASO 7: el SUPERADMIN es un rol de negocio
   // ---------------------------------------------------------------------
 
-  it('7.1 el SUPERADMIN conserva el acceso global explícito y opera acotado a un negocio', async () => {
+  it('7.1 el SUPERADMIN opera SOLO en su barbería (el alcance es la membresía)', async () => {
     if (OMITIR_SIN_DOCKER) return;
 
     const { reservaA, reservaB } = await sembrar();
 
-    // 1) Sesión global de plataforma.
-    const plataforma = await tokenGlobal('super@pruebas.local');
+    // 1) Sesión operativa de SU barbería (tiene la membresía superadmin).
+    const token = await tokenOperativo(
+      'super@pruebas.local',
+      'kyrios-studio',
+    );
 
-    // 2) Transición explícita al negocio de destino.
-    const cambio = await request(app.getHttpServer())
-      .post('/auth/tenant/kyrios-studio')
-      .set('Authorization', `Bearer ${plataforma}`);
-
-    expect(cambio.status).toBe(201);
-    const token = cambio.body.accessToken as string;
-
-    // 3) Con la sesión de negocio, el SUPERADMIN opera SOLO en A.
+    // 2) Con la sesión de negocio, el SUPERADMIN opera SOLO en A.
     const listado = await request(app.getHttpServer())
       .get('/reservas/admin')
       .query({ fecha: FECHA })

@@ -238,7 +238,7 @@ describe('BarberosService', () => {
       );
     });
 
-    it('debe lanzar ConflictException si usuario no es admin ni superadmin', async () => {
+    it('debe lanzar ConflictException si el usuario no es administrador de ESTA barbería', async () => {
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
         id: 1,
         barberos: [],
@@ -247,7 +247,21 @@ describe('BarberosService', () => {
       });
       await expect(
         service.configurarBarberoPorId(1, {} as any),
-      ).rejects.toThrow('El usuario no es un administrador ni superadmin');
+      ).rejects.toThrow('El usuario no es administrador de esta barbería');
+    });
+
+    it('un Usuario.rol SUPERADMIN sin membresía en este negocio NO puede convertirse en barbero', async () => {
+      // El carácter global `Usuario.rol` no concede ningún privilegio: la
+      // condición es la MEMBRESÍA en el negocio del contexto.
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barberos: [],
+        administradores: [],
+        rol: 'SUPERADMIN',
+      });
+      await expect(
+        service.configurarBarberoPorId(1, {} as any),
+      ).rejects.toThrow('El usuario no es administrador de esta barbería');
     });
   });
 
@@ -377,7 +391,33 @@ describe('BarberosService', () => {
       expect(result[0].estadoAdmin).toBeUndefined();
     });
 
-    it('debe mapear barbero que es SUPERADMIN', async () => {
+    it('debe mapear barbero que es SUPERADMIN de SU barbería (membresía)', async () => {
+      barberosRepository.obtenerBarberosGestion.mockResolvedValue([
+        {
+          id: 1,
+          telefono: '300',
+          porcentajeComision: 50,
+          estado: 'ACTIVO',
+          fotoUrl: null,
+          usuario: {
+            id: 10,
+            nombre: 'Super',
+            apellido: 'Admin',
+            email: 's@s.com',
+            rol: 'PERSONAL',
+            estado: 'ACTIVO',
+            // La MEMBRESÍA en este negocio es la que da el carácter SUPERADMIN.
+            administradores: [
+              { negocioId: 1, estado: 'ACTIVO', superadmin: true },
+            ],
+          },
+        },
+      ]);
+      const result = await service.obtenerBarberosGestion();
+      expect(result[0].esSuperAdmin).toBe(true);
+    });
+
+    it('NO marca esSuperAdmin por el rol global de la persona', async () => {
       barberosRepository.obtenerBarberosGestion.mockResolvedValue([
         {
           id: 1,
@@ -397,7 +437,7 @@ describe('BarberosService', () => {
         },
       ]);
       const result = await service.obtenerBarberosGestion();
-      expect(result[0].esSuperAdmin).toBe(true);
+      expect(result[0].esSuperAdmin).toBe(false);
     });
 
     it('debe mapear barbero con administrador INACTIVO', async () => {
@@ -754,8 +794,11 @@ describe('BarberosService', () => {
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
         id: 1,
         barberos: [{ estado: 'ACTIVO', negocioId: 1 }],
-        administradores: [],
-        rol: 'SUPERADMIN',
+        // Membresía SUPERADMIN de ESTE negocio: no se bloquea la cuenta global.
+        administradores: [
+          { negocioId: 1, estado: 'ACTIVO', superadmin: true },
+        ],
+        rol: 'PERSONAL',
       });
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 2 });
       barberosRepository.actualizarEstadoBarbero.mockResolvedValue({});

@@ -48,14 +48,27 @@ describe('RolesGuard', () => {
     expect(guard.canActivate(context)).toBe(true);
   });
 
-  it('debe permitir acceso a un SUPERADMIN de plataforma', () => {
+  it('debe permitir acceso a un SUPERADMIN de SU negocio (rol efectivo)', () => {
+    reflector.getAllAndOverride.mockReturnValue(['SUPERADMIN']);
+    const context = createMockContext({
+      roles: ['SUPERADMIN'],
+      superadmin: true,
+    });
+
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it('NO debe conceder SUPERADMIN por el booleano global del token', () => {
+    // Un token antiguo (o manipulado) con `superadmin: true` pero sin el rol
+    // efectivo NO habilita las rutas de SUPERADMIN: el rol se deriva de la
+    // membresía, no de un claim.
     reflector.getAllAndOverride.mockReturnValue(['SUPERADMIN']);
     const context = createMockContext({
       roles: ['ADMINISTRADOR'],
       superadmin: true,
     });
 
-    expect(guard.canActivate(context)).toBe(true);
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
   });
 
   it('NO debe autorizar por el rol global heredado (user.rol)', () => {

@@ -65,20 +65,6 @@ export class UsuariosController {
     );
   }
 
-  @Post('sincronizar-superadmin')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPERADMIN')
-  @ApiOperation({
-    summary: 'Sincroniza el usuario superadmin en la base de datos',
-  })
-  @ApiOkResponse({ description: 'Sincronización exitosa.' })
-  @ApiForbiddenResponse({
-    description: 'No tienes permisos de superadministrador.',
-  })
-  async sincronizarSuperadmin() {
-    return this.usuariosService.sincronizarSuperadmin();
-  }
-
   /**
    * POST /usuarios/:usuarioId/barbero
    *

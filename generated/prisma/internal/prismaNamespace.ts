@@ -1423,7 +1423,8 @@ export const AdministradorScalarFieldEnum = {
   id: 'id',
   usuarioId: 'usuarioId',
   negocioId: 'negocioId',
-  estado: 'estado'
+  estado: 'estado',
+  superadmin: 'superadmin'
 } as const
 
 export type AdministradorScalarFieldEnum = (typeof AdministradorScalarFieldEnum)[keyof typeof AdministradorScalarFieldEnum]
@@ -1771,6 +1772,13 @@ export type EnumEstadoUsuarioFieldRefInput<$PrismaModel> = FieldRefInputType<$Pr
 
 
 /**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+/**
  * Reference to a field of type 'Decimal'
  */
 export type DecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal'>
@@ -1788,13 +1796,6 @@ export type EnumEstadoServicioFieldRefInput<$PrismaModel> = FieldRefInputType<$P
  * Reference to a field of type 'WeekDay'
  */
 export type EnumWeekDayFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'WeekDay'>
-    
-
-
-/**
- * Reference to a field of type 'Boolean'
- */
-export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 

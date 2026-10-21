@@ -9,13 +9,23 @@ import { ConfiguracionService } from '../modules/configuracion/service/configura
  * Este servicio utiliza el ciclo de vida `OnModuleInit` de NestJS.
  * Se ejecuta automáticamente UNA SOLA VEZ cada vez que el servidor backend se enciende.
  *
- * Su propósito principal es garantizar que siempre existan los superadministradores fundadores
- * en la base de datos MySQL local para que el sistema esté listo para operar con Google OAuth.
+ * QUÉ HACE (y qué NO hace)
+ * -----------------------
+ * - ASEGURA la configuración operativa de cada negocio (Fase 5): operación
+ *   idempotente que solo crea las claves que faltan y nunca sobrescribe un
+ *   valor personalizado.
  *
- * Además, asegura que cada negocio tenga SU configuración operativa (Fase 5):
- * sin ella, un negocio nuevo heredaría el valor global de plataforma. La
- * operación es IDEMPOTENTE: solo crea las claves que faltan y nunca
- * sobrescribe un valor que un administrador haya personalizado.
+ * - NO crea usuarios. NO promueve a nadie. NO concede el rol SUPERADMIN.
+ *   Los miembros del equipo de cada barbería se configuran con el comando
+ *   EXPLÍCITO `npm run multitenant:fundadores` (ver
+ *   `prisma/multitenant/asignar-fundadores.ts`), que exige identificar a cada
+ *   persona de forma inequívoca y verificar los negocios de destino.
+ *
+ *  Motivo: en este SaaS el SUPERADMIN es un rol de NEGOCIO (la membresía
+ *   `Administrador.superadmin`). Crear personas o|nombrar superadministradores
+ *   en el arranque sería una promoción implícita de privilegios, y con los
+ *   correos canónicos del código se podrían duplicar identidades (por ejemplo,
+ *   una cuenta con el correo corregido y otra con el histórico).
  */
 @Injectable()
 export class BootstrapService implements OnModuleInit {
@@ -28,71 +38,11 @@ export class BootstrapService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.asegurarSuperadminsFundadores();
     await this.asegurarConfiguracionesOperativas();
   }
 
   /**
-   * Asegura que los 4 superadministradores fundadores existan en MySQL
-   * al momento de arrancar la aplicación.
-   */
-  async asegurarSuperadminsFundadores() {
-    const superadmins = [
-      {
-        email: 'armeroduvan8@gmail.com',
-        nombre: 'Felipe',
-        apellido: 'Armero',
-      },
-      {
-        email: 'csbalcazar@unicauca.edu.co',
-        nombre: 'Santiago',
-        apellido: 'Balcazar',
-      },
-      {
-        email: 'javieraceron@unicauca.edu.co',
-        nombre: 'Javier Alexis',
-        apellido: 'Anacona',
-      },
-      {
-        email: 'rromero@unicauca.edu.co',
-        nombre: 'Rubeiro',
-        apellido: 'Romero',
-      },
-    ];
-
-    await Promise.all(
-      superadmins.map(async (admin) => {
-        try {
-          const usuarioExistente =
-            await this.usuariosRepository.obtenerUsuarioPorEmail(admin.email);
-          if (usuarioExistente) {
-            // Conservar los cambios realizados desde la app (rol, estado, nombre)
-            this.logger.log(
-              `Usuario fundador verificado: ${usuarioExistente.nombre} (${admin.email}) - Rol actual: ${usuarioExistente.rol}, Estado: ${usuarioExistente.estado}`,
-            );
-          } else {
-            // Si no existe, se crea por primera vez como SUPERADMIN y ACTIVO
-            await this.usuariosRepository.crearUsuario({
-              email: admin.email,
-              nombre: admin.nombre,
-              apellido: admin.apellido,
-              rol: 'SUPERADMIN',
-            });
-            this.logger.log(
-              `Superadmin fundador creado: ${admin.nombre} (${admin.email})`,
-            );
-          }
-        } catch (err: any) {
-          this.logger.error(
-            `Error asegurando superadmin ${admin.email}: ${err?.message || err}`,
-          );
-        }
-      }),
-    );
-  }
-
-  /**
-   * Asegura que cada negocio tenga sus configuraciones operativas.
+   * Asegura que cada negocio tenga SUS configuraciones operativas.
    *
    * Es idempotente: si la clave ya existe, se conserva su valor (puede estar
    * personalizado). Un fallo aquí NO detiene el arranque: la lectura de un

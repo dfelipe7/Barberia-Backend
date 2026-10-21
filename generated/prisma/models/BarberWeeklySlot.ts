@@ -564,10 +564,6 @@ export type EnumWeekDayFieldUpdateOperationsInput = {
   set?: $Enums.WeekDay
 }
 
-export type BoolFieldUpdateOperationsInput = {
-  set?: boolean
-}
-
 export type BarberWeeklySlotCreateWithoutNegocioInput = {
   dayOfWeek: $Enums.WeekDay
   startTime: string

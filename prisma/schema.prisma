@@ -91,6 +91,13 @@ model Usuario {
   email      String        @unique
   nombre     String
   apellido   String
+  /// Valor GLOBAL heredado del modelo de negocio único. **NO concede ningún
+  /// privilegio**: los roles efectivos se derivan de las MEMBRESÍAS
+  /// (`Administrador` / `Barbero`) de la persona en el negocio del contexto.
+  /// Un `SUPERADMIN` aquí NO significa superadmin de plataforma: el carácter
+  /// SUPERADMIN vive en `Administrador.superadmin` (membresía por negocio).
+  /// Se conserva por compatibilidad de datos y de contrato, y es
+  /// INFORMATIVO.
   rol        RolUsuario
   estado     EstadoUsuario @default(ACTIVO)
 
@@ -103,6 +110,13 @@ model Usuario {
 ///
 /// `usuarioId` es ÚNICO POR NEGOCIO: la misma persona puede ser administradora
 /// de varias barberías (y de ninguna).
+///
+/// `superadmin` es el CARÁCTER de la membresía, no un atributo de la
+/// persona: `true` significa SUPERADMIN **de este negocio** y `false`
+/// ADMINISTRADOR de este negocio. El alcance es siempre el negocio de la fila:
+/// en este SaaS NO existe un superadmin de plataforma ni una sesión de
+/// plataforma. La columna es aditiva y no promueve a nadie: las membresías
+/// existentes siguen siendo ADMINISTRADOR.
 model Administrador {
   id        Int           @id @default(autoincrement())
   usuarioId Int
@@ -110,6 +124,10 @@ model Administrador {
   /// negocio no puede existir.
   negocioId Int
   estado    EstadoUsuario @default(ACTIVO)
+  /// SUPERADMIN de ESTE negocio (`true`) o ADMINISTRADOR (`false`).
+  /// La autorización depende exclusivamente de esta membresía activa y del
+  /// contexto del negocio: `Usuario.rol` no concede ningún privilegio.
+  superadmin Boolean @default(false)
 
   usuario Usuario @relation(fields: [usuarioId], references: [id])
   negocio Negocio @relation(fields: [negocioId], references: [id], onDelete: Restrict)
