@@ -12,14 +12,22 @@ enum EstadoUsuario {
   INACTIVO
 }
 
-/// Identidad global de la persona en la plataforma.
+/// Clasificación GLOBAL de la persona en la plataforma. NO es una fuente de
+/// privilegios.
 ///
-/// - `SUPERADMIN`: identidad de plataforma. Puede operar en cualquier negocio
-///   mediante la transición explícita `POST /auth/tenant/:slug` (auditada).
-/// - `PERSONAL`: persona de la plataforma sin identidad de plataforma. Sus
-///   roles EFECTIVOS (administrador/barbero) NO se derivan de esta columna,
-///   sino de sus perfiles operativos (`Administrador` / `Barbero`) en el
-///   negocio concreto.
+/// - `SUPERADMIN`: valor HEREDADO, conservado solo por compatibilidad de datos
+///   y de contrato. En este SaaS **NO existe un SUPERADMIN global de
+///   plataforma**: el carácter SUPERADMIN es una MEMBRESÍA de negocio y vive
+///   en `Administrador.superadmin`, en la fila `(negocioId, usuarioId)`, con
+///   alcance exclusivo a ESE negocio.
+/// - `PERSONAL`: persona de la plataforma sin carácter de plataforma. Sus
+///   roles EFECTIVOS (administrador/barbero/superadmin) NO se derivan de esta
+///   columna, sino de sus perfiles operativos (`Administrador` / `Barbero`) en
+///   el negocio concreto.
+///
+/// ESTA COLUMNA NO CONCEDE NINGÚN PRIVILEGIO POR SÍ SOLA: la autorización la
+/// resuelven la membresía activa del negocio del contexto y el guard de roles
+/// (`RolesGuard`), que solo lee los roles derivados de las membresías.
 ///
 /// Los antiguos valores `ADMINISTRADOR` y `BARBERO` se migraron a `PERSONAL`
 /// en la Fase 8: describían el modelo de negocio único, no el modelo

@@ -66,9 +66,7 @@ describe('Historial de migraciones con lower_case_table_names=0 (Linux)', () => 
     }
 
     // Salida del comando: evidencia del resultado real.
-    console.log(
-      `[historial lctn=0] código=${codigo}\n${salida.trim()}`,
-    );
+    console.log(`[historial lctn=0] código=${codigo}\n${salida.trim()}`);
 
     if (codigo !== 0) {
       // El historial NO es aplicable en un servidor sensible a mayúsculas.
@@ -81,5 +79,42 @@ describe('Historial de migraciones con lower_case_table_names=0 (Linux)', () => 
     }
 
     expect(codigo).toBe(0);
+  });
+
+  /**
+   * Fase 12: el historial debe REPRODUCIR el esquema declarado.
+   *
+   * `prisma/schema.prisma` declara `@@unique([negocioId, id])` en el modelo
+   * `Administrador`. La migración de la Fase 8 creó ese índice compuesto
+   * únicamente en `Barbero`, `Servicio` y `Cliente` (los destinos de las
+   * claves foráneas compuestas), por lo que el índice de `Administrador`
+   * faltaba en el esquema real. La migración correctiva
+   * `20261023120000_agregar_indice_unico_administrador_negocio` lo crea.
+   *
+   * Este test falla si esa paridad se rompe: es la comprobación que evita
+   * que un `prisma migrate dev` futuro detecte deriva y pida un reset.
+   */
+  it('reproduce el indice unico compuesto de Administrador declarado en el esquema', async () => {
+    if (OMITIR_SIN_DOCKER) return;
+
+    const filas = await conexion!.consultar<{
+      INDEX_NAME: string;
+      NON_UNIQUE: number | string | bigint;
+      SEQ_IN_INDEX: number;
+      COLUMN_NAME: string;
+    }>(
+      `SELECT INDEX_NAME, NON_UNIQUE, SEQ_IN_INDEX, COLUMN_NAME
+         FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'Administrador'
+          AND INDEX_NAME = 'Administrador_negocioId_id_key'
+        ORDER BY SEQ_IN_INDEX`,
+    );
+
+    expect(filas).toHaveLength(2);
+    // `NON_UNIQUE` es un BIGINT: el driver puede devolverlo como número,
+    // cadena o BigInt según el motor, así que se normaliza antes de comparar.
+    expect(filas.every((fila) => Number(fila.NON_UNIQUE) === 0)).toBe(true);
+    expect(filas.map((fila) => fila.COLUMN_NAME)).toEqual(['negocioId', 'id']);
   });
 });
