@@ -26,7 +26,11 @@
     "multitenant:fundadores": "npm run multitenant:build && node dist/multitenant/prisma/multitenant/asignar-fundadores.js",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",
-    "db:migrate:diff": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script"
+    "db:migrate:diff": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script",
+    "db:validate": "prisma validate",
+    "db:migrate:dev": "node --env-file=.env.multitenant-dev node_modules/prisma/build/index.js migrate deploy",
+    "db:migrate:status:dev": "node --env-file=.env.multitenant-dev node_modules/prisma/build/index.js migrate status",
+    "db:validate:dev": "node --env-file=.env.multitenant-dev node_modules/prisma/build/index.js validate"
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^3.0.2",

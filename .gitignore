@@ -39,6 +39,9 @@ lerna-debug.log*
 .env
 .env.backup
 .env.development.local
+# Variables locales del entorno multitenant aislado (Fase 11).
+# Contiene credenciales reales: NUNCA se versionan.
+.env.multitenant-dev
 .env.test.local
 .env.production.local
 .env.local
@@ -82,3 +85,4 @@ HE-04_integracion_disponibilidad.md
 Libro1.xlsx
 opencode.json
 MULTITENANT.md
+FASE11_ENTORNO_MULTITENANT_DEV.md

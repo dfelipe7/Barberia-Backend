@@ -3,5 +3,6 @@ dist
 generated
 .env
 .env.example
+.env.multitenant-dev
 .git
 .agents
