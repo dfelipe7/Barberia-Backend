@@ -80,8 +80,68 @@ model Negocio {
   cierresGenerales  GeneralClosure[]
   configuraciones   ConfiguracionNegocio[]
   plantillasWhatsApp WhatsAppPlantilla[]
+  /// Perfil público de marca y ubicación (relación 1:1).
+  perfil            PerfilNegocio?
 
   @@map("negocios")
+}
+
+/// Perfil PÚBLICO de un negocio: identidad visual y ubicación.
+///
+/// RELACIÓN 1:1 CON `Negocio`
+/// - `negocioId` es ÚNICO: como máximo un perfil por barbería.
+/// - NO duplica el nombre ni el slug del negocio: se leen de `Negocio`.
+///
+/// POR QUÉ UN MODELO PROPIO Y NO `ConfiguracionNegocio`
+/// `ConfiguracionNegocio` es un almacén CLAVE/VALOR de políticas OPERATIVAS
+/// (antelación de cancelación, tolerancia de NO_SHOW): el valor es un texto con
+/// un discriminador de tipo. La marca y la ubicación son CONTENIDO PÚBLICO
+/// ESTRUCTURADO, con tipado, longitudes y coordenadas propias: meterlò en un
+/// almacén clave/valor obligaría a serializar y a validar a mano, y haría que
+/// un campo tan público dependiera de una clave de configuración.
+///
+/// TODOS LOS CAMPOS SON NULABLES: una barbería puede existir sin perfil
+/// completo mientras termina de configurarlo. La ausencia de un perfil NO es
+/// un error.
+///
+/// LAS IMÁGENES SON REFERENCIAS, NO ARCHIVOS: `faviconUrl`, `bannerUrl`,
+/// `logoBlancoUrl` y `logoNegroUrl` guardan RUTAS o URLs. En la base de datos
+/// NO se almacenan bytes, base64 ni archivos completos. La carga física de
+/// archivos es una fase posterior.
+///
+/// LA URL DEL MAPA NO SE GUARDA: se deriva de `latitud`/`longitud`, que son la
+/// única fuente de verdad. Así no puede quedar desincronizada.
+model PerfilNegocio {
+  id        Int     @id @default(autoincrement())
+  /// Negocio al que pertenece el perfil. UNICO: un perfil por barbería.
+  negocioId Int     @unique
+
+  /// Frase principal de la marca (lema o descriptor corto).
+  frasePrincipal String? @db.VarChar(200)
+
+  // --- Identidad visual: REFERENCIAS a archivos (nunca binarios) ---
+  faviconUrl    String? @db.VarChar(500)
+  bannerUrl     String? @db.VarChar(500)
+  logoBlancoUrl String? @db.VarChar(500)
+  logoNegroUrl  String? @db.VarChar(500)
+
+  // --- Ubicación ---
+  direccion    String? @db.VarChar(200)
+  ciudad       String? @db.VarChar(120)
+  departamento String? @db.VarChar(120)
+  /// Referencia opcional para orientarse ("Local 2, junto a la panadería").
+  referencia String? @db.VarChar(200)
+  /// Coordenadas en grados decimales. `Decimal(10,7)` aporta ~1 cm de
+  /// precisión y cubre el rango de longitud (±180) sin desbordar.
+  latitud  Decimal? @db.Decimal(10, 7)
+  longitud Decimal? @db.Decimal(10, 7)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  negocio Negocio @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+
+  @@map("perfiles_negocio")
 }
 
 /// Identidad GLOBAL de la persona en la plataforma.

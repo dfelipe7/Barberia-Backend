@@ -36,6 +36,35 @@ export * from './enums.js';
  */
 export type Negocio = Prisma.NegocioModel
 /**
+ * Model PerfilNegocio
+ * Perfil PÚBLICO de un negocio: identidad visual y ubicación.
+ * 
+ * RELACIÓN 1:1 CON `Negocio`
+ * - `negocioId` es ÚNICO: como máximo un perfil por barbería.
+ * - NO duplica el nombre ni el slug del negocio: se leen de `Negocio`.
+ * 
+ * POR QUÉ UN MODELO PROPIO Y NO `ConfiguracionNegocio`
+ * `ConfiguracionNegocio` es un almacén CLAVE/VALOR de políticas OPERATIVAS
+ * (antelación de cancelación, tolerancia de NO_SHOW): el valor es un texto con
+ * un discriminador de tipo. La marca y la ubicación son CONTENIDO PÚBLICO
+ * ESTRUCTURADO, con tipado, longitudes y coordenadas propias: meterlò en un
+ * almacén clave/valor obligaría a serializar y a validar a mano, y haría que
+ * un campo tan público dependiera de una clave de configuración.
+ * 
+ * TODOS LOS CAMPOS SON NULABLES: una barbería puede existir sin perfil
+ * completo mientras termina de configurarlo. La ausencia de un perfil NO es
+ * un error.
+ * 
+ * LAS IMÁGENES SON REFERENCIAS, NO ARCHIVOS: `faviconUrl`, `bannerUrl`,
+ * `logoBlancoUrl` y `logoNegroUrl` guardan RUTAS o URLs. En la base de datos
+ * NO se almacenan bytes, base64 ni archivos completos. La carga física de
+ * archivos es una fase posterior.
+ * 
+ * LA URL DEL MAPA NO SE GUARDA: se deriva de `latitud`/`longitud`, que son la
+ * única fuente de verdad. Así no puede quedar desincronizada.
+ */
+export type PerfilNegocio = Prisma.PerfilNegocioModel
+/**
  * Model Usuario
  * Identidad GLOBAL de la persona en la plataforma.
  * 

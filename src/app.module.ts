@@ -14,6 +14,7 @@ import { ReservasModule } from './modules/reservas/reservas.module';
 import { ConfiguracionModule } from './modules/configuracion/configuracion.module';
 import { NegociosModule } from './modules/negocios/negocios.module';
 import { NegocioContextoMiddleware } from './modules/negocios/middleware/negocio-contexto.middleware';
+import { PerfilNegocioModule } from './modules/perfil-negocio/perfil-negocio.module';
 import { AppLoggerModule } from './logger/logger.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { AllExceptionsFilter } from './logger/all-exceptions.filter';
@@ -60,6 +61,7 @@ import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
     PrismaModule,
     ConfiguracionModule,
     NegociosModule,
+    PerfilNegocioModule,
     AppLoggerModule,
     AlertsModule,
   ],

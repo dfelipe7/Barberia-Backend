@@ -47,6 +47,10 @@ cuerpo, la query ni otra cabecera que sirva para autorizar.
 | 14 | `GET /usuarios/:usuarioId` | `:id` = `Usuario.id` | `:usuarioId` = `Usuario.id` (mismo valor) | `Authorization` | No | Ninguna |
 | 15 | `PATCH /usuarios/:usuarioId` y `PATCH /usuarios/:usuarioId/estado` | `:id` = `Usuario.id` | `:usuarioId` = `Usuario.id` (mismo valor) | `Authorization` | No | Ninguna |
 | 16 | `POST /usuarios/:usuarioId/barbero` | `:id` = `Usuario.id` | `:usuarioId` = `Usuario.id` (mismo valor) | `Authorization` | No | Ninguna |
+| 17 | `GET /perfil-negocio` | (no existía) | `negocio.nombre` y `negocio.slug` del negocio del contexto | `X-Negocio-Slug` (o subdominio) | No (endpoint nuevo) | Leer la marca y la ubicación de la barbería desde la API en lugar de `brand.ts` |
+| 18 | `GET /perfil-negocio/gestion` | (no existía) | `negocio.nombre` y `negocio.slug` del negocio del contexto | `Authorization` + `X-Negocio-Slug` | No (endpoint nuevo) | Ninguna |
+| 19 | `PUT /perfil-negocio` | (no existía) | — | `Authorization` + `X-Negocio-Slug` | No (endpoint nuevo) | Ninguna |
+| 20 | `PUT /perfil-negocio/referencias` | (no existía) | — | `Authorization` + `X-Negocio-Slug` | No (endpoint nuevo) | Ninguna |
 
 ### Regla general
 
@@ -282,7 +286,155 @@ Mientras el frontend use `usuario.rol`, una persona con el valor heredado
 `SUPERADMIN` en la base (sin membresía superadmin) **parecería** tener
 poderes que el backend no le concede.
 
-## 8. Lo que NO cambió
+## 8. Perfil de marca y ubicación POR NEGOCIO (Fase 14)
+
+La identidad visual y la ubicación de cada barbería viven en la base de
+datos, para que la personalización se pueda cambiar **sin tocar código ni volver
+a desplegar la aplicación**. Hasta ahora esos datos vivían hardcodeados en
+el frontend (`brand.ts`).
+
+### 8.1 Modelo de datos
+
+Tabla `perfiles_negocio`, en relación **1:1** con `negocios`
+(`negocioId` único: como máximo un perfil por barbería).
+
+| Campo | Tipo | Nulo | Notas |
+|---|---|---|---|
+| `negocioId` | `INT` | no | Único. No se duplica el nombre ni el slug del negocio: se leen de `negocios`. |
+| `frasePrincipal` | `VARCHAR(200)` | sí | Lema o descriptor corto de la marca. |
+| `faviconUrl` | `VARCHAR(500)` | sí | **Referencia** a archivo (ruta o URL). |
+| `bannerUrl` | `VARCHAR(500)` | sí | **Referencia** a archivo. |
+| `logoBlancoUrl` | `VARCHAR(500)` | sí | **Referencia** a archivo (logo para fondos oscuros). |
+| `logoNegroUrl` | `VARCHAR(500)` | sí | **Referencia** a archivo (logo para fondos claros). |
+| `direccion` | `VARCHAR(200)` | sí | |
+| `ciudad` | `VARCHAR(120)` | sí | |
+| `departamento` | `VARCHAR(120)` | sí | |
+| `referencia` | `VARCHAR(200)` | sí | Referencia opcional para orientarse. |
+| `latitud` | `DECIMAL(10,7)` | sí | Grados decimales. Precisión ~1 cm. |
+| `longitud` | `DECIMAL(10,7)` | sí | Grados decimales. |
+| `createdAt` | `DATETIME(3)` | no | Auditoría. |
+| `updatedAt` | `DATETIME(3)` | no | Auditoría. |
+
+Decisiones:
+
+- **Es un modelo propio, no `ConfiguracionNegocio`.** `ConfiguracionNegocio`
+  es un almacén clave/valor de políticas **operativas** (antelación, `NO_SHOW`)
+  con un valor textual y un discriminador de tipo. La marca y la ubicación son
+  contenido público **estructurado**, con tipado, longitudes y coordenadas
+  propias.
+- **Todos los campos son nulos**: una barbería puede existir sin perfil
+  completo. La tabla solo nace cuando alguien configura algo.
+- **Las imágenes son REFERENCIAS, no archivos**: en la base de datos no se
+  almacenan bytes, base64 ni archivos completos. La **carga física de
+  imágenes es una fase posterior**.
+- **La URL del mapa NO se guarda**: se deriva de `latitud`/`longitud`, que son
+  la única fuente de verdad, para que no pueda desincronizarse.
+
+### 8.2 Rutas
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| `GET` | `/perfil-negocio` | **Público** | Marca y ubicación del negocio del contexto. |
+| `GET` | `/perfil-negocio/gestion` | `SUPERADMIN`, `ADMINISTRADOR` | Vista de gestión: bloques + auditoría. |
+| `PUT` | `/perfil-negocio` | `SUPERADMIN`, `ADMINISTRADOR` | Reemplaza frase principal y ubicación. |
+| `PUT` | `/perfil-negocio/referencias` | `SUPERADMIN`, `ADMINISTRADOR` | Reemplaza las referencias de archivo. |
+
+### 8.3 Resolución del negocio
+
+- Las cuatro rutas obtienen el negocio del **contexto de la petición**
+  (subdominio o `X-Negocio-Slug`), igual que el resto de rutas de negocio
+  (§1). **Ninguna acepta un `negocioId`**: mandarlo en el cuerpo se rechaza
+  con `400` (`forbidNonWhitelisted`).
+- Una petición **sin contexto** de negocio se rechaza con `403`: sin saber a
+  qué barbería pertenece el perfil, devolver el de otra sería una fuga.
+- El `SUPERADMIN` de A **no** puede ver ni cambiar el perfil de B: su sesión
+  está ligada a A y el guard rechaza la operación si el contexto es otra
+  barbería (`403`).
+- `BARBERO` y los clientes **no** pueden modificar el perfil (`403`): solo
+  `SUPERADMIN` y `ADMINISTRADOR` del negocio.
+
+### 8.4 Validaciones de ubicación
+
+| Campo | Regla |
+|---|---|
+| `latitud` | Número en `[-90, 90]`. |
+| `longitud` | Número en `[-180, 180]`. |
+| `latitud` y `longitud` | **Siempre juntas**: una sin la otra se rechaza (`400`). |
+| `direccion` | Texto, hasta 200 caracteres. |
+| `ciudad` | Texto, hasta 120 caracteres. |
+| `departamento` | Texto, hasta 120 caracteres. |
+| `referencia` | Opcional, hasta 200 caracteres. |
+| Referencias de archivo | Ruta relativa (`/...`) o URL `http`/`https`. Se rechazan los esquemas ejecutables (`javascript:`, `data:`). |
+
+La URL del mapa **no se recibe del cliente**: se calcula en el servidor a
+partir de las coordenadas.
+
+```
+GET /perfil-negocio   ->   "mapsUrl": "https://www.google.com/maps/search/?api=1&query=2.4839891,-76.5807622"
+```
+
+Es un enlace de búsqueda **sin API key** y sin facturación. Si el frontend
+usa Leaflet con OpenStreetMap, basta con consumir `latitud` y `longitud` (y
+construir el tile URL a partir de ellas); **no** es obligatorio usar la Google
+Maps Embed API. Si algún día se quisiera incrustar un iframe de Google Maps,
+haría falta configurar una API key de la Embed API (con su coste y sus
+límites): en esta fase **no** se inventa ninguna clave ni se implementa esa
+integración.
+
+### 8.5 Respuestas
+
+**Perfil no configurado** (la barbería todavía no ha configurado nada):
+`200` con los campos a `null` y `configurado: false`. **No** es un `404`: la
+ausencia de perfil es un estado legítimo de una barbería recién dada de alta.
+
+```json
+{
+  "negocio": { "nombre": "KYRIOS STUDIO", "slug": "kyrios-studio" },
+  "configurado": false,
+  "frasePrincipal": null,
+  "faviconUrl": null, "bannerUrl": null,
+  "logoBlancoUrl": null, "logoNegroUrl": null,
+  "direccion": null, "ciudad": null,
+  "departamento": null, "referencia": null,
+  "latitud": null, "longitud": null,
+  "mapsUrl": null
+}
+```
+
+**Vista pública** (`GET /perfil-negocio`): campos planos, sin datos de gestión
+ni de auditoría.
+
+**Vista de gestión** (`GET /perfil-negocio/gestion`): agrupa el contenido por
+los bloques que gestiona la API e incluye la auditoría.
+
+```json
+{
+  "negocio": { "nombre": "KYRIOS STUDIO", "slug": "kyrios-studio" },
+  "configurado": true,
+  "contenido": { "frasePrincipal": "Barbería de alto estándar" },
+  "ubicacion": {
+    "direccion": "Vía al Bosque, Tv 9A Norte",
+    "ciudad": "Popayán", "departamento": "Cauca",
+    "referencia": null,
+    "latitud": 2.4839891, "longitud": -76.5807622,
+    "mapsUrl": "https://www.google.com/maps/search/?api=1&query=2.4839891,-76.5807622"
+  },
+  "referenciasArchivo": {
+    "faviconUrl": "/uploads/negocios/kyrios-studio/favicon.png",
+    "bannerUrl": null, "logoBlancoUrl": null, "logoNegroUrl": null
+  },
+  "creadoEn": "2026-10-24T12:00:00.000Z",
+  "actualizadoEn": "2026-10-24T12:00:00.000Z"
+}
+```
+
+### 8.6 Semántica de `PUT`
+
+Los dos `PUT` **reemplazan** el bloque que gobiernan: un campo omitido se
+guarda como `null` (se limpia). Es deliberado: el comportamiento no depende de
+un estado previo y no hay sorpresas al actualizar solo la frase principal.
+
+## 9. Lo que NO cambió
 
 - Las reglas de reservas (antelación de cancelación, tolerancia de `NO_SHOW`,
   estados, concurrencia y ocupación de franjas) siguen siendo las de la Fase 4
@@ -297,3 +449,6 @@ poderes que el backend no le concede.
 - La autenticación de personal (token con `negocioId` y roles efectivos) y la
   de clientes (token con `negocioId` y secreto propio) no cambian.
 - `POST /usuarios/sincronizar-superadmin` se retira (ver §7.3).
+- La marca y la ubicación **sí** cambian: pasan de estar hardcodeadas en el
+  frontend a la base de datos, por negocio (ver §8). El frontend puede seguir
+  usando sus valores por defecto hasta que adopte los nuevos endpoints.

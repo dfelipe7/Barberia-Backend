@@ -52,6 +52,7 @@ export const AnyNull = runtime.AnyNull
 
 export const ModelName = {
   Negocio: 'Negocio',
+  PerfilNegocio: 'PerfilNegocio',
   Usuario: 'Usuario',
   Administrador: 'Administrador',
   Barbero: 'Barbero',
@@ -94,6 +95,27 @@ export const NegocioScalarFieldEnum = {
 } as const
 
 export type NegocioScalarFieldEnum = (typeof NegocioScalarFieldEnum)[keyof typeof NegocioScalarFieldEnum]
+
+
+export const PerfilNegocioScalarFieldEnum = {
+  id: 'id',
+  negocioId: 'negocioId',
+  frasePrincipal: 'frasePrincipal',
+  faviconUrl: 'faviconUrl',
+  bannerUrl: 'bannerUrl',
+  logoBlancoUrl: 'logoBlancoUrl',
+  logoNegroUrl: 'logoNegroUrl',
+  direccion: 'direccion',
+  ciudad: 'ciudad',
+  departamento: 'departamento',
+  referencia: 'referencia',
+  latitud: 'latitud',
+  longitud: 'longitud',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PerfilNegocioScalarFieldEnum = (typeof PerfilNegocioScalarFieldEnum)[keyof typeof PerfilNegocioScalarFieldEnum]
 
 
 export const UsuarioScalarFieldEnum = {
@@ -311,6 +333,21 @@ export const NullsOrder = {
 } as const
 
 export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
+
+
+export const PerfilNegocioOrderByRelevanceFieldEnum = {
+  frasePrincipal: 'frasePrincipal',
+  faviconUrl: 'faviconUrl',
+  bannerUrl: 'bannerUrl',
+  logoBlancoUrl: 'logoBlancoUrl',
+  logoNegroUrl: 'logoNegroUrl',
+  direccion: 'direccion',
+  ciudad: 'ciudad',
+  departamento: 'departamento',
+  referencia: 'referencia'
+} as const
+
+export type PerfilNegocioOrderByRelevanceFieldEnum = (typeof PerfilNegocioOrderByRelevanceFieldEnum)[keyof typeof PerfilNegocioOrderByRelevanceFieldEnum]
 
 
 export const UsuarioOrderByRelevanceFieldEnum = {

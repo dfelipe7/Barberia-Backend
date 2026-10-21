@@ -436,10 +436,6 @@ export type UsuarioNullableScalarRelationFilter = {
   isNot?: Prisma.UsuarioWhereInput | null
 }
 
-export type NullableStringFieldUpdateOperationsInput = {
-  set?: string | null
-}
-
 export type EnumRolUsuarioFieldUpdateOperationsInput = {
   set?: $Enums.RolUsuario
 }

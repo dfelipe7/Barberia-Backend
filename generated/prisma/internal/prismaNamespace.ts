@@ -398,6 +398,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   Negocio: 'Negocio',
+  PerfilNegocio: 'PerfilNegocio',
   Usuario: 'Usuario',
   Administrador: 'Administrador',
   Barbero: 'Barbero',
@@ -426,7 +427,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "negocio" | "usuario" | "administrador" | "barbero" | "cliente" | "servicio" | "barberoServicio" | "barberWeeklySlot" | "barberScheduleBlock" | "generalClosure" | "reservation" | "whatsAppPlantilla" | "configuracionSistema" | "configuracionNegocio"
+    modelProps: "negocio" | "perfilNegocio" | "usuario" | "administrador" | "barbero" | "cliente" | "servicio" | "barberoServicio" | "barberWeeklySlot" | "barberScheduleBlock" | "generalClosure" | "reservation" | "whatsAppPlantilla" | "configuracionSistema" | "configuracionNegocio"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -493,6 +494,72 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.NegocioCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.NegocioCountAggregateOutputType> | number
+        }
+      }
+    }
+    PerfilNegocio: {
+      payload: Prisma.$PerfilNegocioPayload<ExtArgs>
+      fields: Prisma.PerfilNegocioFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PerfilNegocioFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PerfilNegocioPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PerfilNegocioFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PerfilNegocioPayload>
+        }
+        findFirst: {
+          args: Prisma.PerfilNegocioFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PerfilNegocioPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PerfilNegocioFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PerfilNegocioPayload>
+        }
+        findMany: {
+          args: Prisma.PerfilNegocioFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PerfilNegocioPayload>[]
+        }
+        create: {
+          args: Prisma.PerfilNegocioCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PerfilNegocioPayload>
+        }
+        createMany: {
+          args: Prisma.PerfilNegocioCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        delete: {
+          args: Prisma.PerfilNegocioDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PerfilNegocioPayload>
+        }
+        update: {
+          args: Prisma.PerfilNegocioUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PerfilNegocioPayload>
+        }
+        deleteMany: {
+          args: Prisma.PerfilNegocioDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PerfilNegocioUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        upsert: {
+          args: Prisma.PerfilNegocioUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PerfilNegocioPayload>
+        }
+        aggregate: {
+          args: Prisma.PerfilNegocioAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePerfilNegocio>
+        }
+        groupBy: {
+          args: Prisma.PerfilNegocioGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PerfilNegocioGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PerfilNegocioCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PerfilNegocioCountAggregateOutputType> | number
         }
       }
     }
@@ -1406,6 +1473,27 @@ export const NegocioScalarFieldEnum = {
 export type NegocioScalarFieldEnum = (typeof NegocioScalarFieldEnum)[keyof typeof NegocioScalarFieldEnum]
 
 
+export const PerfilNegocioScalarFieldEnum = {
+  id: 'id',
+  negocioId: 'negocioId',
+  frasePrincipal: 'frasePrincipal',
+  faviconUrl: 'faviconUrl',
+  bannerUrl: 'bannerUrl',
+  logoBlancoUrl: 'logoBlancoUrl',
+  logoNegroUrl: 'logoNegroUrl',
+  direccion: 'direccion',
+  ciudad: 'ciudad',
+  departamento: 'departamento',
+  referencia: 'referencia',
+  latitud: 'latitud',
+  longitud: 'longitud',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PerfilNegocioScalarFieldEnum = (typeof PerfilNegocioScalarFieldEnum)[keyof typeof PerfilNegocioScalarFieldEnum]
+
+
 export const UsuarioScalarFieldEnum = {
   id: 'id',
   googleId: 'googleId',
@@ -1623,6 +1711,21 @@ export const NullsOrder = {
 export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 
 
+export const PerfilNegocioOrderByRelevanceFieldEnum = {
+  frasePrincipal: 'frasePrincipal',
+  faviconUrl: 'faviconUrl',
+  bannerUrl: 'bannerUrl',
+  logoBlancoUrl: 'logoBlancoUrl',
+  logoNegroUrl: 'logoNegroUrl',
+  direccion: 'direccion',
+  ciudad: 'ciudad',
+  departamento: 'departamento',
+  referencia: 'referencia'
+} as const
+
+export type PerfilNegocioOrderByRelevanceFieldEnum = (typeof PerfilNegocioOrderByRelevanceFieldEnum)[keyof typeof PerfilNegocioOrderByRelevanceFieldEnum]
+
+
 export const UsuarioOrderByRelevanceFieldEnum = {
   googleId: 'googleId',
   email: 'email',
@@ -1758,6 +1861,13 @@ export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel
 
 
 /**
+ * Reference to a field of type 'Decimal'
+ */
+export type DecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal'>
+    
+
+
+/**
  * Reference to a field of type 'RolUsuario'
  */
 export type EnumRolUsuarioFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'RolUsuario'>
@@ -1775,13 +1885,6 @@ export type EnumEstadoUsuarioFieldRefInput<$PrismaModel> = FieldRefInputType<$Pr
  * Reference to a field of type 'Boolean'
  */
 export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
-    
-
-
-/**
- * Reference to a field of type 'Decimal'
- */
-export type DecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal'>
     
 
 
@@ -1985,6 +2088,7 @@ export interface PrismaClientOptionsWithAdapter extends PrismaClientBaseOptions 
 export type PrismaClientOptions = PrismaClientOptionsWithAccelerateUrl | PrismaClientOptionsWithAdapter
 export type GlobalOmitConfig = {
   negocio?: Prisma.NegocioOmit
+  perfilNegocio?: Prisma.PerfilNegocioOmit
   usuario?: Prisma.UsuarioOmit
   administrador?: Prisma.AdministradorOmit
   barbero?: Prisma.BarberoOmit
