@@ -434,6 +434,122 @@ Los dos `PUT` **reemplazan** el bloque que gobiernan: un campo omitido se
 guarda como `null` (se limpia). Es deliberado: el comportamiento no depende de
 un estado previo y no hay sorpresas al actualizar solo la frase principal.
 
+### 8.7 Almacenamiento de los recursos de marca (Fase 15)
+
+Los cuatro recursos de marca (`favicon`, `banner`, `logoBlancoUrl`,
+`logoNegroUrl`) se gestionan como **archivos** en el espacio de cada negocio.
+
+| Recurso | Ruta de carga | Formato | Tamaño máximo | Campo del perfil |
+|---|---|---|---|---|
+| Favicon | `POST /perfil-negocio/favicon` | SVG | 256 KB | `faviconUrl` |
+| Banner | `POST /perfil-negocio/banner` | PNG | 2 MB | `bannerUrl` |
+| Logo para fondos oscuros | `POST /perfil-negocio/logo-blanco` | SVG | 256 KB | `logoBlancoUrl` |
+| Logo para fondos claros | `POST /perfil-negocio/logo-negro` | SVG | 256 KB | `logoNegroUrl` |
+
+Y para retirarlos:
+
+```
+DELETE /perfil-negocio/favicon
+DELETE /perfil-negocio/banner
+DELETE /perfil-negocio/logo-blanco
+DELETE /perfil-negocio/logo-negro
+```
+
+Todos exigen `SUPERADMIN` o `ADMINISTRADOR` **del negocio del contexto**, con
+`Authorization` y `X-Negocio-Slug` (o subdominio). `BARBERO` y los clientes
+reciben `403`.
+
+Contrato de la carga:
+
+- `multipart/form-data` con el campo **`archivo`**.
+- El tipo se deduce del **CONTENIDO REAL** del archivo (firma binaria), no
+  del nombre ni del `Content-Type` declarado por el cliente. Un PNG en el
+  favicon o un SVG en el banner se rechazan con `400`.
+- Un SVG con `script`, manejadores de evento (`on*`), marcos
+  (`foreignObject`, `iframe`, `object`), `javascript:` o `DOCTYPE`/`ENTITY`
+  se **RECHAZA** con `400`: no se almacena "limpiado" en silencio.
+- El **nombre del archivo lo genera el servidor**
+  (`<recurso>-<marca>-<aleatorio>.<ext>`) en
+  `<UPLOADS_DIR>/negocios/{negocioId}/perfil/`. El cliente no elige ni la
+  ruta ni el nombre.
+- El `negocioId` sale del **contexto autorizado**; nunca de una ruta
+  arbitraria.
+- Lo que se guarda en la base de datos es una ruta **pública** relativa
+  (`/uploads/negocios/{id}/perfil/...`). Nunca se publica una ruta absoluta
+  del sistema de ficheros.
+- **Orden de las operaciones**: se valida, se guarda el archivo nuevo, se
+  actualiza el perfil y **después** se borra el anterior. Si la actualización
+  del perfil falla, el archivo nuevo se retira y la referencia anterior sigue
+  siendo válida: nunca queda una referencia rota.
+
+`PUT /perfil-negocio/referencias` **sigue disponible** (compatibilidad) pero
+su alcance se ha acotado: admite URLs externas `http`/`https` y rutas
+propias del negocio (`/uploads/negocios/{miNegocioId}/perfil/...`). Cualquier
+otra ruta interna se rechaza con `400`: el cliente no puede apropiarse de un
+recurso de otra barbería.
+
+### 8.8 Configuración del almacenamiento
+
+| Variable | Por defecto | Descripción |
+|---|---|---|
+| `UPLOADS_DIR` | `<cwd>/uploads` | Directorio raíz de los archivos subidos. |
+
+Los archivos se sirven en `/uploads` con el tipo MIME de su extensión
+(`image/svg+xml`, `image/png`) y con cabeceras de seguridad:
+`X-Content-Type-Options: nosniff` y
+`Content-Security-Policy: default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox`.
+
+**PERSISTENCIA EN DOCKER (local)**
+
+El directorio cuelga de un volumen: el sistema de ficheros del contenedor es
+efímero y los recursos se perderían en cada reinicio.
+
+```yaml
+# docker-compose.multitenant-dev.yml
+services:
+  backend:
+    environment:
+      UPLOADS_DIR: /app/uploads
+    volumes:
+      - barberia_multitenant_dev_uploads:/app/uploads
+volumes:
+  barberia_multitenant_dev_uploads:
+    name: barberia_multitenant_dev_uploads
+```
+
+**REQUISITOS DE DESPLIEGUE EN RAILWAY**
+
+> **No verificado en Railway.** Lo siguiente es el requisito de configuración,
+> no una validación hecha en ese entorno.
+
+- El sistema de ficheros del contenedor de Railway es **efímero**: lo que se
+  escriba dentro se pierde en cada redeploy.
+- Hay que montar un **volumen persistente** en `UPLOADS_DIR` (Railway ofrece
+  volúmenes en los servicios con plan de pago) o migrar a un **adaptador de
+  almacenamiento de objetos** (S3, R2, etc.). Con la implementación actual,
+  que escribe en el sistema de ficheros, la opción de Railway es el volumen.
+- `UPLOADS_DIR` debe apuntar a ese volumen (por ejemplo `/data/uploads`).
+- Si se usara un volumen, `UPLOADS_DIR` debe ser el MISMO punto de montaje en
+  todas las réplicas: los recursos de un negocio tienen que ser visibles
+  desde cualquiera de ellas.
+
+### 8.9 Nombre y dirección comercial en los mensajes de WhatsApp
+
+| Dato | Fuente canónica | Compatibilidad |
+|---|---|---|
+| Nombre comercial | `Negocio.nombre` del negocio del contexto | — |
+| Dirección comercial | `PerfilNegocio.direccion` del negocio del contexto | Mientras existan valores históricos en la clave `negocio_direccion`, se usan como RESPALDO (solo si el perfil no tiene dirección), con aviso en el log. |
+
+- **No existe un nombre comercial por defecto**: sin contexto de negocio, el
+  nombre queda vacío. No se inventa la identidad de una barbería.
+- Si el negocio no tiene dirección en ninguna de las dos fuentes, la
+  dirección queda **vacía** y el mensaje sale sin la línea de ubicación: no
+  se recurre a los datos de otra barbería.
+- **Cómo retirar el respaldo**: cuando se hayan revisado los valores
+  existentes, copiar la dirección al perfil de cada negocio y eliminar la
+  clave `negocio_direccion` de `CLAVES_CONFIGURACION_OPERATIVA` (y su
+  bloque de `configuraciones_negocio`).
+
 ## 9. Lo que NO cambió
 
 - Las reglas de reservas (antelación de cancelación, tolerancia de `NO_SHOW`,

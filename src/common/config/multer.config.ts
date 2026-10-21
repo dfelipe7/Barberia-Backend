@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { diskStorage } from 'multer';
+import { diskStorage, memoryStorage } from 'multer';
 import { extname, join } from 'node:path';
 import * as fs from 'node:fs';
 import * as crypto from 'node:crypto';
@@ -62,3 +62,21 @@ export const crearMulterOptions = (
     },
   };
 };
+
+/**
+ * Opciones de Multer para cargas que se VALIDAN ANTES de tocar el disco.
+ *
+ * El archivo se recibe EN MEMORIA y no se escribe en ningún sitio hasta que
+ * la aplicación ha comprobado su contenido real (firma), su formato y su
+ * tamaño, y ha generado un nombre propio. Un archivo no válido nunca llega
+ * al sistema de ficheros.
+ *
+ * @param limiteBytes Tamaño máximo admitido.
+ */
+export const crearMulterMemoryOptions = (limiteBytes: number) => ({
+  storage: memoryStorage(),
+  limits: {
+    fileSize: limiteBytes,
+    files: 1,
+  },
+});

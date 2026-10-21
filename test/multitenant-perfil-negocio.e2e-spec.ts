@@ -376,24 +376,28 @@ describe('Perfil de marca y ubicación por negocio (MySQL 8.0 real)', () => {
   it('4. el ADMINISTRADOR de A puede configurar el perfil de A', async () => {
     if (OMITIR_SIN_DOCKER) return;
 
-    await sembrar();
+    const { negocioA } = await sembrar();
 
     const { token } = await login('admin-a@test.local', SLUG_A);
+
+    // Las referencias internas deben apuntar al espacio de recursos del
+    // PROPIO negocio (Fase 15).
+    const propio = `/uploads/negocios/${negocioA.id}/perfil`;
 
     const respuesta = await request(app.getHttpServer())
       .put('/perfil-negocio/referencias')
       .set('Authorization', `Bearer ${token}`)
       .set('X-Negocio-Slug', SLUG_A)
       .send({
-        faviconUrl: '/uploads/negocios/a/favicon.png',
-        bannerUrl: '/uploads/negocios/a/banner.png',
-        logoBlancoUrl: '/uploads/negocios/a/logo-blanco.png',
-        logoNegroUrl: '/uploads/negocios/a/logo-negro.png',
+        faviconUrl: `${propio}/favicon.png`,
+        bannerUrl: `${propio}/banner.png`,
+        logoBlancoUrl: `${propio}/logo-blanco.png`,
+        logoNegroUrl: `${propio}/logo-negro.png`,
       });
 
     expect(respuesta.status).toBe(200);
     expect(cuerpo<PerfilGestion>(respuesta).referenciasArchivo.faviconUrl).toBe(
-      '/uploads/negocios/a/favicon.png',
+      `${propio}/favicon.png`,
     );
   });
 
@@ -559,15 +563,17 @@ describe('Perfil de marca y ubicación por negocio (MySQL 8.0 real)', () => {
   it('12. las referencias visuales de A no aparecen en B', async () => {
     if (OMITIR_SIN_DOCKER) return;
 
-    await sembrar();
+    const { negocioA } = await sembrar();
 
     const { token } = await login('super-a@test.local', SLUG_A);
+
+    const banner = `/uploads/negocios/${negocioA.id}/perfil/banner.png`;
 
     await request(app.getHttpServer())
       .put('/perfil-negocio/referencias')
       .set('Authorization', `Bearer ${token}`)
       .set('X-Negocio-Slug', SLUG_A)
-      .send({ bannerUrl: '/uploads/negocios/a/banner.png' });
+      .send({ bannerUrl: banner });
 
     const enB = await request(app.getHttpServer())
       .get('/perfil-negocio')
@@ -580,9 +586,7 @@ describe('Perfil de marca y ubicación por negocio (MySQL 8.0 real)', () => {
       .get('/perfil-negocio')
       .set('X-Negocio-Slug', SLUG_A);
 
-    expect(cuerpo<PerfilPublico>(enA).bannerUrl).toBe(
-      '/uploads/negocios/a/banner.png',
-    );
+    expect(cuerpo<PerfilPublico>(enA).bannerUrl).toBe(banner);
   });
 
   it('13. el cuerpo no puede forzar un negocioId', async () => {

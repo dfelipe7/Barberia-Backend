@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '../../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { CampoReferenciaPerfil } from '../perfil-negocio.constants';
 
 /**
  * Fila de `perfiles_negocio`, desacoplada de los tipos de Prisma.
@@ -114,6 +116,27 @@ export class PerfilNegocioRepository {
   }
 
   /**
+   * Actualiza UNA referencia de archivo del perfil del negocio.
+   *
+   * Se usa al subir o eliminar un recurso de marca: solo se toca el campo
+   * indicado y el resto del perfil se conserva.
+   */
+  async guardarReferencia(
+    negocioId: number,
+    campo: CampoReferenciaPerfil,
+    valor: string | null,
+  ): Promise<PerfilNegocioRegistro> {
+    const perfil = await this.prisma.perfilNegocio.upsert({
+      where: { negocioId },
+      update: { [campo]: valor },
+      create: { negocioId, [campo]: valor },
+      select: SELECCION_PERFIL,
+    });
+
+    return this.mapear(perfil);
+  }
+
+  /**
    * Crea o actualiza el perfil del negocio indicado.
    *
    * Es idempotente: la clave única es `negocioId`, de modo que nunca hay dos
@@ -132,6 +155,13 @@ export class PerfilNegocioRepository {
       select: SELECCION_PERFIL,
     });
 
+    return this.mapear(perfil);
+  }
+
+  /** Convierte la fila de Prisma en el registro desacoplado. */
+  private mapear(
+    perfil: Prisma.PerfilNegocioGetPayload<{ select: typeof SELECCION_PERFIL }>,
+  ): PerfilNegocioRegistro {
     return {
       id: perfil.id,
       negocioId: perfil.negocioId,

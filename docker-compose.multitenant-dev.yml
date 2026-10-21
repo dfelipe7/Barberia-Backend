@@ -107,11 +107,61 @@ services:
     networks:
       - barberia_multitenant_dev_net
 
+  # ---------------------------------------------------------------------------
+  # BACKEND (perfil `backend`).
+  #
+  # Levanta la API contra la base multitenant AISLADA. No se ejecuta al hacer
+  # `docker compose up`: vive tras el perfil `backend`.
+  #
+  #   docker compose -f docker-compose.multitenant-dev.yml --profile backend up -d backend
+  #
+  # PERSISTENCIA DE LOS ARCHIVOS (Fase 15):
+  #   `UPLOADS_DIR` apunta a `/app/uploads`, que es un VOLUMEN PERSISTENTE. El
+  #   sistema de ficheros del contenedor es efímero: sin este volumen, los
+  #   recursos de marca (favicon, banner, logos) se perderían en cada
+  #   reinicio o redeploy.
+  #
+  #   El volumen de MySQL NO se toca: es otro (`barberia_multitenant_dev_data`).
+  # ---------------------------------------------------------------------------
+  backend:
+    profiles:
+      - backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: barberia-backend:multitenant-dev
+    restart: unless-stopped
+    env_file:
+      - .env.multitenant-dev
+    environment:
+      UPLOADS_DIR: /app/uploads
+    command:
+      - sh
+      - -c
+      # `$$` escapa la interpolacion de Compose: las variables se expanden
+      # DENTRO del contenedor con los valores de `.env.multitenant-dev`.
+      - >-
+        export DATABASE_URL="mysql://root:$${MYSQL_ROOT_PASSWORD}@mysql-multitenant-dev:3306/$${MYSQL_DATABASE}";
+        npm run start:prod
+    ports:
+      - "3001:3000"
+    volumes:
+      # Los archivos subidos sobreviven a los reinicios del contenedor.
+      - barberia_multitenant_dev_uploads:/app/uploads
+    depends_on:
+      mysql-multitenant-dev:
+        condition: service_healthy
+    networks:
+      - barberia_multitenant_dev_net
+
 volumes:
   # `name:` fija el nombre EXACTO del volumen: no se prefija con el nombre del
   # proyecto y, sobre todo, no puede colisionar con `proyectoii_barberia_db_data`.
   barberia_multitenant_dev_data:
     name: barberia_multitenant_dev_data
+  # Archivos subidos (recursos de marca) del entorno multitenant aislado.
+  barberia_multitenant_dev_uploads:
+    name: barberia_multitenant_dev_uploads
 
 networks:
   barberia_multitenant_dev_net:

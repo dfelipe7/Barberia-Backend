@@ -3,7 +3,6 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import * as express from 'express';
-import { join } from 'node:path';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 import helmet from 'helmet';
@@ -13,6 +12,10 @@ import {
   construirOrigenesPermitidos,
 } from './common/config/cors.config';
 import { swaggerHabilitado } from './common/config/swagger.config';
+import {
+  cabecerasSeguridadUploads,
+  directorioUploads,
+} from './common/config/uploads.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -21,7 +24,22 @@ async function bootstrap() {
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
   // Servir archivos estáticos subidos (/uploads)
-  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+  //
+  // El directorio lo fija `UPLOADS_DIR` (por defecto `<cwd>/uploads`). En
+  // Docker debe ser un VOLUMEN PERSISTENTE: el sistema de ficheros del
+  // contenedor es efímero.
+  app.use(
+    '/uploads',
+    express.static(directorioUploads(), {
+      setHeaders: (res) => {
+        for (const [cabecera, valor] of Object.entries(
+          cabecerasSeguridadUploads(),
+        )) {
+          res.setHeader(cabecera, valor);
+        }
+      },
+    }),
+  );
 
   // OWASP A05: Cabeceras de Seguridad
   // Helmet configura automáticamente cabeceras HTTP que previenen XSS, Clickjacking, y ocultan información del servidor.

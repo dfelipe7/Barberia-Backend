@@ -2,10 +2,11 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../../auth/auth.module';
 import { PerfilNegocioController } from './controller/perfil-negocio.controller';
 import { PerfilNegocioService } from './service/perfil-negocio.service';
+import { AlmacenamientoPerfilService } from './service/almacenamiento-perfil.service';
 import { PerfilNegocioRepository } from './repository/perfil-negocio.repository';
 
 /**
- * Módulo del perfil de marca y ubicación de un negocio (Fase 14).
+ * Módulo del perfil de marca y ubicación de un negocio (Fases 14 y 15).
  *
  * El contexto de negocio (`NegocioContextoService`,
  * `NegocioAislamientoService`, `NegociosRepository`) viene de
@@ -17,7 +18,11 @@ import { PerfilNegocioRepository } from './repository/perfil-negocio.repository'
 @Module({
   imports: [AuthModule],
   controllers: [PerfilNegocioController],
-  providers: [PerfilNegocioService, PerfilNegocioRepository],
-  exports: [PerfilNegocioService],
+  providers: [
+    PerfilNegocioService,
+    PerfilNegocioRepository,
+    AlmacenamientoPerfilService,
+  ],
+  exports: [PerfilNegocioService, AlmacenamientoPerfilService],
 })
 export class PerfilNegocioModule {}

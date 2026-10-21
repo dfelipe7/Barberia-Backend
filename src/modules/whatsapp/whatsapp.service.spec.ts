@@ -9,6 +9,7 @@ import { WhatsAppPlantillasRepository } from './whatsapp-plantillas.repository';
 import { ConfiguracionService } from '../configuracion/service/configuracion.service';
 import { NegocioContextoService } from '../negocios/negocio-contexto.service';
 import { NegociosRepository } from '../negocios/repository/negocios.repository';
+import { PerfilNegocioService } from '../perfil-negocio/service/perfil-negocio.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
 describe('WhatsAppService', () => {
@@ -29,6 +30,12 @@ describe('WhatsAppService', () => {
   const contextoServiceMock = {
     obtenerContexto: jest.fn(),
   };
+  const perfilNegocioServiceMock = {
+    obtenerDireccionComercial: jest.fn(),
+  };
+  const negociosRepositoryMock = {
+    buscarPorId: jest.fn(),
+  };
 
   const NEGOCIO_A = { id: 7, slug: 'negocio-a' };
 
@@ -44,6 +51,8 @@ describe('WhatsAppService', () => {
     configuracionServiceMock.guardarTexto.mockResolvedValue(undefined);
     configuracionServiceMock.guardarNumero.mockResolvedValue(undefined);
     contextoServiceMock.obtenerContexto.mockReturnValue(undefined);
+    perfilNegocioServiceMock.obtenerDireccionComercial.mockResolvedValue('');
+    negociosRepositoryMock.buscarPorId.mockResolvedValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -63,7 +72,11 @@ describe('WhatsAppService', () => {
         },
         {
           provide: NegociosRepository,
-          useValue: { buscarPorId: jest.fn().mockResolvedValue(null) },
+          useValue: negociosRepositoryMock,
+        },
+        {
+          provide: PerfilNegocioService,
+          useValue: perfilNegocioServiceMock,
         },
       ],
     }).compile();
@@ -173,11 +186,12 @@ describe('WhatsAppService', () => {
       });
 
       expect(resultado).toBe(true);
-      // El nombre del negocio se resuelve con el del CONTEXTO; sin contexto
-      // se usa el valor por defecto (nunca el de otro negocio).
+      // El nombre del negocio se resuelve con el del CONTEXTO. SIN contexto
+      // NO se inventa una identidad comercial: el nombre queda vacío (nunca
+      // el de otro negocio, nunca un nombre por defecto).
       expect(spy).toHaveBeenCalledWith(
         '3001234567',
-        expect.stringContaining('Barbería'),
+        expect.not.stringContaining('Barbería'),
       );
       // Sin dirección configurada, el mensaje NO incluye la línea de ubicación
       // (no se usa una dirección ajena).
@@ -192,6 +206,100 @@ describe('WhatsAppService', () => {
       expect(spy).toHaveBeenCalledWith(
         '3001234567',
         expect.stringContaining('Corte Clásico'),
+      );
+    });
+
+    it('usa el NOMBRE y la DIRECCIÓN del negocio del CONTEXTO', async () => {
+      const spy = jest.spyOn(service, 'enviarMensaje').mockResolvedValue(true);
+
+      contextoServiceMock.obtenerContexto.mockReturnValue(NEGOCIO_A);
+      negociosRepositoryMock.buscarPorId.mockResolvedValue({
+        id: NEGOCIO_A.id,
+        slug: NEGOCIO_A.slug,
+        nombre: 'KYRIOS STUDIO',
+      });
+      perfilNegocioServiceMock.obtenerDireccionComercial.mockResolvedValue(
+        'Vía al Bosque, Tv 9A Norte, Popayán',
+      );
+      configuracionServiceMock.obtenerTexto.mockResolvedValue('');
+
+      await service.enviarConfirmacionReserva({
+        telefono: '3001234567',
+        clienteNombre: 'Carlos',
+        servicioNombre: 'Corte Clásico',
+        barberoNombre: 'Duvan',
+        fecha: '2026-11-01',
+        hora: '14:00',
+        precio: 25000,
+      });
+
+      // El nombre comercial viene del negocio del contexto.
+      expect(spy).toHaveBeenCalledWith(
+        '3001234567',
+        expect.stringContaining('KYRIOS STUDIO'),
+      );
+      // Y la dirección, del PERFIL de ese mismo negocio.
+      expect(spy).toHaveBeenCalledWith(
+        '3001234567',
+        expect.stringContaining('Vía al Bosque'),
+      );
+    });
+
+    it('usa la dirección HISTÓRICA solo como respaldo', async () => {
+      const spy = jest.spyOn(service, 'enviarMensaje').mockResolvedValue(true);
+
+      contextoServiceMock.obtenerContexto.mockReturnValue(NEGOCIO_A);
+      negociosRepositoryMock.buscarPorId.mockResolvedValue({
+        id: NEGOCIO_A.id,
+        slug: NEGOCIO_A.slug,
+        nombre: 'KYRIOS STUDIO',
+      });
+      // El perfil no tiene dirección: se consulta la clave histórica.
+      perfilNegocioServiceMock.obtenerDireccionComercial.mockResolvedValue('');
+      configuracionServiceMock.obtenerTexto.mockResolvedValue(
+        'Dirección Antigua, Popayán',
+      );
+
+      await service.enviarConfirmacionReserva({
+        telefono: '3001234567',
+        clienteNombre: 'Carlos',
+        servicioNombre: 'Corte Clásico',
+        barberoNombre: 'Duvan',
+        fecha: '2026-11-01',
+        hora: '14:00',
+      });
+
+      expect(spy).toHaveBeenCalledWith(
+        '3001234567',
+        expect.stringContaining('Dirección Antigua'),
+      );
+      // El respaldo histórico solo se consulta cuando el perfil no tiene
+      // dirección, y únicamente en el negocio del contexto.
+      expect(configuracionServiceMock.obtenerTexto).toHaveBeenCalledWith(
+        'negocio_direccion',
+        '',
+      );
+    });
+
+    it('no inventa una dirección si el negocio no tiene ninguna', async () => {
+      const spy = jest.spyOn(service, 'enviarMensaje').mockResolvedValue(true);
+
+      contextoServiceMock.obtenerContexto.mockReturnValue(NEGOCIO_A);
+      perfilNegocioServiceMock.obtenerDireccionComercial.mockResolvedValue('');
+      configuracionServiceMock.obtenerTexto.mockResolvedValue('');
+
+      await service.enviarConfirmacionReserva({
+        telefono: '3001234567',
+        clienteNombre: 'Carlos',
+        servicioNombre: 'Corte Clásico',
+        barberoNombre: 'Duvan',
+        fecha: '2026-11-01',
+        hora: '14:00',
+      });
+
+      expect(spy).toHaveBeenCalledWith(
+        '3001234567',
+        expect.not.stringContaining('Ubicación'),
       );
     });
 

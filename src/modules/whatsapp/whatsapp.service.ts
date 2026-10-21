@@ -29,6 +29,7 @@ import { ConfiguracionService } from '../configuracion/service/configuracion.ser
 import { CLAVES_CONFIGURACION } from '../configuracion/configuracion.constants';
 import { NegocioContextoService } from '../negocios/negocio-contexto.service';
 import { NegociosRepository } from '../negocios/repository/negocios.repository';
+import { PerfilNegocioService } from '../perfil-negocio/service/perfil-negocio.service';
 
 // Filtro para silenciar logs internos ruidosos de libsignal (mensajes históricos entrantes o estados no relevantes para notificaciones salientes)
 const esLogRuidosoLibsignal = (...args: any[]): boolean => {
@@ -85,9 +86,6 @@ export const PLANTILLA_RECORDATORIO_DEFAULT =
 
 export const MINUTOS_ANTICIPACION_DEFAULT = 120;
 
-/** Nombre mostrado cuando no hay contexto de negocio (uso de plataforma). */
-export const NOMBRE_NEGOCIO_POR_DEFECTO = 'Barbería';
-
 export interface DatosConfirmacionWhatsApp {
   telefono: string;
   clienteNombre: string;
@@ -133,6 +131,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     private readonly configuracionService: ConfiguracionService,
     private readonly contextoService: NegocioContextoService,
     private readonly negociosRepository: NegociosRepository,
+    private readonly perfilNegocioService: PerfilNegocioService,
   ) {
     this.sessionDir =
       process.env.WHATSAPP_SESSION_PATH ||
@@ -561,8 +560,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       ? `\n💰 *Valor:* $${Number(datos.precio).toLocaleString('es-CO')}`
       : '';
 
-    const nombreNegocio =
-      comercial?.nombre?.trim() || NOMBRE_NEGOCIO_POR_DEFECTO;
+    const nombreNegocio = comercial?.nombre?.trim() ?? '';
     const direccion = comercial?.direccion?.trim() ?? '';
 
     const conComerciales = plantilla
@@ -585,8 +583,29 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   /**
    * Datos COMERCIALES del negocio del contexto actual.
    *
-   * Sin contexto de negocio (uso de plataforma) se devuelven los valores por
-   * defecto: nunca los de OTRO negocio.
+   * FUENTES DE VERDAD
+   * -----------------
+   * - NOMBRE: `Negocio.nombre` del negocio del CONTEXTO. No hay un nombre
+   *   por defecto: un mensaje sin contexto no inventa la identidad de una
+   *   barbería.
+   * - DIRECCIÓN: `PerfilNegocio.direccion` del negocio del CONTEXTO. Es la
+   *   fuente canónica.
+   *
+   * COMPATIBILIDAD TEMPORAL
+   * -----------------------
+   * Mientras existan valores históricos en la clave de configuración
+   * `negocio_direccion`, se usan como RESPALDO cuando el perfil no tiene
+   * dirección. Es un puente explícito y acotado:
+   *
+   * - Solo se lee del negocio del contexto (nunca de otro).
+   * - Se avisa por log cuando se usa, para que se migren los valores.
+   * - Se retira cuando se hayan revisado los valores existentes: basta con
+   *   copiar la dirección al perfil y eliminar la clave
+   *   `negocio_direccion` de `CLAVES_CONFIGURACION_OPERATIVA`.
+   *
+   * Si el negocio no tiene dirección en ninguna de las dos fuentes, la
+   * dirección queda VACÍA: no se inventa ni se recurre a datos de otra
+   * barbería (el mensaje sale sin la línea de ubicación).
    */
   private async datosComercialesDelNegocio(): Promise<{
     nombre: string;
@@ -595,27 +614,69 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     const contexto = this.contextoService.obtenerContexto();
 
     if (!contexto) {
-      return { nombre: NOMBRE_NEGOCIO_POR_DEFECTO, direccion: '' };
+      return { nombre: '', direccion: '' };
     }
 
     const negocio = await this.negociosRepository.buscarPorId(contexto.id);
+    const nombre = negocio?.nombre?.trim() ?? '';
 
-    let direccion = '';
+    let direccion = await this.leerDireccionDelPerfil(contexto);
+
+    if (!direccion) {
+      direccion = await this.leerDireccionHistorica(contexto);
+    }
+
+    return { nombre, direccion };
+  }
+
+  /** Dirección canónica: la del PERFIL del negocio del contexto. */
+  private async leerDireccionDelPerfil(contexto: {
+    id: number;
+    slug: string;
+  }): Promise<string> {
     try {
-      direccion = await this.configuracionService.obtenerTexto(
+      return await this.perfilNegocioService.obtenerDireccionComercial();
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo leer la dirección del perfil del negocio ${contexto.slug}: ${(error as Error)?.message}`,
+      );
+
+      return '';
+    }
+  }
+
+  /**
+   * Respaldo TEMPORAL: la clave histórica `negocio_direccion`.
+   *
+   * Solo se consulta si el perfil no tiene dirección, y únicamente en el
+   * negocio del contexto.
+   */
+  private async leerDireccionHistorica(contexto: {
+    id: number;
+    slug: string;
+  }): Promise<string> {
+    try {
+      const direccion = await this.configuracionService.obtenerTexto(
         CLAVES_CONFIGURACION.NEGOCIO_DIRECCION,
         '',
       );
+
+      if (direccion) {
+        this.logger.warn(
+          `El negocio ${contexto.slug} usa la dirección histórica de la clave ` +
+            `'${CLAVES_CONFIGURACION.NEGOCIO_DIRECCION}' porque su perfil no tiene ` +
+            'dirección. Migre el valor al perfil y retire esa clave.',
+        );
+      }
+
+      return direccion ?? '';
     } catch (error) {
       this.logger.warn(
         `No se pudo leer la dirección del negocio ${contexto.slug}: ${(error as Error)?.message}`,
       );
-    }
 
-    return {
-      nombre: negocio?.nombre?.trim() || NOMBRE_NEGOCIO_POR_DEFECTO,
-      direccion,
-    };
+      return '';
+    }
   }
 
   /**
