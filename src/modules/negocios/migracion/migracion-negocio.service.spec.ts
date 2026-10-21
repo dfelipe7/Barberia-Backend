@@ -5,6 +5,7 @@ import {
 } from './migracion-negocio.constants';
 import {
   decidirConfiguracionOperativa,
+  decidirCreacionNegocioAdicional,
   decidirInicializacion,
   ejecutarBackfill,
   reconciliar,
@@ -169,6 +170,87 @@ describe('Lógica de migración al modelo multitenant (sin base de datos)', () =
       });
 
       expect(decision.accion).toBe('conservar');
+    });
+
+    it('usa el tipo declarado por la clave cuando no hay valor global', () => {
+      // Regresión: el tipo se fijaba a 'NUMERO' en el código y clasificaba
+      // mal las claves de texto (por ejemplo `negocio_direccion`), haciendo
+      // que la aplicación descartase su valor al leerlo.
+      const claveDeTexto = CLAVES_CONFIGURACION_OPERATIVA.find(
+        (clave) => clave.tipo === 'TEXTO',
+      );
+
+      expect(claveDeTexto).toBeDefined();
+
+      const decision = decidirConfiguracionOperativa(claveDeTexto!, {});
+
+      expect(decision.accion).toBe('crear');
+      expect(decision.accion === 'crear' ? decision.tipo : '').toBe('TEXTO');
+    });
+
+    it('respeta el tipo declarado por cada clave operativa', () => {
+      for (const clave of CLAVES_CONFIGURACION_OPERATIVA) {
+        const decision = decidirConfiguracionOperativa(clave, {});
+
+        expect(decision.accion === 'crear' ? decision.tipo : '').toBe(
+          clave.tipo,
+        );
+      }
+    });
+  });
+
+  describe('decidirCreacionNegocioAdicional', () => {
+    it('crea el negocio adicional cuando su slug no existe', () => {
+      const decision = decidirCreacionNegocioAdicional(
+        { nombre: 'BARBERÍA DEMO 2', slug: 'barberia-demo-2' },
+        {},
+      );
+
+      expect(decision).toEqual({
+        accion: 'crear',
+        nombre: 'BARBERÍA DEMO 2',
+        slug: 'barberia-demo-2',
+      });
+    });
+
+    it('reutiliza el negocio existente sin sobrescribir su nombre', () => {
+      const decision = decidirCreacionNegocioAdicional(
+        { nombre: 'BARBERÍA DEMO 2', slug: 'barberia-demo-2' },
+        { negocioConSlug: { id: 7, slug: 'barberia-demo-2', nombre: 'OTRO' } },
+      );
+
+      expect(decision).toEqual({
+        accion: 'reutilizar',
+        negocioId: 7,
+        slug: 'barberia-demo-2',
+      });
+    });
+
+    it('no rechaza por el hecho de que ya haya otros negocios', () => {
+      const decision = decidirCreacionNegocioAdicional(
+        { nombre: 'BARBERÍA DEMO 2', slug: 'barberia-demo-2' },
+        {},
+      );
+
+      expect(decision.accion).toBe('crear');
+    });
+
+    it('rechaza un slug con formato inválido', () => {
+      const decision = decidirCreacionNegocioAdicional(
+        { nombre: 'BARBERÍA DEMO 2', slug: 'barberia demo 2' },
+        {},
+      );
+
+      expect(decision.accion).toBe('rechazar');
+    });
+
+    it('rechaza un nombre vacío', () => {
+      const decision = decidirCreacionNegocioAdicional(
+        { nombre: '   ', slug: 'barberia-demo-2' },
+        {},
+      );
+
+      expect(decision.accion).toBe('rechazar');
     });
   });
 

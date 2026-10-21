@@ -268,7 +268,7 @@ export interface UsuarioRespuesta {
 export interface RespuestaSesion {
   accessToken: string;
   usuario: UsuarioRespuesta;
-  /** Negocio al que queda vinculada la sesión. `null` en sesión de plataforma. */
+  /** Negocio al que queda vinculada la sesión. */
   negocio: { id: number; slug: string } | null;
 }
 

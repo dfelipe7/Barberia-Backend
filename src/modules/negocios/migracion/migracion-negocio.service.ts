@@ -27,6 +27,76 @@ export type DecisionInicializacion =
   | { accion: 'rechazar'; motivo: string };
 
 /**
+ * Valida los datos mínimos de un negocio (nombre y slug).
+ *
+ * Se extrae aquí para que el mecanismo de INICIALIZACIÓN (primer negocio de
+ * una plataforma nueva) y el de NEGOCIO ADICIONAL validen EXACTAMENTE igual.
+ */
+export function validarNegocio(
+  nombre: string,
+  slug: string,
+  sujeto: 'primer negocio' | 'negocio' = 'negocio',
+): { ok: true; nombre: string; slug: string } | { ok: false; motivo: string } {
+  const nombreLimpio = nombre.trim();
+  const slugLimpio = slug.trim().toLowerCase();
+
+  if (!nombreLimpio) {
+    return { ok: false, motivo: `El nombre del ${sujeto} es obligatorio` };
+  }
+
+  if (!slugLimpio) {
+    return { ok: false, motivo: `El slug del ${sujeto} es obligatorio` };
+  }
+
+  if (!REGEX_SLUG_NEGOCIO.test(slugLimpio)) {
+    return {
+      ok: false,
+      motivo:
+        'El slug solo admite a-z, 0-9 y guiones, no puede empezar ni terminar en guion, y admite hasta 63 caracteres',
+    };
+  }
+
+  return { ok: true, nombre: nombreLimpio, slug: slugLimpio };
+}
+
+/**
+ * Decide qué hacer con un negocio ADICIONAL (no el primero de la plataforma).
+ *
+ * Es el mecanismo explícito para dar de alta una segunda barbería sin
+ * eludir las validaciones del mecanismo de inicialización: comparte su
+ * validación de nombre y slug, y NUNCA sobrescribe el nombre ni el estado de
+ * un negocio existente (pueden estar personalizados).
+ *
+ * - Si el `slug` ya existe: se REUTILIZA.
+ * - Si no existe: se CREA. No se rechaza por el mero hecho de que ya haya
+ *   otros negocios: ese límite pertenece al mecanismo del primer negocio.
+ */
+export function decidirCreacionNegocioAdicional(
+  entrada: { nombre: string; slug: string },
+  estado: { negocioConSlug?: NegocioExistente },
+): DecisionInicializacion {
+  const validacion = validarNegocio(entrada.nombre, entrada.slug);
+
+  if (!validacion.ok) {
+    return { accion: 'rechazar', motivo: validacion.motivo };
+  }
+
+  if (estado.negocioConSlug) {
+    return {
+      accion: 'reutilizar',
+      negocioId: estado.negocioConSlug.id,
+      slug: validacion.slug,
+    };
+  }
+
+  return {
+    accion: 'crear',
+    nombre: validacion.nombre,
+    slug: validacion.slug,
+  };
+}
+
+/**
  * Decide qué hacer con el primer negocio.
  *
  * - Si el `slug` ya existe: se REUTILIZA. No se duplica ni se sobrescribe
@@ -43,47 +113,32 @@ export function decidirInicializacion(
     totalNegocios: number;
   },
 ): DecisionInicializacion {
-  const nombre = entrada.nombre.trim();
-  const slug = entrada.slug.trim().toLowerCase();
+  const validacion = validarNegocio(
+    entrada.nombre,
+    entrada.slug,
+    'primer negocio',
+  );
 
-  if (!nombre) {
-    return {
-      accion: 'rechazar',
-      motivo: 'El nombre del primer negocio es obligatorio',
-    };
-  }
-
-  if (!slug) {
-    return {
-      accion: 'rechazar',
-      motivo: 'El slug del primer negocio es obligatorio',
-    };
-  }
-
-  if (!REGEX_SLUG_NEGOCIO.test(slug)) {
-    return {
-      accion: 'rechazar',
-      motivo:
-        'El slug solo admite a-z, 0-9 y guiones, no puede empezar ni terminar en guion, y admite hasta 63 caracteres',
-    };
+  if (!validacion.ok) {
+    return { accion: 'rechazar', motivo: validacion.motivo };
   }
 
   if (estado.negocioConSlug) {
     return {
       accion: 'reutilizar',
       negocioId: estado.negocioConSlug.id,
-      slug,
+      slug: validacion.slug,
     };
   }
 
   if (estado.totalNegocios > 0) {
     return {
       accion: 'rechazar',
-      motivo: `La plataforma ya tiene ${estado.totalNegocios} negocio(s) y ninguno usa el slug '${slug}'`,
+      motivo: `La plataforma ya tiene ${estado.totalNegocios} negocio(s) y ninguno usa el slug '${validacion.slug}'`,
     };
   }
 
-  return { accion: 'crear', nombre, slug };
+  return { accion: 'crear', nombre: validacion.nombre, slug: validacion.slug };
 }
 
 /** Valor inicial de una configuración operativa en el ámbito del negocio. */
@@ -105,9 +160,21 @@ export type DecisionConfiguracion =
  * estar personalizado por un administrador y no debe sobrescribirse. Si no
  * existe, se crea con el valor vigente en el ámbito global (o el valor por
  * defecto conocido).
+ *
+ * El `tipo` de la clave (NUMERO / TEXTO) es METADATO de la clave, no un valor
+ * personalizable: se toma del ámbito global si existe y, si no, del tipo que
+ * declara la propia definición de la clave (`CLAVES_CONFIGURACION_OPERATIVA`).
+ * Antes se usaba siempre 'NUMERO', lo que clasificaba mal las claves de
+ * texto (como `negocio_direccion`) y hacía que la aplicación descartase su
+ * valor al leerlo.
  */
 export function decidirConfiguracionOperativa(
-  config: { clave: string; valorPorDefecto: string; descripcion: string },
+  config: {
+    clave: string;
+    valorPorDefecto: string;
+    descripcion: string;
+    tipo: string;
+  },
   estado: {
     valorEnNegocio?: { valor: string };
     valorGlobal?: ValorConfiguracionGlobal;
@@ -122,7 +189,7 @@ export function decidirConfiguracionOperativa(
   return {
     accion: 'crear',
     valor: global?.valor ?? config.valorPorDefecto,
-    tipo: global?.tipo ?? 'NUMERO',
+    tipo: global?.tipo ?? config.tipo,
     descripcion: global?.descripcion ?? config.descripcion,
   };
 }

@@ -51,6 +51,13 @@ import { PrismaMariaDb } from '@prisma/adapter-mariadb';
  *   - Usar los selectores compuestos reales (`negocioId_nombre`,
  *     `negocioId_usuarioId`, ...).
  *   - No reescribir correos ni roles de personas existentes.
+ *
+ * ESTO YA ESTÁ RESUELTO (Fase 13): el provisionamiento de las dos barberías
+ * del entorno local se hace con el comando EXCLUSIVO y verificable
+ *     npm run seed:local:multitenant
+ * que crea las MEMBRESÍAS (`Administrador.superadmin`), los barberos, los
+ * servicios y el horario semanal, con salvaguardas de destino (solo
+ * `bd_barberia_multitenant_dev`) y sin tocar este fichero.
  * =============================================================================
  */
 

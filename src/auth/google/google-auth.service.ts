@@ -7,10 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { GoogleTokenVerifier } from './google-token-verifier.service';
 import { SesionPersonalService } from '../sesion/sesion-personal.service';
-import {
-  NegocioRolesService,
-  ROL_SUPERADMIN,
-} from '../../modules/negocios/service/negocio-roles.service';
+import { NegocioRolesService } from '../../modules/negocios/service/negocio-roles.service';
 import { NegocioContextoService } from '../../modules/negocios/negocio-contexto.service';
 
 /**
@@ -29,10 +26,13 @@ import { NegocioContextoService } from '../../modules/negocios/negocio-contexto.
  * - Personal con perfil en una barbería: la sesión queda VINCULADA a ese
  *   negocio (`negocioId`). Sin contexto de negocio o sin perfil activo, el
  *   acceso se rechaza.
- * - `SUPERADMIN`: identidad GLOBAL de plataforma. Su sesión NO lleva negocio
- *   y NO habilita por sí sola las rutas de negocio: para operar dentro de una
- *   barbería debe hacer la transición explícita `POST /auth/tenant/:slug`,
- *   que queda acotada al negocio de destino.
+ *
+ * NO EXISTE SESIÓN DE PLATAFORMA: el SUPERADMIN es un rol de NEGOCIO (la
+ * membresía `Administrador.superadmin`), no una identidad global. Toda
+ * sesión de personal lleva su negocio, y sus roles efectivos se derivan de
+ * las membresías de ESE negocio. Para operar en otra barbería hace falta
+ * una membresía activa allí: el cambio de negocio (`POST /auth/tenant/:slug`)
+ * no es una transición privilegiada.
  */
 @Injectable()
 export class GoogleAuthService {

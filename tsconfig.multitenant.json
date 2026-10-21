@@ -5,7 +5,8 @@
   },
   "include": [
     "prisma/multitenant/**/*",
-    "src/modules/negocios/migracion/**/*"
+    "src/modules/negocios/migracion/**/*",
+    "src/modules/negocios/seed/**/*"
   ],
   "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
 }
