@@ -23,6 +23,7 @@ describe('WhatsAppService', () => {
   };
   const configuracionServiceMock = {
     obtenerTexto: jest.fn(),
+    obtenerTextoDelNegocio: jest.fn(),
     obtenerNumero: jest.fn(),
     guardarTexto: jest.fn(),
     guardarNumero: jest.fn(),
@@ -47,6 +48,7 @@ describe('WhatsAppService', () => {
     plantillasRepositoryMock.guardarPlantilla.mockResolvedValue(undefined);
     plantillasRepositoryMock.eliminarPlantillas.mockResolvedValue(0);
     configuracionServiceMock.obtenerTexto.mockResolvedValue('');
+    configuracionServiceMock.obtenerTextoDelNegocio.mockResolvedValue('');
     configuracionServiceMock.obtenerNumero.mockResolvedValue(0);
     configuracionServiceMock.guardarTexto.mockResolvedValue(undefined);
     configuracionServiceMock.guardarNumero.mockResolvedValue(undefined);
@@ -256,7 +258,7 @@ describe('WhatsAppService', () => {
       });
       // El perfil no tiene dirección: se consulta la clave histórica.
       perfilNegocioServiceMock.obtenerDireccionComercial.mockResolvedValue('');
-      configuracionServiceMock.obtenerTexto.mockResolvedValue(
+      configuracionServiceMock.obtenerTextoDelNegocio.mockResolvedValue(
         'Dirección Antigua, Popayán',
       );
 
@@ -275,10 +277,13 @@ describe('WhatsAppService', () => {
       );
       // El respaldo histórico solo se consulta cuando el perfil no tiene
       // dirección, y únicamente en el negocio del contexto.
-      expect(configuracionServiceMock.obtenerTexto).toHaveBeenCalledWith(
+      expect(configuracionServiceMock.obtenerTextoDelNegocio).toHaveBeenCalledWith(
         'negocio_direccion',
         '',
       );
+      // El respaldo histórico se lee SOLO del ámbito del negocio: nunca se
+      // consulta el ámbito global de plataforma.
+      expect(configuracionServiceMock.obtenerTexto).not.toHaveBeenCalled();
     });
 
     it('no inventa una dirección si el negocio no tiene ninguna', async () => {

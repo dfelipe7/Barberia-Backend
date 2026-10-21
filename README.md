@@ -36,6 +36,80 @@
   HE-04/HE-08.
 - `HE-04_integracion_disponibilidad.md`: integración de la disponibilidad.
 
+## Operación multitenant (resumen operativo)
+
+Este backend opera **por barbería**: cada petición se resuelve contra UN
+negocio y todas las operaciones quedan acotadas a ese negocio.
+
+### Contexto de negocio
+
+- Mecanismo principal: subdominio (`<slug>.<NEGOCIO_DOMINIO_BASE>`).
+- Alternativa: cabecera `X-Negocio-Slug`.
+- Sin contexto, las rutas de negocio **fallan** (`403`): nunca se ejecutan
+  sobre el conjunto completo de negocios.
+- **Ningún endpoint acepta un `negocioId`** del cuerpo, la query o la URL.
+
+### Roles: el SUPERADMIN es una MEMBRESÍA, no un rol global
+
+| Rol | Origen | Alcance |
+|---|---|---|
+| `ADMINISTRADOR` | membresía `Administrador` (`negocioId`, `estado = ACTIVO`) | su negocio |
+| `SUPERADMIN` | membresía `Administrador` con `superadmin = true` | **su** negocio |
+| `BARBERO` | membresía `Barbero` (`negocioId`, `estado = ACTIVO`) | su negocio |
+
+- **No existe un SUPERADMIN global de plataforma.** El campo global
+  `Usuario.rol` (valores heredados `SUPERADMIN` | `PERSONAL`) es
+  **informativo**: no concede ningún privilegio. La autorización se deriva de
+  la **membresía activa** y del **contexto** del negocio.
+- Cambiar de negocio (`POST /auth/tenant/:slug`) exige una **membresía
+  activa en el negocio de destino**, también para el SUPERADMIN de otra
+  barbería (`403` si no la tiene). No hay transición privilegiada.
+- Las membresías se asignan con el comando explícito
+  `npm run multitenant:fundadores`.
+
+### Esquema de base de datos
+
+Las migraciones se aplican **de forma explícita**; la aplicación **nunca**
+modifica el esquema al arrancar (no hay `db push` en el arranque):
+
+```bash
+npm run db:migrate          # aplica las migraciones sobre DATABASE_URL
+npm run db:migrate:status   # estado del historial
+npm run db:validate         # valida prisma/schema.prisma
+```
+
+### Entorno local aislado (MySQL 8.0)
+
+```bash
+copy .env.multitenant-dev.example .env.multitenant-dev   # Windows
+docker compose -f docker-compose.multitenant-dev.yml up -d mysql-multitenant-dev
+npm run db:migrate:dev        # aplica las migraciones en la base aislada
+npm run seed:local:multitenant # datos de prueba (exige autorización)
+```
+
+La base de desarrollo es `bd_barberia_multitenant_dev` (puerto 3308) y tiene
+su propio volumen: **no** comparte datos con `bd_barberia`.
+
+### Archivos subidos (recursos de marca)
+
+- `UPLOADS_DIR` fija el directorio de los archivos (por defecto
+  `<cwd>/uploads`). Los recursos de cada negocio viven en
+  `<UPLOADS_DIR>/negocios/{negocioId}/perfil/`.
+- En Docker local es un volumen persistente
+  (`barberia_multitenant_dev_uploads`).
+- En **Railway** hay que montar un volumen persistente en la ruta configurada
+  por `UPLOADS_DIR` (o migrar a un adaptador de objetos): el sistema de
+  ficheros del contenedor es efímero. Detalles y procedimiento de respaldo en
+  el [documento de contratos](CONTRATOS_API_MULTITENANT.md) (§8.8).
+
+### Dirección y nombre comercial
+
+- El nombre comercial sale de `Negocio.nombre` del contexto.
+- La dirección comercial sale de `PerfilNegocio.direccion`.
+- La clave heredada `negocio_direccion` queda como **respaldo temporal**; se
+  traslada con `npm run multitenant:migrar-direccion` (no sobrescribe nada y
+  no borra el valor heredado).
+
 ## Project setup
 
 ```bash

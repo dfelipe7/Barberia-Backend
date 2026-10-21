@@ -709,6 +709,15 @@ describe('Almacenamiento de recursos de marca por negocio (MySQL 8.0 real)', () 
 
     expect(respuesta.status).toBeGreaterThanOrEqual(400);
 
+    // El error es CLARO y NO expone la ruta absoluta del sistema de ficheros.
+    const mensaje = String(
+      cuerpo<{ message?: string }>(respuesta).message ?? '',
+    );
+    expect(mensaje).toContain('UPLOADS_DIR');
+    expect(mensaje).not.toContain(directorioTemporal);
+    expect(mensaje).not.toContain('C:');
+    expect(mensaje).not.toContain('/tmp/');
+
     // El perfil conserva la referencia anterior: no queda una referencia rota.
     const despues = cuerpo<PerfilGestion>(
       await request(app.getHttpServer())

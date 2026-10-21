@@ -153,6 +153,33 @@ export class ConfiguracionService {
     );
   }
 
+  /**
+   * Texto del NEGOCIO ACTIVO, SIN alternativa global.
+   *
+   * A diferencia de `obtenerTexto`, este método NUNCA consulta el ámbito
+   * global de plataforma: si el negocio no tiene la clave, devuelve el valor
+   * por defecto.
+   *
+   * Existe para los casos en que un dato debe pertenecer SIEMPRE a una
+   * barbería (por ejemplo, la dirección comercial heredada que se usa como
+   * respaldo temporal): leer el ámbito global podría devolver el valor de
+   * otra barbería o el de la plataforma.
+   */
+  async obtenerTextoDelNegocio(
+    clave: string,
+    porDefecto: string,
+  ): Promise<string> {
+    return this.obtenerTipado(
+      clave,
+      TipoConfiguracion.TEXTO,
+      (valor) => valor,
+      porDefecto,
+      'NEGOCIO',
+      undefined,
+      { soloNegocio: true },
+    );
+  }
+
   /** Parámetro GLOBAL de plataforma como número. */
   async obtenerNumeroGlobal(
     clave: string,
@@ -362,8 +389,9 @@ export class ConfiguracionService {
     porDefecto: T,
     ambito: AmbitoConfiguracion,
     limites?: LimitesNumericos,
+    opciones: { soloNegocio?: boolean } = {},
   ): Promise<T> {
-    for (const candidato of await this.candidatos(clave, ambito)) {
+    for (const candidato of await this.candidatos(clave, ambito, opciones)) {
       const registro = candidato.registro;
 
       if (!registro) {
@@ -405,11 +433,14 @@ export class ConfiguracionService {
    * Candidatos de resolución, en orden de preferencia.
    *
    * En el ámbito de negocio, el segundo candidato (el global) solo se incluye
-   * si la política de compatibilidad lo permite para esa clave.
+   * si la política de compatibilidad lo permite para esa clave. Con
+   * `soloNegocio` NO se incluye nunca: el valor debe pertenecer a la
+   * barbería del contexto.
    */
   private async candidatos(
     clave: string,
     ambito: AmbitoConfiguracion,
+    opciones: { soloNegocio?: boolean } = {},
   ): Promise<CandidatoConfiguracion[]> {
     if (ambito === 'GLOBAL') {
       return [{ registro: await this.registroGlobal(clave), ambito: 'GLOBAL' }];
@@ -424,7 +455,7 @@ export class ConfiguracionService {
       },
     ];
 
-    if (CLAVES_CON_FALLBACK_GLOBAL.has(clave)) {
+    if (CLAVES_CON_FALLBACK_GLOBAL.has(clave) && !opciones.soloNegocio) {
       candidatos.push({
         registro: await this.registroGlobal(clave),
         ambito: 'GLOBAL',

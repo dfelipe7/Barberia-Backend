@@ -43,17 +43,22 @@ export class MariaDbConnection {
    *   sentencias no se resolverían.
    * - `motor: 'mysql'` levanta MySQL 8.0.46 (el motor del entorno local de
    *   desarrollo) en lugar de MariaDB 11.
+   * - `nombreBase`: nombre de la base de datos creada en el contenedor. Por
+   *   defecto `barberia_migracion_test`. Algunos comandos exigan una base
+   *   concreta (por ejemplo, la de desarrollo), y el contenedor es
+   *   desechable: el nombre no tiene efecto fuera de él.
    */
   static async start(
     opciones: {
       lowerCaseTableNames?: boolean;
       motor?: 'mariadb' | 'mysql';
+      nombreBase?: string;
     } = {},
   ): Promise<MariaDbConnection> {
     const nombre = `barberia-mt-test-${process.pid}-${Date.now()}`;
     const usuario = 'root';
     const clave = 'pruebas123';
-    const nombreBase = 'barberia_migracion_test';
+    const nombreBase = opciones.nombreBase ?? 'barberia_migracion_test';
     const lowerCaseTableNames = opciones.lowerCaseTableNames !== false;
     const esMySQL = opciones.motor === 'mysql';
 

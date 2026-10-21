@@ -648,15 +648,17 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   /**
    * Respaldo TEMPORAL: la clave histórica `negocio_direccion`.
    *
-   * Solo se consulta si el perfil no tiene dirección, y únicamente en el
-   * negocio del contexto.
+   * La lectura es EXCLUSIVAMENTE del ámbito del NEGOCIO del contexto
+   * (`obtenerTextoDelNegocio`): nunca consulta el ámbito global de
+   * plataforma, de modo que un mensaje nunca puede llevar la dirección de
+   * otra barbería.
    */
   private async leerDireccionHistorica(contexto: {
     id: number;
     slug: string;
   }): Promise<string> {
     try {
-      const direccion = await this.configuracionService.obtenerTexto(
+      const direccion = await this.configuracionService.obtenerTextoDelNegocio(
         CLAVES_CONFIGURACION.NEGOCIO_DIRECCION,
         '',
       );

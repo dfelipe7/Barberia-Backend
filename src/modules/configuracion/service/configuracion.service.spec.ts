@@ -125,6 +125,33 @@ describe('ConfiguracionService', () => {
       expect(repository.buscarPorClave).not.toHaveBeenCalled();
     });
 
+    it('obtenerTextoDelNegocio NUNCA recurre al ámbito global', async () => {
+      repository.buscarPorClaveEnNegocio.mockResolvedValue(null);
+      repository.buscarPorClave.mockResolvedValue(
+        registro({ valor: 'Valor Global', tipo: 'TEXTO' }),
+      );
+
+      await expect(
+        service.obtenerTextoDelNegocio('clave_plataforma', ''),
+      ).resolves.toBe('');
+      expect(repository.buscarPorClave).not.toHaveBeenCalled();
+    });
+
+    it('obtenerTextoDelNegocio lee el valor del negocio activo', async () => {
+      repository.buscarPorClaveEnNegocio.mockResolvedValue(
+        registro({ valor: 'Valor Del Negocio', tipo: 'TEXTO' }),
+      );
+
+      await expect(
+        service.obtenerTextoDelNegocio('clave_plataforma', ''),
+      ).resolves.toBe('Valor Del Negocio');
+      expect(repository.buscarPorClaveEnNegocio).toHaveBeenCalledWith(
+        1,
+        'clave_plataforma',
+      );
+      expect(repository.buscarPorClave).not.toHaveBeenCalled();
+    });
+
     it('descarta un valor del negocio con tipo incorrecto y sigue con el global', async () => {
       repository.buscarPorClaveEnNegocio.mockResolvedValue(
         registro({ valor: '45', tipo: 'TEXTO' }),
@@ -189,8 +216,7 @@ describe('ConfiguracionService', () => {
   });
 
   describe('escritura de configuración (protección del tipo)', () => {
-    const CLAVE_NUMERO =
-      CLAVES_CONFIGURACION.RECORDATORIO_MINUTOS_ANTICIPACION;
+    const CLAVE_NUMERO = CLAVES_CONFIGURACION.RECORDATORIO_MINUTOS_ANTICIPACION;
     const CLAVE_TEXTO = CLAVES_CONFIGURACION.NEGOCIO_DIRECCION;
 
     it('guardarNumero escribe con el tipo NUMERO', async () => {

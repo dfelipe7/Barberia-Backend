@@ -533,6 +533,44 @@ volumes:
   todas las réplicas: los recursos de un negocio tienen que ser visibles
   desde cualquiera de ellas.
 
+**LIMITACIONES CON VARIAS RÉPLICAS**
+
+- Un volumen de Railway está **ligado a un servicio**: con varias réplicas
+  habría que compartir el almacenamiento (un volumen de red o un bucket de
+  objetos). Dos réplicas con volúmenes distintos NO comparten los recursos:
+  una barbería vería su logo en una réplica y no en la otra.
+- La base de datos es lo único compartido de forma fiable. Si el volumen no
+  es compartible, la alternativa es un **adaptador de almacenamiento de
+  objetos** (el modelo de `PerfilNegocio` guarda solo la ruta, de modo que
+  cambiar el almacenamiento no obliga a cambiar los datos).
+- Los recursos son INMUTABLES en la base de datos: al reemplazar un logo se
+  genera un archivo nuevo y se actualiza la referencia, de modo que un
+  despliegue gradual no deja referencias rotas.
+
+**PROCEDIMIENTO DE RESPALDO DE LOS RECURSOS DE MARCA**
+
+Los archivos **no** están en la base de datos: solo están sus rutas. Por eso
+el respaldo tiene dos partes y deben conservarse juntas:
+
+1. **Base de datos**: `perfiles_negocio` (referencias) y `negocios`.
+2. **Volumen de archivos**: `<UPLOADS_DIR>/negocios/`.
+
+Procedimiento:
+
+```bash
+# 1. Volumen de archivos (contenedor auxiliar): copia del árbol completo
+docker run --rm -v <volumen-uploads>:/datos -v $PWD:/respaldo alpine \
+  tar czf /respaldo/uploads-$(date +%F).tar.gz -C /datos .
+
+# 2. Base de datos: volcado con la herramienta de respaldo de MySQL
+mysqldump -h <host> -u <usuario> -p <base> \
+  | gzip > respaldos/db-$(date +%F).sql.gz
+```
+
+Al restaurar, el volumen y el volcado deben volver a la MISMA fecha: si el
+volumen es más antiguo que la base, las referencias apuntarán a archivos que
+todavía no existen.
+
 ### 8.9 Nombre y dirección comercial en los mensajes de WhatsApp
 
 | Dato | Fuente canónica | Compatibilidad |
@@ -545,10 +583,37 @@ volumes:
 - Si el negocio no tiene dirección en ninguna de las dos fuentes, la
   dirección queda **vacía** y el mensaje sale sin la línea de ubicación: no
   se recurre a los datos de otra barbería.
-- **Cómo retirar el respaldo**: cuando se hayan revisado los valores
-  existentes, copiar la dirección al perfil de cada negocio y eliminar la
-  clave `negocio_direccion` de `CLAVES_CONFIGURACION_OPERATIVA` (y su
-  bloque de `configuraciones_negocio`).
+- El respaldo se lee **exclusivamente del ámbito del negocio del contexto**
+  (`obtenerTextoDelNegocio`): nunca consulta el ámbito global de plataforma.
+
+**PROCEDIMIENTO PARA RETIRAR EL RESPALDO**
+
+1. Trasladar los valores heredados al perfil, sin sobrescribir nada:
+
+   ```bash
+   # Solo informa (no escribe): muestra qué negocios dependen del respaldo
+   VERIFICAR_DIRECCION=1 DIRECCION_MIGRACION_AUTORIZADA=1 \
+     npm run multitenant:migrar-direccion
+
+   # Traslada el valor heredado al perfil (idempotente, no borra el original)
+   DIRECCION_MIGRACION_AUTORIZADA=1 npm run multitenant:migrar-direccion
+   ```
+
+   El comando **no** sobrescribe un perfil que ya tenga dirección, **no**
+   inventa direcciones y **no** borra el valor heredado.
+
+2. Repetir la comprobación en TODOS los entornos (base de desarrollo y base
+   legada). Solo si la lista de negocios dependientes queda VACÍA se puede
+   retirar la clave.
+
+3. Retirar la clave de forma MANUAL y con la aplicación parada:
+
+   - borrar las filas `negocio_direccion` de `configuraciones_negocio`;
+   - eliminar `CLAVES_CONFIGURACION.NEGOCIO_DIRECCION` de
+     `CLAVES_CONFIGURACION_OPERATIVA`;
+   - eliminar el respaldo del servicio de WhatsApp.
+
+   Mientras no se complete el paso 3, la clave se conserva a propósito.
 
 ## 9. Lo que NO cambió
 
