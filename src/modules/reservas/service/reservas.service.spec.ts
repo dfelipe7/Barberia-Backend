@@ -1782,4 +1782,56 @@ describe('ReservasService', () => {
       expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
     });
   });
+  describe('rotación de JWT_SECRET', () => {
+    beforeEach(() => {
+      // Se usa la implementación REAL del descifrado: el `beforeEach` general
+      // la sustituye por un doble.
+      (service.descifrarTokenGestion as unknown as jest.Mock).mockRestore();
+    });
+
+    /**
+     * Simula una rotación del secreto de sesiones sin tocar el entorno: se
+     * sustituye la clave derivada por otra.
+     */
+    const rotarClave = () =>
+      jest
+        .spyOn(
+          service as unknown as { claveCifradoToken: () => Buffer },
+          'claveCifradoToken',
+        )
+        .mockReturnValue(Buffer.alloc(32, 7));
+
+    it('la copia cifrada deja de descifrable: el replay devuelve la reserva SIN token', () => {
+      const token = 'b'.repeat(64);
+      const cifrado = service.cifrarTokenGestion(token);
+
+      expect(service.descifrarTokenGestion(cifrado)).toBe(token);
+
+      rotarClave();
+
+      // No se puede recuperar el token: el replay lo omite (y avisa por log).
+      expect(service.descifrarTokenGestion(cifrado)).toBeNull();
+    });
+
+    it('el HASH no depende de la clave: el token original SIGUE validando la reserva', () => {
+      const token = 'c'.repeat(64);
+      const hash = service.hashearToken(token);
+
+      rotarClave();
+
+      // La validación por hash no se ve afectada: la reserva sigue siendo
+      // gestionable con el token que el cliente ya tenía.
+      expect(service.compararTokenGestion(token, hash)).toBe(true);
+      expect(service.hashearToken(token)).toBe(hash);
+    });
+
+    it('el token nunca se guarda en texto claro: solo su hash y la copia cifrada', () => {
+      const token = 'd'.repeat(64);
+      const cifrado = service.cifrarTokenGestion(token);
+
+      expect(cifrado).not.toContain(token);
+      expect(service.hashearToken(token)).toHaveLength(64);
+      expect(service.hashearToken(token)).not.toBe(token);
+    });
+  });
 });
