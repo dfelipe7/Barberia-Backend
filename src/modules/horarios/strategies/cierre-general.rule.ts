@@ -7,11 +7,15 @@ import type {
   ContextoDisponibilidad,
   ReglaDisponibilidad,
 } from './regla-disponibilidad.strategy';
+import { estaCubiertaPorCierreGeneral } from './reglas-disponibilidad-puras';
 
 /**
  * Regla de cierre general: cualquier franja alcanzada por un cierre activo del
  * día queda `GENERAL_CLOSURE`. Un cierre `allDay` cubre todo el día; uno parcial
  * se compara por intervalos `[inicio, fin)`. Prevalece sobre el horario semanal.
+ *
+ * El predicado es el MISMO que usa la revalidación transaccional de la
+ * reserva (`reglas-disponibilidad-puras`).
  */
 @Injectable()
 export class CierreGeneralRule implements ReglaDisponibilidad {
@@ -23,21 +27,10 @@ export class CierreGeneralRule implements ReglaDisponibilidad {
     franja: FranjaHorario,
     contexto: ContextoDisponibilidad,
   ): EstadoFranja | null {
-    const inicioFranja = this.franjaFactory.aMinutos(franja.startTime);
-    const finFranja = this.franjaFactory.aMinutos(franja.endTime);
-
-    const alcanzada = contexto.cierresActivos.some((cierre) => {
-      if (cierre.allDay) {
-        return true;
-      }
-      if (!cierre.startTime || !cierre.endTime) {
-        return false;
-      }
-
-      const inicioCierre = this.franjaFactory.aMinutos(cierre.startTime);
-      const finCierre = this.franjaFactory.aMinutos(cierre.endTime);
-      return inicioCierre < finFranja && finCierre > inicioFranja;
-    });
+    const alcanzada = estaCubiertaPorCierreGeneral(
+      franja,
+      contexto.cierresActivos,
+    );
 
     return alcanzada ? EstadoFranja.GENERAL_CLOSURE : null;
   }

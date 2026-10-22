@@ -490,7 +490,17 @@ model Reservation {
   // Hash del token criptográfico de gestión para reservas de invitados.
   // Permite modificar o cancelar la reserva sin requerir inicio de sesión.
   // `NULL` para reservas creadas por clientes autenticados o anteriores a esta columna.
+  //
+  // El hash es la vía de VALIDACIÓN (comparación en tiempo constante, sin
+  // descifrar nada). Se conserva además una copia CIFRADA del token para que
+  // un reintento idempotente pueda reproducir EXACTAMENTE la respuesta
+  // original: así la idempotencia nunca invalida una credencial ya entregada
+  // ni devuelve un token distinto al que el cliente ya tiene.
+  // NUNCA se guarda el token en texto claro.
   gestionTokenHash String?     @db.VarChar(255)
+  // Token de gestión CIFRADO (AES-256-GCM). `NULL` en las reservas de
+  // cliente autenticado y en las creadas antes de esta columna.
+  gestionTokenCifrado String? @db.VarChar(255)
   // Control de recordatorio automático por WhatsApp (2 horas antes)
   recordatorioEnviado Boolean  @default(false)
   /// Negocio al que pertenece la reserva. OBLIGATORIO.
@@ -522,6 +532,13 @@ model Reservation {
   // y NULL no colisiona en MySQL/MariaDB, de modo que varias reservas canceladas
   // coexisten y solo una activa por franja (re-reserva tras CANCELLED).
   @@unique([barberoId, date, startTime, slotActivo])
+  /// Clave de idempotencia del intento de reserva (cabecera `Idempotency-Key`).
+  /// NULA para las reservas históricas y para las creadas sin cabecera de
+  /// idempotencia. La unicidad es COMPUESTA por negocio: la misma clave en dos
+  /// barberías son dos intentos distintos, y una clave nunca permite acceder a
+  /// una reserva de otro negocio.
+  idempotencyKey String? @db.VarChar(64)
+  @@unique([negocioId, idempotencyKey])
   @@map("reservations")
 }
 

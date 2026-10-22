@@ -615,7 +615,168 @@ todavía no existen.
 
    Mientras no se complete el paso 3, la clave se conserva a propósito.
 
-## 9. Lo que NO cambió
+## 9. Consistencia del flujo de reservas (Fase 16)
+
+### 9.1 Qué se revalida y cuándo
+
+La disponibilidad se consulta ANTES de la transacción para responder rápido.
+Entre esa consulta y la confirmación el estado puede cambiar, así que la
+creación vuelve a comprobarlo TODO DENTRO de la transacción de creación, con
+los mismos datos que usará la inserción:
+
+1. El barbero existe, es `ACTIVO` y es de este negocio.
+2. El servicio existe, es `ACTIVO` y es de este negocio.
+3. El barbero **sigue** prestando el servicio.
+4. El barbero tiene una franja semanal que **cubre** la hora y la duración.
+5. No hay un bloqueo activo que solape la franja.
+6. No hay un cierre general que cubra la franja.
+7. La franja no está ocupada por otra reserva que ocupa agenda.
+
+Los predicados son los MISMOS que usa la fachada de disponibilidad
+(`reglas-disponibilidad-puras`): no hay dos criterios de disponibilidad.
+
+La transacción es **corta**: bloqueo de fila → revalidación → inserción. No
+incluye el envío de WhatsApp (se dispara después, desacoplado).
+
+### 9.2 Cómo se protege la franja concurrente
+
+- **Bloqueo pesimista**: `SELECT id FROM Barbero WHERE id = ? AND negocioId = ? FOR UPDATE`
+  serializa las reservas del mismo barbero (y solo del negocio del contexto).
+- **Restricción UNIQUE en la base**: `(barberoId, date, startTime, slotActivo)`.
+  Es la última línea de defensa y la que resuelve la carrera. `barberoId` es
+  la clave primaria de `Barbero`, por lo que es globalmente único: el índice
+  ya impide que dos negocios distintos entren en conflicto, y **no** necesita
+  `negocioId` (añadirlo no aportaría nada y rompería la re-reserva).
+- `slotActivo` es una columna GENERATED: `CANCELLED` la pone a `NULL` (libera la
+  franja) y `NO_SHOW` la mantiene en `1` (la sigue ocupando).
+
+### 9.3 Idempotencia del POST de reservas
+
+`POST /reservas` admite la cabecera opcional **`Idempotency-Key`** (UUID v4).
+
+| Situación | Resultado |
+|---|---|
+| Primera petición con la clave | `201` con la reserva creada |
+| Reintento con la misma clave y el mismo intento | `201` con la **misma** reserva (no se crea otra) |
+| Reintento con la misma clave y un intento DISTINTO | `409` `IDEMPOTENCY_KEY_CONFLICT` |
+| Dos peticiones simultáneas con la misma clave | Una reserva; la otra recibe la misma (o `409` si el intento difiere) |
+| Clave con formato que no es UUID v4 | `400` |
+
+- La clave se guarda en `reservations.idempotencyKey` y la restricción es
+  **compuesta por negocio** (`(negocioId, idempotencyKey)`): la misma clave en
+  dos barberías son dos intentos distintos, y una clave **nunca** permite
+  leer ni escribir la reserva de otra barbería.
+- La protección REAL frente a dos peticiones concurrentes es el índice único,
+  no una comprobación previa en la aplicación.
+- El replay **no crea otra reserva** ni otro cliente, y **no cambia el estado**
+  de la reserva existente (ni su franja, ni su precio, ni su estado).
+
+### 9.3.1 Token de gestión de un invitado en el reintento
+
+Una reserva de **invitado** se gestiona con un token opaco que viaja en la
+cabecera `X-Reservation-Management-Token`. En la base de datos **no se guarda
+el token en texto claro**: se guardan
+
+- `gestionTokenHash`: su hash SHA-256, que es la vía de **validación**
+  (comparación en tiempo constante, sin descifrar nada), y
+- `gestionTokenCifrado`: una copia cifrada (AES-256-GCM, clave derivada con
+  HKDF de `JWT_SECRET`) que permite **reproducir la respuesta original**.
+
+Al repetir el mismo intento con la misma `Idempotency-Key`, el servidor
+devuelve **exactamente la misma respuesta** que la original: la misma
+reserva y **el mismo token**. No se rota nada.
+
+| Token | Estado tras el reintento |
+|---|---|
+| El de la primera respuesta | **VÁLIDO** (es el mismo token) |
+| El emitido en el reintento | **VÁLIDO** (es el mismo token) |
+| El de otra reserva | Inválido (404 `MENSAJE_RESERVA_NO_DISPONIBLE`) |
+
+Motivo: invalidar en silencio una credencial que el cliente ya tiene —por
+ejemplo, tras un doble clic o un reintento cuya primera respuesta sí
+llegó— rompería la gestión de la reserva sin que el cliente pudiera
+distinguir "token caducado" de "la reserva no existe" (ambos responden 404).
+
+El reintento **no escribe nada**: solo lee. Por eso no hay carreras entre
+reintentos simultáneos y ningún token emitido puede quedar invalidado.
+
+Decisión de diseño (alternativas evaluadas):
+
+- **Rotar el token en cada reintento** (descartada): el token anterior
+  quedaba invalidado en silencio y, con dos reintentos SIMULTÁNEOS, ambos
+  escribían el mismo hueco del hash anterior, de modo que el token del
+  primero invalidaba al del segundo. Además, el cliente podía recibir un
+  token que nunca se había almacenado.
+- **No rotar el token** (descartada): el reintento devolvería la reserva
+  sin token. El cliente que perdió la respuesta se quedaría sin poder
+  gestionar su reserva y una respuesta sin token podría sobrescribir el
+  token guardado por el cliente.
+- **Guardar el token en claro** (descartada): resolvería los casos, pero es
+  una regresión de seguridad: un volcado de la base entregaría
+  credenciales usables.
+- **Conservar los hashes de los dos últimos tokens** (descartada): no
+  invalida en serie, pero con reintentos simultáneos el hueco es único y
+  uno de los tokens emitidos queda invalidado igualmente.
+- **Guardar el hash y una copia cifrada para reproducir la respuesta**
+  (elegida): el reintento devuelve la MISMA respuesta, no invalida nada y
+  no escribe (sin carreras). El token nunca está en texto claro: un
+  volcado de la base sin la clave del entorno no entrega credenciales
+  usables. La clave de cifrado se deriva con HKDF de `JWT_SECRET`, que ya
+  es un secreto del despliegue: quien lo tiene ya puede falsificar
+  sesiones de personal, de modo que no se abre una clase de exposición
+  nueva.
+
+Consecuencias asumidas y documentadas:
+
+- Rotar `JWT_SECRET` deja descifrables los tokens antiguos: el reintento
+  devuelve la reserva **sin token** (el token original sigue siendo válido
+  para gestionarla) y las credenciales de invitado ya emitidas deben
+  reemitirse. Es el mismo efecto que tiene sobre las sesiones.
+- Las reservas creadas **antes** de esta columna no tienen copia cifrada: su
+  reintento devuelve la reserva sin token y su token original sigue siendo
+  válido. Es una degradación segura, no una pérdida de acceso.
+
+### 9.4 Códigos de dominio (HTTP 409)
+
+Los conflictos de negocio responden **409** con un `code` estable (no 500):
+
+| `code` | Significado |
+|---|---|
+| `SERVICE_INACTIVE` | El servicio existe pero está inactivo. |
+| `BARBER_INACTIVE` | El perfil de barbero está inactivo. |
+| `BARBER_NO_SCHEDULE` | El barbero no tiene franja semanal para esa hora. |
+| `NO_BARBER_FOR_SERVICE` | El barbero no presta el servicio. |
+| `SLOT_TAKEN` | La franja está ocupada (reserva, bloqueo o cierre). |
+| `DUPLICATE_OWN_RESERVATION` | El mismo cliente ya tiene una reserva activa en esa franja. |
+| `IDEMPOTENCY_KEY_CONFLICT` | La clave de idempotencia se reutilizó con otra petición. |
+
+`SLOT_TAKEN` incluye, cuando se puede calcular, hasta **tres horarios
+alternativos libres** del mismo barbero y la misma fecha en
+`details.horariosAlternativos`. No se inventan horarios: si la disponibilidad
+no se puede calcular, la lista va vacía.
+
+El conflicto de franja **nunca** revela datos del cliente que consiguió la
+reserva.
+
+### 9.5 Reintentos ante deadlock
+
+Los errores transitorios de concurrencia (`P2034` de Prisma, `1213` deadlock y
+`1205` lock wait timeout del motor) se reintentan **fuera** de la
+transacción, con backoff de 50 ms, 100 ms y 200 ms (tres reintentos como
+máximo). Cada reintento ejecuta la transacción COMPLETA.
+
+No se reintentan los `404`, los `409` ni los fallos de validación: una
+violación de unicidad es una carrera perdida, no un fallo transitorio.
+
+### 9.6 La disponibilidad es informativa
+
+`GET /usuarios/barberos/:barberoId/disponibilidad` (público) y
+`GET /usuarios/me/barbero/disponibilidad` devuelven las franjas del negocio
+del contexto. **No crean ni mantienen reservas**: no hay holds ni reservas
+temporales mientras el usuario elige servicio, barbero y hora. La creación
+definitiva revalida todo con independencia de esa consulta.
+
+## 10. Lo que NO cambió
 
 - Las reglas de reservas (antelación de cancelación, tolerancia de `NO_SHOW`,
   estados, concurrencia y ocupación de franjas) siguen siendo las de la Fase 4

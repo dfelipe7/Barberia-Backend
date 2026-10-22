@@ -56,6 +56,7 @@ import {
   ReservasService,
 } from '../service/reservas.service';
 import { ClienteOpcionalJwtAuthGuard } from '../../../auth/clientes/guards/cliente-opcional-jwt-auth.guard';
+import { REGEX_UUID_V4 } from '../common/regex-uuid-v4';
 import { ClienteJwtAuthGuard } from '../../../auth/clientes/guards/cliente-jwt-auth.guard';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
@@ -99,6 +100,12 @@ export class ReservasController {
       'Endpoint que acepta ambas modalidades: sin token crea una reserva de invitado (exige nombre y teléfono); con un token de cliente válido asocia la reserva al cliente autenticado. Valida servicio, barbero, fecha y hora (400), servicio/barbero inexistentes o no asignados (404), franja ocupada o duplicada (409) y devuelve el identificador de la reserva (201).',
   })
   @ApiBody({ type: CrearReservaDto })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: false,
+    description:
+      'UUID v4 que identifica ESTE intento de reserva. Si la petición se reintenta con la misma clave, se devuelve la reserva original en lugar de crear otra. Reutilizar la clave con una reserva distinta devuelve 409 (IDEMPOTENCY_KEY_CONFLICT).',
+  })
   @ApiCreatedResponse({
     description: 'Reserva creada exitosamente',
     type: ReservaCreadaResponseDto,
@@ -126,11 +133,37 @@ export class ReservasController {
   async crearReserva(
     @Body() dto: CrearReservaDto,
     @Req() request: PeticionConCliente,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<ReservaCreadaResponseDto> {
     return this.reservasService.crearReserva(
       dto,
       this.extraerIdentidad(request.cliente),
+      this.validarClaveDeIdempotencia(idempotencyKey),
     );
+  }
+
+  /**
+   * Valida la cabecera `Idempotency-Key`.
+   *
+   * Contrato: UUID v4. Si la cabecera no viene, la reserva se crea sin
+   * idempotencia (comportamiento histórico). Si viene pero NO es un UUID v4
+   * válido, se rechaza con 400: una clave mal formada no puede degradarse
+   * silenciosamente a "sin idempotencia".
+   */
+  private validarClaveDeIdempotencia(clave?: string): string | undefined {
+    if (clave === undefined || clave.trim() === '') {
+      return undefined;
+    }
+
+    const normalizada = clave.trim();
+
+    if (!REGEX_UUID_V4.test(normalizada)) {
+      throw new BadRequestException(
+        'La cabecera Idempotency-Key debe contener un UUID v4 válido.',
+      );
+    }
+
+    return normalizada.toLowerCase();
   }
 
   @Post('admin')

@@ -381,6 +381,84 @@ describe('ReservasRepository', () => {
   });
 
   describe('crearConBloqueo', () => {
+    it('reintenta los errores TRANSITORIOS de concurrencia (P2034) hasta tres veces', async () => {
+      let intentos = 0;
+      mockPrismaService.$transaction.mockImplementation(() => {
+        intentos += 1;
+
+        if (intentos <= 2) {
+          return Promise.reject(
+            Object.assign(new Error('deadlock'), { code: 'P2034' }),
+          );
+        }
+
+        return Promise.resolve({ id: 99 });
+      });
+
+      const resultado = await repository.crearConBloqueo({
+        barberoId: 3,
+        servicioId: 2,
+        date: fecha,
+        dayOfWeek: WeekDay.MONDAY,
+        startTime: '09:00',
+        endTime: '10:00',
+        cliente: { clienteId: 55 },
+      });
+
+      // Primer intento + dos reintentos: el tercero succeeds.
+      expect(intentos).toBe(3);
+      expect(resultado).toEqual({ id: 99 });
+    });
+
+    it('reintenta también los deadlocks del motor (errno 1213) y agota los reintentos', async () => {
+      let intentos = 0;
+      mockPrismaService.$transaction.mockImplementation(() => {
+        intentos += 1;
+        return Promise.reject(
+          Object.assign(new Error('deadlock'), { errno: 1213 }),
+        );
+      });
+
+      await expect(
+        repository.crearConBloqueo({
+          barberoId: 3,
+          servicioId: 2,
+          date: fecha,
+          dayOfWeek: WeekDay.MONDAY,
+          startTime: '09:00',
+          endTime: '10:00',
+          cliente: { clienteId: 55 },
+        }),
+      ).rejects.toThrow('deadlock');
+
+      // Primer intento + tres reintentos = cuatro intentos en total.
+      expect(intentos).toBe(4);
+    });
+
+    it('NO reintenta una violación de unicidad (P2002): es una carrera perdida', async () => {
+      let intentos = 0;
+      mockPrismaService.$transaction.mockImplementation(() => {
+        intentos += 1;
+        return Promise.reject(
+          Object.assign(new Error('unique'), { code: 'P2002' }),
+        );
+      });
+
+      await expect(
+        repository.crearConBloqueo({
+          barberoId: 3,
+          servicioId: 2,
+          date: fecha,
+          dayOfWeek: WeekDay.MONDAY,
+          startTime: '09:00',
+          endTime: '10:00',
+          cliente: { clienteId: 55 },
+        }),
+      ).rejects.toThrow('unique');
+
+      expect(intentos).toBe(1);
+    });
+
     it('debe bloquear la fila del barbero y crear la reserva sobre un cliente existente', async () => {
       const txMock = {
         $queryRaw: jest.fn().mockResolvedValue([{ id: 3 }]),

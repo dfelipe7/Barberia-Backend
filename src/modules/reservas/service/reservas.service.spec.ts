@@ -41,6 +41,8 @@ const dtoBase = {
   fecha: FECHA,
   hora: HORA,
 };
+/** Token de gestión fijo: el hash guardado y el token devuelto deben ser el mismo. */
+const TOKEN_GESTION_PRUEBA = 'a'.repeat(64);
 
 describe('ReservasService', () => {
   let service: ReservasService;
@@ -105,6 +107,8 @@ describe('ReservasService', () => {
     endTime: '15:00',
     status: 'PENDING',
     precioReservado: 50000,
+    gestionTokenHash: 'hash-de-prueba',
+    gestionTokenCifrado: 'cifrado-de-prueba',
     slotActivo: 1,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -151,6 +155,19 @@ describe('ReservasService', () => {
 
     service = module.get<ReservasService>(ReservasService);
     jest.clearAllMocks();
+
+    // El token de la respuesta es el PERSISTIDO (descifrado): se simula el
+    // descifrado para no depender de la clave real en una prueba unitaria.
+    // Sin copia cifrada (cliente autenticado) NO hay token.
+    jest
+      .spyOn(service, 'descifrarTokenGestion')
+      .mockImplementation((cifrado) => (cifrado ? TOKEN_GESTION_PRUEBA : null));
+
+    // El token que se guarda (hash) y el que se devuelve deben ser el
+    // MISMO: por eso se fija tambien el token generado.
+    jest
+      .spyOn(service, 'generarTokenGestion')
+      .mockReturnValue(TOKEN_GESTION_PRUEBA);
 
     // La configuración del negocio manda: por defecto se aplica el valor por
     // defecto (120 y 15 minutos). Cada prueba puede sobrescribirlo.
@@ -233,6 +250,7 @@ describe('ReservasService', () => {
             },
           },
         }),
+        expect.objectContaining({ revalidar: expect.any(Function) }),
       );
     });
 
@@ -287,6 +305,13 @@ describe('ReservasService', () => {
       reservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(
         false,
       );
+      // Un cliente AUTENTICADO no lleva token de gestión: la reserva se
+      // persiste sin hash ni copia cifrada.
+      reservasRepository.crearConBloqueo.mockResolvedValue({
+        ...reservaCreada,
+        gestionTokenHash: null,
+        gestionTokenCifrado: null,
+      });
 
       const resultado = await service.crearReserva(dtoBase, identidad);
 
@@ -306,6 +331,7 @@ describe('ReservasService', () => {
           precioReservado: 50000,
           gestionTokenHash: null,
         }),
+        expect.objectContaining({ revalidar: expect.any(Function) }),
       );
     });
 

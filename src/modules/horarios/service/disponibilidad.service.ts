@@ -21,6 +21,10 @@ import { ServiciosRepository } from '../../servicios/repository/servicios.reposi
 import { ReservasNoDisponiblesError } from '../ports/proveedor-reservas-activas.port';
 import { DisponibilidadMapper } from '../mappers/disponibilidad.mapper';
 import { REGLAS_DISPONIBILIDAD } from '../strategies/regla-disponibilidad.strategy';
+import {
+  CODIGOS_CONFLICTO,
+  DomainConflictException,
+} from '../../../common/exceptions/domain-conflict.exception';
 import type {
   ContextoDisponibilidad,
   ReglaDisponibilidad,
@@ -195,6 +199,19 @@ export class DisponibilidadService {
     );
 
     if (!barbero) {
+      // Se distingue "no existe" (404) de "existe pero está inactivo" (409
+      // con código de dominio estable).
+      const inactivo = await this.barberosRepository.obtenerBarberoPorId(
+        consulta.barberoId,
+      );
+
+      if (inactivo && inactivo.estado !== 'ACTIVO') {
+        throw new DomainConflictException(
+          'El barbero no está activo.',
+          CODIGOS_CONFLICTO.BARBER_INACTIVE,
+        );
+      }
+
       throw new NotFoundException(
         `El barbero ${consulta.barberoId} no existe o no está activo`,
       );
@@ -207,6 +224,17 @@ export class DisponibilidadService {
         );
 
       if (!servicio) {
+        const inactivo = await this.serviciosRepository.obtenerServicioPorId(
+          consulta.servicioId,
+        );
+
+        if (inactivo && inactivo.estado !== 'ACTIVO') {
+          throw new DomainConflictException(
+            'El servicio no está activo.',
+            CODIGOS_CONFLICTO.SERVICE_INACTIVE,
+          );
+        }
+
         throw new NotFoundException(
           `El servicio ${consulta.servicioId} no existe o no está activo`,
         );
@@ -218,8 +246,9 @@ export class DisponibilidadService {
       );
 
       if (!asignado) {
-        throw new BadRequestException(
-          `El servicio ${consulta.servicioId} no está asignado al barbero ${consulta.barberoId}`,
+        throw new DomainConflictException(
+          'El barbero no presta el servicio solicitado.',
+          CODIGOS_CONFLICTO.NO_BARBER_FOR_SERVICE,
         );
       }
     }

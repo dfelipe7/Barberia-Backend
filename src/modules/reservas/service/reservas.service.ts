@@ -36,7 +36,10 @@ import {
 import {
   ClienteDeReserva,
   CrearReservaDatos,
+  ESTADOS_QUE_OCUPAN_AGENDA,
   MENSAJE_HORARIO_NO_DISPONIBLE,
+  FirmaIntentoReserva,
+  mismaFirmaReserva,
   ModificarReservaDatos,
   ReservaAdminRegistro,
   ReservaAgendaRegistro,
@@ -50,6 +53,17 @@ import { DisponibilidadService } from '../../horarios/service/disponibilidad.ser
 import { EstadoFranja } from '../../horarios/common/estado-franja';
 import type { FranjaEvaluada } from '../../horarios/common/estado-franja';
 import { FechaBogotaService } from '../../horarios/common/fecha-bogota.service';
+import {
+  estaCubiertaPorBloqueo,
+  estaCubiertaPorCierreGeneral,
+  estaFueraDelHorarioSemanal,
+  solapaConReserva,
+} from '../../horarios/strategies/reglas-disponibilidad-puras';
+import {
+  CODIGOS_CONFLICTO,
+  DomainConflictException,
+} from '../../../common/exceptions/domain-conflict.exception';
+import { Prisma } from '../../../../generated/prisma/client';
 import { ServiciosRepository } from '../../servicios/repository/servicios.repository';
 import { BarberosRepository } from '../../usuarios/repository/barberos.repository';
 import { ConfiguracionService } from '../../configuracion/service/configuracion.service';
@@ -137,16 +151,38 @@ export class ReservasService {
    *
    * @param dto datos obligatorios + contacto del invitado (si aplica).
    * @param identidad cliente autenticado (Modalidad B) o `undefined` (invitado).
+   * @param idempotencyKey clave de idempotencia del intento (cabecera
+   *   `Idempotency-Key`). Si se repite el MISMO intento con la misma clave, se
+   *   recupera la reserva original en lugar de crear otra.
    */
   async crearReserva(
     dto: CrearReservaDto,
     identidad?: IdentidadClienteAutenticado,
+    idempotencyKey?: string,
   ): Promise<ReservaCreadaResponseDto> {
     this.validarFecha(dto.fecha);
 
     const cliente = await this.resolverCliente(dto, identidad);
 
+    // IDEMPOTENCIA (antes que el duplicado del propio cliente): un reintento
+    // con la misma clave debe recuperar la reserva original, no rebotar con un
+    // conflicto de duplicado.
+    if (idempotencyKey) {
+      const previa =
+        await this.reservasRepository.obtenerPorClaveDeIdempotencia(
+          idempotencyKey,
+        );
+
+      if (previa) {
+        return this.responderReplay(previa, dto, cliente);
+      }
+    }
+
     // CA-04: el mismo cliente no puede duplicar la reserva de la franja.
+    //
+    // La reserva que lleva la MISMA clave de idempotencia es este mismo
+    // intento: no cuenta como duplicado (si lo contara, un reintento
+    // concurrente se rechazaría en lugar de recuperar la reserva original).
     if (cliente.clienteIdConocido !== null) {
       const duplicada =
         await this.reservasRepository.existeReservaActivaDeClienteEnFranja({
@@ -154,33 +190,60 @@ export class ReservasService {
           barberoId: dto.barberoId,
           fecha: this.aFechaDate(dto.fecha),
           startTime: dto.hora,
+          ...(idempotencyKey !== undefined
+            ? { excluirIdempotencyKey: idempotencyKey }
+            : {}),
         });
 
       if (duplicada) {
-        throw new ConflictException(MENSAJE_RESERVA_DUPLICADA);
+        throw new DomainConflictException(
+          MENSAJE_RESERVA_DUPLICADA,
+          CODIGOS_CONFLICTO.DUPLICATE_OWN_RESERVATION,
+        );
       }
     }
 
     // Fuente única de verdad (HE-08): valida servicio/barbero/asignación/fecha y
     // devuelve el estado real de cada franja.
-    const franja = await this.obtenerFranjaDisponible(
-      dto.barberoId,
-      dto.servicioId,
-      dto.fecha,
-      dto.hora,
-    );
+    let franja: FranjaEvaluada;
+
+    try {
+      franja = await this.obtenerFranjaDisponible(
+        dto.barberoId,
+        dto.servicioId,
+        dto.fecha,
+        dto.hora,
+      );
+    } catch (error) {
+      // Si el intento lleva clave de idempotencia, la franja puede haberla
+      // ocupado NUESTRO propio intento concurrente: en ese caso se recupera esa
+      // reserva en lugar de rechazar con un conflicto de franja.
+      if (idempotencyKey && this.esConflictoDeFranja(error)) {
+        const original =
+          await this.reservasRepository.obtenerPorClaveDeIdempotencia(
+            idempotencyKey,
+          );
+        if (original) {
+          return this.responderReplay(original, dto, cliente);
+        }
+      }
+
+      throw error;
+    }
 
     const servicio = await this.obtenerServicio(dto.servicioId);
 
     let tokenGestion: string | undefined;
     let gestionTokenHash: string | undefined;
+    let gestionTokenCifrado: string | undefined;
 
     if (!identidad) {
       tokenGestion = this.generarTokenGestion();
       gestionTokenHash = this.hashearToken(tokenGestion);
+      gestionTokenCifrado = this.cifrarTokenGestion(tokenGestion);
     }
 
-    const reserva = await this.crearConManejoDeConflicto({
+    const datos = {
       barberoId: dto.barberoId,
       servicioId: dto.servicioId,
       date: this.aFechaDate(dto.fecha),
@@ -190,14 +253,22 @@ export class ReservasService {
       // Precio histórico calculado en el servidor, no confiado al cliente.
       precioReservado: Number(servicio.precio),
       gestionTokenHash: gestionTokenHash ?? null,
+      gestionTokenCifrado: gestionTokenCifrado ?? null,
+      idempotencyKey: idempotencyKey ?? null,
       cliente: cliente.clienteDeReserva,
-    });
+    };
 
+    const reserva = await this.crearConManejoDeConflicto(datos);
+
+    // El token de la respuesta es SIEMPRE el PERSISTIDO: si la creación
+    // resultó ser un reintento (y la reserva la creó otra petición), se
+    // devuelve el token ORIGINAL descifrado, nunca uno local que no se
+    // guardó en ninguna parte.
     const respuesta = await this.construirRespuesta(
       reserva,
       dto.fecha,
       servicio,
-      tokenGestion,
+      this.descifrarTokenGestion(reserva.gestionTokenCifrado) ?? undefined,
     );
 
     // Disparo desacoplado de confirmación por WhatsApp en segundo plano.
@@ -403,6 +474,7 @@ export class ReservasService {
     let clienteDeReserva: ClienteDeReserva;
     let tokenGestion: string | undefined = undefined;
     let gestionTokenHash: string | null = null;
+    let gestionTokenCifrado: string | null = null;
     let clienteNombreNotif = 'Cliente';
     let clienteTelefonoNotif: string | null = null;
 
@@ -445,6 +517,7 @@ export class ReservasService {
 
       tokenGestion = this.generarTokenGestion();
       gestionTokenHash = this.hashearToken(tokenGestion);
+      gestionTokenCifrado = this.cifrarTokenGestion(tokenGestion);
 
       clienteDeReserva = {
         crear: {
@@ -498,6 +571,7 @@ export class ReservasService {
       status: ReservationStatus.CONFIRMED,
       precioReservado: Number(servicio.precio),
       gestionTokenHash,
+      gestionTokenCifrado,
       cliente: clienteDeReserva,
     });
 
@@ -509,7 +583,7 @@ export class ReservasService {
       reserva,
       dto.fecha,
       servicio,
-      tokenGestion,
+      this.descifrarTokenGestion(reserva.gestionTokenCifrado) ?? undefined,
     );
 
     // Disparo desacoplado de confirmación por WhatsApp en segundo plano
@@ -1162,6 +1236,92 @@ export class ReservasService {
   }
 
   /**
+   * Clave de cifrado DEDICADA del token de gestión.
+   *
+   * Se deriva del secreto de sesiones (`JWT_SECRET`) con HKDF: la clave de
+   * cifrado NUNCA es el secreto en sí, pero tampoco hace falta configurar
+   * otra variable de entorno.
+   *
+   * Consecuencia asumida: rotar `JWT_SECRET` deja descifrables los tokens
+   * antiguos (el reintento devuelve la reserva sin token) y, como ya ocurre con
+   * las sesiones, obliga a reemitir las credenciales.
+   */
+  private claveCifradoToken(): Buffer {
+    return Buffer.from(
+      crypto.hkdfSync(
+        'sha256',
+        Buffer.from(process.env.JWT_SECRET ?? '', 'utf8'),
+        Buffer.from('barberia-gestion-token', 'utf8'),
+        Buffer.from('v1', 'utf8'),
+        32,
+      ),
+    );
+  }
+
+  /**
+   * Cifra el token de gestión (AES-256-GCM).
+   *
+   * El token NUNCA se guarda en texto claro: se guarda su HASH (para validar)
+   * y esta copia CIFRADA (para poder reproducir la respuesta original en un
+   * reintento idempotente).
+   */
+  cifrarTokenGestion(token: string): string {
+    const iv = crypto.randomBytes(12);
+    const cifrador = crypto.createCipheriv(
+      'aes-256-gcm',
+      this.claveCifradoToken(),
+      iv,
+    );
+    const cifrado = Buffer.concat([
+      cifrador.update(token, 'utf8'),
+      cifrador.final(),
+    ]);
+
+    return Buffer.concat([iv, cifrador.getAuthTag(), cifrado]).toString(
+      'base64',
+    );
+  }
+
+  /**
+   * Descifra el token de gestión guardado.
+   *
+   * @returns El token, o `null` si no hay copia cifrada o si la clave cambió
+   * (p. ej. por una rotación de `JWT_SECRET`). En ese caso el reintento
+   * devuelve la reserva SIN token: el token original sigue siendo válido para
+   * gestionarla.
+   */
+  descifrarTokenGestion(cifrado: string | null): string | null {
+    if (!cifrado) {
+      return null;
+    }
+
+    try {
+      const bruto = Buffer.from(cifrado, 'base64');
+      const iv = bruto.subarray(0, 12);
+      const tag = bruto.subarray(12, 28);
+      const cuerpo = bruto.subarray(28);
+
+      const descifrador = crypto.createDecipheriv(
+        'aes-256-gcm',
+        this.claveCifradoToken(),
+        iv,
+      );
+      descifrador.setAuthTag(tag);
+
+      return Buffer.concat([
+        descifrador.update(cuerpo),
+        descifrador.final(),
+      ]).toString('utf8');
+    } catch {
+      this.logger.warn(
+        'No se pudo descifrar el token de gestión (clave distinta o dato corrupto): el reintento devolverá la reserva sin token.',
+      );
+
+      return null;
+    }
+  }
+
+  /**
    * Compara de forma segura en tiempo constante el hash del token proporcionado con el hash almacenado.
    * Evita ataques de temporización (timing attacks).
    */
@@ -1327,7 +1487,18 @@ export class ReservasService {
         excluirReservaId !== undefined
           ? MENSAJE_HORARIO_NO_DISPONIBLE
           : MENSAJE_FRANJA_OCUPADA;
-      throw new ConflictException(mensaje);
+
+      // El barbero no tiene horario que cubra la hora (distinto de "la franja
+      // está ocupada"): son dos conflictos distintos y cada uno tiene su
+      // código estable.
+      if (franja.estado === EstadoFranja.OUTSIDE_SCHEDULE) {
+        throw new DomainConflictException(
+          'El barbero no tiene horario semanal que cubra la hora solicitada.',
+          CODIGOS_CONFLICTO.BARBER_NO_SCHEDULE,
+        );
+      }
+
+      throw new DomainConflictException(mensaje, CODIGOS_CONFLICTO.SLOT_TAKEN);
     }
 
     return franja;
@@ -1348,21 +1519,331 @@ export class ReservasService {
   }
 
   /**
-   * Crea la reserva traduciendo la violación de unicidad (`P2002`) a un 409 con
-   * el mensaje de CA-03. La garantía real contra el doble booking es el índice
-   * UNIQUE de la base (D-17); el chequeo previo de disponibilidad no basta para
-   * dos peticiones concurrentes.
+   * Responde a un REINTENTO idempotente: devuelve la reserva original.
+   *
+   * - Si el intento es materialmente el mismo, se recupera la reserva.
+   * - Si el contenido difiere, la clave se ha reutilizado con una petición
+   *   incompatible: conflicto explícito (409).
+   *
+   * En una reserva de INVITADO se devuelve el token de gestión ORIGINAL
+   * (descifrado de la copia cifrada): la respuesta de un reintento es
+   * EXACTAMENTE la misma que la original. No se rota NADA, de modo que la
+   * idempotencia no puede invalidar en silencio una credencial que el cliente
+   * ya tiene, y no hay carreras entre reintentos simultáneos (el reintento
+   * solo lee).
+   */
+  private async responderReplay(
+    previa: ReservaRegistro,
+    dto: CrearReservaDto,
+    cliente: {
+      clienteDeReserva: ClienteDeReserva;
+      clienteIdConocido: number | null;
+    },
+  ): Promise<ReservaCreadaResponseDto> {
+    // Un solo criterio de "es el mismo intento" (el del repositorio).
+    this.comprobarMismoIntento(previa, this.firmaDeIntento(dto, cliente));
+
+    const servicio = await this.obtenerServicio(dto.servicioId);
+
+    return this.construirRespuesta(
+      previa,
+      dto.fecha,
+      servicio,
+      this.descifrarTokenGestion(previa.gestionTokenCifrado) ?? undefined,
+    );
+  }
+
+  /**
+   * Firma material del intento de reserva, calculada desde el DTO.
+   *
+   * Es la MISMA firma que usa el repositorio dentro de la transacción: un
+   * solo criterio de "es el mismo intento".
+   */
+  private firmaDeIntento(
+    dto: CrearReservaDto,
+    cliente: {
+      clienteDeReserva: ClienteDeReserva;
+      clienteIdConocido: number | null;
+    },
+  ): FirmaIntentoReserva {
+    return {
+      barberoId: dto.barberoId,
+      servicioId: dto.servicioId,
+      date: this.aFechaDate(dto.fecha),
+      startTime: dto.hora,
+      clienteId:
+        'clienteId' in cliente.clienteDeReserva
+          ? cliente.clienteDeReserva.clienteId
+          : null,
+    };
+  }
+
+  /**
+   * Crea la reserva traduciendo la violación de unicidad (`P2002`) a un 409 con el mensaje de CA-03. La garantía real contra el doble booking es el índice UNIQUE de la base (D-17); el chequeo previo de disponibilidad no basta para dos peticiones concurrentes.
    */
   private async crearConManejoDeConflicto(
     datos: CrearReservaDatos,
   ): Promise<ReservaRegistro> {
     try {
-      return await this.reservasRepository.crearConBloqueo(datos);
+      return await this.reservasRepository.crearConBloqueo(datos, {
+        revalidar: (tx, negocioId) =>
+          this.revalidarEnTransaccion(tx, datos, negocioId),
+      });
     } catch (error) {
-      if (this.esViolacionUnicidad(error)) {
-        throw new ConflictException(MENSAJE_FRANJA_OCUPADA);
+      // El índice UNIQUE puede haberse violado por DOS motivos:
+      //  - el de idempotencia: dos peticiones CONCURRENTES con la misma clave.
+      //    Una ha ganado; la otra recupera esa reserva (si el intento es el
+      //    mismo) o recibe un conflicto explícito (si el intento es distinto).
+      //  - el de ocupación de franja: la franja la ocupó OTRO cliente. Antes
+      //    de rechazar hay que descartar que sea NUESTRO propio intento
+      //    concurrente (mismo barbero, misma franja y misma clave).
+      if (
+        datos.idempotencyKey &&
+        (this.esViolacionDeIdempotencia(error) ||
+          this.esViolacionDeUnicidad(error))
+      ) {
+        const original =
+          await this.reservasRepository.obtenerPorClaveDeIdempotencia(
+            datos.idempotencyKey,
+          );
+
+        if (original) {
+          return this.comprobarMismoIntento(original, {
+            barberoId: datos.barberoId,
+            servicioId: datos.servicioId,
+            date: datos.date,
+            startTime: datos.startTime,
+            clienteId:
+              'clienteId' in datos.cliente ? datos.cliente.clienteId : null,
+          });
+        }
       }
+
+      if (this.esViolacionDeUnicidad(error)) {
+        throw await this.conflictoDeFranjaOcupada(datos);
+      }
+
       throw error;
+    }
+  }
+
+  /**
+   * Comprueba que la reserva recuperada por la clave de idempotencia
+   * corresponde al MISMO intento.
+   *
+   * Si la clave se reutilizó con una petición materialmente distinta, es un
+   * conflicto explícito: no se devuelve una reserva ajena al intento.
+   */
+  private comprobarMismoIntento(
+    original: ReservaRegistro,
+    firma: FirmaIntentoReserva,
+  ): ReservaRegistro {
+    // Se reutiliza la MISMA regla que usa el repositorio dentro de la
+    // transacción: un solo criterio de "es el mismo intento".
+    if (!mismaFirmaReserva(original, firma)) {
+      throw new DomainConflictException(
+        'La clave de idempotencia ya se usó para una reserva distinta.',
+        CODIGOS_CONFLICTO.IDEMPOTENCY_KEY_CONFLICT,
+      );
+    }
+
+    return original;
+  }
+
+  /**
+   * REVALIDACIÓN dentro de la transacción de creación.
+   *
+   * La disponibilidad se consultó ANTES de la transacción: entre esa consulta
+   * y la confirmación el estado puede haber cambiado. Aquí se vuelve a
+   * comprobar, DENTRO de la transacción y con los mismos datos que usará la
+   * inserción:
+   *
+   * 1. El barbero existe, es ACTIVO y es de este negocio.
+   * 2. El servicio existe, es ACTIVO y es de este negocio.
+   * 3. El barbero SIGUE prestando el servicio.
+   * 4. El barbero tiene una franja semanal que cubre la hora y la duración.
+   * 5. No hay un bloqueo activo que solape la franja.
+   * 6. No hay un cierre general que cubra la franja.
+   * 7. La franja no está ocupada por otra reserva que ocupa agenda.
+   *
+   * Los predicados de disponibilidad son los MISMOS que usa la fachada
+   * (`reglas-disponibilidad-puras`): no hay dos criterios de disponibilidad.
+   */
+  private async revalidarEnTransaccion(
+    tx: Prisma.TransactionClient,
+    datos: CrearReservaDatos,
+    negocioId: number,
+  ): Promise<void> {
+    const franja = { startTime: datos.startTime, endTime: datos.endTime };
+
+    const barbero = await tx.barbero.findFirst({
+      where: { id: datos.barberoId, negocioId: negocioId },
+      select: { id: true, estado: true },
+    });
+
+    if (!barbero) {
+      throw new NotFoundException(
+        `El barbero ${datos.barberoId} no existe en esta barbería`,
+      );
+    }
+
+    if (barbero.estado !== 'ACTIVO') {
+      throw new DomainConflictException(
+        'El barbero no está activo: no se puede confirmar la reserva.',
+        CODIGOS_CONFLICTO.BARBER_INACTIVE,
+      );
+    }
+
+    const servicio = await tx.servicio.findFirst({
+      where: { id: datos.servicioId, negocioId: negocioId },
+      select: { id: true, estado: true },
+    });
+
+    if (!servicio) {
+      throw new NotFoundException(
+        `El servicio ${datos.servicioId} no existe en esta barbería`,
+      );
+    }
+
+    if (servicio.estado !== 'ACTIVO') {
+      throw new DomainConflictException(
+        'El servicio no está activo: no se puede confirmar la reserva.',
+        CODIGOS_CONFLICTO.SERVICE_INACTIVE,
+      );
+    }
+
+    const asignacion = await tx.barberoServicio.findFirst({
+      where: {
+        barberoId: datos.barberoId,
+        servicioId: datos.servicioId,
+        negocioId: negocioId,
+      },
+      select: { barberoId: true },
+    });
+
+    if (!asignacion) {
+      throw new DomainConflictException(
+        'El barbero ya no presta el servicio solicitado.',
+        CODIGOS_CONFLICTO.NO_BARBER_FOR_SERVICE,
+      );
+    }
+
+    const franjasHorario = await tx.barberWeeklySlot.findMany({
+      where: {
+        barberoId: datos.barberoId,
+        negocioId: negocioId,
+        active: true,
+        dayOfWeek: datos.dayOfWeek,
+      },
+      select: { startTime: true, endTime: true },
+    });
+
+    if (estaFueraDelHorarioSemanal(franja, franjasHorario)) {
+      throw new DomainConflictException(
+        'El barbero no tiene horario semanal que cubra la hora solicitada.',
+        CODIGOS_CONFLICTO.BARBER_NO_SCHEDULE,
+      );
+    }
+
+    const bloqueos = await tx.barberScheduleBlock.findMany({
+      where: {
+        barberoId: datos.barberoId,
+        negocioId: negocioId,
+        status: 'ACTIVE',
+        date: datos.date,
+      },
+      select: { startTime: true, endTime: true },
+    });
+
+    if (estaCubiertaPorBloqueo(franja, bloqueos)) {
+      throw new DomainConflictException(
+        MENSAJE_FRANJA_OCUPADA,
+        CODIGOS_CONFLICTO.SLOT_TAKEN,
+      );
+    }
+
+    const cierres = await tx.generalClosure.findMany({
+      where: {
+        negocioId: negocioId,
+        active: true,
+        date: datos.date,
+      },
+      select: { allDay: true, startTime: true, endTime: true },
+    });
+
+    if (estaCubiertaPorCierreGeneral(franja, cierres)) {
+      throw new DomainConflictException(
+        MENSAJE_FRANJA_OCUPADA,
+        CODIGOS_CONFLICTO.SLOT_TAKEN,
+      );
+    }
+
+    const reservas = await tx.reservation.findMany({
+      where: {
+        barberoId: datos.barberoId,
+        negocioId: negocioId,
+        date: datos.date,
+        status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
+        // La reserva que lleva NUESTRA clave de idempotencia es este mismo
+        // intento: no ocupa la franja contra sí mismo.
+        ...(datos.idempotencyKey !== undefined
+          ? { idempotencyKey: { not: datos.idempotencyKey } }
+          : {}),
+      },
+      select: { startTime: true, endTime: true },
+    });
+
+    if (solapaConReserva(franja, reservas)) {
+      throw new DomainConflictException(
+        MENSAJE_FRANJA_OCUPADA,
+        CODIGOS_CONFLICTO.SLOT_TAKEN,
+      );
+    }
+  }
+
+  /**
+   * Conflicto de franja ocupada, con hasta tres HORARIOS ALTERNATIVOS libres
+   * del mismo barbero y la misma fecha.
+   *
+   * Los alternativa se calculan DESPUÉS del fallo, con la disponibilidad
+   * actualizada: si la franja se perdió por una reserva concurrente, ya no
+   * aparecerá como libre. No se inventan horarios: si no se pueden calcular,
+   * la lista va vacía.
+   */
+  private async conflictoDeFranjaOcupada(
+    datos: CrearReservaDatos,
+  ): Promise<DomainConflictException> {
+    const horariosAlternativos = await this.calcularHorariosAlternativos(datos);
+
+    return new DomainConflictException(
+      MENSAJE_FRANJA_OCUPADA,
+      CODIGOS_CONFLICTO.SLOT_TAKEN,
+      { horariosAlternativos },
+    );
+  }
+
+  /** Hasta tres franjas libres del mismo barbero y la misma fecha. */
+  private async calcularHorariosAlternativos(
+    datos: CrearReservaDatos,
+  ): Promise<Array<{ hora: string; horaFin: string }>> {
+    try {
+      const franjas = await this.disponibilidadService.calcularDisponibilidad({
+        barberoId: datos.barberoId,
+        servicioId: datos.servicioId,
+        fecha: this.aFechaCalendario(datos.date),
+      });
+
+      return franjas
+        .filter((franja) => franja.estado === EstadoFranja.AVAILABLE)
+        .slice(0, 3)
+        .map((franja) => ({
+          hora: franja.startTime,
+          horaFin: franja.endTime,
+        }));
+    } catch {
+      // Si la disponibilidad no se puede calcular, no se inventa nada: la
+      // lista de alternativas queda vacía.
+      return [];
     }
   }
 
@@ -1376,7 +1857,7 @@ export class ReservasService {
     try {
       return await this.reservasRepository.modificarConBloqueo(datos);
     } catch (error) {
-      if (this.esViolacionUnicidad(error)) {
+      if (this.esViolacionDeUnicidad(error)) {
         throw new ConflictException(MENSAJE_HORARIO_NO_DISPONIBLE);
       }
       throw error;
@@ -1546,8 +2027,49 @@ export class ReservasService {
     return fecha.toISOString().slice(0, 10);
   }
 
-  private esViolacionUnicidad(error: unknown): boolean {
+  private esViolacionDeUnicidad(error: unknown): boolean {
     return (error as { code?: unknown } | null)?.code === 'P2002';
+  }
+
+  /**
+   * `true` si el error es un conflicto de FRANJA (409 con el código
+   * `SLOT_TAKEN`).
+   */
+  private esConflictoDeFranja(error: unknown): boolean {
+    const codigo = (
+      error as { getResponse?: () => { code?: string } } | undefined
+    )?.getResponse?.()?.code;
+
+    return codigo === CODIGOS_CONFLICTO.SLOT_TAKEN;
+  }
+
+  /**
+   * `true` si el error es una violación de unicidad del ÍNDICE DE IDEMPOTENCIA
+   * (no el de ocupación de franja).
+   *
+   * Prisma informa del índice afectado en `meta.target`: en MySQL es el nombre
+   * del índice; en otras versiones puede ser la lista de columnas. Se
+   * comprueban las dos formas, y además se exige que la clave de idempotencia
+   * NO esté entre las columnas (para no confundirla con la de ocupación).
+   */
+  private esViolacionDeIdempotencia(error: unknown): boolean {
+    if (!this.esViolacionDeUnicidad(error)) {
+      return false;
+    }
+
+    const target = (error as { meta?: { target?: unknown } }).meta?.target;
+
+    if (typeof target === 'string') {
+      return target.includes('idempotencyKey');
+    }
+
+    if (Array.isArray(target)) {
+      return (
+        target.includes('idempotencyKey') && !target.includes('slotActivo')
+      );
+    }
+
+    return false;
   }
 
   /**

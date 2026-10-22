@@ -1633,11 +1633,13 @@ export const ReservationScalarFieldEnum = {
   status: 'status',
   precioReservado: 'precioReservado',
   gestionTokenHash: 'gestionTokenHash',
+  gestionTokenCifrado: 'gestionTokenCifrado',
   recordatorioEnviado: 'recordatorioEnviado',
   negocioId: 'negocioId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
-  slotActivo: 'slotActivo'
+  slotActivo: 'slotActivo',
+  idempotencyKey: 'idempotencyKey'
 } as const
 
 export type ReservationScalarFieldEnum = (typeof ReservationScalarFieldEnum)[keyof typeof ReservationScalarFieldEnum]
@@ -1793,7 +1795,9 @@ export type GeneralClosureOrderByRelevanceFieldEnum = (typeof GeneralClosureOrde
 export const ReservationOrderByRelevanceFieldEnum = {
   startTime: 'startTime',
   endTime: 'endTime',
-  gestionTokenHash: 'gestionTokenHash'
+  gestionTokenHash: 'gestionTokenHash',
+  gestionTokenCifrado: 'gestionTokenCifrado',
+  idempotencyKey: 'idempotencyKey'
 } as const
 
 export type ReservationOrderByRelevanceFieldEnum = (typeof ReservationOrderByRelevanceFieldEnum)[keyof typeof ReservationOrderByRelevanceFieldEnum]

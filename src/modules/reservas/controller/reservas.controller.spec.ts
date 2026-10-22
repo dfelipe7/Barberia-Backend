@@ -63,21 +63,33 @@ describe('ReservasController', () => {
   it('crea una reserva de invitado cuando no hay cliente en la petición', async () => {
     await controller.crearReserva(dto, {});
 
-    expect(reservasService.crearReserva).toHaveBeenCalledWith(dto, undefined);
+    expect(reservasService.crearReserva).toHaveBeenCalledWith(
+      dto,
+      undefined,
+      undefined,
+    );
   });
 
   it('resuelve la identidad autenticada desde request.cliente', async () => {
     await controller.crearReserva(dto, { cliente: { clienteId: 9 } });
 
-    expect(reservasService.crearReserva).toHaveBeenCalledWith(dto, {
-      clienteId: 9,
-    });
+    expect(reservasService.crearReserva).toHaveBeenCalledWith(
+      dto,
+      {
+        clienteId: 9,
+      },
+      undefined,
+    );
   });
 
   it('trata como invitado una identidad de cliente inválida', async () => {
     await controller.crearReserva(dto, { cliente: { clienteId: 0 } });
 
-    expect(reservasService.crearReserva).toHaveBeenCalledWith(dto, undefined);
+    expect(reservasService.crearReserva).toHaveBeenCalledWith(
+      dto,
+      undefined,
+      undefined,
+    );
   });
 
   it('lista las reservas propias del cliente autenticado', async () => {
@@ -389,7 +401,7 @@ describe('ReservasController', () => {
       expect(reservasService.noShowReserva).toHaveBeenCalledWith(
         mockUser,
         ['BARBERO'],
-42,
+        42,
       );
     });
 
@@ -422,7 +434,7 @@ describe('ReservasController', () => {
       expect(reservasService.completarReserva).toHaveBeenCalledWith(
         mockUser,
         ['BARBERO'],
-42,
+        42,
       );
     });
 

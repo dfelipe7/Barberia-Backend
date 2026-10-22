@@ -3,6 +3,10 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import { Prisma } from '../../../../generated/prisma/client';
 import { ReservationStatus, WeekDay } from '../../../../generated/prisma/enums';
+import {
+  CODIGOS_CONFLICTO,
+  DomainConflictException,
+} from '../../../common/exceptions/domain-conflict.exception';
 
 export const MENSAJE_HORARIO_NO_DISPONIBLE =
   'El horario seleccionado no está disponible';
@@ -73,6 +77,14 @@ export interface ReservaRegistro {
   status: ReservationStatus;
   precioReservado: Prisma.Decimal | null;
   gestionTokenHash: string | null;
+  /**
+   * Copia CIFRADA del token de gestión.
+   *
+   * Permite que un reintento idempotente reproduzca EXACTAMENTE la respuesta
+   * original (mismo token) sin rotar nada: la idempotencia no puede invalidar
+   * una credencial que el cliente ya tiene.
+   */
+  gestionTokenCifrado: string | null;
   slotActivo: number | null;
   createdAt: Date;
   updatedAt: Date;
@@ -350,7 +362,39 @@ export interface ConsultaDuplicadoCliente {
   barberoId: number;
   fecha: Date;
   startTime: string;
+  /**
+   * Clave de idempotencia del intento en curso.
+   *
+   * La reserva que la lleva es ESTE MISMO intento: no cuenta como duplicado.
+   * Sin esta salvedad, un reintento concurrente con la misma clave se
+   * rechazaría como duplicado en lugar de recuperar la reserva original.
+   */
+  excluirIdempotencyKey?: string;
 }
+
+/**
+ * Selección de la reserva recuperada por clave de idempotencia.
+ *
+ * Es la MISMA que devuelve `crearConBloqueo` para que la respuesta del
+ * reintento sea idéntica a la de la creación original.
+ */
+const SELECCION_RESERVA_PARA_IDEMPOTENCIA = {
+  id: true,
+  barberoId: true,
+  servicioId: true,
+  clienteId: true,
+  date: true,
+  dayOfWeek: true,
+  startTime: true,
+  endTime: true,
+  status: true,
+  precioReservado: true,
+  gestionTokenHash: true,
+  gestionTokenCifrado: true,
+  slotActivo: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 /**
  * Datos de contacto para dar de alta un `Cliente`. Se usan tanto para el
@@ -384,7 +428,105 @@ export interface CrearReservaDatos {
   status?: ReservationStatus;
   precioReservado?: number | null;
   gestionTokenHash?: string | null;
+  /**
+   * Copia CIFRADA del token de gestión.
+   *
+   * Se guarda para que un reintento idempotente devuelva EXACTAMENTE la
+   * respuesta original (mismo token) sin invalidar nada.
+   */
+  gestionTokenCifrado?: string | null;
   cliente: ClienteDeReserva;
+  /**
+   * Clave de idempotencia del intento (cabecera `Idempotency-Key`).
+   *
+   * Es OPCIONAL: sin ella, cada POST crea una reserva nueva (comportamiento
+   * histórico). Con ella, reintentar el mismo intento recupera la reserva
+   * original en lugar de crear otra.
+   */
+  idempotencyKey?: string | null;
+}
+
+/**
+ * Firma MATERIAL de un intento de reserva.
+ *
+ * Es lo que compara dos intentos que comparten clave de idempotencia: si solo
+ * cambia la clave de idempotencia, es el mismo intento; si cambia el
+ * contenido, es un intento DISTINTO y la clave se considera reutilizada con
+ * una petición incompatible.
+ */
+export interface FirmaReserva {
+  barberoId: number;
+  servicioId: number;
+  fecha: Date;
+  startTime: string;
+  endTime: string;
+  clienteId: number | null;
+}
+
+/**
+ * Firma MATERIAL de un intento de reserva.
+ *
+ * Es lo que distingue "el mismo intento" de "otro intento" cuando comparten
+ * clave de idempotencia.
+ *
+ * `clienteId` es `null` cuando el intento CREA al cliente (invitado): en ese
+ * caso cada intento genera su propio cliente y no se puede comparar.
+ */
+export interface FirmaIntentoReserva {
+  barberoId: number;
+  servicioId: number;
+  date: Date;
+  startTime: string;
+  clienteId: number | null;
+}
+
+/**
+ * Compara dos intentos de reserva por su contenido MATERIAL.
+ *
+ * Dos intentos con la misma clave de idempotencia son "el mismo" si piden lo
+ * mismo: mismo barbero, mismo servicio, misma fecha, misma hora de inicio y
+ * mismo cliente (cuando se conoce).
+ *
+ * La hora de FIN no se compara: el catálogo de franjas es fijo, de modo que
+ * la hora de inicio ya la determina.
+ */
+export function mismaFirmaReserva(
+  previa: {
+    barberoId: number;
+    servicioId: number;
+    date: Date;
+    startTime: string;
+    clienteId: number;
+  },
+  firma: FirmaIntentoReserva,
+): boolean {
+  return (
+    previa.barberoId === firma.barberoId &&
+    previa.servicioId === firma.servicioId &&
+    previa.date.getTime() === firma.date.getTime() &&
+    previa.startTime === firma.startTime &&
+    (firma.clienteId === null || previa.clienteId === firma.clienteId)
+  );
+}
+
+/**
+ * Opciones de la creación transaccional de una reserva.
+ */
+export interface OpcionesCrearConBloqueo {
+  /**
+   * Revalidación que se ejecuta DENTRO de la transacción, con el cliente de
+   * la propia transacción.
+   *
+   * Es el punto donde se vuelven a comprobar las reglas que dependen del
+   * estado (servicio activo, barbero activo, asignación vigente, horario
+   * semanal, bloqueos, cierres y ocupación). La comprobación previa de
+   * disponibilidad, hecha antes de la transacción, puede quedarse obsoleta
+   * entre la consulta y la confirmación.
+   */
+  revalidar?: (
+    tx: Prisma.TransactionClient,
+    negocioId: number,
+  ) => Promise<void>;
 }
 
 export interface ModificarReservaDatos {
@@ -397,7 +539,12 @@ export interface ModificarReservaDatos {
   precioReservado?: number | null;
 }
 
-/** Códigos/errores que pueden reintentarse (deadlock o contención de locks). */
+/**
+ * Número máximo de REINTENTOS ante un error transitorio de concurrencia.
+ *
+ * El primer intento no cuenta: son tres reintentos (cuatro intentos en total),
+ * con esperas de 50 ms, 100 ms y 200 ms.
+ */
 const MAX_REINTENTOS_TRANSACCION = 3;
 
 /**
@@ -492,6 +639,9 @@ export class ReservasRepository {
         date: consulta.fecha,
         startTime: consulta.startTime,
         status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
+        ...(consulta.excluirIdempotencyKey !== undefined
+          ? { idempotencyKey: { not: consulta.excluirIdempotencyKey } }
+          : {}),
       }),
       select: { id: true },
     });
@@ -545,22 +695,26 @@ export class ReservasRepository {
   }
 
   /**
-   * Obtiene la reserva con sus relaciones y el hash del token de gestión,
-   * para validar peticiones de modificación o cancelación de invitados.
+   * Obtiene la reserva con sus relaciones, el hash del token de gestión y su
+   * copia cifrada, para validar peticiones de modificación o cancelación de
+   * invitados y para reproducir la respuesta original en un reintento.
    *
    * Restringida al negocio activo: una reserva de otro negocio se comporta
    * como inexistente.
    */
-  async obtenerReservaParaGestionInvitado(
-    reservaId: number,
-  ): Promise<
-    (ReservaConRelaciones & { gestionTokenHash: string | null }) | null
+  async obtenerReservaParaGestionInvitado(reservaId: number): Promise<
+    | (ReservaConRelaciones & {
+        gestionTokenHash: string | null;
+        gestionTokenCifrado: string | null;
+      })
+    | null
   > {
     return this.prisma.reservation.findUnique({
       where: this.aislamiento.filtroEscritura({ id: reservaId }),
       select: {
         ...SELECCION_RESERVA_CON_RELACIONES,
         gestionTokenHash: true,
+        gestionTokenCifrado: true,
       },
     });
   }
@@ -714,10 +868,29 @@ export class ReservasRepository {
    * transacción: un fallo posterior (unicidad, deadlock) revierte también el
    * alta del cliente y no deja registros incompletos (HU-13-CA-08).
    *
+   * REVALIDACIÓN (`opciones.revalidar`): antes de insertar, y DENTRO de la
+   * transacción, se vuelven a comprobar las reglas que dependen del estado
+   * (servicio y barbero activos, asignación vigente, horario semanal,
+   * bloqueos, cierres y ocupación). La disponibilidad consultada antes de la
+   * transacción puede quedarse obsoleta: sin esta revalidación, un servicio
+   * desactivado o un horario retirado entre la consulta y la confirmación
+   * se colarían en la reserva.
+   *
+   * IDEMPOTENCIA: con `datos.idempotencyKey`, antes de insertar se busca la
+   * reserva de ESE negocio con esa clave. Si existe y el intento es materialmente
+   * el mismo, se devuelve la reserva original (reintento); si el intento es
+   * distinto, es un conflicto. La protección frente a dos peticiones
+   * SIMULTÁNEAS con la misma clave es el índice único
+   * `(negocioId, idempotencyKey)`: la perdedora recibe `P2002` y la capa de
+   * aplicación recupera la reserva original.
+   *
    * Los deadlocks/timeouts transitorios (`P2034`/`1213`/`1205`) se reintentan
    * de forma acotada con backoff; un `P2002` nunca se reintenta.
    */
-  async crearConBloqueo(datos: CrearReservaDatos): Promise<ReservaRegistro> {
+  async crearConBloqueo(
+    datos: CrearReservaDatos,
+    opciones: OpcionesCrearConBloqueo = {},
+  ): Promise<ReservaRegistro> {
     const negocioId = this.aislamiento.negocioIdRequerido();
 
     return this.conReintentos(() =>
@@ -731,6 +904,36 @@ export class ReservasRepository {
            WHERE id = ${datos.barberoId}
              AND negocioId = ${negocioId}
            FOR UPDATE`;
+
+        // IDEMPOTENCIA (antes que la revalidación): si esta reserva ES
+        // nuestro propio intento concurrente, hay que devolverla en lugar de
+        // comprobar el estado y rechazar por conflicto de franja.
+        if (datos.idempotencyKey) {
+          const previa = await tx.reservation.findFirst({
+            where: {
+              negocioId,
+              idempotencyKey: datos.idempotencyKey,
+            },
+            select: SELECCION_RESERVA_PARA_IDEMPOTENCIA,
+          });
+
+          if (previa) {
+            if (!this.mismaFirmaReserva(previa, datos)) {
+              throw new DomainConflictException(
+                'La clave de idempotencia ya se usó para una reserva distinta.',
+                CODIGOS_CONFLICTO.IDEMPOTENCY_KEY_CONFLICT,
+              );
+            }
+
+            return previa;
+          }
+        }
+
+        // Revalidación transaccional: el estado se lee dentro de la
+        // transacción, con los mismos datos que usará la inserción.
+        if (opciones.revalidar) {
+          await opciones.revalidar(tx, negocioId);
+        }
 
         let clienteId: number;
         if ('clienteId' in datos.cliente) {
@@ -763,6 +966,8 @@ export class ReservasRepository {
             status: datos.status ?? ReservationStatus.PENDING,
             precioReservado: datos.precioReservado ?? null,
             gestionTokenHash: datos.gestionTokenHash ?? null,
+            gestionTokenCifrado: datos.gestionTokenCifrado ?? null,
+            idempotencyKey: datos.idempotencyKey ?? null,
             negocioId,
           },
         });
@@ -770,8 +975,63 @@ export class ReservasRepository {
     );
   }
 
+  /**
+   * Reserva de un negocio por su clave de idempotencia.
+   *
+   * Es la vía para recuperar la reserva original cuando dos peticiones
+   * simultáneas con la misma clave compiten: la perdedora recibe `P2002` y
+   * recupera aquí la reserva que ganó.
+   *
+   * Acotada al negocio indicado: una clave NUNCA permite leer la reserva de
+   * otra barbería.
+   */
+  async obtenerPorClaveDeIdempotencia(
+    idempotencyKey: string,
+  ): Promise<ReservaRegistro | null> {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+
+    return this.prisma.reservation.findFirst({
+      where: { negocioId, idempotencyKey },
+      select: SELECCION_RESERVA_PARA_IDEMPOTENCIA,
+    });
+  }
+
+  /**
+   * Compara dos intentos de reserva por su contenido MATERIAL.
+   *
+   * Dos intentos con la misma clave de idempotencia son "el mismo" si piden lo
+   * mismo: mismo barbero, mismo servicio, misma fecha, misma hora y mismo
+   * cliente (cuando se conoce). El `clienteId` se ignora cuando el intento
+   * crea al cliente (invitado): en ese caso cada intento genera su propio
+   * cliente y no se puede comparar.
+   */
+  private mismaFirmaReserva(
+    previa: {
+      barberoId: number;
+      servicioId: number;
+      date: Date;
+      startTime: string;
+      endTime: string;
+      clienteId: number;
+    },
+    datos: CrearReservaDatos,
+  ): boolean {
+    return mismaFirmaReserva(previa, this.firmaDeIntento(datos));
+  }
+
+  /** Firma material del intento, con la misma forma que usa el servicio. */
+  private firmaDeIntento(datos: CrearReservaDatos): FirmaIntentoReserva {
+    return {
+      barberoId: datos.barberoId,
+      servicioId: datos.servicioId,
+      date: datos.date,
+      startTime: datos.startTime,
+      clienteId: 'clienteId' in datos.cliente ? datos.cliente.clienteId : null,
+    };
+  }
+
   private async conReintentos<T>(operacion: () => Promise<T>): Promise<T> {
-    let intento = 0;
+    let reintento = 0;
 
     // Reintentos secuenciales con backoff: cada intento y su espera dependen
     // del resultado (error) del intento anterior, por lo que no es paralelizable.
@@ -779,20 +1039,23 @@ export class ReservasRepository {
       try {
         return await operacion(); // NOSONAR reintento secuencial intencional (depende del intento previo)
       } catch (error) {
-        intento += 1;
         if (
-          intento >= MAX_REINTENTOS_TRANSACCION ||
+          reintento >= MAX_REINTENTOS_TRANSACCION ||
           !esErrorReintentableTransaccion(error)
         ) {
           throw error;
         }
-        await this.esperar(intento); // NOSONAR backoff secuencial intencional (depende del intento previo)
+
+        reintento += 1;
+
+        await this.esperar(reintento); // NOSONAR backoff secuencial intencional (depende del intento previo)
       }
     }
   }
 
   private esperar(intento: number): Promise<void> {
-    const milisegundos = 25 * intento;
+    // Backoff exponencial acotado: 50 ms, 100 ms y 200 ms.
+    const milisegundos = 50 * 2 ** (intento - 1);
     return new Promise((resolve) => setTimeout(resolve, milisegundos));
   }
 
