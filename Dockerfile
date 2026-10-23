@@ -15,5 +15,5 @@ RUN npm run build
 
 EXPOSE 3000
 
-# Sincronizamos la base de datos y arrancamos en producción
-CMD ["sh", "-c", "npx prisma migrate deploy || npx prisma db push --accept-data-loss || true; npm run start:prod"]
+# Sincronizamos la base de datos, sembramos datos iniciales y arrancamos en producción
+CMD ["sh", "-c", "npx prisma migrate deploy || npx prisma db push --accept-data-loss || true; npm run seed || true; npm run start:prod"]
