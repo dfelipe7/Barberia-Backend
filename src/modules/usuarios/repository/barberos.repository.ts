@@ -93,6 +93,11 @@ export class BarberosRepository {
       usuario: {
         estado: EstadoUsuario.ACTIVO,
       },
+      weeklySlots: {
+        some: {
+          active: true,
+        },
+      },
     };
 
     if (filtro?.nombre) {

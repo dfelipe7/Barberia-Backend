@@ -8,8 +8,8 @@ jest.mock('../../../../generated/prisma/enums', () => ({
   EstadoUsuario: { ACTIVO: 'ACTIVO', INACTIVO: 'INACTIVO' },
 }));
 
-// Local reference matching the mock above
 const EstadoServicio = { ACTIVO: 'ACTIVO', INACTIVO: 'INACTIVO' } as const;
+const EstadoUsuario = { ACTIVO: 'ACTIVO', INACTIVO: 'INACTIVO' } as const;
 
 const mockPrisma = {
   barbero: { findMany: jest.fn() },
@@ -109,7 +109,24 @@ describe('ServiciosRepository', () => {
       mockPrisma.servicio.findMany.mockResolvedValue([{ id: 1 }]);
       const result = await repository.listarServiciosCatalogo();
       expect(mockPrisma.servicio.findMany).toHaveBeenCalledWith({
-        where: { estado: EstadoServicio.ACTIVO },
+        where: {
+          estado: EstadoServicio.ACTIVO,
+          barberos: {
+            some: {
+              barbero: {
+                estado: EstadoUsuario.ACTIVO,
+                usuario: {
+                  estado: EstadoUsuario.ACTIVO,
+                },
+                weeklySlots: {
+                  some: {
+                    active: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         include: expect.any(Object),
         orderBy: { nombre: 'asc' },
       });
@@ -122,6 +139,21 @@ describe('ServiciosRepository', () => {
       expect(mockPrisma.servicio.findMany).toHaveBeenCalledWith({
         where: {
           estado: EstadoServicio.ACTIVO,
+          barberos: {
+            some: {
+              barbero: {
+                estado: EstadoUsuario.ACTIVO,
+                usuario: {
+                  estado: EstadoUsuario.ACTIVO,
+                },
+                weeklySlots: {
+                  some: {
+                    active: true,
+                  },
+                },
+              },
+            },
+          },
           OR: [
             { nombre: { contains: 'Corte' } },
             { descripcion: { contains: 'Corte' } },
@@ -181,7 +213,11 @@ describe('ServiciosRepository', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             estado: EstadoServicio.ACTIVO,
-            barberos: { some: { barbero: { usuarioId: 5 } } },
+            barberos: {
+              some: {
+                OR: [{ barberoId: 5 }, { barbero: { usuarioId: 5 } }],
+              },
+            },
           }),
         }),
       );
@@ -217,6 +253,11 @@ describe('ServiciosRepository', () => {
             barbero: {
               estado: 'ACTIVO',
               usuario: { estado: 'ACTIVO' },
+              weeklySlots: {
+                some: {
+                  active: true,
+                },
+              },
             },
           }),
           select: expect.any(Object),
