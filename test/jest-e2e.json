@@ -6,8 +6,10 @@
   "transform": {
     "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "<rootDir>/tsconfig.e2e.json" }]
   },
-  "transformIgnorePatterns": ["node_modules/(?!(@nestjs/(config|jwt))/)"],
+  "transformIgnorePatterns": ["node_modules/(?!(@nestjs/(config|jwt|schedule))/)"],
   "moduleNameMapper": {
-    "^(\\.{1,2}/.*)\\.js$": "$1"
-  }
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^@whiskeysockets/baileys$": "<rootDir>/__mocks__/@whiskeysockets-baileys.js"
+  },
+  "testTimeout": 300000
 }

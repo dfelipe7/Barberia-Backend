@@ -1,5 +1,15 @@
+/**
+ * Trazabilidad:
+ * - REQ: REQ-009
+ * - Modelo ejecutor: minimax-m3.1-flash-free
+ * - Propósito: comprobar el contrato de las rutas de usuarios, en especial el simulador de error 500.
+ * - Responsabilidad: pruebas unitarias del controlador. No exercise los guards ni el envío de correo.
+ */
 import { Test, TestingModule } from '@nestjs/testing';
-import { InternalServerErrorException } from '@nestjs/common';
+import {
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { UsuariosController } from './usuarios.controller';
 import { UsuariosService } from '../service/usuarios.service';
 import { BarberosService } from '../service/barberos.service';
@@ -132,10 +142,48 @@ describe('UsuariosController', () => {
   });
 
   describe('simularError', () => {
-    it('debe lanzar InternalServerErrorException para probar alertas A09', () => {
-      expect(() => controller.simularError()).toThrow(
-        InternalServerErrorException,
-      );
+    const entornoOriginal = { ...process.env };
+
+    afterEach(() => {
+      process.env = { ...entornoOriginal };
+    });
+
+    it('no se ejecuta si el simulador no está habilitado (por defecto)', () => {
+      delete process.env.SIMULADOR_ERROR_HABILITADO;
+      delete process.env.NODE_ENV;
+
+      expect(() =>
+        controller.simularError({ user: { roles: ['SUPERADMIN'] } }),
+      ).toThrow(NotFoundException);
+    });
+
+    it('no se ejecuta en producción ni aunque se pida explícitamente', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.SIMULADOR_ERROR_HABILITADO = 'true';
+
+      expect(() =>
+        controller.simularError({ user: { roles: ['SUPERADMIN'] } }),
+      ).toThrow(NotFoundException);
+    });
+
+    it('no se ejecuta para quien no es de la administración', () => {
+      process.env.SIMULADOR_ERROR_HABILITADO = 'true';
+
+      expect(() =>
+        controller.simularError({ user: { roles: ['BARBERO'] } }),
+      ).toThrow(NotFoundException);
+    });
+
+    it('lanza InternalServerErrorException para la administración habilitada', () => {
+      process.env.SIMULADOR_ERROR_HABILITADO = 'true';
+
+      expect(() =>
+        controller.simularError({ user: { roles: ['ADMINISTRADOR'] } }),
+      ).toThrow(InternalServerErrorException);
+
+      expect(() =>
+        controller.simularError({ user: { roles: ['SUPERADMIN'] } }),
+      ).toThrow(InternalServerErrorException);
     });
   });
 });

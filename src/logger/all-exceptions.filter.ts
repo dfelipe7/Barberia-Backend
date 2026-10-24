@@ -1,3 +1,22 @@
+/**
+ * Respuesta HTTP mínima que usa el filtro.
+ *
+ * Se declara para no trabajar con `any`: el filtro solo usa `status`, `json` y
+ * (opcionalmente) `setHeader`.
+ */
+interface RespuestaDelFiltro {
+  status: (codigo: number) => RespuestaDelFiltro;
+  json: (cuerpo: unknown) => void;
+  setHeader?: (nombre: string, valor: string) => void;
+}
+
+/**
+ * Trazabilidad:
+ * - REQ: REQ-009, REQ-010
+ * - Modelo ejecutor: minimax-m3.1-flash-free
+ * - Propósito: registrar y notificar errores sin filtrar credenciales al logger ni al correo de alerta.
+ * - Responsabilidad: formato de la respuesta de error y decisión de notificar. No conoce credenciales ni reglas de negocio.
+ */
 import {
   ExceptionFilter,
   Catch,
@@ -7,7 +26,12 @@ import {
   Logger,
   Injectable,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { AlertsService } from '../modules/alerts/alerts.service';
+import {
+  construirContextoSeguro,
+  PeticionSeguro,
+} from './sanitizar-contexto-error';
 
 @Injectable()
 @Catch()
@@ -18,7 +42,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse();
+    const response = ctx.getResponse<RespuestaDelFiltro>();
     const request = ctx.getRequest();
 
     const status =
@@ -44,15 +68,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const code = responseObject?.code;
     const details = responseObject?.details;
 
-    const logContext = {
-      timestamp: new Date().toISOString(),
-      path: request.url,
-      method: request.method,
-      ip: request.ip,
-      body: request.body, // Opcional, con cuidado en prod
-      user: request.user?.email || request.user?.sub, // Usuario autenticado
+    // Identificador de la petición: permite correlacionar el log, el correo de
+    // alerta y la respuesta que ve el cliente.
+    const requestId = randomUUID();
+
+    // El contexto que se registra y se envía por correo NO incluye el cuerpo de
+    // la petición: ahí viajan el ID token de Google, las contraseñas y los
+    // datos de acceso. Tampoco se incluyen cabeceras ni cookies.
+    const logContext = construirContextoSeguro(request as PeticionSeguro, {
+      status,
       message,
-    };
+      codigoError: typeof code === 'string' ? code : undefined,
+      requestId,
+    });
+
+    response.setHeader?.('X-Request-Id', requestId);
 
     // OWASP A09: Monitoreo de Seguridad (Alertas Tempranas)
     // Si es 401 o 403, lo registramos como una Advertencia (warn) de seguridad
@@ -87,14 +117,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // Errores de validación o conflicto (400, 409) son menos graves pero los logueamos
     else {
       this.logger.log(
-        `Client Error [${status}]: Petición rechazada - Path: ${request.url}`,
+        `Client Error [${status}]: Petición rechazada - Path: ${logContext.path}`,
       );
     }
 
     response.status(status).json({
       statusCode: status,
       timestamp: new Date().toISOString(),
-      path: request.url,
+      // La ruta va SANEADA: si el secreto viaja en la query string, la
+      // respuesta no lo devuelve (antes sí, y el log no).
+      path: logContext.path,
       message,
       ...(code === undefined ? {} : { code }),
       ...(details === undefined ? {} : { details }),

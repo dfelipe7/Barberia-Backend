@@ -1,3 +1,10 @@
+/**
+ * Trazabilidad:
+ * - REQ: REQ-009
+ * - Modelo ejecutor: minimax-m3.1-flash-free
+ * - Propósito: health check público de la API (GET /).
+ * - Responsabilidad: comprobar que el proceso responde. No consulta la base de datos ni expone estado interno.
+ */
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 

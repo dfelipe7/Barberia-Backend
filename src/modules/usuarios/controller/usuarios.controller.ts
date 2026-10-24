@@ -1,3 +1,10 @@
+/**
+ * Trazabilidad:
+ * - REQ: REQ-009, REQ-010
+ * - Modelo ejecutor: minimax-m3.1-flash-free
+ * - Propósito: proteger el simulador de error 500 y limitar su alcance a la administración del negocio.
+ * - Responsabilidad: rutas de usuarios. No decide qué errores se notifican ni registra credenciales.
+ */
 import {
   Controller,
   Post,
@@ -8,6 +15,7 @@ import {
   Req,
   UseGuards,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,6 +24,8 @@ import {
   ApiOkResponse,
   ApiBadRequestResponse,
   ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiUnauthorizedResponse,
   ApiParam,
 } from '@nestjs/swagger';
 import { Roles } from '../../../auth/roles/roles.decorator';
@@ -27,6 +37,11 @@ import { ConfigurarBarberoDto } from '../dto/dto-peticion/configurar-barbero.dto
 import { UsuarioPerfilDto } from '../dto/dto-respuesta/usuario-perfil.dto';
 import { UsuariosService } from '../service/usuarios.service';
 import { BarberosService } from '../service/barberos.service';
+import { simuladorErrorHabilitado } from '../../../common/config/simulador-error.config';
+import {
+  ROL_ADMINISTRADOR,
+  ROL_SUPERADMIN,
+} from '../../negocios/negocios.constants';
 
 @ApiTags('Usuarios')
 @ApiBearerAuth()
@@ -36,14 +51,66 @@ export class UsuariosController {
     private readonly usuariosService: UsuariosService,
     private readonly barberosService: BarberosService,
   ) {}
+
+  /**
+   * GET /usuarios/simular-error-grave
+   *
+   * Herramienta de diagnóstico de la cadena de alertas por correo (OWASP A09).
+   *
+   * REGLAS DE ACCESO
+   * ----------------
+   * 1. Exige sesión de personal válida (`JwtAuthGuard`): sin sesión responde
+   *    401 y NO se envía ningún correo.
+   * 2. Exige rol de administración del negocio (`SUPERADMIN` o `ADMINISTRADOR`).
+   *    La comprobación es explícita y NO usa `RolesGuard` a propósito: `RolesGuard`
+   *    responde 403 y el filtro global envía correo de alerta ante todo 403, de
+   *    modo que un intento no autorizado podría generar correo. Aquí se responde
+   *    404, que no genera alerta.
+   * 3. Está deshabilitado salvo habilitación explícita
+   *    (`SIMULADOR_ERROR_HABILITADO=true`) y NUNCA en producción
+   *    (`NODE_ENV=production`). Si está deshabilitado responde 404.
+   *
+   * Un 404 con la habilitación activa solo se da cuando la ruta no existe para
+   * quien pregunta: ni la existencia de la ruta ni la del dato se revelan.
+   */
   @Get('simular-error-grave')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary:
       'Simula un error 500 para probar el sistema de alertas por correo (A09)',
+    description:
+      'Diagnóstico de la cadena de alertas: exige sesión de personal, rol de administración del negocio y habilitación explícita por entorno. Deshabilitado siempre en producción. Un intento no autorizado no genera correo de alerta.',
   })
-  simularError() {
+  @ApiUnauthorizedResponse({
+    description: 'No hay sesión de personal válida.',
+  })
+  @ApiNotFoundResponse({
+    description:
+      'El simulador está deshabilitado en este entorno o la persona no es de la administración.',
+  })
+  simularError(@Req() request: { user?: { roles?: string[] } }) {
+    if (!simuladorErrorHabilitado()) {
+      throw new NotFoundException();
+    }
+
+    if (!this.esAdministracion(request?.user?.roles)) {
+      throw new NotFoundException();
+    }
+
     throw new InternalServerErrorException(
       '¡Simulación de explosión del servidor (Error 500)!',
+    );
+  }
+
+  /**
+   * ¿La sesión es de la administración del negocio?
+   *
+   * @param roles Roles efectivos de la sesión (`request.user.roles`).
+   */
+  private esAdministracion(roles: string[] | undefined): boolean {
+    const rolesSesion = new Set<string>(Array.isArray(roles) ? roles : []);
+    return (
+      rolesSesion.has(ROL_SUPERADMIN) || rolesSesion.has(ROL_ADMINISTRADOR)
     );
   }
 

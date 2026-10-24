@@ -27,6 +27,15 @@
 
 ## Documentación técnica
 
+- [Referencia formal de la API](docs/api/REFERENCIA_API.md): las 85 rutas del backend con
+  su autenticación, rol, cuerpo, respuesta y reglas (convenciones globales, códigos de
+  error, idempotencia y contexto de negocio).
+- [Auditoría de suficiencia de endpoints](docs/api/MATRIZ_AUDITORIA_ENDPOINTS.md): qué
+  reglas de negocio cubre la API y qué huecos quedan (G-01 a G-11).
+- [Auditoría de consistencia](docs/api/HALLAZGOS_CONSISTENCIA.md): diferencias entre las
+  reglas documentadas, el código real y las pruebas (H-01 a H-10).
+- [Trazabilidad de solicitudes (REQ)](docs/solicitudes/README.md): procedimiento y
+  registro de cada solicitud de desarrollo procesada con OpenCode.
 - [Contratos de API para operación por negocio (multitenant)](CONTRATOS_API_MULTITENANT.md):
   cómo se selecciona la barbería, qué identificador usa cada endpoint
   (`Barbero.id` vs `Usuario.id`), encabezados requeridos, CORS y

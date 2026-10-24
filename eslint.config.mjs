@@ -1,3 +1,10 @@
+/**
+ * Trazabilidad:
+ * - REQ: REQ-009
+ * - Modelo ejecutor: minimax-m3.1-flash-free
+ * - Propósito: permitir que ESLint analice la suite E2E nueva, que vive fuera de tsconfig.json.
+ * - Responsabilidad: configuración de ESLint. No define reglas de negocio.
+ */
 // @ts-check
 import eslint from '@eslint/js';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
@@ -36,6 +43,7 @@ export default tseslint.config(
     files: [
       'prisma/multitenant/**/*.ts',
       'test/multitenant-*.e2e-spec.ts',
+      'test/seguridad-simulador.e2e-spec.ts',
       'test/helpers/mariadb-test-container.ts',
     ],
     languageOptions: {
@@ -48,6 +56,7 @@ export default tseslint.config(
     files: [
       'prisma/multitenant/**/*.ts',
       'test/multitenant-*.e2e-spec.ts',
+      'test/seguridad-simulador.e2e-spec.ts',
       'test/helpers/mariadb-test-container.ts',
     ],
     languageOptions: {
