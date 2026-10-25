@@ -89,7 +89,7 @@ HE-04_integracion_disponibilidad.md
 # Nota: /docs/ queda ignorado, pero se versionan las carpetas de trazabilidad
 # (REQ-008) y de documentación formal de API. No puede ser "/docs/" porque Git
 # no re-incluye un archivo si su directorio padre está excluido.
-/docs/*
+/docs/**
 !/docs/solicitudes/
 !/docs/solicitudes/**
 !/docs/api/
@@ -98,3 +98,5 @@ Libro1.xlsx
 opencode.json
 MULTITENANT.md
 FASE11_ENTORNO_MULTITENANT_DEV.md
+# Testing artifacts
+artifacts/

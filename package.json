@@ -20,6 +20,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:multitenant": "jest --config ./test/jest-multitenant.json",
+    "test:bateria": "node scripts/testing/run-battery.mjs",
+    "security:zap": "node scripts/testing/zap-run.mjs",
     "seed": "tsc -p tsconfig.seed.json && node dist/seed/prisma/seed.js",
     "multitenant:build": "tsc -p tsconfig.multitenant.json",
     "multitenant:migrar": "npm run multitenant:build && node dist/multitenant/prisma/multitenant/migrar-negocio.js",
