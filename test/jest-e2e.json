@@ -11,5 +11,7 @@
     "^(\\.{1,2}/.*)\\.js$": "$1",
     "^@whiskeysockets/baileys$": "<rootDir>/__mocks__/@whiskeysockets-baileys.js"
   },
+  "testPathIgnorePatterns": ["/node_modules/", "multitenant-"],
+  "globalTeardown": "<rootDir>/global-teardown-multitenant.js",
   "testTimeout": 300000
 }

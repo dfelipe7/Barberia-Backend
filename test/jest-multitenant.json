@@ -11,5 +11,6 @@
     "^@whiskeysockets/baileys$": "<rootDir>/test/__mocks__/@whiskeysockets-baileys.js"
   },
   "transformIgnorePatterns": ["node_modules/(?!(@nestjs/(config|jwt))/)"],
+  "globalTeardown": "<rootDir>/test/global-teardown-multitenant.js",
   "testTimeout": 300000
 }

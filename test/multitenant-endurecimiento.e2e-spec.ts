@@ -46,8 +46,9 @@ interface FilaNegocio {
 
 describe('Endurecimiento del esquema multitenant (MariaDB real)', () => {
   const contenedores: MariaDbConnection[] = [];
+  const clientes: PrismaClient[] = [];
 
-  /** Crea un contenedor efímero con su cliente de Prisma. */
+  /** Crea una base nueva (en el contenedor compartido) con su cliente Prisma. */
   const nuevaBase = async () => {
     const conexion = await MariaDbConnection.start();
     contenedores.push(conexion);
@@ -63,6 +64,7 @@ describe('Endurecimiento del esquema multitenant (MariaDB real)', () => {
         connectionLimit: 5,
       }),
     });
+    clientes.push(prisma);
 
     return { conexion, prisma };
   };
@@ -138,7 +140,10 @@ describe('Endurecimiento del esquema multitenant (MariaDB real)', () => {
     }
   };
 
-  afterAll(() => {
+  afterAll(async () => {
+    for (const prisma of clientes) {
+      await prisma.$disconnect();
+    }
     for (const contenedor of contenedores) {
       contenedor.stop();
     }

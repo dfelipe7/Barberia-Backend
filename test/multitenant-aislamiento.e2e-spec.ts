@@ -404,5 +404,6 @@ describe('Aislamiento entre negocios A y B (MariaDB real)', () => {
     ).rejects.toThrow();
 
     ContextoNegocioAlmacenamiento.disable();
+    await prismaExtendido.$disconnect();
   });
 });

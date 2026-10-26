@@ -117,6 +117,9 @@ describe('Consistencia del flujo de reservas (MySQL 8.0 real)', () => {
     );
 
     process.env.DATABASE_URL = conexion.urlBase;
+    process.env.GOOGLE_CLIENT_ID ??= 'pruebas-reservas';
+    process.env.JWT_SECRET ??= 'secreto-pruebas-reservas';
+    process.env.JWT_CLIENTE_SECRET ??= 'secreto-cliente-pruebas-reservas';
 
     const url = new URL(conexion.urlBase);
     prisma = new PrismaClient({

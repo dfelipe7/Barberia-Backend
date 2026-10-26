@@ -73,9 +73,9 @@ async function main() {
   await mkdir(runDir, { recursive: true });
 
   const suites = [
-    { key: 'unit', name: 'Unitarias', cmd: 'npm', args: ['test', '--', '--runInBand', '--json', '--outputFile=' + path.join(runDir, 'jest-unit.json')] },
-    { key: 'multitenant', name: 'Multitenant', cmd: 'npm', args: ['run', 'test:multitenant', '--', '--runInBand', '--json', '--outputFile=' + path.join(runDir, 'jest-multitenant.json')] },
-    { key: 'e2e', name: 'E2E', cmd: 'npm', args: ['run', 'test:e2e', '--', '--runInBand', '--json', '--outputFile=' + path.join(runDir, 'jest-e2e.json')] },
+    { key: 'unit', name: 'Unitarias', cmd: 'npm', args: ['test', '--', '--runInBand', '--json', `--outputFile="${path.join(runDir, 'jest-unit.json')}"`] },
+    { key: 'multitenant', name: 'Multitenant', cmd: 'npm', args: ['run', 'test:multitenant', '--', '--runInBand', '--json', `--outputFile="${path.join(runDir, 'jest-multitenant.json')}"`] },
+    { key: 'e2e', name: 'E2E', cmd: 'npm', args: ['run', 'test:e2e', '--', '--runInBand', '--json', `--outputFile="${path.join(runDir, 'jest-e2e.json')}"`] },
   ];
 
   const results = [];
