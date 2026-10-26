@@ -178,14 +178,33 @@ async function main() {
     },
   ];
 
-  for (const serv of serviciosIniciales) {
-    await prisma.servicio.upsert({
-      where: { nombre: serv.nombre },
-      update: {},
-      create: serv,
-    });
+  const negocioPorDefecto = await prisma.negocio.findFirst({
+    where: { estado: 'ACTIVO' },
+    select: { id: true },
+  });
+
+  if (negocioPorDefecto) {
+    for (const serv of serviciosIniciales) {
+      await prisma.servicio.upsert({
+        where: {
+          negocioId_nombre: {
+            negocioId: negocioPorDefecto.id,
+            nombre: serv.nombre,
+          },
+        },
+        update: {},
+        create: {
+          ...serv,
+          negocioId: negocioPorDefecto.id,
+        },
+      });
+    }
+    console.log('✅ Servicios de la barbería listos.');
+  } else {
+    console.log(
+      'ℹ️ No hay negocio activo para asociar servicios iniciales; omitiendo catálogo.',
+    );
   }
-  console.log('✅ Servicios de la barbería listos.');
 
   // Configuración funcional GLOBAL de plataforma (parámetros editables en base
   // de datos).
