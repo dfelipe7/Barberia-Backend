@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import process from 'node:process';
 import { PrismaClient } from '../generated/prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
@@ -77,27 +78,47 @@ async function main() {
   console.log('🌱 Iniciando siembra de datos (Seed)...');
 
   // Corrección preventiva de posibles correos previos con typo
-  const prevJavier = await prisma.usuario.findUnique({ where: { email: 'javieraceron@unicauca.edu' } });
+  const prevJavier = await prisma.usuario.findUnique({
+    where: { email: 'javieraceron@unicauca.edu' },
+  });
   if (prevJavier) {
-    const yaExisteJavier = await prisma.usuario.findUnique({ where: { email: 'javieraceron@unicauca.edu.co' } });
+    const yaExisteJavier = await prisma.usuario.findUnique({
+      where: { email: 'javieraceron@unicauca.edu.co' },
+    });
     if (!yaExisteJavier) {
       await prisma.usuario.update({
         where: { id: prevJavier.id },
-        data: { email: 'javieraceron@unicauca.edu.co', nombre: 'Javier Alexis', apellido: 'Anacona' },
+        data: {
+          email: 'javieraceron@unicauca.edu.co',
+          nombre: 'Javier Alexis',
+          apellido: 'Anacona',
+        },
       });
-      console.log('🔄 Corregido correo de Javier Alexis a javieraceron@unicauca.edu.co');
+      console.log(
+        '🔄 Corregido correo de Javier Alexis a javieraceron@unicauca.edu.co',
+      );
     }
   }
 
-  const prevSantiago = await prisma.usuario.findUnique({ where: { email: 'santiago@unicauca.edu.co' } });
+  const prevSantiago = await prisma.usuario.findUnique({
+    where: { email: 'santiago@unicauca.edu.co' },
+  });
   if (prevSantiago) {
-    const yaExisteSantiago = await prisma.usuario.findUnique({ where: { email: 'csbalcazar@unicauca.edu.co' } });
+    const yaExisteSantiago = await prisma.usuario.findUnique({
+      where: { email: 'csbalcazar@unicauca.edu.co' },
+    });
     if (!yaExisteSantiago) {
       await prisma.usuario.update({
         where: { id: prevSantiago.id },
-        data: { email: 'csbalcazar@unicauca.edu.co', nombre: 'Santiago', apellido: 'Balcazar' },
+        data: {
+          email: 'csbalcazar@unicauca.edu.co',
+          nombre: 'Santiago',
+          apellido: 'Balcazar',
+        },
       });
-      console.log('🔄 Corregido correo de Santiago a csbalcazar@unicauca.edu.co');
+      console.log(
+        '🔄 Corregido correo de Santiago a csbalcazar@unicauca.edu.co',
+      );
     }
   }
 
@@ -150,28 +171,33 @@ async function main() {
         estado: admin.estado,
       },
     });
-    console.log(`✅ Superadmin asegurado: ${usuario.nombre} ${usuario.apellido} (${usuario.email}) - Rol: ${usuario.rol}`);
+    console.log(
+      `✅ Superadmin asegurado: ${usuario.nombre} ${usuario.apellido} (${usuario.email}) - Rol: ${usuario.rol}`,
+    );
   }
 
   // Servicios iniciales de la barbería
   const serviciosIniciales = [
     {
       nombre: 'Corte Clásico y Barba',
-      descripcion: 'Corte tradicional de cabello con perfilado de barba a navaja y toalla caliente.',
+      descripcion:
+        'Corte tradicional de cabello con perfilado de barba a navaja y toalla caliente.',
       precio: 45000,
       duracionMinutos: 45,
       estado: 'ACTIVO' as const,
     },
     {
       nombre: 'Corte de Cabello Clásico',
-      descripcion: 'Corte personalizado con tijera o máquina y peinado profesional.',
+      descripcion:
+        'Corte personalizado con tijera o máquina y peinado profesional.',
       precio: 30000,
       duracionMinutos: 30,
       estado: 'ACTIVO' as const,
     },
     {
       nombre: 'Perfilado y Afeitado de Barba',
-      descripcion: 'Afeitado tradicional con navaja y tratamiento hidratante para barba.',
+      descripcion:
+        'Afeitado tradicional con navaja y tratamiento hidratante para barba.',
       precio: 20000,
       duracionMinutos: 25,
       estado: 'ACTIVO' as const,
@@ -230,10 +256,11 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
-    console.error('❌ Error en el seed:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
+  .then(async () => {
     await prisma.$disconnect();
+  })
+  .catch(async (e) => {
+    console.error('❌ Error en el seed:', e);
+    await prisma.$disconnect();
+    process.exit(1);
   });

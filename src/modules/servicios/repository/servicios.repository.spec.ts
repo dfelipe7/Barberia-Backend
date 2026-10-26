@@ -10,8 +10,8 @@ jest.mock('../../../../generated/prisma/enums', () => ({
   EstadoUsuario: { ACTIVO: 'ACTIVO', INACTIVO: 'INACTIVO' },
 }));
 
-// Local reference matching the mock above
 const EstadoServicio = { ACTIVO: 'ACTIVO', INACTIVO: 'INACTIVO' } as const;
+const EstadoUsuario = { ACTIVO: 'ACTIVO', INACTIVO: 'INACTIVO' } as const;
 
 const mockPrisma = {
   barbero: { findMany: jest.fn() },
@@ -299,6 +299,21 @@ describe('ServiciosRepository', () => {
       esperarConsultaAislada(mockPrisma.servicio.findMany, {
         where: {
           estado: EstadoServicio.ACTIVO,
+          barberos: {
+            some: {
+              barbero: {
+                estado: EstadoUsuario.ACTIVO,
+                usuario: {
+                  estado: EstadoUsuario.ACTIVO,
+                },
+                weeklySlots: {
+                  some: {
+                    active: true,
+                  },
+                },
+              },
+            },
+          },
           OR: [
             { nombre: { contains: 'Corte' } },
             { descripcion: { contains: 'Corte' } },
@@ -398,6 +413,11 @@ describe('ServiciosRepository', () => {
             barbero: {
               estado: 'ACTIVO',
               usuario: { estado: 'ACTIVO' },
+              weeklySlots: {
+                some: {
+                  active: true,
+                },
+              },
             },
           }),
           select: expect.any(Object),

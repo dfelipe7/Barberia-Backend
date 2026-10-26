@@ -308,6 +308,11 @@ describe('BarberosRepository', () => {
         where: {
           estado: EstadoUsuario.ACTIVO,
           usuario: { estado: EstadoUsuario.ACTIVO },
+          weeklySlots: {
+            some: {
+              active: true,
+            },
+          },
         },
         include: expect.any(Object),
       });
@@ -328,6 +333,11 @@ describe('BarberosRepository', () => {
               { nombre: { contains: 'Juan' } },
               { apellido: { contains: 'Juan' } },
             ],
+          },
+          weeklySlots: {
+            some: {
+              active: true,
+            },
           },
         },
         include: expect.any(Object),
