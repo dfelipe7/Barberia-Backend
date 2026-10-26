@@ -221,13 +221,14 @@ export class ReservasController {
 
   @Get('admin')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPERADMIN')
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Consultar reservas de la barbería con filtros (SUPERADMIN)',
+    summary:
+      'Consultar reservas de la barbería con filtros (SUPERADMIN / ADMINISTRADOR)',
     description:
-      'Permite al SUPERADMIN consultar las reservas de todos los barberos con filtros aplicados directamente en la base de datos (fecha puntual, rango desde/hasta, barberoId, estado, clienteId).',
+      'Permite a SUPERADMIN y ADMINISTRADOR consultar las reservas de todos los barberos con filtros aplicados directamente en la base de datos (fecha puntual, rango desde/hasta, barberoId, estado, clienteId).',
   })
   @ApiOkResponse({
     description: 'Listado de reservas que coinciden con los filtros',
@@ -235,7 +236,7 @@ export class ReservasController {
   })
   @ApiUnauthorizedResponse({ description: 'No autenticado o token inválido' })
   @ApiForbiddenResponse({
-    description: 'Acceso restringido exclusivamente a SUPERADMIN',
+    description: 'Acceso restringido a SUPERADMIN y ADMINISTRADOR',
   })
   async listarReservasAdmin(
     @Query() filtro: FiltroReservasAdminDto,
@@ -245,12 +246,12 @@ export class ReservasController {
 
   @Get('admin/:reservaId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPERADMIN')
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
     summary:
-      'Consultar el detalle de cualquier reserva de la barbería (SUPERADMIN)',
+      'Consultar el detalle de cualquier reserva de la barbería (SUPERADMIN / ADMINISTRADOR)',
     description:
       'Devuelve la información completa de la reserva, cliente, barbero y servicio sin importar a quién pertenezca.',
   })
@@ -261,7 +262,9 @@ export class ReservasController {
   })
   @ApiBadRequestResponse({ description: 'Identificador de reserva inválido' })
   @ApiNotFoundResponse({ description: 'La reserva no se encuentra disponible' })
-  @ApiForbiddenResponse({ description: 'Acceso restringido a SUPERADMIN' })
+  @ApiForbiddenResponse({
+    description: 'Acceso restringido a SUPERADMIN y ADMINISTRADOR',
+  })
   async obtenerReservaAdmin(
     @Param('reservaId', ParseIntPipe) reservaId: number,
   ): Promise<ReservaAdminDetalleDto> {
@@ -275,13 +278,14 @@ export class ReservasController {
 
   @Patch('admin/:reservaId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPERADMIN')
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Modificar una reserva de cualquier barbero (SUPERADMIN)',
+    summary:
+      'Modificar una reserva de cualquier barbero (SUPERADMIN / ADMINISTRADOR)',
     description:
-      'Permite al SUPERADMIN reasignar barbero, fecha u hora a cualquier reserva activa respetando las reglas de disponibilidad de HE-08.',
+      'Permite a SUPERADMIN y ADMINISTRADOR reasignar barbero, fecha u hora a cualquier reserva activa respetando las reglas de disponibilidad de HE-08.',
   })
   @ApiParam({ name: 'reservaId', example: 42, description: 'ID de la reserva' })
   @ApiBody({ type: ModificarReservaDto })
@@ -294,7 +298,9 @@ export class ReservasController {
       'El horario seleccionado no está disponible o el estado no es modificable',
   })
   @ApiNotFoundResponse({ description: 'La reserva no se encuentra disponible' })
-  @ApiForbiddenResponse({ description: 'Acceso restringido a SUPERADMIN' })
+  @ApiForbiddenResponse({
+    description: 'Acceso restringido a SUPERADMIN y ADMINISTRADOR',
+  })
   async modificarReservaAdmin(
     @Param('reservaId', ParseIntPipe) reservaId: number,
     @Body() dto: ModificarReservaDto,
@@ -309,13 +315,14 @@ export class ReservasController {
 
   @Patch('admin/:reservaId/cancelar')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPERADMIN')
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Cancelar una reserva de cualquier barbero (SUPERADMIN)',
+    summary:
+      'Cancelar una reserva de cualquier barbero (SUPERADMIN / ADMINISTRADOR)',
     description:
-      'Permite al SUPERADMIN cancelar cualquier reserva activa de la barbería liberando la agenda.',
+      'Permite a SUPERADMIN y ADMINISTRADOR cancelar cualquier reserva activa de la barbería liberando la agenda.',
   })
   @ApiParam({ name: 'reservaId', example: 42, description: 'ID de la reserva' })
   @ApiOkResponse({
@@ -326,7 +333,9 @@ export class ReservasController {
   @ApiConflictResponse({
     description: 'El estado actual no permite cancelación',
   })
-  @ApiForbiddenResponse({ description: 'Acceso restringido a SUPERADMIN' })
+  @ApiForbiddenResponse({
+    description: 'Acceso restringido a SUPERADMIN y ADMINISTRADOR',
+  })
   async cancelarReservaAdmin(
     @Param('reservaId', ParseIntPipe) reservaId: number,
   ): Promise<ReservaCanceladaResponseDto> {

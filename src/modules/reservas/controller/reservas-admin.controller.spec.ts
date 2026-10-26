@@ -63,12 +63,15 @@ describe('ReservasController - Endpoints Administrativos (HU-13 y SUPERADMIN)', 
       expect(roles).toHaveLength(2);
     });
 
-    it('listarReservasAdmin debe requerir exclusivamente SUPERADMIN', () => {
+    it('listarReservasAdmin debe permitir ADMINISTRADOR y SUPERADMIN', () => {
       const roles = reflector.get<string[]>(
         ROLES_KEY,
         controller.listarReservasAdmin,
       );
-      expect(roles).toEqual(['SUPERADMIN']);
+      expect(roles).toEqual(
+        expect.arrayContaining(['ADMINISTRADOR', 'SUPERADMIN']),
+      );
+      expect(roles).toHaveLength(2);
     });
 
     it('buscarClientesAdmin debe permitir ADMINISTRADOR y SUPERADMIN', () => {
@@ -82,28 +85,37 @@ describe('ReservasController - Endpoints Administrativos (HU-13 y SUPERADMIN)', 
       expect(roles).toHaveLength(2);
     });
 
-    it('obtenerReservaAdmin debe requerir SUPERADMIN', () => {
+    it('obtenerReservaAdmin debe permitir ADMINISTRADOR y SUPERADMIN', () => {
       const roles = reflector.get<string[]>(
         ROLES_KEY,
         controller.obtenerReservaAdmin,
       );
-      expect(roles).toEqual(['SUPERADMIN']);
+      expect(roles).toEqual(
+        expect.arrayContaining(['ADMINISTRADOR', 'SUPERADMIN']),
+      );
+      expect(roles).toHaveLength(2);
     });
 
-    it('modificarReservaAdmin debe requerir SUPERADMIN', () => {
+    it('modificarReservaAdmin debe permitir ADMINISTRADOR y SUPERADMIN', () => {
       const roles = reflector.get<string[]>(
         ROLES_KEY,
         controller.modificarReservaAdmin,
       );
-      expect(roles).toEqual(['SUPERADMIN']);
+      expect(roles).toEqual(
+        expect.arrayContaining(['ADMINISTRADOR', 'SUPERADMIN']),
+      );
+      expect(roles).toHaveLength(2);
     });
 
-    it('cancelarReservaAdmin debe requerir SUPERADMIN', () => {
+    it('cancelarReservaAdmin debe permitir ADMINISTRADOR y SUPERADMIN', () => {
       const roles = reflector.get<string[]>(
         ROLES_KEY,
         controller.cancelarReservaAdmin,
       );
-      expect(roles).toEqual(['SUPERADMIN']);
+      expect(roles).toEqual(
+        expect.arrayContaining(['ADMINISTRADOR', 'SUPERADMIN']),
+      );
+      expect(roles).toHaveLength(2);
     });
   });
 
