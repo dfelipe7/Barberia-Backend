@@ -16,6 +16,11 @@ import { UsuariosRepository } from '../repository/usuarios.repository';
 import { UsuariosAuthorizationService } from './usuarios-authorization.service';
 import { AdministradoresService } from './administradores.service';
 import { BarberosService } from './barberos.service';
+import {
+  ActorSesion,
+  construirActorSesion,
+} from '../../../auth/sesion/sesion-personal';
+import { ROL_BARBERO } from '../../negocios/negocios.constants';
 
 @Injectable()
 export class UsuariosService {
@@ -32,15 +37,12 @@ export class UsuariosService {
   ) {}
 
   /**
-   * Sincroniza y verifica al usuario SUPERADMIN inicial en la base de datos local.
+   * Actor de la petición: la SESIÓN (identidad global + roles efectivos en el
+   * negocio). Es lo que se usa para autorizar; el registro de `Usuario` solo
+   * se usa para saber que la identidad existe.
    */
-  async sincronizarSuperadmin() {
-    return [
-      {
-        mensaje:
-          'Superadministradores verificados correctamente en la base de datos MySQL local.',
-      },
-    ];
+  private actorDe(usuarioAutenticado: any): ActorSesion {
+    return construirActorSesion(usuarioAutenticado);
   }
 
   private async buscarUsuarioAutenticado(usuarioAutenticado: any) {
@@ -106,7 +108,10 @@ export class UsuariosService {
       );
     }
 
-    this.authorizationService.verificarPermisosConsulta(usuarioActual, usuario);
+    this.authorizationService.verificarPermisosConsulta(
+      this.actorDe(usuarioAutenticado),
+      usuario,
+    );
 
     return this.mapearUsuarioPerfil(usuario);
   }
@@ -137,20 +142,17 @@ export class UsuariosService {
       );
     }
 
-    this.authorizationService.verificarPermisosEdicion(usuarioActual, usuario);
+    const actor = this.actorDe(usuarioAutenticado);
+
+    this.authorizationService.verificarPermisosEdicion(actor, usuario);
 
     await this.actualizarDatosPersonales(usuarioId, dto);
-    await this.gestionarRolAdministrador(
-      usuarioId,
-      dto,
-      usuario,
-      usuarioActual,
-    );
+    await this.gestionarRolAdministrador(usuarioId, dto, usuario, actor);
     await this.gestionarRolBarbero(
       usuarioId,
       dto,
       usuario,
-      usuarioActual,
+      actor,
       usuarioAutenticado,
     );
 
@@ -181,23 +183,29 @@ export class UsuariosService {
     usuarioId: number,
     dto: ActualizarUsuarioDto,
     usuario: any,
-    usuarioActual: any,
+    actor: ActorSesion,
   ): Promise<void> {
-    if (dto.esAdministrador === undefined || usuario.rol === 'SUPERADMIN') {
+    if (dto.esAdministrador === undefined) {
       return;
     }
 
-    const estadoAdminActual = usuario.administrador?.estado === 'ACTIVO';
+    const estadoAdminActual = this.esAdminActivoEnNegocio(
+      usuario,
+      actor.negocioId,
+    );
     if (dto.esAdministrador === estadoAdminActual) {
       return;
     }
 
-    if (usuarioActual.rol !== 'SUPERADMIN') {
+    // Otorgar o revocar el rol de ADMINISTRADOR es una decisión del
+    // SUPERADMIN **de este negocio**: el poder del superadmin se agota en su
+    // barbería y no existe ninguna identidad de plataforma.
+    if (!actor.roles.includes('SUPERADMIN')) {
       throw new ForbiddenException(
-        'Solo el Superadministrador puede otorgar o revocar el rol de Administrador',
+        'Solo el Superadministrador de esta barbería puede otorgar o revocar el rol de Administrador',
       );
     }
-    if (usuarioActual.id === usuario.id && !dto.esAdministrador) {
+    if (actor.id === usuario.id && !dto.esAdministrador) {
       throw new ConflictException(
         'No puedes remover tu propio rol de Administrador',
       );
@@ -216,10 +224,13 @@ export class UsuariosService {
     usuarioId: number,
     dto: ActualizarUsuarioDto,
     usuario: any,
-    usuarioActual: any,
+    actor: ActorSesion,
     usuarioAutenticado: any,
   ): Promise<void> {
-    const estadoBarberoActual = usuario.barbero?.estado === 'ACTIVO';
+    const estadoBarberoActual = this.esBarberoActivoEnNegocio(
+      usuario,
+      actor.negocioId,
+    );
     const requiereCambioEstado =
       dto.esBarbero !== undefined && dto.esBarbero !== estadoBarberoActual;
 
@@ -228,34 +239,29 @@ export class UsuariosService {
         usuarioId,
         dto,
         usuario,
-        usuarioActual,
+        actor,
         usuarioAutenticado,
       );
       return;
     }
 
-    await this.actualizarPerfilBarberoSiAplica(
-      usuarioId,
-      dto,
-      usuario,
-      usuarioActual,
-    );
+    await this.actualizarPerfilBarberoSiAplica(usuarioId, dto, usuario, actor);
   }
 
   private async cambiarEstadoRolBarbero(
     usuarioId: number,
     dto: ActualizarUsuarioDto,
     usuario: any,
-    usuarioActual: any,
+    actor: ActorSesion,
     usuarioAutenticado: any,
   ): Promise<void> {
-    if (usuarioActual.rol === 'BARBERO') {
+    if (actor.roles.includes(ROL_BARBERO)) {
       throw new ForbiddenException(
         'Un barbero no puede modificar ni revocar su propio rol de Barbero',
       );
     }
     this.authorizationService.verificarPermisosCambioEstadoBarbero(
-      usuarioActual,
+      actor,
       usuario,
     );
 
@@ -282,7 +288,7 @@ export class UsuariosService {
     usuarioId: number,
     dto: ActualizarUsuarioDto,
     usuario: any,
-    usuarioActual: any,
+    actor: ActorSesion,
   ): Promise<void> {
     const enviaDatosPerfil =
       dto.telefono ||
@@ -294,10 +300,7 @@ export class UsuariosService {
     }
 
     if (dto.porcentajeComision !== undefined) {
-      this.authorizationService.verificarPermisosComision(
-        usuarioActual,
-        usuario,
-      );
+      this.authorizationService.verificarPermisosComision(actor, usuario);
     }
 
     await this.barberosRepository.actualizarPerfilBarbero(usuarioId, {
@@ -305,6 +308,32 @@ export class UsuariosService {
       porcentajeComision: dto.porcentajeComision,
       fotoUrl: dto.fotoUrl,
     });
+  }
+
+  /** El objetivo tiene un perfil de administrador ACTIVO en ese negocio. */
+  private esAdminActivoEnNegocio(
+    usuario: any,
+    negocioId: number | null,
+  ): boolean {
+    return (
+      !!usuario.administrador &&
+      negocioId !== null &&
+      usuario.administrador.negocioId === negocioId &&
+      usuario.administrador.estado === 'ACTIVO'
+    );
+  }
+
+  /** El objetivo tiene un perfil de barbero ACTIVO en ese negocio. */
+  private esBarberoActivoEnNegocio(
+    usuario: any,
+    negocioId: number | null,
+  ): boolean {
+    return (
+      !!usuario.barbero &&
+      negocioId !== null &&
+      usuario.barbero.negocioId === negocioId &&
+      usuario.barbero.estado === 'ACTIVO'
+    );
   }
 
   /**
@@ -336,7 +365,7 @@ export class UsuariosService {
     }
 
     this.authorizationService.verificarPermisosCambioEstadoCuenta(
-      usuarioActual,
+      this.actorDe(usuarioAutenticado),
       usuario,
     );
 

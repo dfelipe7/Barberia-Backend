@@ -14,7 +14,22 @@ import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model WhatsAppPlantilla
+ * Plantilla de mensaje de WhatsApp.
  * 
+ * ALCANCE (HU-11): la plantilla puede ser GLOBAL de plataforma
+ * (`negocioId = NULL`) o propia de un negocio (`negocioId = X`).
+ * 
+ * REGLA DE RESOLUCIÓN: la plantilla DEL NEGOCIO tiene prioridad; si no
+ * existe, se usa la plantilla GLOBAL; si tampoco existe, el texto por defecto
+ * del código. Las filas globales son el VALOR POR DEFECTO de la plataforma
+ * (su propósito es explícito: el texto inicial de una barbería que aún no ha
+ * personalizado sus mensajes) y nunca sustituyen a la de un negocio.
+ * 
+ * `claveGlobal` es una columna GENERADA (creada en la migración SQL) que
+ * contiene el `tipo` cuando la plantilla es global y `NULL` cuando es de un
+ * negocio. Su índice único garantiza como máximo UNA plantilla global por
+ * tipo: en MySQL/MariaDB los `NULL` de un índice único no colisionan, de
+ * modo que las plantillas de negocio pueden repetirse el tipo que-sea.
  */
 export type WhatsAppPlantillaModel = runtime.Types.Result.DefaultSelection<Prisma.$WhatsAppPlantillaPayload>
 
@@ -28,10 +43,12 @@ export type AggregateWhatsAppPlantilla = {
 
 export type WhatsAppPlantillaAvgAggregateOutputType = {
   id: number | null
+  negocioId: number | null
 }
 
 export type WhatsAppPlantillaSumAggregateOutputType = {
   id: number | null
+  negocioId: number | null
 }
 
 export type WhatsAppPlantillaMinAggregateOutputType = {
@@ -39,6 +56,8 @@ export type WhatsAppPlantillaMinAggregateOutputType = {
   tipo: string | null
   mensaje: string | null
   activo: boolean | null
+  negocioId: number | null
+  claveGlobal: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -48,6 +67,8 @@ export type WhatsAppPlantillaMaxAggregateOutputType = {
   tipo: string | null
   mensaje: string | null
   activo: boolean | null
+  negocioId: number | null
+  claveGlobal: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -57,6 +78,8 @@ export type WhatsAppPlantillaCountAggregateOutputType = {
   tipo: number
   mensaje: number
   activo: number
+  negocioId: number
+  claveGlobal: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -65,10 +88,12 @@ export type WhatsAppPlantillaCountAggregateOutputType = {
 
 export type WhatsAppPlantillaAvgAggregateInputType = {
   id?: true
+  negocioId?: true
 }
 
 export type WhatsAppPlantillaSumAggregateInputType = {
   id?: true
+  negocioId?: true
 }
 
 export type WhatsAppPlantillaMinAggregateInputType = {
@@ -76,6 +101,8 @@ export type WhatsAppPlantillaMinAggregateInputType = {
   tipo?: true
   mensaje?: true
   activo?: true
+  negocioId?: true
+  claveGlobal?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -85,6 +112,8 @@ export type WhatsAppPlantillaMaxAggregateInputType = {
   tipo?: true
   mensaje?: true
   activo?: true
+  negocioId?: true
+  claveGlobal?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -94,6 +123,8 @@ export type WhatsAppPlantillaCountAggregateInputType = {
   tipo?: true
   mensaje?: true
   activo?: true
+  negocioId?: true
+  claveGlobal?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -190,6 +221,8 @@ export type WhatsAppPlantillaGroupByOutputType = {
   tipo: string
   mensaje: string
   activo: boolean
+  negocioId: number | null
+  claveGlobal: string | null
   createdAt: Date
   updatedAt: Date
   _count: WhatsAppPlantillaCountAggregateOutputType | null
@@ -222,8 +255,11 @@ export type WhatsAppPlantillaWhereInput = {
   tipo?: Prisma.StringFilter<"WhatsAppPlantilla"> | string
   mensaje?: Prisma.StringFilter<"WhatsAppPlantilla"> | string
   activo?: Prisma.BoolFilter<"WhatsAppPlantilla"> | boolean
+  negocioId?: Prisma.IntNullableFilter<"WhatsAppPlantilla"> | number | null
+  claveGlobal?: Prisma.StringNullableFilter<"WhatsAppPlantilla"> | string | null
   createdAt?: Prisma.DateTimeFilter<"WhatsAppPlantilla"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"WhatsAppPlantilla"> | Date | string
+  negocio?: Prisma.XOR<Prisma.NegocioNullableScalarRelationFilter, Prisma.NegocioWhereInput> | null
 }
 
 export type WhatsAppPlantillaOrderByWithRelationInput = {
@@ -231,28 +267,37 @@ export type WhatsAppPlantillaOrderByWithRelationInput = {
   tipo?: Prisma.SortOrder
   mensaje?: Prisma.SortOrder
   activo?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrderInput | Prisma.SortOrder
+  claveGlobal?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  negocio?: Prisma.NegocioOrderByWithRelationInput
   _relevance?: Prisma.WhatsAppPlantillaOrderByRelevanceInput
 }
 
 export type WhatsAppPlantillaWhereUniqueInput = Prisma.AtLeast<{
   id?: number
-  tipo?: string
+  claveGlobal?: string
+  negocioId_tipo?: Prisma.WhatsAppPlantillaNegocioIdTipoCompoundUniqueInput
   AND?: Prisma.WhatsAppPlantillaWhereInput | Prisma.WhatsAppPlantillaWhereInput[]
   OR?: Prisma.WhatsAppPlantillaWhereInput[]
   NOT?: Prisma.WhatsAppPlantillaWhereInput | Prisma.WhatsAppPlantillaWhereInput[]
+  tipo?: Prisma.StringFilter<"WhatsAppPlantilla"> | string
   mensaje?: Prisma.StringFilter<"WhatsAppPlantilla"> | string
   activo?: Prisma.BoolFilter<"WhatsAppPlantilla"> | boolean
+  negocioId?: Prisma.IntNullableFilter<"WhatsAppPlantilla"> | number | null
   createdAt?: Prisma.DateTimeFilter<"WhatsAppPlantilla"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"WhatsAppPlantilla"> | Date | string
-}, "id" | "tipo">
+  negocio?: Prisma.XOR<Prisma.NegocioNullableScalarRelationFilter, Prisma.NegocioWhereInput> | null
+}, "id" | "claveGlobal" | "negocioId_tipo">
 
 export type WhatsAppPlantillaOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   tipo?: Prisma.SortOrder
   mensaje?: Prisma.SortOrder
   activo?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrderInput | Prisma.SortOrder
+  claveGlobal?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.WhatsAppPlantillaCountOrderByAggregateInput
@@ -270,6 +315,8 @@ export type WhatsAppPlantillaScalarWhereWithAggregatesInput = {
   tipo?: Prisma.StringWithAggregatesFilter<"WhatsAppPlantilla"> | string
   mensaje?: Prisma.StringWithAggregatesFilter<"WhatsAppPlantilla"> | string
   activo?: Prisma.BoolWithAggregatesFilter<"WhatsAppPlantilla"> | boolean
+  negocioId?: Prisma.IntNullableWithAggregatesFilter<"WhatsAppPlantilla"> | number | null
+  claveGlobal?: Prisma.StringNullableWithAggregatesFilter<"WhatsAppPlantilla"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"WhatsAppPlantilla"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"WhatsAppPlantilla"> | Date | string
 }
@@ -278,8 +325,10 @@ export type WhatsAppPlantillaCreateInput = {
   tipo: string
   mensaje: string
   activo?: boolean
+  claveGlobal?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  negocio?: Prisma.NegocioCreateNestedOneWithoutPlantillasWhatsAppInput
 }
 
 export type WhatsAppPlantillaUncheckedCreateInput = {
@@ -287,6 +336,8 @@ export type WhatsAppPlantillaUncheckedCreateInput = {
   tipo: string
   mensaje: string
   activo?: boolean
+  negocioId?: number | null
+  claveGlobal?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -295,8 +346,10 @@ export type WhatsAppPlantillaUpdateInput = {
   tipo?: Prisma.StringFieldUpdateOperationsInput | string
   mensaje?: Prisma.StringFieldUpdateOperationsInput | string
   activo?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  claveGlobal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  negocio?: Prisma.NegocioUpdateOneWithoutPlantillasWhatsAppNestedInput
 }
 
 export type WhatsAppPlantillaUncheckedUpdateInput = {
@@ -304,6 +357,8 @@ export type WhatsAppPlantillaUncheckedUpdateInput = {
   tipo?: Prisma.StringFieldUpdateOperationsInput | string
   mensaje?: Prisma.StringFieldUpdateOperationsInput | string
   activo?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  claveGlobal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -313,6 +368,8 @@ export type WhatsAppPlantillaCreateManyInput = {
   tipo: string
   mensaje: string
   activo?: boolean
+  negocioId?: number | null
+  claveGlobal?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -321,6 +378,7 @@ export type WhatsAppPlantillaUpdateManyMutationInput = {
   tipo?: Prisma.StringFieldUpdateOperationsInput | string
   mensaje?: Prisma.StringFieldUpdateOperationsInput | string
   activo?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  claveGlobal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -330,8 +388,20 @@ export type WhatsAppPlantillaUncheckedUpdateManyInput = {
   tipo?: Prisma.StringFieldUpdateOperationsInput | string
   mensaje?: Prisma.StringFieldUpdateOperationsInput | string
   activo?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  negocioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  claveGlobal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type WhatsAppPlantillaListRelationFilter = {
+  every?: Prisma.WhatsAppPlantillaWhereInput
+  some?: Prisma.WhatsAppPlantillaWhereInput
+  none?: Prisma.WhatsAppPlantillaWhereInput
+}
+
+export type WhatsAppPlantillaOrderByRelationAggregateInput = {
+  _count?: Prisma.SortOrder
 }
 
 export type WhatsAppPlantillaOrderByRelevanceInput = {
@@ -340,17 +410,25 @@ export type WhatsAppPlantillaOrderByRelevanceInput = {
   search: string
 }
 
+export type WhatsAppPlantillaNegocioIdTipoCompoundUniqueInput = {
+  negocioId: number
+  tipo: string
+}
+
 export type WhatsAppPlantillaCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   tipo?: Prisma.SortOrder
   mensaje?: Prisma.SortOrder
   activo?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
+  claveGlobal?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type WhatsAppPlantillaAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
 }
 
 export type WhatsAppPlantillaMaxOrderByAggregateInput = {
@@ -358,6 +436,8 @@ export type WhatsAppPlantillaMaxOrderByAggregateInput = {
   tipo?: Prisma.SortOrder
   mensaje?: Prisma.SortOrder
   activo?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
+  claveGlobal?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -367,12 +447,155 @@ export type WhatsAppPlantillaMinOrderByAggregateInput = {
   tipo?: Prisma.SortOrder
   mensaje?: Prisma.SortOrder
   activo?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
+  claveGlobal?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type WhatsAppPlantillaSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
+}
+
+export type WhatsAppPlantillaCreateNestedManyWithoutNegocioInput = {
+  create?: Prisma.XOR<Prisma.WhatsAppPlantillaCreateWithoutNegocioInput, Prisma.WhatsAppPlantillaUncheckedCreateWithoutNegocioInput> | Prisma.WhatsAppPlantillaCreateWithoutNegocioInput[] | Prisma.WhatsAppPlantillaUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.WhatsAppPlantillaCreateOrConnectWithoutNegocioInput | Prisma.WhatsAppPlantillaCreateOrConnectWithoutNegocioInput[]
+  createMany?: Prisma.WhatsAppPlantillaCreateManyNegocioInputEnvelope
+  connect?: Prisma.WhatsAppPlantillaWhereUniqueInput | Prisma.WhatsAppPlantillaWhereUniqueInput[]
+}
+
+export type WhatsAppPlantillaUncheckedCreateNestedManyWithoutNegocioInput = {
+  create?: Prisma.XOR<Prisma.WhatsAppPlantillaCreateWithoutNegocioInput, Prisma.WhatsAppPlantillaUncheckedCreateWithoutNegocioInput> | Prisma.WhatsAppPlantillaCreateWithoutNegocioInput[] | Prisma.WhatsAppPlantillaUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.WhatsAppPlantillaCreateOrConnectWithoutNegocioInput | Prisma.WhatsAppPlantillaCreateOrConnectWithoutNegocioInput[]
+  createMany?: Prisma.WhatsAppPlantillaCreateManyNegocioInputEnvelope
+  connect?: Prisma.WhatsAppPlantillaWhereUniqueInput | Prisma.WhatsAppPlantillaWhereUniqueInput[]
+}
+
+export type WhatsAppPlantillaUpdateManyWithoutNegocioNestedInput = {
+  create?: Prisma.XOR<Prisma.WhatsAppPlantillaCreateWithoutNegocioInput, Prisma.WhatsAppPlantillaUncheckedCreateWithoutNegocioInput> | Prisma.WhatsAppPlantillaCreateWithoutNegocioInput[] | Prisma.WhatsAppPlantillaUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.WhatsAppPlantillaCreateOrConnectWithoutNegocioInput | Prisma.WhatsAppPlantillaCreateOrConnectWithoutNegocioInput[]
+  upsert?: Prisma.WhatsAppPlantillaUpsertWithWhereUniqueWithoutNegocioInput | Prisma.WhatsAppPlantillaUpsertWithWhereUniqueWithoutNegocioInput[]
+  createMany?: Prisma.WhatsAppPlantillaCreateManyNegocioInputEnvelope
+  set?: Prisma.WhatsAppPlantillaWhereUniqueInput | Prisma.WhatsAppPlantillaWhereUniqueInput[]
+  disconnect?: Prisma.WhatsAppPlantillaWhereUniqueInput | Prisma.WhatsAppPlantillaWhereUniqueInput[]
+  delete?: Prisma.WhatsAppPlantillaWhereUniqueInput | Prisma.WhatsAppPlantillaWhereUniqueInput[]
+  connect?: Prisma.WhatsAppPlantillaWhereUniqueInput | Prisma.WhatsAppPlantillaWhereUniqueInput[]
+  update?: Prisma.WhatsAppPlantillaUpdateWithWhereUniqueWithoutNegocioInput | Prisma.WhatsAppPlantillaUpdateWithWhereUniqueWithoutNegocioInput[]
+  updateMany?: Prisma.WhatsAppPlantillaUpdateManyWithWhereWithoutNegocioInput | Prisma.WhatsAppPlantillaUpdateManyWithWhereWithoutNegocioInput[]
+  deleteMany?: Prisma.WhatsAppPlantillaScalarWhereInput | Prisma.WhatsAppPlantillaScalarWhereInput[]
+}
+
+export type WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioNestedInput = {
+  create?: Prisma.XOR<Prisma.WhatsAppPlantillaCreateWithoutNegocioInput, Prisma.WhatsAppPlantillaUncheckedCreateWithoutNegocioInput> | Prisma.WhatsAppPlantillaCreateWithoutNegocioInput[] | Prisma.WhatsAppPlantillaUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.WhatsAppPlantillaCreateOrConnectWithoutNegocioInput | Prisma.WhatsAppPlantillaCreateOrConnectWithoutNegocioInput[]
+  upsert?: Prisma.WhatsAppPlantillaUpsertWithWhereUniqueWithoutNegocioInput | Prisma.WhatsAppPlantillaUpsertWithWhereUniqueWithoutNegocioInput[]
+  createMany?: Prisma.WhatsAppPlantillaCreateManyNegocioInputEnvelope
+  set?: Prisma.WhatsAppPlantillaWhereUniqueInput | Prisma.WhatsAppPlantillaWhereUniqueInput[]
+  disconnect?: Prisma.WhatsAppPlantillaWhereUniqueInput | Prisma.WhatsAppPlantillaWhereUniqueInput[]
+  delete?: Prisma.WhatsAppPlantillaWhereUniqueInput | Prisma.WhatsAppPlantillaWhereUniqueInput[]
+  connect?: Prisma.WhatsAppPlantillaWhereUniqueInput | Prisma.WhatsAppPlantillaWhereUniqueInput[]
+  update?: Prisma.WhatsAppPlantillaUpdateWithWhereUniqueWithoutNegocioInput | Prisma.WhatsAppPlantillaUpdateWithWhereUniqueWithoutNegocioInput[]
+  updateMany?: Prisma.WhatsAppPlantillaUpdateManyWithWhereWithoutNegocioInput | Prisma.WhatsAppPlantillaUpdateManyWithWhereWithoutNegocioInput[]
+  deleteMany?: Prisma.WhatsAppPlantillaScalarWhereInput | Prisma.WhatsAppPlantillaScalarWhereInput[]
+}
+
+export type WhatsAppPlantillaCreateWithoutNegocioInput = {
+  tipo: string
+  mensaje: string
+  activo?: boolean
+  claveGlobal?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type WhatsAppPlantillaUncheckedCreateWithoutNegocioInput = {
+  id?: number
+  tipo: string
+  mensaje: string
+  activo?: boolean
+  claveGlobal?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type WhatsAppPlantillaCreateOrConnectWithoutNegocioInput = {
+  where: Prisma.WhatsAppPlantillaWhereUniqueInput
+  create: Prisma.XOR<Prisma.WhatsAppPlantillaCreateWithoutNegocioInput, Prisma.WhatsAppPlantillaUncheckedCreateWithoutNegocioInput>
+}
+
+export type WhatsAppPlantillaCreateManyNegocioInputEnvelope = {
+  data: Prisma.WhatsAppPlantillaCreateManyNegocioInput | Prisma.WhatsAppPlantillaCreateManyNegocioInput[]
+  skipDuplicates?: boolean
+}
+
+export type WhatsAppPlantillaUpsertWithWhereUniqueWithoutNegocioInput = {
+  where: Prisma.WhatsAppPlantillaWhereUniqueInput
+  update: Prisma.XOR<Prisma.WhatsAppPlantillaUpdateWithoutNegocioInput, Prisma.WhatsAppPlantillaUncheckedUpdateWithoutNegocioInput>
+  create: Prisma.XOR<Prisma.WhatsAppPlantillaCreateWithoutNegocioInput, Prisma.WhatsAppPlantillaUncheckedCreateWithoutNegocioInput>
+}
+
+export type WhatsAppPlantillaUpdateWithWhereUniqueWithoutNegocioInput = {
+  where: Prisma.WhatsAppPlantillaWhereUniqueInput
+  data: Prisma.XOR<Prisma.WhatsAppPlantillaUpdateWithoutNegocioInput, Prisma.WhatsAppPlantillaUncheckedUpdateWithoutNegocioInput>
+}
+
+export type WhatsAppPlantillaUpdateManyWithWhereWithoutNegocioInput = {
+  where: Prisma.WhatsAppPlantillaScalarWhereInput
+  data: Prisma.XOR<Prisma.WhatsAppPlantillaUpdateManyMutationInput, Prisma.WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioInput>
+}
+
+export type WhatsAppPlantillaScalarWhereInput = {
+  AND?: Prisma.WhatsAppPlantillaScalarWhereInput | Prisma.WhatsAppPlantillaScalarWhereInput[]
+  OR?: Prisma.WhatsAppPlantillaScalarWhereInput[]
+  NOT?: Prisma.WhatsAppPlantillaScalarWhereInput | Prisma.WhatsAppPlantillaScalarWhereInput[]
+  id?: Prisma.IntFilter<"WhatsAppPlantilla"> | number
+  tipo?: Prisma.StringFilter<"WhatsAppPlantilla"> | string
+  mensaje?: Prisma.StringFilter<"WhatsAppPlantilla"> | string
+  activo?: Prisma.BoolFilter<"WhatsAppPlantilla"> | boolean
+  negocioId?: Prisma.IntNullableFilter<"WhatsAppPlantilla"> | number | null
+  claveGlobal?: Prisma.StringNullableFilter<"WhatsAppPlantilla"> | string | null
+  createdAt?: Prisma.DateTimeFilter<"WhatsAppPlantilla"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"WhatsAppPlantilla"> | Date | string
+}
+
+export type WhatsAppPlantillaCreateManyNegocioInput = {
+  id?: number
+  tipo: string
+  mensaje: string
+  activo?: boolean
+  claveGlobal?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type WhatsAppPlantillaUpdateWithoutNegocioInput = {
+  tipo?: Prisma.StringFieldUpdateOperationsInput | string
+  mensaje?: Prisma.StringFieldUpdateOperationsInput | string
+  activo?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  claveGlobal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type WhatsAppPlantillaUncheckedUpdateWithoutNegocioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  tipo?: Prisma.StringFieldUpdateOperationsInput | string
+  mensaje?: Prisma.StringFieldUpdateOperationsInput | string
+  activo?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  claveGlobal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  tipo?: Prisma.StringFieldUpdateOperationsInput | string
+  mensaje?: Prisma.StringFieldUpdateOperationsInput | string
+  activo?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  claveGlobal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 
@@ -382,8 +605,11 @@ export type WhatsAppPlantillaSelect<ExtArgs extends runtime.Types.Extensions.Int
   tipo?: boolean
   mensaje?: boolean
   activo?: boolean
+  negocioId?: boolean
+  claveGlobal?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  negocio?: boolean | Prisma.WhatsAppPlantilla$negocioArgs<ExtArgs>
 }, ExtArgs["result"]["whatsAppPlantilla"]>
 
 
@@ -393,20 +619,39 @@ export type WhatsAppPlantillaSelectScalar = {
   tipo?: boolean
   mensaje?: boolean
   activo?: boolean
+  negocioId?: boolean
+  claveGlobal?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type WhatsAppPlantillaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "tipo" | "mensaje" | "activo" | "createdAt" | "updatedAt", ExtArgs["result"]["whatsAppPlantilla"]>
+export type WhatsAppPlantillaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "tipo" | "mensaje" | "activo" | "negocioId" | "claveGlobal" | "createdAt" | "updatedAt", ExtArgs["result"]["whatsAppPlantilla"]>
+export type WhatsAppPlantillaInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  negocio?: boolean | Prisma.WhatsAppPlantilla$negocioArgs<ExtArgs>
+}
 
 export type $WhatsAppPlantillaPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "WhatsAppPlantilla"
-  objects: {}
+  objects: {
+    negocio: Prisma.$NegocioPayload<ExtArgs> | null
+  }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
     tipo: string
     mensaje: string
     activo: boolean
+    /**
+     * Negocio al que pertenece la plantilla. `NULL` = plantilla GLOBAL de
+     * plataforma.
+     */
+    negocioId: number | null
+    /**
+     * Columna generada: `tipo` si la plantilla es global, `NULL` si es de un
+     * negocio. Prisma no expresa columnas generadas: se declara para que no
+     * genere drift, y la expresión solo existe en la migración SQL. Es ÚNICA:
+     * garantiza como máximo una plantilla global por tipo.
+     */
+    claveGlobal: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["whatsAppPlantilla"]>
@@ -749,6 +994,7 @@ readonly fields: WhatsAppPlantillaFieldRefs;
  */
 export interface Prisma__WhatsAppPlantillaClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  negocio<T extends Prisma.WhatsAppPlantilla$negocioArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.WhatsAppPlantilla$negocioArgs<ExtArgs>>): Prisma.Prisma__NegocioClient<runtime.Types.Result.GetResult<Prisma.$NegocioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -782,6 +1028,8 @@ export interface WhatsAppPlantillaFieldRefs {
   readonly tipo: Prisma.FieldRef<"WhatsAppPlantilla", 'String'>
   readonly mensaje: Prisma.FieldRef<"WhatsAppPlantilla", 'String'>
   readonly activo: Prisma.FieldRef<"WhatsAppPlantilla", 'Boolean'>
+  readonly negocioId: Prisma.FieldRef<"WhatsAppPlantilla", 'Int'>
+  readonly claveGlobal: Prisma.FieldRef<"WhatsAppPlantilla", 'String'>
   readonly createdAt: Prisma.FieldRef<"WhatsAppPlantilla", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"WhatsAppPlantilla", 'DateTime'>
 }
@@ -801,6 +1049,10 @@ export type WhatsAppPlantillaFindUniqueArgs<ExtArgs extends runtime.Types.Extens
    */
   omit?: Prisma.WhatsAppPlantillaOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppPlantillaInclude<ExtArgs> | null
+  /**
    * Filter, which WhatsAppPlantilla to fetch.
    */
   where: Prisma.WhatsAppPlantillaWhereUniqueInput
@@ -819,6 +1071,10 @@ export type WhatsAppPlantillaFindUniqueOrThrowArgs<ExtArgs extends runtime.Types
    */
   omit?: Prisma.WhatsAppPlantillaOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppPlantillaInclude<ExtArgs> | null
+  /**
    * Filter, which WhatsAppPlantilla to fetch.
    */
   where: Prisma.WhatsAppPlantillaWhereUniqueInput
@@ -836,6 +1092,10 @@ export type WhatsAppPlantillaFindFirstArgs<ExtArgs extends runtime.Types.Extensi
    * Omit specific fields from the WhatsAppPlantilla
    */
   omit?: Prisma.WhatsAppPlantillaOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppPlantillaInclude<ExtArgs> | null
   /**
    * Filter, which WhatsAppPlantilla to fetch.
    */
@@ -885,6 +1145,10 @@ export type WhatsAppPlantillaFindFirstOrThrowArgs<ExtArgs extends runtime.Types.
    */
   omit?: Prisma.WhatsAppPlantillaOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppPlantillaInclude<ExtArgs> | null
+  /**
    * Filter, which WhatsAppPlantilla to fetch.
    */
   where?: Prisma.WhatsAppPlantillaWhereInput
@@ -932,6 +1196,10 @@ export type WhatsAppPlantillaFindManyArgs<ExtArgs extends runtime.Types.Extensio
    * Omit specific fields from the WhatsAppPlantilla
    */
   omit?: Prisma.WhatsAppPlantillaOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppPlantillaInclude<ExtArgs> | null
   /**
    * Filter, which WhatsAppPlantillas to fetch.
    */
@@ -981,6 +1249,10 @@ export type WhatsAppPlantillaCreateArgs<ExtArgs extends runtime.Types.Extensions
    */
   omit?: Prisma.WhatsAppPlantillaOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppPlantillaInclude<ExtArgs> | null
+  /**
    * The data needed to create a WhatsAppPlantilla.
    */
   data: Prisma.XOR<Prisma.WhatsAppPlantillaCreateInput, Prisma.WhatsAppPlantillaUncheckedCreateInput>
@@ -1009,6 +1281,10 @@ export type WhatsAppPlantillaUpdateArgs<ExtArgs extends runtime.Types.Extensions
    * Omit specific fields from the WhatsAppPlantilla
    */
   omit?: Prisma.WhatsAppPlantillaOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppPlantillaInclude<ExtArgs> | null
   /**
    * The data needed to update a WhatsAppPlantilla.
    */
@@ -1050,6 +1326,10 @@ export type WhatsAppPlantillaUpsertArgs<ExtArgs extends runtime.Types.Extensions
    */
   omit?: Prisma.WhatsAppPlantillaOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppPlantillaInclude<ExtArgs> | null
+  /**
    * The filter to search for the WhatsAppPlantilla to update in case it exists.
    */
   where: Prisma.WhatsAppPlantillaWhereUniqueInput
@@ -1076,6 +1356,10 @@ export type WhatsAppPlantillaDeleteArgs<ExtArgs extends runtime.Types.Extensions
    */
   omit?: Prisma.WhatsAppPlantillaOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppPlantillaInclude<ExtArgs> | null
+  /**
    * Filter which WhatsAppPlantilla to delete.
    */
   where: Prisma.WhatsAppPlantillaWhereUniqueInput
@@ -1096,6 +1380,25 @@ export type WhatsAppPlantillaDeleteManyArgs<ExtArgs extends runtime.Types.Extens
 }
 
 /**
+ * WhatsAppPlantilla.negocio
+ */
+export type WhatsAppPlantilla$negocioArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Negocio
+   */
+  select?: Prisma.NegocioSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Negocio
+   */
+  omit?: Prisma.NegocioOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.NegocioInclude<ExtArgs> | null
+  where?: Prisma.NegocioWhereInput
+}
+
+/**
  * WhatsAppPlantilla without action
  */
 export type WhatsAppPlantillaDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1107,4 +1410,8 @@ export type WhatsAppPlantillaDefaultArgs<ExtArgs extends runtime.Types.Extension
    * Omit specific fields from the WhatsAppPlantilla
    */
   omit?: Prisma.WhatsAppPlantillaOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppPlantillaInclude<ExtArgs> | null
 }

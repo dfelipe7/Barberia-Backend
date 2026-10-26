@@ -6,7 +6,11 @@ import { ApiProperty } from '@nestjs/swagger';
  * sin exponer información sensible (email, comisión, etc.).
  */
 export class BarberoEnServicioDto {
-  @ApiProperty({ example: 3, description: 'ID del usuario (barbero)' })
+  @ApiProperty({
+    example: 3,
+    description:
+      'ID del perfil de barbero (Barbero.id). Es el valor que consumen la disponibilidad y la reserva.',
+  })
   id: number;
 
   @ApiProperty({ example: 'Carlos', description: 'Nombre del barbero' })

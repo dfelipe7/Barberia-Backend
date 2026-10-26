@@ -1,9 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException, ConflictException } from '@nestjs/common';
 import { ClientesAuthService } from './clientes-auth.service';
 import { ClienteJwtService } from './cliente-jwt.service';
 import { GoogleTokenVerifier } from '../google/google-token-verifier.service';
 import { ClientesRepository } from '../../modules/reservas/repository/clientes.repository';
+import { NegocioContextoService } from '../../modules/negocios/negocio-contexto.service';
 
 describe('ClientesAuthService', () => {
   let service: ClientesAuthService;
@@ -11,6 +12,9 @@ describe('ClientesAuthService', () => {
   const googleTokenVerifier = { verificar: jest.fn() };
   const clientesRepository = { buscarOcrearPorGoogle: jest.fn() };
   const clienteJwtService = { firmar: jest.fn() };
+  const contextoService = {
+    obtenerContexto: jest.fn().mockReturnValue({ id: 10, slug: 'kyrios' }),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -19,11 +23,16 @@ describe('ClientesAuthService', () => {
         { provide: GoogleTokenVerifier, useValue: googleTokenVerifier },
         { provide: ClientesRepository, useValue: clientesRepository },
         { provide: ClienteJwtService, useValue: clienteJwtService },
+        { provide: NegocioContextoService, useValue: contextoService },
       ],
     }).compile();
 
     service = module.get<ClientesAuthService>(ClientesAuthService);
     jest.clearAllMocks();
+    contextoService.obtenerContexto.mockReturnValue({
+      id: 10,
+      slug: 'kyrios',
+    });
   });
 
   it('debe estar definido', () => {
@@ -58,6 +67,7 @@ describe('ClientesAuthService', () => {
       clienteId: 7,
       email: 'ana@gmail.com',
       nombre: 'Ana',
+      negocioId: 10,
     });
     expect(resultado).toEqual({
       accessToken: 'token-cliente',
@@ -68,6 +78,22 @@ describe('ClientesAuthService', () => {
         email: 'ana@gmail.com',
       },
     });
+  });
+
+  it('rechaza si la cuenta ya está registrada en otra barbería (unicidad global de googleId)', async () => {
+    googleTokenVerifier.verificar.mockResolvedValue({
+      sub: 'google-sub',
+      email: 'ana@gmail.com',
+      email_verified: true,
+      given_name: 'Ana',
+    });
+    clientesRepository.buscarOcrearPorGoogle.mockRejectedValue({
+      code: 'P2002',
+    });
+
+    await expect(service.loginConGoogle('id-token')).rejects.toBeInstanceOf(
+      ConflictException,
+    );
   });
 
   it('rechaza si el correo de Google no está verificado', async () => {

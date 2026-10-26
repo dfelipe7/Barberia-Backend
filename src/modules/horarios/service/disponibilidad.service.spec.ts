@@ -27,6 +27,7 @@ import { CierreGeneralRule } from '../strategies/cierre-general.rule';
 import { BloqueoActivoRule } from '../strategies/bloqueo-activo.rule';
 import { ReservaActivaRule } from '../strategies/reserva-activa.rule';
 import { REGLAS_DISPONIBILIDAD } from '../strategies/regla-disponibilidad.strategy';
+import { CODIGOS_CONFLICTO } from '../../../common/exceptions/domain-conflict.exception';
 
 jest.mock('../../../../generated/prisma/enums', () => ({
   WeekDay: {
@@ -109,6 +110,9 @@ describe('DisponibilidadService', () => {
   beforeEach(async () => {
     barberosRepository = {
       obtenerBarberoActivoPorId: jest.fn().mockResolvedValue({ id: 7 }),
+      obtenerBarberoPorId: jest
+        .fn()
+        .mockResolvedValue({ id: 7, estado: 'ACTIVO' }),
       obtenerBarberoPorUsuarioId: jest
         .fn()
         .mockResolvedValue({ id: 7, usuarioId: 10 }),
@@ -116,6 +120,9 @@ describe('DisponibilidadService', () => {
 
     serviciosRepository = {
       obtenerServicioActivoPorId: jest.fn().mockResolvedValue({ id: 2 }),
+      obtenerServicioPorId: jest
+        .fn()
+        .mockResolvedValue({ id: 2, estado: 'ACTIVO' }),
       existeAsignacionBarbero: jest.fn().mockResolvedValue(true),
     } as unknown as jest.Mocked<ServiciosRepository>;
 
@@ -143,8 +150,9 @@ describe('DisponibilidadService', () => {
   });
 
   describe('validaciones previas', () => {
-    it('lanza 404 y no consulta horario si el barbero no existe o está inactivo', async () => {
+    it('lanza 404 y no consulta horario si el barbero no existe', async () => {
       barberosRepository.obtenerBarberoActivoPorId.mockResolvedValue(null);
+      barberosRepository.obtenerBarberoPorId.mockResolvedValue(null);
 
       await expect(
         service.calcularDisponibilidad({ barberoId: 99, fecha: FECHA }),
@@ -154,8 +162,23 @@ describe('DisponibilidadService', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('lanza 404 si el servicio no existe o está inactivo', async () => {
+    it('lanza 409 con BARBER_INACTIVE si el barbero existe pero está inactivo', async () => {
+      barberosRepository.obtenerBarberoActivoPorId.mockResolvedValue(null);
+      barberosRepository.obtenerBarberoPorId.mockResolvedValue({
+        id: 99,
+        estado: 'INACTIVO',
+      } as never);
+
+      await expect(
+        service.calcularDisponibilidad({ barberoId: 99, fecha: FECHA }),
+      ).rejects.toMatchObject({
+        response: { code: CODIGOS_CONFLICTO.BARBER_INACTIVE },
+      });
+    });
+
+    it('lanza 404 si el servicio no existe', async () => {
       serviciosRepository.obtenerServicioActivoPorId.mockResolvedValue(null);
+      serviciosRepository.obtenerServicioPorId.mockResolvedValue(null);
 
       await expect(
         service.calcularDisponibilidad({
@@ -166,7 +189,25 @@ describe('DisponibilidadService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('lanza 400 si el servicio no está asignado al barbero', async () => {
+    it('lanza 409 con SERVICE_INACTIVE si el servicio existe pero está inactivo', async () => {
+      serviciosRepository.obtenerServicioActivoPorId.mockResolvedValue(null);
+      serviciosRepository.obtenerServicioPorId.mockResolvedValue({
+        id: 2,
+        estado: 'INACTIVO',
+      } as never);
+
+      await expect(
+        service.calcularDisponibilidad({
+          barberoId: 7,
+          servicioId: 2,
+          fecha: FECHA,
+        }),
+      ).rejects.toMatchObject({
+        response: { code: CODIGOS_CONFLICTO.SERVICE_INACTIVE },
+      });
+    });
+
+    it('lanza 409 con NO_BARBER_FOR_SERVICE si el servicio no está asignado al barbero', async () => {
       serviciosRepository.existeAsignacionBarbero.mockResolvedValue(false);
 
       await expect(
@@ -175,7 +216,9 @@ describe('DisponibilidadService', () => {
           servicioId: 2,
           fecha: FECHA,
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({
+        response: { code: CODIGOS_CONFLICTO.NO_BARBER_FOR_SERVICE },
+      });
     });
 
     it('lanza 400 si la fecha de calendario es inválida', async () => {

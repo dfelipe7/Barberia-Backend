@@ -31,16 +31,19 @@ export type AggregateBarberWeeklySlot = {
 export type BarberWeeklySlotAvgAggregateOutputType = {
   id: number | null
   barberoId: number | null
+  negocioId: number | null
 }
 
 export type BarberWeeklySlotSumAggregateOutputType = {
   id: number | null
   barberoId: number | null
+  negocioId: number | null
 }
 
 export type BarberWeeklySlotMinAggregateOutputType = {
   id: number | null
   barberoId: number | null
+  negocioId: number | null
   dayOfWeek: $Enums.WeekDay | null
   startTime: string | null
   endTime: string | null
@@ -52,6 +55,7 @@ export type BarberWeeklySlotMinAggregateOutputType = {
 export type BarberWeeklySlotMaxAggregateOutputType = {
   id: number | null
   barberoId: number | null
+  negocioId: number | null
   dayOfWeek: $Enums.WeekDay | null
   startTime: string | null
   endTime: string | null
@@ -63,6 +67,7 @@ export type BarberWeeklySlotMaxAggregateOutputType = {
 export type BarberWeeklySlotCountAggregateOutputType = {
   id: number
   barberoId: number
+  negocioId: number
   dayOfWeek: number
   startTime: number
   endTime: number
@@ -76,16 +81,19 @@ export type BarberWeeklySlotCountAggregateOutputType = {
 export type BarberWeeklySlotAvgAggregateInputType = {
   id?: true
   barberoId?: true
+  negocioId?: true
 }
 
 export type BarberWeeklySlotSumAggregateInputType = {
   id?: true
   barberoId?: true
+  negocioId?: true
 }
 
 export type BarberWeeklySlotMinAggregateInputType = {
   id?: true
   barberoId?: true
+  negocioId?: true
   dayOfWeek?: true
   startTime?: true
   endTime?: true
@@ -97,6 +105,7 @@ export type BarberWeeklySlotMinAggregateInputType = {
 export type BarberWeeklySlotMaxAggregateInputType = {
   id?: true
   barberoId?: true
+  negocioId?: true
   dayOfWeek?: true
   startTime?: true
   endTime?: true
@@ -108,6 +117,7 @@ export type BarberWeeklySlotMaxAggregateInputType = {
 export type BarberWeeklySlotCountAggregateInputType = {
   id?: true
   barberoId?: true
+  negocioId?: true
   dayOfWeek?: true
   startTime?: true
   endTime?: true
@@ -206,6 +216,7 @@ export type BarberWeeklySlotGroupByArgs<ExtArgs extends runtime.Types.Extensions
 export type BarberWeeklySlotGroupByOutputType = {
   id: number
   barberoId: number
+  negocioId: number
   dayOfWeek: $Enums.WeekDay
   startTime: string
   endTime: string
@@ -240,6 +251,7 @@ export type BarberWeeklySlotWhereInput = {
   NOT?: Prisma.BarberWeeklySlotWhereInput | Prisma.BarberWeeklySlotWhereInput[]
   id?: Prisma.IntFilter<"BarberWeeklySlot"> | number
   barberoId?: Prisma.IntFilter<"BarberWeeklySlot"> | number
+  negocioId?: Prisma.IntFilter<"BarberWeeklySlot"> | number
   dayOfWeek?: Prisma.EnumWeekDayFilter<"BarberWeeklySlot"> | $Enums.WeekDay
   startTime?: Prisma.StringFilter<"BarberWeeklySlot"> | string
   endTime?: Prisma.StringFilter<"BarberWeeklySlot"> | string
@@ -247,11 +259,13 @@ export type BarberWeeklySlotWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"BarberWeeklySlot"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"BarberWeeklySlot"> | Date | string
   barbero?: Prisma.XOR<Prisma.BarberoScalarRelationFilter, Prisma.BarberoWhereInput>
+  negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
 }
 
 export type BarberWeeklySlotOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   dayOfWeek?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   endTime?: Prisma.SortOrder
@@ -259,6 +273,7 @@ export type BarberWeeklySlotOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   barbero?: Prisma.BarberoOrderByWithRelationInput
+  negocio?: Prisma.NegocioOrderByWithRelationInput
   _relevance?: Prisma.BarberWeeklySlotOrderByRelevanceInput
 }
 
@@ -269,6 +284,7 @@ export type BarberWeeklySlotWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.BarberWeeklySlotWhereInput[]
   NOT?: Prisma.BarberWeeklySlotWhereInput | Prisma.BarberWeeklySlotWhereInput[]
   barberoId?: Prisma.IntFilter<"BarberWeeklySlot"> | number
+  negocioId?: Prisma.IntFilter<"BarberWeeklySlot"> | number
   dayOfWeek?: Prisma.EnumWeekDayFilter<"BarberWeeklySlot"> | $Enums.WeekDay
   startTime?: Prisma.StringFilter<"BarberWeeklySlot"> | string
   endTime?: Prisma.StringFilter<"BarberWeeklySlot"> | string
@@ -276,11 +292,13 @@ export type BarberWeeklySlotWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"BarberWeeklySlot"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"BarberWeeklySlot"> | Date | string
   barbero?: Prisma.XOR<Prisma.BarberoScalarRelationFilter, Prisma.BarberoWhereInput>
+  negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
 }, "id" | "barberoId_dayOfWeek_startTime">
 
 export type BarberWeeklySlotOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   dayOfWeek?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   endTime?: Prisma.SortOrder
@@ -300,6 +318,7 @@ export type BarberWeeklySlotScalarWhereWithAggregatesInput = {
   NOT?: Prisma.BarberWeeklySlotScalarWhereWithAggregatesInput | Prisma.BarberWeeklySlotScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"BarberWeeklySlot"> | number
   barberoId?: Prisma.IntWithAggregatesFilter<"BarberWeeklySlot"> | number
+  negocioId?: Prisma.IntWithAggregatesFilter<"BarberWeeklySlot"> | number
   dayOfWeek?: Prisma.EnumWeekDayWithAggregatesFilter<"BarberWeeklySlot"> | $Enums.WeekDay
   startTime?: Prisma.StringWithAggregatesFilter<"BarberWeeklySlot"> | string
   endTime?: Prisma.StringWithAggregatesFilter<"BarberWeeklySlot"> | string
@@ -316,11 +335,13 @@ export type BarberWeeklySlotCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   barbero: Prisma.BarberoCreateNestedOneWithoutWeeklySlotsInput
+  negocio: Prisma.NegocioCreateNestedOneWithoutFranjasSemanalesInput
 }
 
 export type BarberWeeklySlotUncheckedCreateInput = {
   id?: number
   barberoId: number
+  negocioId: number
   dayOfWeek: $Enums.WeekDay
   startTime: string
   endTime: string
@@ -337,11 +358,13 @@ export type BarberWeeklySlotUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   barbero?: Prisma.BarberoUpdateOneRequiredWithoutWeeklySlotsNestedInput
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutFranjasSemanalesNestedInput
 }
 
 export type BarberWeeklySlotUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   barberoId?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   dayOfWeek?: Prisma.EnumWeekDayFieldUpdateOperationsInput | $Enums.WeekDay
   startTime?: Prisma.StringFieldUpdateOperationsInput | string
   endTime?: Prisma.StringFieldUpdateOperationsInput | string
@@ -353,6 +376,7 @@ export type BarberWeeklySlotUncheckedUpdateInput = {
 export type BarberWeeklySlotCreateManyInput = {
   id?: number
   barberoId: number
+  negocioId: number
   dayOfWeek: $Enums.WeekDay
   startTime: string
   endTime: string
@@ -373,6 +397,7 @@ export type BarberWeeklySlotUpdateManyMutationInput = {
 export type BarberWeeklySlotUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   barberoId?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   dayOfWeek?: Prisma.EnumWeekDayFieldUpdateOperationsInput | $Enums.WeekDay
   startTime?: Prisma.StringFieldUpdateOperationsInput | string
   endTime?: Prisma.StringFieldUpdateOperationsInput | string
@@ -406,6 +431,7 @@ export type BarberWeeklySlotBarberoIdDayOfWeekStartTimeCompoundUniqueInput = {
 export type BarberWeeklySlotCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   dayOfWeek?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   endTime?: Prisma.SortOrder
@@ -417,11 +443,13 @@ export type BarberWeeklySlotCountOrderByAggregateInput = {
 export type BarberWeeklySlotAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
 }
 
 export type BarberWeeklySlotMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   dayOfWeek?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   endTime?: Prisma.SortOrder
@@ -433,6 +461,7 @@ export type BarberWeeklySlotMaxOrderByAggregateInput = {
 export type BarberWeeklySlotMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   dayOfWeek?: Prisma.SortOrder
   startTime?: Prisma.SortOrder
   endTime?: Prisma.SortOrder
@@ -444,6 +473,49 @@ export type BarberWeeklySlotMinOrderByAggregateInput = {
 export type BarberWeeklySlotSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
+}
+
+export type BarberWeeklySlotCreateNestedManyWithoutNegocioInput = {
+  create?: Prisma.XOR<Prisma.BarberWeeklySlotCreateWithoutNegocioInput, Prisma.BarberWeeklySlotUncheckedCreateWithoutNegocioInput> | Prisma.BarberWeeklySlotCreateWithoutNegocioInput[] | Prisma.BarberWeeklySlotUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberWeeklySlotCreateOrConnectWithoutNegocioInput | Prisma.BarberWeeklySlotCreateOrConnectWithoutNegocioInput[]
+  createMany?: Prisma.BarberWeeklySlotCreateManyNegocioInputEnvelope
+  connect?: Prisma.BarberWeeklySlotWhereUniqueInput | Prisma.BarberWeeklySlotWhereUniqueInput[]
+}
+
+export type BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput = {
+  create?: Prisma.XOR<Prisma.BarberWeeklySlotCreateWithoutNegocioInput, Prisma.BarberWeeklySlotUncheckedCreateWithoutNegocioInput> | Prisma.BarberWeeklySlotCreateWithoutNegocioInput[] | Prisma.BarberWeeklySlotUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberWeeklySlotCreateOrConnectWithoutNegocioInput | Prisma.BarberWeeklySlotCreateOrConnectWithoutNegocioInput[]
+  createMany?: Prisma.BarberWeeklySlotCreateManyNegocioInputEnvelope
+  connect?: Prisma.BarberWeeklySlotWhereUniqueInput | Prisma.BarberWeeklySlotWhereUniqueInput[]
+}
+
+export type BarberWeeklySlotUpdateManyWithoutNegocioNestedInput = {
+  create?: Prisma.XOR<Prisma.BarberWeeklySlotCreateWithoutNegocioInput, Prisma.BarberWeeklySlotUncheckedCreateWithoutNegocioInput> | Prisma.BarberWeeklySlotCreateWithoutNegocioInput[] | Prisma.BarberWeeklySlotUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberWeeklySlotCreateOrConnectWithoutNegocioInput | Prisma.BarberWeeklySlotCreateOrConnectWithoutNegocioInput[]
+  upsert?: Prisma.BarberWeeklySlotUpsertWithWhereUniqueWithoutNegocioInput | Prisma.BarberWeeklySlotUpsertWithWhereUniqueWithoutNegocioInput[]
+  createMany?: Prisma.BarberWeeklySlotCreateManyNegocioInputEnvelope
+  set?: Prisma.BarberWeeklySlotWhereUniqueInput | Prisma.BarberWeeklySlotWhereUniqueInput[]
+  disconnect?: Prisma.BarberWeeklySlotWhereUniqueInput | Prisma.BarberWeeklySlotWhereUniqueInput[]
+  delete?: Prisma.BarberWeeklySlotWhereUniqueInput | Prisma.BarberWeeklySlotWhereUniqueInput[]
+  connect?: Prisma.BarberWeeklySlotWhereUniqueInput | Prisma.BarberWeeklySlotWhereUniqueInput[]
+  update?: Prisma.BarberWeeklySlotUpdateWithWhereUniqueWithoutNegocioInput | Prisma.BarberWeeklySlotUpdateWithWhereUniqueWithoutNegocioInput[]
+  updateMany?: Prisma.BarberWeeklySlotUpdateManyWithWhereWithoutNegocioInput | Prisma.BarberWeeklySlotUpdateManyWithWhereWithoutNegocioInput[]
+  deleteMany?: Prisma.BarberWeeklySlotScalarWhereInput | Prisma.BarberWeeklySlotScalarWhereInput[]
+}
+
+export type BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput = {
+  create?: Prisma.XOR<Prisma.BarberWeeklySlotCreateWithoutNegocioInput, Prisma.BarberWeeklySlotUncheckedCreateWithoutNegocioInput> | Prisma.BarberWeeklySlotCreateWithoutNegocioInput[] | Prisma.BarberWeeklySlotUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberWeeklySlotCreateOrConnectWithoutNegocioInput | Prisma.BarberWeeklySlotCreateOrConnectWithoutNegocioInput[]
+  upsert?: Prisma.BarberWeeklySlotUpsertWithWhereUniqueWithoutNegocioInput | Prisma.BarberWeeklySlotUpsertWithWhereUniqueWithoutNegocioInput[]
+  createMany?: Prisma.BarberWeeklySlotCreateManyNegocioInputEnvelope
+  set?: Prisma.BarberWeeklySlotWhereUniqueInput | Prisma.BarberWeeklySlotWhereUniqueInput[]
+  disconnect?: Prisma.BarberWeeklySlotWhereUniqueInput | Prisma.BarberWeeklySlotWhereUniqueInput[]
+  delete?: Prisma.BarberWeeklySlotWhereUniqueInput | Prisma.BarberWeeklySlotWhereUniqueInput[]
+  connect?: Prisma.BarberWeeklySlotWhereUniqueInput | Prisma.BarberWeeklySlotWhereUniqueInput[]
+  update?: Prisma.BarberWeeklySlotUpdateWithWhereUniqueWithoutNegocioInput | Prisma.BarberWeeklySlotUpdateWithWhereUniqueWithoutNegocioInput[]
+  updateMany?: Prisma.BarberWeeklySlotUpdateManyWithWhereWithoutNegocioInput | Prisma.BarberWeeklySlotUpdateManyWithWhereWithoutNegocioInput[]
+  deleteMany?: Prisma.BarberWeeklySlotScalarWhereInput | Prisma.BarberWeeklySlotScalarWhereInput[]
 }
 
 export type BarberWeeklySlotCreateNestedManyWithoutBarberoInput = {
@@ -492,8 +564,66 @@ export type EnumWeekDayFieldUpdateOperationsInput = {
   set?: $Enums.WeekDay
 }
 
-export type BoolFieldUpdateOperationsInput = {
-  set?: boolean
+export type BarberWeeklySlotCreateWithoutNegocioInput = {
+  dayOfWeek: $Enums.WeekDay
+  startTime: string
+  endTime: string
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  barbero: Prisma.BarberoCreateNestedOneWithoutWeeklySlotsInput
+}
+
+export type BarberWeeklySlotUncheckedCreateWithoutNegocioInput = {
+  id?: number
+  barberoId: number
+  dayOfWeek: $Enums.WeekDay
+  startTime: string
+  endTime: string
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type BarberWeeklySlotCreateOrConnectWithoutNegocioInput = {
+  where: Prisma.BarberWeeklySlotWhereUniqueInput
+  create: Prisma.XOR<Prisma.BarberWeeklySlotCreateWithoutNegocioInput, Prisma.BarberWeeklySlotUncheckedCreateWithoutNegocioInput>
+}
+
+export type BarberWeeklySlotCreateManyNegocioInputEnvelope = {
+  data: Prisma.BarberWeeklySlotCreateManyNegocioInput | Prisma.BarberWeeklySlotCreateManyNegocioInput[]
+  skipDuplicates?: boolean
+}
+
+export type BarberWeeklySlotUpsertWithWhereUniqueWithoutNegocioInput = {
+  where: Prisma.BarberWeeklySlotWhereUniqueInput
+  update: Prisma.XOR<Prisma.BarberWeeklySlotUpdateWithoutNegocioInput, Prisma.BarberWeeklySlotUncheckedUpdateWithoutNegocioInput>
+  create: Prisma.XOR<Prisma.BarberWeeklySlotCreateWithoutNegocioInput, Prisma.BarberWeeklySlotUncheckedCreateWithoutNegocioInput>
+}
+
+export type BarberWeeklySlotUpdateWithWhereUniqueWithoutNegocioInput = {
+  where: Prisma.BarberWeeklySlotWhereUniqueInput
+  data: Prisma.XOR<Prisma.BarberWeeklySlotUpdateWithoutNegocioInput, Prisma.BarberWeeklySlotUncheckedUpdateWithoutNegocioInput>
+}
+
+export type BarberWeeklySlotUpdateManyWithWhereWithoutNegocioInput = {
+  where: Prisma.BarberWeeklySlotScalarWhereInput
+  data: Prisma.XOR<Prisma.BarberWeeklySlotUpdateManyMutationInput, Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioInput>
+}
+
+export type BarberWeeklySlotScalarWhereInput = {
+  AND?: Prisma.BarberWeeklySlotScalarWhereInput | Prisma.BarberWeeklySlotScalarWhereInput[]
+  OR?: Prisma.BarberWeeklySlotScalarWhereInput[]
+  NOT?: Prisma.BarberWeeklySlotScalarWhereInput | Prisma.BarberWeeklySlotScalarWhereInput[]
+  id?: Prisma.IntFilter<"BarberWeeklySlot"> | number
+  barberoId?: Prisma.IntFilter<"BarberWeeklySlot"> | number
+  negocioId?: Prisma.IntFilter<"BarberWeeklySlot"> | number
+  dayOfWeek?: Prisma.EnumWeekDayFilter<"BarberWeeklySlot"> | $Enums.WeekDay
+  startTime?: Prisma.StringFilter<"BarberWeeklySlot"> | string
+  endTime?: Prisma.StringFilter<"BarberWeeklySlot"> | string
+  active?: Prisma.BoolFilter<"BarberWeeklySlot"> | boolean
+  createdAt?: Prisma.DateTimeFilter<"BarberWeeklySlot"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"BarberWeeklySlot"> | Date | string
 }
 
 export type BarberWeeklySlotCreateWithoutBarberoInput = {
@@ -503,6 +633,7 @@ export type BarberWeeklySlotCreateWithoutBarberoInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  negocio: Prisma.NegocioCreateNestedOneWithoutFranjasSemanalesInput
 }
 
 export type BarberWeeklySlotUncheckedCreateWithoutBarberoInput = {
@@ -541,18 +672,47 @@ export type BarberWeeklySlotUpdateManyWithWhereWithoutBarberoInput = {
   data: Prisma.XOR<Prisma.BarberWeeklySlotUpdateManyMutationInput, Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutBarberoInput>
 }
 
-export type BarberWeeklySlotScalarWhereInput = {
-  AND?: Prisma.BarberWeeklySlotScalarWhereInput | Prisma.BarberWeeklySlotScalarWhereInput[]
-  OR?: Prisma.BarberWeeklySlotScalarWhereInput[]
-  NOT?: Prisma.BarberWeeklySlotScalarWhereInput | Prisma.BarberWeeklySlotScalarWhereInput[]
-  id?: Prisma.IntFilter<"BarberWeeklySlot"> | number
-  barberoId?: Prisma.IntFilter<"BarberWeeklySlot"> | number
-  dayOfWeek?: Prisma.EnumWeekDayFilter<"BarberWeeklySlot"> | $Enums.WeekDay
-  startTime?: Prisma.StringFilter<"BarberWeeklySlot"> | string
-  endTime?: Prisma.StringFilter<"BarberWeeklySlot"> | string
-  active?: Prisma.BoolFilter<"BarberWeeklySlot"> | boolean
-  createdAt?: Prisma.DateTimeFilter<"BarberWeeklySlot"> | Date | string
-  updatedAt?: Prisma.DateTimeFilter<"BarberWeeklySlot"> | Date | string
+export type BarberWeeklySlotCreateManyNegocioInput = {
+  id?: number
+  barberoId: number
+  dayOfWeek: $Enums.WeekDay
+  startTime: string
+  endTime: string
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type BarberWeeklySlotUpdateWithoutNegocioInput = {
+  dayOfWeek?: Prisma.EnumWeekDayFieldUpdateOperationsInput | $Enums.WeekDay
+  startTime?: Prisma.StringFieldUpdateOperationsInput | string
+  endTime?: Prisma.StringFieldUpdateOperationsInput | string
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  barbero?: Prisma.BarberoUpdateOneRequiredWithoutWeeklySlotsNestedInput
+}
+
+export type BarberWeeklySlotUncheckedUpdateWithoutNegocioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  barberoId?: Prisma.IntFieldUpdateOperationsInput | number
+  dayOfWeek?: Prisma.EnumWeekDayFieldUpdateOperationsInput | $Enums.WeekDay
+  startTime?: Prisma.StringFieldUpdateOperationsInput | string
+  endTime?: Prisma.StringFieldUpdateOperationsInput | string
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type BarberWeeklySlotUncheckedUpdateManyWithoutNegocioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  barberoId?: Prisma.IntFieldUpdateOperationsInput | number
+  dayOfWeek?: Prisma.EnumWeekDayFieldUpdateOperationsInput | $Enums.WeekDay
+  startTime?: Prisma.StringFieldUpdateOperationsInput | string
+  endTime?: Prisma.StringFieldUpdateOperationsInput | string
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type BarberWeeklySlotCreateManyBarberoInput = {
@@ -572,6 +732,7 @@ export type BarberWeeklySlotUpdateWithoutBarberoInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutFranjasSemanalesNestedInput
 }
 
 export type BarberWeeklySlotUncheckedUpdateWithoutBarberoInput = {
@@ -599,6 +760,7 @@ export type BarberWeeklySlotUncheckedUpdateManyWithoutBarberoInput = {
 export type BarberWeeklySlotSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   barberoId?: boolean
+  negocioId?: boolean
   dayOfWeek?: boolean
   startTime?: boolean
   endTime?: boolean
@@ -606,6 +768,7 @@ export type BarberWeeklySlotSelect<ExtArgs extends runtime.Types.Extensions.Inte
   createdAt?: boolean
   updatedAt?: boolean
   barbero?: boolean | Prisma.BarberoDefaultArgs<ExtArgs>
+  negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["barberWeeklySlot"]>
 
 
@@ -613,6 +776,7 @@ export type BarberWeeklySlotSelect<ExtArgs extends runtime.Types.Extensions.Inte
 export type BarberWeeklySlotSelectScalar = {
   id?: boolean
   barberoId?: boolean
+  negocioId?: boolean
   dayOfWeek?: boolean
   startTime?: boolean
   endTime?: boolean
@@ -621,19 +785,29 @@ export type BarberWeeklySlotSelectScalar = {
   updatedAt?: boolean
 }
 
-export type BarberWeeklySlotOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "barberoId" | "dayOfWeek" | "startTime" | "endTime" | "active" | "createdAt" | "updatedAt", ExtArgs["result"]["barberWeeklySlot"]>
+export type BarberWeeklySlotOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "barberoId" | "negocioId" | "dayOfWeek" | "startTime" | "endTime" | "active" | "createdAt" | "updatedAt", ExtArgs["result"]["barberWeeklySlot"]>
 export type BarberWeeklySlotInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   barbero?: boolean | Prisma.BarberoDefaultArgs<ExtArgs>
+  negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
 }
 
 export type $BarberWeeklySlotPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "BarberWeeklySlot"
   objects: {
+    /**
+     * Relación COMPUESTA: la franja solo puede apuntar al perfil de barbero del
+     * mismo negocio.
+     */
     barbero: Prisma.$BarberoPayload<ExtArgs>
+    negocio: Prisma.$NegocioPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
     barberoId: number
+    /**
+     * Negocio al que pertenece la franja. OBLIGATORIO.
+     */
+    negocioId: number
     dayOfWeek: $Enums.WeekDay
     startTime: string
     endTime: string
@@ -981,6 +1155,7 @@ readonly fields: BarberWeeklySlotFieldRefs;
 export interface Prisma__BarberWeeklySlotClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   barbero<T extends Prisma.BarberoDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BarberoDefaultArgs<ExtArgs>>): Prisma.Prisma__BarberoClient<runtime.Types.Result.GetResult<Prisma.$BarberoPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  negocio<T extends Prisma.NegocioDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NegocioDefaultArgs<ExtArgs>>): Prisma.Prisma__NegocioClient<runtime.Types.Result.GetResult<Prisma.$NegocioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1012,6 +1187,7 @@ export interface Prisma__BarberWeeklySlotClient<T, Null = never, ExtArgs extends
 export interface BarberWeeklySlotFieldRefs {
   readonly id: Prisma.FieldRef<"BarberWeeklySlot", 'Int'>
   readonly barberoId: Prisma.FieldRef<"BarberWeeklySlot", 'Int'>
+  readonly negocioId: Prisma.FieldRef<"BarberWeeklySlot", 'Int'>
   readonly dayOfWeek: Prisma.FieldRef<"BarberWeeklySlot", 'WeekDay'>
   readonly startTime: Prisma.FieldRef<"BarberWeeklySlot", 'String'>
   readonly endTime: Prisma.FieldRef<"BarberWeeklySlot", 'String'>

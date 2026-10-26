@@ -14,6 +14,8 @@ import {
   MENSAJE_RESERVA_NO_DISPONIBLE,
 } from './reservas.service';
 import { EstadoFranja } from '../../horarios/common/estado-franja';
+/** Token de gestión fijo: el hash guardado y el token devuelto deben ser el mismo. */
+const TOKEN_GESTION_PRUEBA = 'a'.repeat(64);
 
 describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
   let service: ReservasService;
@@ -103,6 +105,18 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
       { startTime: HORA, endTime: HORA_FIN, estado: EstadoFranja.AVAILABLE },
       { startTime: '16:00', endTime: '17:00', estado: EstadoFranja.AVAILABLE },
     ]);
+
+    // El token de la respuesta es el PERSISTIDO (descifrado): se simula el
+    // descifrado para no depender de la clave real en una prueba unitaria.
+    jest
+      .spyOn(service, 'descifrarTokenGestion')
+      .mockImplementation((cifrado) => (cifrado ? TOKEN_GESTION_PRUEBA : null));
+
+    // El token que se guarda (hash) y el que se devuelve deben ser el
+    // MISMO: por eso se fija tambien el token generado.
+    jest
+      .spyOn(service, 'generarTokenGestion')
+      .mockReturnValue(TOKEN_GESTION_PRUEBA);
   });
 
   // 1. Crear una reserva de invitado genera una credencial de gestión.
@@ -119,6 +133,7 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
       status: ReservationStatus.PENDING,
       precioReservado: 50000,
       gestionTokenHash: 'hash',
+      gestionTokenCifrado: 'cifrado',
     });
 
     const respuesta = await service.crearReserva({
@@ -156,6 +171,7 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
           status: ReservationStatus.PENDING,
           precioReservado: 50000,
           gestionTokenHash: hashEnviadoARepo,
+          gestionTokenCifrado: 'cifrado',
         };
       },
     );
@@ -438,6 +454,7 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
     expect(respuestaCreacion.tokenGestion).toBeUndefined();
     expect(mockReservasRepository.crearConBloqueo).toHaveBeenCalledWith(
       expect.objectContaining({ gestionTokenHash: null }),
+      expect.objectContaining({ revalidar: expect.any(Function) }),
     );
 
     // Modificar mediante endpoint autenticado (utiliza IdentidadClienteAutenticado)

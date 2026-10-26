@@ -41,6 +41,8 @@ const dtoBase = {
   fecha: FECHA,
   hora: HORA,
 };
+/** Token de gestión fijo: el hash guardado y el token devuelto deben ser el mismo. */
+const TOKEN_GESTION_PRUEBA = 'a'.repeat(64);
 
 describe('ReservasService', () => {
   let service: ReservasService;
@@ -105,6 +107,8 @@ describe('ReservasService', () => {
     endTime: '15:00',
     status: 'PENDING',
     precioReservado: 50000,
+    gestionTokenHash: 'hash-de-prueba',
+    gestionTokenCifrado: 'cifrado-de-prueba',
     slotActivo: 1,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -151,6 +155,25 @@ describe('ReservasService', () => {
 
     service = module.get<ReservasService>(ReservasService);
     jest.clearAllMocks();
+
+    // El token de la respuesta es el PERSISTIDO (descifrado): se simula el
+    // descifrado para no depender de la clave real en una prueba unitaria.
+    // Sin copia cifrada (cliente autenticado) NO hay token.
+    jest
+      .spyOn(service, 'descifrarTokenGestion')
+      .mockImplementation((cifrado) => (cifrado ? TOKEN_GESTION_PRUEBA : null));
+
+    // El token que se guarda (hash) y el que se devuelve deben ser el
+    // MISMO: por eso se fija tambien el token generado.
+    jest
+      .spyOn(service, 'generarTokenGestion')
+      .mockReturnValue(TOKEN_GESTION_PRUEBA);
+
+    // La configuración del negocio manda: por defecto se aplica el valor por
+    // defecto (120 y 15 minutos). Cada prueba puede sobrescribirlo.
+    configuracionService.obtenerNumero.mockImplementation(
+      (_clave: string, porDefecto: number) => Promise.resolve(porDefecto),
+    );
 
     fechaBogotaService.esFechaCalendarioValida.mockReturnValue(true);
     fechaBogotaService.obtenerDiaSemana.mockReturnValue('SUNDAY');
@@ -227,6 +250,7 @@ describe('ReservasService', () => {
             },
           },
         }),
+        expect.objectContaining({ revalidar: expect.any(Function) }),
       );
     });
 
@@ -281,6 +305,13 @@ describe('ReservasService', () => {
       reservasRepository.existeReservaActivaDeClienteEnFranja.mockResolvedValue(
         false,
       );
+      // Un cliente AUTENTICADO no lleva token de gestión: la reserva se
+      // persiste sin hash ni copia cifrada.
+      reservasRepository.crearConBloqueo.mockResolvedValue({
+        ...reservaCreada,
+        gestionTokenHash: null,
+        gestionTokenCifrado: null,
+      });
 
       const resultado = await service.crearReserva(dtoBase, identidad);
 
@@ -300,6 +331,7 @@ describe('ReservasService', () => {
           precioReservado: 50000,
           gestionTokenHash: null,
         }),
+        expect.objectContaining({ revalidar: expect.any(Function) }),
       );
     });
 
@@ -549,7 +581,7 @@ describe('ReservasService', () => {
   });
 
   describe('Agenda del barbero (obtenerAgendaBarbero)', () => {
-    const usuarioBarbero = { id: 7, rol: 'BARBERO' };
+    const usuarioBarbero = { id: 7, rol: 'PERSONAL' };
     const barberoActivo = {
       id: 3,
       usuarioId: 7,
@@ -740,7 +772,7 @@ describe('ReservasService', () => {
   });
 
   describe('Agenda semanal del barbero (obtenerAgendaSemanalBarbero)', () => {
-    const usuarioBarbero = { id: 7, rol: 'BARBERO' };
+    const usuarioBarbero = { id: 7, rol: 'PERSONAL' };
     const barberoActivo = {
       id: 3,
       usuarioId: 7,
@@ -1389,6 +1421,28 @@ describe('ReservasService', () => {
       expect(reservasRepository.cancelar).not.toHaveBeenCalled();
     });
 
+    it('usa la antelación configurada en el negocio (y no el valor por defecto)', async () => {
+      // El negocio fija 30 minutos: con 45 minutos de margen, se puede cancelar.
+      configuracionService.obtenerNumero.mockResolvedValue(30);
+      fechaBogotaService.obtenerHoraBogota.mockReturnValue('13:15');
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        crearReservaRelacion({ id: 42, status: ReservationStatus.CONFIRMED }),
+      );
+      reservasRepository.cancelar.mockResolvedValue({
+        id: 42,
+        status: ReservationStatus.CANCELLED,
+      });
+
+      const respuesta = await service.cancelarReserva(identidad, 42);
+
+      expect(respuesta.estado).toBe(ReservationStatus.CANCELLED);
+      expect(configuracionService.obtenerNumero).toHaveBeenCalledWith(
+        'reserva_cancelacion_antelacion_minutos',
+        120,
+        expect.objectContaining({ minimo: 1, maximo: 10080, entero: true }),
+      );
+    });
+
     it('permite al staff (admin) cancelar dentro de la ventana de antelación', async () => {
       fechaBogotaService.obtenerHoraBogota.mockReturnValue('13:30');
       reservasRepository.obtenerReservaConRelaciones.mockResolvedValue(
@@ -1407,7 +1461,7 @@ describe('ReservasService', () => {
   });
 
   describe('completarReserva (SCRUM-277)', () => {
-    const usuarioBarbero = { id: 9, sub: '9', rol: 'BARBERO' };
+    const usuarioBarbero = { id: 9, sub: '9', rol: 'PERSONAL' };
     const usuarioSuperadmin = { id: 1, sub: '1', rol: 'SUPERADMIN' };
 
     const reservaCompletarBase = (over: Record<string, unknown> = {}) => ({
@@ -1447,7 +1501,7 @@ describe('ReservasService', () => {
 
       const respuesta = await service.completarReserva(
         usuarioBarbero,
-        'BARBERO',
+        ['BARBERO'],
         42,
       );
 
@@ -1465,7 +1519,7 @@ describe('ReservasService', () => {
 
       const respuesta = await service.completarReserva(
         usuarioSuperadmin,
-        'SUPERADMIN',
+        ['SUPERADMIN'],
         42,
       );
 
@@ -1481,7 +1535,7 @@ describe('ReservasService', () => {
       );
 
       await expect(
-        service.completarReserva(usuarioBarbero, 'BARBERO', 42),
+        service.completarReserva(usuarioBarbero, ['BARBERO'], 42),
       ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
 
       expect(reservasRepository.completar).not.toHaveBeenCalled();
@@ -1493,7 +1547,7 @@ describe('ReservasService', () => {
       );
 
       await expect(
-        service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+        service.completarReserva(usuarioSuperadmin, ['SUPERADMIN'], 42),
       ).rejects.toThrow('No es posible completar una reserva cancelada');
 
       expect(reservasRepository.completar).not.toHaveBeenCalled();
@@ -1506,7 +1560,7 @@ describe('ReservasService', () => {
 
       const respuesta = await service.completarReserva(
         usuarioSuperadmin,
-        'SUPERADMIN',
+        ['SUPERADMIN'],
         42,
       );
 
@@ -1521,7 +1575,7 @@ describe('ReservasService', () => {
       );
 
       await expect(
-        service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+        service.completarReserva(usuarioSuperadmin, ['SUPERADMIN'], 42),
       ).rejects.toThrow(
         'No es posible completar una reserva antes de su hora de finalización',
       );
@@ -1533,7 +1587,7 @@ describe('ReservasService', () => {
       reservasRepository.obtenerReservaParaCompletar.mockResolvedValue(null);
 
       await expect(
-        service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 999),
+        service.completarReserva(usuarioSuperadmin, ['SUPERADMIN'], 999),
       ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
 
       expect(reservasRepository.completar).not.toHaveBeenCalled();
@@ -1551,7 +1605,7 @@ describe('ReservasService', () => {
         service as unknown as { whatsappService: typeof whatsapp }
       ).whatsappService = whatsapp;
 
-      await service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 42);
+      await service.completarReserva(usuarioSuperadmin, ['SUPERADMIN'], 42);
 
       expect(whatsapp.enviarCompletadoReserva).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1573,14 +1627,14 @@ describe('ReservasService', () => {
         service as unknown as { whatsappService: typeof whatsapp }
       ).whatsappService = whatsapp;
 
-      await service.completarReserva(usuarioSuperadmin, 'SUPERADMIN', 42);
+      await service.completarReserva(usuarioSuperadmin, ['SUPERADMIN'], 42);
 
       expect(whatsapp.enviarCompletadoReserva).not.toHaveBeenCalled();
     });
   });
 
   describe('noShowReserva (NO_SHOW)', () => {
-    const usuarioBarbero = { id: 9, sub: '9', rol: 'BARBERO' };
+    const usuarioBarbero = { id: 9, sub: '9', rol: 'PERSONAL' };
     const usuarioSuperadmin = { id: 1, sub: '1', rol: 'SUPERADMIN' };
 
     const reservaNoShowBase = (over: Record<string, unknown> = {}) => ({
@@ -1618,7 +1672,11 @@ describe('ReservasService', () => {
       );
       reservasRepository.marcarNoShow.mockResolvedValue(true);
 
-      const respuesta = await service.noShowReserva(usuarioBarbero, 'BARBERO', 42);
+      const respuesta = await service.noShowReserva(
+        usuarioBarbero,
+        ['BARBERO'],
+        42,
+      );
 
       expect(respuesta.mensaje).toBe(MENSAJE_RESERVA_NO_SHOW);
       expect(respuesta.id).toBe(42);
@@ -1634,7 +1692,7 @@ describe('ReservasService', () => {
 
       const respuesta = await service.noShowReserva(
         usuarioSuperadmin,
-        'SUPERADMIN',
+        ['SUPERADMIN'],
         42,
       );
 
@@ -1650,7 +1708,7 @@ describe('ReservasService', () => {
       );
 
       await expect(
-        service.noShowReserva(usuarioBarbero, 'BARBERO', 42),
+        service.noShowReserva(usuarioBarbero, ['BARBERO'], 42),
       ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
 
       expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
@@ -1662,7 +1720,7 @@ describe('ReservasService', () => {
       );
 
       await expect(
-        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+        service.noShowReserva(usuarioSuperadmin, ['SUPERADMIN'], 42),
       ).rejects.toThrow(
         'No es posible marcar como no asistida una reserva cancelada',
       );
@@ -1676,7 +1734,7 @@ describe('ReservasService', () => {
       );
 
       await expect(
-        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+        service.noShowReserva(usuarioSuperadmin, ['SUPERADMIN'], 42),
       ).rejects.toThrow(
         'No es posible marcar como no asistida una reserva completada',
       );
@@ -1691,7 +1749,7 @@ describe('ReservasService', () => {
 
       const respuesta = await service.noShowReserva(
         usuarioSuperadmin,
-        'SUPERADMIN',
+        ['SUPERADMIN'],
         42,
       );
 
@@ -1706,7 +1764,7 @@ describe('ReservasService', () => {
       );
 
       await expect(
-        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 42),
+        service.noShowReserva(usuarioSuperadmin, ['SUPERADMIN'], 42),
       ).rejects.toThrow(
         'No es posible marcar la reserva como no asistida antes de 15 minutos',
       );
@@ -1718,10 +1776,62 @@ describe('ReservasService', () => {
       reservasRepository.obtenerReservaParaNoShow.mockResolvedValue(null);
 
       await expect(
-        service.noShowReserva(usuarioSuperadmin, 'SUPERADMIN', 999),
+        service.noShowReserva(usuarioSuperadmin, ['SUPERADMIN'], 999),
       ).rejects.toThrow(MENSAJE_RESERVA_NO_DISPONIBLE);
 
       expect(reservasRepository.marcarNoShow).not.toHaveBeenCalled();
+    });
+  });
+  describe('rotación de JWT_SECRET', () => {
+    beforeEach(() => {
+      // Se usa la implementación REAL del descifrado: el `beforeEach` general
+      // la sustituye por un doble.
+      (service.descifrarTokenGestion as unknown as jest.Mock).mockRestore();
+    });
+
+    /**
+     * Simula una rotación del secreto de sesiones sin tocar el entorno: se
+     * sustituye la clave derivada por otra.
+     */
+    const rotarClave = () =>
+      jest
+        .spyOn(
+          service as unknown as { claveCifradoToken: () => Buffer },
+          'claveCifradoToken',
+        )
+        .mockReturnValue(Buffer.alloc(32, 7));
+
+    it('la copia cifrada deja de descifrable: el replay devuelve la reserva SIN token', () => {
+      const token = 'b'.repeat(64);
+      const cifrado = service.cifrarTokenGestion(token);
+
+      expect(service.descifrarTokenGestion(cifrado)).toBe(token);
+
+      rotarClave();
+
+      // No se puede recuperar el token: el replay lo omite (y avisa por log).
+      expect(service.descifrarTokenGestion(cifrado)).toBeNull();
+    });
+
+    it('el HASH no depende de la clave: el token original SIGUE validando la reserva', () => {
+      const token = 'c'.repeat(64);
+      const hash = service.hashearToken(token);
+
+      rotarClave();
+
+      // La validación por hash no se ve afectada: la reserva sigue siendo
+      // gestionable con el token que el cliente ya tenía.
+      expect(service.compararTokenGestion(token, hash)).toBe(true);
+      expect(service.hashearToken(token)).toBe(hash);
+    });
+
+    it('el token nunca se guarda en texto claro: solo su hash y la copia cifrada', () => {
+      const token = 'd'.repeat(64);
+      const cifrado = service.cifrarTokenGestion(token);
+
+      expect(cifrado).not.toContain(token);
+      expect(service.hashearToken(token)).toHaveLength(64);
+      expect(service.hashearToken(token)).not.toBe(token);
     });
   });
 });

@@ -21,6 +21,8 @@ export class ServiciosService {
   /**
    * Valida que todos los IDs de barberos proporcionados pertenezcan a barberos
    * existentes en la base de datos y que estén en estado ACTIVO.
+   *
+   * Los identificadores son `Barbero.id` (NO `Usuario.id`).
    */
   private async validarBarberosActivos(barberoIds?: number[]) {
     if (!barberoIds || barberoIds.length === 0) {
@@ -64,11 +66,25 @@ export class ServiciosService {
   }
 
   /**
-   * Consulta inversa: Retorna los servicios activos que realiza un barbero específico.
+   * Consulta inversa: Retorna los servicios activos que realiza un barbero
+   * específico.
+   *
+   * `barberoId` es el `Barbero.id`. Antes de consultar se valida que el barbero
+   * pertenezca al negocio activo: un barbero de otra barbería responde 404
+   * (mensaje idéntico al de "no existe"), sin revelar su existencia.
    */
   async obtenerServiciosPorBarbero(
     barberoId: number,
   ): Promise<ServicioResponseDto[]> {
+    const barbero =
+      await this.serviciosRepository.obtenerBarberoActivoEnNegocio(barberoId);
+
+    if (!barbero) {
+      throw new NotFoundException(
+        `El barbero ${barberoId} no existe o no está activo`,
+      );
+    }
+
     const servicios =
       await this.serviciosRepository.listarServiciosPorBarbero(barberoId);
     return servicios.map((s) => this.mapearServicio(s));
@@ -250,6 +266,10 @@ export class ServiciosService {
   /**
    * Transforma la estructura anidada de Prisma a un formato limpio para el Frontend.
    * Aplana: BarberoServicio[] → Barbero → Usuario → { id, nombre, apellido, fotoUrl }
+   *
+   * `id` es el `Barbero.id` (NO el `Usuario.id`): es la clave que consumen la
+   * disponibilidad y la reserva, de modo que el cliente puede encadenar
+   * catálogo → disponibilidad → reserva sin traducir identificadores.
    */
   private mapearServicio(servicio: any): ServicioResponseDto {
     return {
@@ -261,7 +281,7 @@ export class ServiciosService {
       fotoUrl: servicio.fotoUrl,
       estado: servicio.estado,
       barberos: (servicio.barberos || []).map((bs: any) => ({
-        id: bs.barbero.usuario.id,
+        id: bs.barbero.id,
         nombre: bs.barbero.usuario.nombre,
         apellido: bs.barbero.usuario.apellido,
         fotoUrl: bs.barbero.fotoUrl,

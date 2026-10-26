@@ -17,6 +17,8 @@ import { ServiciosRepository } from '../../servicios/repository/servicios.reposi
 import { ReservasRepository } from '../repository/reservas.repository';
 import { PrismaProveedorReservasActivas } from '../adapters/prisma-proveedor-reservas-activas.adapter';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
+import { crearAislamientoNegocio } from '../../negocios/negocio-aislamiento.test-helpers';
 
 jest.mock('../../../../generated/prisma/enums', () => ({
   WeekDay: {
@@ -139,6 +141,10 @@ describe('Integración HE-08 ↔ HE-04 (disponibilidad sobre reservas reales)', 
         ReservasRepository,
         PrismaProveedorReservasActivas,
         { provide: PrismaService, useValue: prisma },
+        {
+          provide: NegocioAislamientoService,
+          useValue: crearAislamientoNegocio(),
+        },
         {
           provide: PROVEEDOR_RESERVAS_ACTIVAS,
           useExisting: PrismaProveedorReservasActivas,

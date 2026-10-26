@@ -22,8 +22,8 @@ import type * as Prisma from "../internal/prismaNamespace.js"
  * HE-08 detecte ocupación de franja. `precioReservado` conserva el precio del
  * `Servicio` calculado en el servidor al crear la reserva, para que las
  * consultas de HU-06/HU-07 no cambien si el catálogo sube de precio después.
- * Queda `NULL` para reservas anteriores a esta migración (no se inventan
- * snapshots retroactivos). El descuento y la idempotencia siguen fuera hasta
+ * Queda `NULL` para reservas creadas antes de que existiera esta columna (no se
+ * inventan snapshots retroactivos). El descuento y la idempotencia siguen fuera hasta
  * resolver D-07/D-08. La duración no se persiste: se resuelve del servicio
  * vigente. El precio y la duración NUNCA se confían al cliente.
  * 
@@ -34,6 +34,10 @@ import type * as Prisma from "../internal/prismaNamespace.js"
  * canceladas por franja, pero solo una activa; esto habilita la re-reserva.
  * `slotActivo` NO se declara aquí porque Prisma no expresa columnas generadas:
  * se crea en la migración SQL. Prisma Client funciona con o sin ella.
+ * 
+ * AISLAMIENTO (Fase 8): barbero, servicio y cliente se referencian con
+ * CLAVES FORÁNEAS COMPUESTAS `(negocioId, id)`: la base de datos impide que
+ * una reserva combine entidades de negocios distintos.
  */
 export type ReservationModel = runtime.Types.Result.DefaultSelection<Prisma.$ReservationPayload>
 
@@ -51,6 +55,7 @@ export type ReservationAvgAggregateOutputType = {
   servicioId: number | null
   clienteId: number | null
   precioReservado: runtime.Decimal | null
+  negocioId: number | null
   slotActivo: number | null
 }
 
@@ -60,6 +65,7 @@ export type ReservationSumAggregateOutputType = {
   servicioId: number | null
   clienteId: number | null
   precioReservado: runtime.Decimal | null
+  negocioId: number | null
   slotActivo: number | null
 }
 
@@ -75,10 +81,13 @@ export type ReservationMinAggregateOutputType = {
   status: $Enums.ReservationStatus | null
   precioReservado: runtime.Decimal | null
   gestionTokenHash: string | null
+  gestionTokenCifrado: string | null
   recordatorioEnviado: boolean | null
+  negocioId: number | null
   createdAt: Date | null
   updatedAt: Date | null
   slotActivo: number | null
+  idempotencyKey: string | null
 }
 
 export type ReservationMaxAggregateOutputType = {
@@ -93,10 +102,13 @@ export type ReservationMaxAggregateOutputType = {
   status: $Enums.ReservationStatus | null
   precioReservado: runtime.Decimal | null
   gestionTokenHash: string | null
+  gestionTokenCifrado: string | null
   recordatorioEnviado: boolean | null
+  negocioId: number | null
   createdAt: Date | null
   updatedAt: Date | null
   slotActivo: number | null
+  idempotencyKey: string | null
 }
 
 export type ReservationCountAggregateOutputType = {
@@ -111,10 +123,13 @@ export type ReservationCountAggregateOutputType = {
   status: number
   precioReservado: number
   gestionTokenHash: number
+  gestionTokenCifrado: number
   recordatorioEnviado: number
+  negocioId: number
   createdAt: number
   updatedAt: number
   slotActivo: number
+  idempotencyKey: number
   _all: number
 }
 
@@ -125,6 +140,7 @@ export type ReservationAvgAggregateInputType = {
   servicioId?: true
   clienteId?: true
   precioReservado?: true
+  negocioId?: true
   slotActivo?: true
 }
 
@@ -134,6 +150,7 @@ export type ReservationSumAggregateInputType = {
   servicioId?: true
   clienteId?: true
   precioReservado?: true
+  negocioId?: true
   slotActivo?: true
 }
 
@@ -149,10 +166,13 @@ export type ReservationMinAggregateInputType = {
   status?: true
   precioReservado?: true
   gestionTokenHash?: true
+  gestionTokenCifrado?: true
   recordatorioEnviado?: true
+  negocioId?: true
   createdAt?: true
   updatedAt?: true
   slotActivo?: true
+  idempotencyKey?: true
 }
 
 export type ReservationMaxAggregateInputType = {
@@ -167,10 +187,13 @@ export type ReservationMaxAggregateInputType = {
   status?: true
   precioReservado?: true
   gestionTokenHash?: true
+  gestionTokenCifrado?: true
   recordatorioEnviado?: true
+  negocioId?: true
   createdAt?: true
   updatedAt?: true
   slotActivo?: true
+  idempotencyKey?: true
 }
 
 export type ReservationCountAggregateInputType = {
@@ -185,10 +208,13 @@ export type ReservationCountAggregateInputType = {
   status?: true
   precioReservado?: true
   gestionTokenHash?: true
+  gestionTokenCifrado?: true
   recordatorioEnviado?: true
+  negocioId?: true
   createdAt?: true
   updatedAt?: true
   slotActivo?: true
+  idempotencyKey?: true
   _all?: true
 }
 
@@ -290,10 +316,13 @@ export type ReservationGroupByOutputType = {
   status: $Enums.ReservationStatus
   precioReservado: runtime.Decimal | null
   gestionTokenHash: string | null
+  gestionTokenCifrado: string | null
   recordatorioEnviado: boolean
+  negocioId: number
   createdAt: Date
   updatedAt: Date
   slotActivo: number | null
+  idempotencyKey: string | null
   _count: ReservationCountAggregateOutputType | null
   _avg: ReservationAvgAggregateOutputType | null
   _sum: ReservationSumAggregateOutputType | null
@@ -331,13 +360,17 @@ export type ReservationWhereInput = {
   status?: Prisma.EnumReservationStatusFilter<"Reservation"> | $Enums.ReservationStatus
   precioReservado?: Prisma.DecimalNullableFilter<"Reservation"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.StringNullableFilter<"Reservation"> | string | null
+  gestionTokenCifrado?: Prisma.StringNullableFilter<"Reservation"> | string | null
   recordatorioEnviado?: Prisma.BoolFilter<"Reservation"> | boolean
+  negocioId?: Prisma.IntFilter<"Reservation"> | number
   createdAt?: Prisma.DateTimeFilter<"Reservation"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Reservation"> | Date | string
   slotActivo?: Prisma.IntNullableFilter<"Reservation"> | number | null
+  idempotencyKey?: Prisma.StringNullableFilter<"Reservation"> | string | null
   barbero?: Prisma.XOR<Prisma.BarberoScalarRelationFilter, Prisma.BarberoWhereInput>
   servicio?: Prisma.XOR<Prisma.ServicioScalarRelationFilter, Prisma.ServicioWhereInput>
   cliente?: Prisma.XOR<Prisma.ClienteScalarRelationFilter, Prisma.ClienteWhereInput>
+  negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
 }
 
 export type ReservationOrderByWithRelationInput = {
@@ -352,19 +385,24 @@ export type ReservationOrderByWithRelationInput = {
   status?: Prisma.SortOrder
   precioReservado?: Prisma.SortOrderInput | Prisma.SortOrder
   gestionTokenHash?: Prisma.SortOrderInput | Prisma.SortOrder
+  gestionTokenCifrado?: Prisma.SortOrderInput | Prisma.SortOrder
   recordatorioEnviado?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   slotActivo?: Prisma.SortOrderInput | Prisma.SortOrder
+  idempotencyKey?: Prisma.SortOrderInput | Prisma.SortOrder
   barbero?: Prisma.BarberoOrderByWithRelationInput
   servicio?: Prisma.ServicioOrderByWithRelationInput
   cliente?: Prisma.ClienteOrderByWithRelationInput
+  negocio?: Prisma.NegocioOrderByWithRelationInput
   _relevance?: Prisma.ReservationOrderByRelevanceInput
 }
 
 export type ReservationWhereUniqueInput = Prisma.AtLeast<{
   id?: number
   barberoId_date_startTime_slotActivo?: Prisma.ReservationBarberoIdDateStartTimeSlotActivoCompoundUniqueInput
+  negocioId_idempotencyKey?: Prisma.ReservationNegocioIdIdempotencyKeyCompoundUniqueInput
   AND?: Prisma.ReservationWhereInput | Prisma.ReservationWhereInput[]
   OR?: Prisma.ReservationWhereInput[]
   NOT?: Prisma.ReservationWhereInput | Prisma.ReservationWhereInput[]
@@ -378,14 +416,18 @@ export type ReservationWhereUniqueInput = Prisma.AtLeast<{
   status?: Prisma.EnumReservationStatusFilter<"Reservation"> | $Enums.ReservationStatus
   precioReservado?: Prisma.DecimalNullableFilter<"Reservation"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.StringNullableFilter<"Reservation"> | string | null
+  gestionTokenCifrado?: Prisma.StringNullableFilter<"Reservation"> | string | null
   recordatorioEnviado?: Prisma.BoolFilter<"Reservation"> | boolean
+  negocioId?: Prisma.IntFilter<"Reservation"> | number
   createdAt?: Prisma.DateTimeFilter<"Reservation"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Reservation"> | Date | string
   slotActivo?: Prisma.IntNullableFilter<"Reservation"> | number | null
+  idempotencyKey?: Prisma.StringNullableFilter<"Reservation"> | string | null
   barbero?: Prisma.XOR<Prisma.BarberoScalarRelationFilter, Prisma.BarberoWhereInput>
   servicio?: Prisma.XOR<Prisma.ServicioScalarRelationFilter, Prisma.ServicioWhereInput>
   cliente?: Prisma.XOR<Prisma.ClienteScalarRelationFilter, Prisma.ClienteWhereInput>
-}, "id" | "barberoId_date_startTime_slotActivo">
+  negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
+}, "id" | "barberoId_date_startTime_slotActivo" | "negocioId_idempotencyKey">
 
 export type ReservationOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -399,10 +441,13 @@ export type ReservationOrderByWithAggregationInput = {
   status?: Prisma.SortOrder
   precioReservado?: Prisma.SortOrderInput | Prisma.SortOrder
   gestionTokenHash?: Prisma.SortOrderInput | Prisma.SortOrder
+  gestionTokenCifrado?: Prisma.SortOrderInput | Prisma.SortOrder
   recordatorioEnviado?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   slotActivo?: Prisma.SortOrderInput | Prisma.SortOrder
+  idempotencyKey?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.ReservationCountOrderByAggregateInput
   _avg?: Prisma.ReservationAvgOrderByAggregateInput
   _max?: Prisma.ReservationMaxOrderByAggregateInput
@@ -425,10 +470,13 @@ export type ReservationScalarWhereWithAggregatesInput = {
   status?: Prisma.EnumReservationStatusWithAggregatesFilter<"Reservation"> | $Enums.ReservationStatus
   precioReservado?: Prisma.DecimalNullableWithAggregatesFilter<"Reservation"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.StringNullableWithAggregatesFilter<"Reservation"> | string | null
+  gestionTokenCifrado?: Prisma.StringNullableWithAggregatesFilter<"Reservation"> | string | null
   recordatorioEnviado?: Prisma.BoolWithAggregatesFilter<"Reservation"> | boolean
+  negocioId?: Prisma.IntWithAggregatesFilter<"Reservation"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Reservation"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Reservation"> | Date | string
   slotActivo?: Prisma.IntNullableWithAggregatesFilter<"Reservation"> | number | null
+  idempotencyKey?: Prisma.StringNullableWithAggregatesFilter<"Reservation"> | string | null
 }
 
 export type ReservationCreateInput = {
@@ -439,13 +487,16 @@ export type ReservationCreateInput = {
   status?: $Enums.ReservationStatus
   precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
   recordatorioEnviado?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   slotActivo?: number | null
+  idempotencyKey?: string | null
   barbero: Prisma.BarberoCreateNestedOneWithoutReservationsInput
   servicio: Prisma.ServicioCreateNestedOneWithoutReservationsInput
   cliente: Prisma.ClienteCreateNestedOneWithoutReservationsInput
+  negocio: Prisma.NegocioCreateNestedOneWithoutReservasInput
 }
 
 export type ReservationUncheckedCreateInput = {
@@ -460,10 +511,13 @@ export type ReservationUncheckedCreateInput = {
   status?: $Enums.ReservationStatus
   precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
   recordatorioEnviado?: boolean
+  negocioId: number
   createdAt?: Date | string
   updatedAt?: Date | string
   slotActivo?: number | null
+  idempotencyKey?: string | null
 }
 
 export type ReservationUpdateInput = {
@@ -474,13 +528,16 @@ export type ReservationUpdateInput = {
   status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
   precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   barbero?: Prisma.BarberoUpdateOneRequiredWithoutReservationsNestedInput
   servicio?: Prisma.ServicioUpdateOneRequiredWithoutReservationsNestedInput
   cliente?: Prisma.ClienteUpdateOneRequiredWithoutReservationsNestedInput
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutReservasNestedInput
 }
 
 export type ReservationUncheckedUpdateInput = {
@@ -495,10 +552,13 @@ export type ReservationUncheckedUpdateInput = {
   status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
   precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ReservationCreateManyInput = {
@@ -513,10 +573,13 @@ export type ReservationCreateManyInput = {
   status?: $Enums.ReservationStatus
   precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
   recordatorioEnviado?: boolean
+  negocioId: number
   createdAt?: Date | string
   updatedAt?: Date | string
   slotActivo?: number | null
+  idempotencyKey?: string | null
 }
 
 export type ReservationUpdateManyMutationInput = {
@@ -527,10 +590,12 @@ export type ReservationUpdateManyMutationInput = {
   status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
   precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ReservationUncheckedUpdateManyInput = {
@@ -545,10 +610,13 @@ export type ReservationUncheckedUpdateManyInput = {
   status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
   precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ReservationListRelationFilter = {
@@ -574,6 +642,11 @@ export type ReservationBarberoIdDateStartTimeSlotActivoCompoundUniqueInput = {
   slotActivo: number
 }
 
+export type ReservationNegocioIdIdempotencyKeyCompoundUniqueInput = {
+  negocioId: number
+  idempotencyKey: string
+}
+
 export type ReservationCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   barberoId?: Prisma.SortOrder
@@ -586,10 +659,13 @@ export type ReservationCountOrderByAggregateInput = {
   status?: Prisma.SortOrder
   precioReservado?: Prisma.SortOrder
   gestionTokenHash?: Prisma.SortOrder
+  gestionTokenCifrado?: Prisma.SortOrder
   recordatorioEnviado?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   slotActivo?: Prisma.SortOrder
+  idempotencyKey?: Prisma.SortOrder
 }
 
 export type ReservationAvgOrderByAggregateInput = {
@@ -598,6 +674,7 @@ export type ReservationAvgOrderByAggregateInput = {
   servicioId?: Prisma.SortOrder
   clienteId?: Prisma.SortOrder
   precioReservado?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   slotActivo?: Prisma.SortOrder
 }
 
@@ -613,10 +690,13 @@ export type ReservationMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   precioReservado?: Prisma.SortOrder
   gestionTokenHash?: Prisma.SortOrder
+  gestionTokenCifrado?: Prisma.SortOrder
   recordatorioEnviado?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   slotActivo?: Prisma.SortOrder
+  idempotencyKey?: Prisma.SortOrder
 }
 
 export type ReservationMinOrderByAggregateInput = {
@@ -631,10 +711,13 @@ export type ReservationMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   precioReservado?: Prisma.SortOrder
   gestionTokenHash?: Prisma.SortOrder
+  gestionTokenCifrado?: Prisma.SortOrder
   recordatorioEnviado?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   slotActivo?: Prisma.SortOrder
+  idempotencyKey?: Prisma.SortOrder
 }
 
 export type ReservationSumOrderByAggregateInput = {
@@ -643,7 +726,50 @@ export type ReservationSumOrderByAggregateInput = {
   servicioId?: Prisma.SortOrder
   clienteId?: Prisma.SortOrder
   precioReservado?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   slotActivo?: Prisma.SortOrder
+}
+
+export type ReservationCreateNestedManyWithoutNegocioInput = {
+  create?: Prisma.XOR<Prisma.ReservationCreateWithoutNegocioInput, Prisma.ReservationUncheckedCreateWithoutNegocioInput> | Prisma.ReservationCreateWithoutNegocioInput[] | Prisma.ReservationUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.ReservationCreateOrConnectWithoutNegocioInput | Prisma.ReservationCreateOrConnectWithoutNegocioInput[]
+  createMany?: Prisma.ReservationCreateManyNegocioInputEnvelope
+  connect?: Prisma.ReservationWhereUniqueInput | Prisma.ReservationWhereUniqueInput[]
+}
+
+export type ReservationUncheckedCreateNestedManyWithoutNegocioInput = {
+  create?: Prisma.XOR<Prisma.ReservationCreateWithoutNegocioInput, Prisma.ReservationUncheckedCreateWithoutNegocioInput> | Prisma.ReservationCreateWithoutNegocioInput[] | Prisma.ReservationUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.ReservationCreateOrConnectWithoutNegocioInput | Prisma.ReservationCreateOrConnectWithoutNegocioInput[]
+  createMany?: Prisma.ReservationCreateManyNegocioInputEnvelope
+  connect?: Prisma.ReservationWhereUniqueInput | Prisma.ReservationWhereUniqueInput[]
+}
+
+export type ReservationUpdateManyWithoutNegocioNestedInput = {
+  create?: Prisma.XOR<Prisma.ReservationCreateWithoutNegocioInput, Prisma.ReservationUncheckedCreateWithoutNegocioInput> | Prisma.ReservationCreateWithoutNegocioInput[] | Prisma.ReservationUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.ReservationCreateOrConnectWithoutNegocioInput | Prisma.ReservationCreateOrConnectWithoutNegocioInput[]
+  upsert?: Prisma.ReservationUpsertWithWhereUniqueWithoutNegocioInput | Prisma.ReservationUpsertWithWhereUniqueWithoutNegocioInput[]
+  createMany?: Prisma.ReservationCreateManyNegocioInputEnvelope
+  set?: Prisma.ReservationWhereUniqueInput | Prisma.ReservationWhereUniqueInput[]
+  disconnect?: Prisma.ReservationWhereUniqueInput | Prisma.ReservationWhereUniqueInput[]
+  delete?: Prisma.ReservationWhereUniqueInput | Prisma.ReservationWhereUniqueInput[]
+  connect?: Prisma.ReservationWhereUniqueInput | Prisma.ReservationWhereUniqueInput[]
+  update?: Prisma.ReservationUpdateWithWhereUniqueWithoutNegocioInput | Prisma.ReservationUpdateWithWhereUniqueWithoutNegocioInput[]
+  updateMany?: Prisma.ReservationUpdateManyWithWhereWithoutNegocioInput | Prisma.ReservationUpdateManyWithWhereWithoutNegocioInput[]
+  deleteMany?: Prisma.ReservationScalarWhereInput | Prisma.ReservationScalarWhereInput[]
+}
+
+export type ReservationUncheckedUpdateManyWithoutNegocioNestedInput = {
+  create?: Prisma.XOR<Prisma.ReservationCreateWithoutNegocioInput, Prisma.ReservationUncheckedCreateWithoutNegocioInput> | Prisma.ReservationCreateWithoutNegocioInput[] | Prisma.ReservationUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.ReservationCreateOrConnectWithoutNegocioInput | Prisma.ReservationCreateOrConnectWithoutNegocioInput[]
+  upsert?: Prisma.ReservationUpsertWithWhereUniqueWithoutNegocioInput | Prisma.ReservationUpsertWithWhereUniqueWithoutNegocioInput[]
+  createMany?: Prisma.ReservationCreateManyNegocioInputEnvelope
+  set?: Prisma.ReservationWhereUniqueInput | Prisma.ReservationWhereUniqueInput[]
+  disconnect?: Prisma.ReservationWhereUniqueInput | Prisma.ReservationWhereUniqueInput[]
+  delete?: Prisma.ReservationWhereUniqueInput | Prisma.ReservationWhereUniqueInput[]
+  connect?: Prisma.ReservationWhereUniqueInput | Prisma.ReservationWhereUniqueInput[]
+  update?: Prisma.ReservationUpdateWithWhereUniqueWithoutNegocioInput | Prisma.ReservationUpdateWithWhereUniqueWithoutNegocioInput[]
+  updateMany?: Prisma.ReservationUpdateManyWithWhereWithoutNegocioInput | Prisma.ReservationUpdateManyWithWhereWithoutNegocioInput[]
+  deleteMany?: Prisma.ReservationScalarWhereInput | Prisma.ReservationScalarWhereInput[]
 }
 
 export type ReservationCreateNestedManyWithoutBarberoInput = {
@@ -776,12 +902,93 @@ export type EnumReservationStatusFieldUpdateOperationsInput = {
   set?: $Enums.ReservationStatus
 }
 
-export type NullableDecimalFieldUpdateOperationsInput = {
-  set?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  increment?: runtime.Decimal | runtime.DecimalJsLike | number | string
-  decrement?: runtime.Decimal | runtime.DecimalJsLike | number | string
-  multiply?: runtime.Decimal | runtime.DecimalJsLike | number | string
-  divide?: runtime.Decimal | runtime.DecimalJsLike | number | string
+export type ReservationCreateWithoutNegocioInput = {
+  date: Date | string
+  dayOfWeek: $Enums.WeekDay
+  startTime: string
+  endTime: string
+  status?: $Enums.ReservationStatus
+  precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
+  recordatorioEnviado?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  slotActivo?: number | null
+  idempotencyKey?: string | null
+  barbero: Prisma.BarberoCreateNestedOneWithoutReservationsInput
+  servicio: Prisma.ServicioCreateNestedOneWithoutReservationsInput
+  cliente: Prisma.ClienteCreateNestedOneWithoutReservationsInput
+}
+
+export type ReservationUncheckedCreateWithoutNegocioInput = {
+  id?: number
+  barberoId: number
+  servicioId: number
+  clienteId: number
+  date: Date | string
+  dayOfWeek: $Enums.WeekDay
+  startTime: string
+  endTime: string
+  status?: $Enums.ReservationStatus
+  precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
+  recordatorioEnviado?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  slotActivo?: number | null
+  idempotencyKey?: string | null
+}
+
+export type ReservationCreateOrConnectWithoutNegocioInput = {
+  where: Prisma.ReservationWhereUniqueInput
+  create: Prisma.XOR<Prisma.ReservationCreateWithoutNegocioInput, Prisma.ReservationUncheckedCreateWithoutNegocioInput>
+}
+
+export type ReservationCreateManyNegocioInputEnvelope = {
+  data: Prisma.ReservationCreateManyNegocioInput | Prisma.ReservationCreateManyNegocioInput[]
+  skipDuplicates?: boolean
+}
+
+export type ReservationUpsertWithWhereUniqueWithoutNegocioInput = {
+  where: Prisma.ReservationWhereUniqueInput
+  update: Prisma.XOR<Prisma.ReservationUpdateWithoutNegocioInput, Prisma.ReservationUncheckedUpdateWithoutNegocioInput>
+  create: Prisma.XOR<Prisma.ReservationCreateWithoutNegocioInput, Prisma.ReservationUncheckedCreateWithoutNegocioInput>
+}
+
+export type ReservationUpdateWithWhereUniqueWithoutNegocioInput = {
+  where: Prisma.ReservationWhereUniqueInput
+  data: Prisma.XOR<Prisma.ReservationUpdateWithoutNegocioInput, Prisma.ReservationUncheckedUpdateWithoutNegocioInput>
+}
+
+export type ReservationUpdateManyWithWhereWithoutNegocioInput = {
+  where: Prisma.ReservationScalarWhereInput
+  data: Prisma.XOR<Prisma.ReservationUpdateManyMutationInput, Prisma.ReservationUncheckedUpdateManyWithoutNegocioInput>
+}
+
+export type ReservationScalarWhereInput = {
+  AND?: Prisma.ReservationScalarWhereInput | Prisma.ReservationScalarWhereInput[]
+  OR?: Prisma.ReservationScalarWhereInput[]
+  NOT?: Prisma.ReservationScalarWhereInput | Prisma.ReservationScalarWhereInput[]
+  id?: Prisma.IntFilter<"Reservation"> | number
+  barberoId?: Prisma.IntFilter<"Reservation"> | number
+  servicioId?: Prisma.IntFilter<"Reservation"> | number
+  clienteId?: Prisma.IntFilter<"Reservation"> | number
+  date?: Prisma.DateTimeFilter<"Reservation"> | Date | string
+  dayOfWeek?: Prisma.EnumWeekDayFilter<"Reservation"> | $Enums.WeekDay
+  startTime?: Prisma.StringFilter<"Reservation"> | string
+  endTime?: Prisma.StringFilter<"Reservation"> | string
+  status?: Prisma.EnumReservationStatusFilter<"Reservation"> | $Enums.ReservationStatus
+  precioReservado?: Prisma.DecimalNullableFilter<"Reservation"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  gestionTokenHash?: Prisma.StringNullableFilter<"Reservation"> | string | null
+  gestionTokenCifrado?: Prisma.StringNullableFilter<"Reservation"> | string | null
+  recordatorioEnviado?: Prisma.BoolFilter<"Reservation"> | boolean
+  negocioId?: Prisma.IntFilter<"Reservation"> | number
+  createdAt?: Prisma.DateTimeFilter<"Reservation"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"Reservation"> | Date | string
+  slotActivo?: Prisma.IntNullableFilter<"Reservation"> | number | null
+  idempotencyKey?: Prisma.StringNullableFilter<"Reservation"> | string | null
 }
 
 export type ReservationCreateWithoutBarberoInput = {
@@ -792,12 +999,15 @@ export type ReservationCreateWithoutBarberoInput = {
   status?: $Enums.ReservationStatus
   precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
   recordatorioEnviado?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   slotActivo?: number | null
+  idempotencyKey?: string | null
   servicio: Prisma.ServicioCreateNestedOneWithoutReservationsInput
   cliente: Prisma.ClienteCreateNestedOneWithoutReservationsInput
+  negocio: Prisma.NegocioCreateNestedOneWithoutReservasInput
 }
 
 export type ReservationUncheckedCreateWithoutBarberoInput = {
@@ -811,10 +1021,12 @@ export type ReservationUncheckedCreateWithoutBarberoInput = {
   status?: $Enums.ReservationStatus
   precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
   recordatorioEnviado?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   slotActivo?: number | null
+  idempotencyKey?: string | null
 }
 
 export type ReservationCreateOrConnectWithoutBarberoInput = {
@@ -843,27 +1055,6 @@ export type ReservationUpdateManyWithWhereWithoutBarberoInput = {
   data: Prisma.XOR<Prisma.ReservationUpdateManyMutationInput, Prisma.ReservationUncheckedUpdateManyWithoutBarberoInput>
 }
 
-export type ReservationScalarWhereInput = {
-  AND?: Prisma.ReservationScalarWhereInput | Prisma.ReservationScalarWhereInput[]
-  OR?: Prisma.ReservationScalarWhereInput[]
-  NOT?: Prisma.ReservationScalarWhereInput | Prisma.ReservationScalarWhereInput[]
-  id?: Prisma.IntFilter<"Reservation"> | number
-  barberoId?: Prisma.IntFilter<"Reservation"> | number
-  servicioId?: Prisma.IntFilter<"Reservation"> | number
-  clienteId?: Prisma.IntFilter<"Reservation"> | number
-  date?: Prisma.DateTimeFilter<"Reservation"> | Date | string
-  dayOfWeek?: Prisma.EnumWeekDayFilter<"Reservation"> | $Enums.WeekDay
-  startTime?: Prisma.StringFilter<"Reservation"> | string
-  endTime?: Prisma.StringFilter<"Reservation"> | string
-  status?: Prisma.EnumReservationStatusFilter<"Reservation"> | $Enums.ReservationStatus
-  precioReservado?: Prisma.DecimalNullableFilter<"Reservation"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
-  gestionTokenHash?: Prisma.StringNullableFilter<"Reservation"> | string | null
-  recordatorioEnviado?: Prisma.BoolFilter<"Reservation"> | boolean
-  createdAt?: Prisma.DateTimeFilter<"Reservation"> | Date | string
-  updatedAt?: Prisma.DateTimeFilter<"Reservation"> | Date | string
-  slotActivo?: Prisma.IntNullableFilter<"Reservation"> | number | null
-}
-
 export type ReservationCreateWithoutClienteInput = {
   date: Date | string
   dayOfWeek: $Enums.WeekDay
@@ -872,12 +1063,15 @@ export type ReservationCreateWithoutClienteInput = {
   status?: $Enums.ReservationStatus
   precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
   recordatorioEnviado?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   slotActivo?: number | null
+  idempotencyKey?: string | null
   barbero: Prisma.BarberoCreateNestedOneWithoutReservationsInput
   servicio: Prisma.ServicioCreateNestedOneWithoutReservationsInput
+  negocio: Prisma.NegocioCreateNestedOneWithoutReservasInput
 }
 
 export type ReservationUncheckedCreateWithoutClienteInput = {
@@ -891,10 +1085,12 @@ export type ReservationUncheckedCreateWithoutClienteInput = {
   status?: $Enums.ReservationStatus
   precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
   recordatorioEnviado?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   slotActivo?: number | null
+  idempotencyKey?: string | null
 }
 
 export type ReservationCreateOrConnectWithoutClienteInput = {
@@ -931,12 +1127,15 @@ export type ReservationCreateWithoutServicioInput = {
   status?: $Enums.ReservationStatus
   precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
   recordatorioEnviado?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   slotActivo?: number | null
+  idempotencyKey?: string | null
   barbero: Prisma.BarberoCreateNestedOneWithoutReservationsInput
   cliente: Prisma.ClienteCreateNestedOneWithoutReservationsInput
+  negocio: Prisma.NegocioCreateNestedOneWithoutReservasInput
 }
 
 export type ReservationUncheckedCreateWithoutServicioInput = {
@@ -950,10 +1149,12 @@ export type ReservationUncheckedCreateWithoutServicioInput = {
   status?: $Enums.ReservationStatus
   precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
   recordatorioEnviado?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   slotActivo?: number | null
+  idempotencyKey?: string | null
 }
 
 export type ReservationCreateOrConnectWithoutServicioInput = {
@@ -982,6 +1183,85 @@ export type ReservationUpdateManyWithWhereWithoutServicioInput = {
   data: Prisma.XOR<Prisma.ReservationUpdateManyMutationInput, Prisma.ReservationUncheckedUpdateManyWithoutServicioInput>
 }
 
+export type ReservationCreateManyNegocioInput = {
+  id?: number
+  barberoId: number
+  servicioId: number
+  clienteId: number
+  date: Date | string
+  dayOfWeek: $Enums.WeekDay
+  startTime: string
+  endTime: string
+  status?: $Enums.ReservationStatus
+  precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
+  recordatorioEnviado?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  slotActivo?: number | null
+  idempotencyKey?: string | null
+}
+
+export type ReservationUpdateWithoutNegocioInput = {
+  date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  dayOfWeek?: Prisma.EnumWeekDayFieldUpdateOperationsInput | $Enums.WeekDay
+  startTime?: Prisma.StringFieldUpdateOperationsInput | string
+  endTime?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
+  precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  barbero?: Prisma.BarberoUpdateOneRequiredWithoutReservationsNestedInput
+  servicio?: Prisma.ServicioUpdateOneRequiredWithoutReservationsNestedInput
+  cliente?: Prisma.ClienteUpdateOneRequiredWithoutReservationsNestedInput
+}
+
+export type ReservationUncheckedUpdateWithoutNegocioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  barberoId?: Prisma.IntFieldUpdateOperationsInput | number
+  servicioId?: Prisma.IntFieldUpdateOperationsInput | number
+  clienteId?: Prisma.IntFieldUpdateOperationsInput | number
+  date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  dayOfWeek?: Prisma.EnumWeekDayFieldUpdateOperationsInput | $Enums.WeekDay
+  startTime?: Prisma.StringFieldUpdateOperationsInput | string
+  endTime?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
+  precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+}
+
+export type ReservationUncheckedUpdateManyWithoutNegocioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  barberoId?: Prisma.IntFieldUpdateOperationsInput | number
+  servicioId?: Prisma.IntFieldUpdateOperationsInput | number
+  clienteId?: Prisma.IntFieldUpdateOperationsInput | number
+  date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  dayOfWeek?: Prisma.EnumWeekDayFieldUpdateOperationsInput | $Enums.WeekDay
+  startTime?: Prisma.StringFieldUpdateOperationsInput | string
+  endTime?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
+  precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+}
+
 export type ReservationCreateManyBarberoInput = {
   id?: number
   servicioId: number
@@ -993,10 +1273,12 @@ export type ReservationCreateManyBarberoInput = {
   status?: $Enums.ReservationStatus
   precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
   recordatorioEnviado?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   slotActivo?: number | null
+  idempotencyKey?: string | null
 }
 
 export type ReservationUpdateWithoutBarberoInput = {
@@ -1007,12 +1289,15 @@ export type ReservationUpdateWithoutBarberoInput = {
   status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
   precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   servicio?: Prisma.ServicioUpdateOneRequiredWithoutReservationsNestedInput
   cliente?: Prisma.ClienteUpdateOneRequiredWithoutReservationsNestedInput
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutReservasNestedInput
 }
 
 export type ReservationUncheckedUpdateWithoutBarberoInput = {
@@ -1026,10 +1311,12 @@ export type ReservationUncheckedUpdateWithoutBarberoInput = {
   status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
   precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ReservationUncheckedUpdateManyWithoutBarberoInput = {
@@ -1043,10 +1330,12 @@ export type ReservationUncheckedUpdateManyWithoutBarberoInput = {
   status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
   precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ReservationCreateManyClienteInput = {
@@ -1060,10 +1349,12 @@ export type ReservationCreateManyClienteInput = {
   status?: $Enums.ReservationStatus
   precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
   recordatorioEnviado?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   slotActivo?: number | null
+  idempotencyKey?: string | null
 }
 
 export type ReservationUpdateWithoutClienteInput = {
@@ -1074,12 +1365,15 @@ export type ReservationUpdateWithoutClienteInput = {
   status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
   precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   barbero?: Prisma.BarberoUpdateOneRequiredWithoutReservationsNestedInput
   servicio?: Prisma.ServicioUpdateOneRequiredWithoutReservationsNestedInput
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutReservasNestedInput
 }
 
 export type ReservationUncheckedUpdateWithoutClienteInput = {
@@ -1093,10 +1387,12 @@ export type ReservationUncheckedUpdateWithoutClienteInput = {
   status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
   precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ReservationUncheckedUpdateManyWithoutClienteInput = {
@@ -1110,10 +1406,12 @@ export type ReservationUncheckedUpdateManyWithoutClienteInput = {
   status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
   precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ReservationCreateManyServicioInput = {
@@ -1127,10 +1425,12 @@ export type ReservationCreateManyServicioInput = {
   status?: $Enums.ReservationStatus
   precioReservado?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: string | null
+  gestionTokenCifrado?: string | null
   recordatorioEnviado?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   slotActivo?: number | null
+  idempotencyKey?: string | null
 }
 
 export type ReservationUpdateWithoutServicioInput = {
@@ -1141,12 +1441,15 @@ export type ReservationUpdateWithoutServicioInput = {
   status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
   precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   barbero?: Prisma.BarberoUpdateOneRequiredWithoutReservationsNestedInput
   cliente?: Prisma.ClienteUpdateOneRequiredWithoutReservationsNestedInput
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutReservasNestedInput
 }
 
 export type ReservationUncheckedUpdateWithoutServicioInput = {
@@ -1160,10 +1463,12 @@ export type ReservationUncheckedUpdateWithoutServicioInput = {
   status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
   precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ReservationUncheckedUpdateManyWithoutServicioInput = {
@@ -1177,10 +1482,12 @@ export type ReservationUncheckedUpdateManyWithoutServicioInput = {
   status?: Prisma.EnumReservationStatusFieldUpdateOperationsInput | $Enums.ReservationStatus
   precioReservado?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   gestionTokenHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gestionTokenCifrado?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recordatorioEnviado?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   slotActivo?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -1197,13 +1504,17 @@ export type ReservationSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   status?: boolean
   precioReservado?: boolean
   gestionTokenHash?: boolean
+  gestionTokenCifrado?: boolean
   recordatorioEnviado?: boolean
+  negocioId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   slotActivo?: boolean
+  idempotencyKey?: boolean
   barbero?: boolean | Prisma.BarberoDefaultArgs<ExtArgs>
   servicio?: boolean | Prisma.ServicioDefaultArgs<ExtArgs>
   cliente?: boolean | Prisma.ClienteDefaultArgs<ExtArgs>
+  negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["reservation"]>
 
 
@@ -1220,17 +1531,21 @@ export type ReservationSelectScalar = {
   status?: boolean
   precioReservado?: boolean
   gestionTokenHash?: boolean
+  gestionTokenCifrado?: boolean
   recordatorioEnviado?: boolean
+  negocioId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   slotActivo?: boolean
+  idempotencyKey?: boolean
 }
 
-export type ReservationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "barberoId" | "servicioId" | "clienteId" | "date" | "dayOfWeek" | "startTime" | "endTime" | "status" | "precioReservado" | "gestionTokenHash" | "recordatorioEnviado" | "createdAt" | "updatedAt" | "slotActivo", ExtArgs["result"]["reservation"]>
+export type ReservationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "barberoId" | "servicioId" | "clienteId" | "date" | "dayOfWeek" | "startTime" | "endTime" | "status" | "precioReservado" | "gestionTokenHash" | "gestionTokenCifrado" | "recordatorioEnviado" | "negocioId" | "createdAt" | "updatedAt" | "slotActivo" | "idempotencyKey", ExtArgs["result"]["reservation"]>
 export type ReservationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   barbero?: boolean | Prisma.BarberoDefaultArgs<ExtArgs>
   servicio?: boolean | Prisma.ServicioDefaultArgs<ExtArgs>
   cliente?: boolean | Prisma.ClienteDefaultArgs<ExtArgs>
+  negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
 }
 
 export type $ReservationPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1239,6 +1554,7 @@ export type $ReservationPayload<ExtArgs extends runtime.Types.Extensions.Interna
     barbero: Prisma.$BarberoPayload<ExtArgs>
     servicio: Prisma.$ServicioPayload<ExtArgs>
     cliente: Prisma.$ClientePayload<ExtArgs>
+    negocio: Prisma.$NegocioPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
@@ -1252,10 +1568,23 @@ export type $ReservationPayload<ExtArgs extends runtime.Types.Extensions.Interna
     status: $Enums.ReservationStatus
     precioReservado: runtime.Decimal | null
     gestionTokenHash: string | null
+    gestionTokenCifrado: string | null
     recordatorioEnviado: boolean
+    /**
+     * Negocio al que pertenece la reserva. OBLIGATORIO.
+     */
+    negocioId: number
     createdAt: Date
     updatedAt: Date
     slotActivo: number | null
+    /**
+     * Clave de idempotencia del intento de reserva (cabecera `Idempotency-Key`).
+     * NULA para las reservas históricas y para las creadas sin cabecera de
+     * idempotencia. La unicidad es COMPUESTA por negocio: la misma clave en dos
+     * barberías son dos intentos distintos, y una clave nunca permite acceder a
+     * una reserva de otro negocio.
+     */
+    idempotencyKey: string | null
   }, ExtArgs["result"]["reservation"]>
   composites: {}
 }
@@ -1599,6 +1928,7 @@ export interface Prisma__ReservationClient<T, Null = never, ExtArgs extends runt
   barbero<T extends Prisma.BarberoDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BarberoDefaultArgs<ExtArgs>>): Prisma.Prisma__BarberoClient<runtime.Types.Result.GetResult<Prisma.$BarberoPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   servicio<T extends Prisma.ServicioDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ServicioDefaultArgs<ExtArgs>>): Prisma.Prisma__ServicioClient<runtime.Types.Result.GetResult<Prisma.$ServicioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   cliente<T extends Prisma.ClienteDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ClienteDefaultArgs<ExtArgs>>): Prisma.Prisma__ClienteClient<runtime.Types.Result.GetResult<Prisma.$ClientePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  negocio<T extends Prisma.NegocioDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NegocioDefaultArgs<ExtArgs>>): Prisma.Prisma__NegocioClient<runtime.Types.Result.GetResult<Prisma.$NegocioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1639,10 +1969,13 @@ export interface ReservationFieldRefs {
   readonly status: Prisma.FieldRef<"Reservation", 'ReservationStatus'>
   readonly precioReservado: Prisma.FieldRef<"Reservation", 'Decimal'>
   readonly gestionTokenHash: Prisma.FieldRef<"Reservation", 'String'>
+  readonly gestionTokenCifrado: Prisma.FieldRef<"Reservation", 'String'>
   readonly recordatorioEnviado: Prisma.FieldRef<"Reservation", 'Boolean'>
+  readonly negocioId: Prisma.FieldRef<"Reservation", 'Int'>
   readonly createdAt: Prisma.FieldRef<"Reservation", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Reservation", 'DateTime'>
   readonly slotActivo: Prisma.FieldRef<"Reservation", 'Int'>
+  readonly idempotencyKey: Prisma.FieldRef<"Reservation", 'String'>
 }
     
 

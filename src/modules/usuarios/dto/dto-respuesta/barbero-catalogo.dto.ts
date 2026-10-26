@@ -7,7 +7,11 @@ import { ApiProperty } from '@nestjs/swagger';
  * Excluye datos sensibles como correo, porcentaje de comisión y estado de roles.
  */
 export class BarberoCatalogoDto {
-  @ApiProperty({ example: 1, description: 'ID único del barbero' })
+  @ApiProperty({
+    example: 3,
+    description:
+      'ID del perfil de barbero (Barbero.id). Es el valor que consumen la disponibilidad y la reserva.',
+  })
   id: number;
 
   @ApiProperty({ example: 'Carlos', description: 'Nombre del barbero' })

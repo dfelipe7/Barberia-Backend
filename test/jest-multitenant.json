@@ -1,0 +1,16 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testEnvironment": "node",
+  "testRegex": "multitenant.*\\.e2e-spec\\.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "<rootDir>/test/tsconfig.e2e.json" }]
+  },
+  "moduleNameMapper": {
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^@whiskeysockets/baileys$": "<rootDir>/test/__mocks__/@whiskeysockets-baileys.js"
+  },
+  "transformIgnorePatterns": ["node_modules/(?!(@nestjs/(config|jwt))/)"],
+  "globalTeardown": "<rootDir>/test/global-teardown-multitenant.js",
+  "testTimeout": 300000
+}

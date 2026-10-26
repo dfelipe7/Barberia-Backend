@@ -78,7 +78,8 @@ describe('ServiciosController', () => {
   });
 
   it('debe obtenerServiciosPorBarbero', async () => {
-    const res = await controller.obtenerServiciosPorBarbero('1');
+    // El controlador recibe el `Barbero.id` ya parseado (ParseIntPipe).
+    const res = await controller.obtenerServiciosPorBarbero(1);
     expect(
       serviciosServiceMock.obtenerServiciosPorBarbero,
     ).toHaveBeenCalledWith(1);

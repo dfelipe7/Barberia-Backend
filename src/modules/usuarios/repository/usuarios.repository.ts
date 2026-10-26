@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { EstadoUsuario } from '../../../../generated/prisma/enums';
+import { EstadoUsuario, RolUsuario } from '../../../../generated/prisma/enums';
 
 @Injectable()
 export class UsuariosRepository {
@@ -11,7 +11,7 @@ export class UsuariosRepository {
     email: string;
     nombre: string;
     apellido: string;
-    rol: 'SUPERADMIN' | 'ADMINISTRADOR' | 'BARBERO';
+    rol: RolUsuario;
   }) {
     return this.prisma.usuario.create({
       data,
@@ -24,8 +24,8 @@ export class UsuariosRepository {
         id: usuarioId,
       },
       include: {
-        administrador: true,
-        barbero: true,
+        administradores: true,
+        barberos: true,
       },
     });
   }
@@ -36,8 +36,8 @@ export class UsuariosRepository {
         googleId,
       },
       include: {
-        administrador: true,
-        barbero: true,
+        administradores: true,
+        barberos: true,
       },
     });
   }
@@ -48,8 +48,8 @@ export class UsuariosRepository {
         email,
       },
       include: {
-        administrador: true,
-        barbero: true,
+        administradores: true,
+        barberos: true,
       },
     });
   }
@@ -81,10 +81,7 @@ export class UsuariosRepository {
     });
   }
 
-  async actualizarRol(
-    usuarioId: number,
-    rol: 'SUPERADMIN' | 'ADMINISTRADOR' | 'BARBERO',
-  ) {
+  async actualizarRol(usuarioId: number, rol: RolUsuario) {
     return this.prisma.usuario.update({
       where: {
         id: usuarioId,

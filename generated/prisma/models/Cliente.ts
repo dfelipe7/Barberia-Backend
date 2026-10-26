@@ -19,12 +19,11 @@ import type * as Prisma from "../internal/prismaNamespace.js"
  * exige como mínimo nombre y número de contacto, por eso `apellido`/`telefono`
  * son opcionales en el modelo, aunque el flujo de invitado valide el teléfono).
  * - Autenticado con Google (HE-04, Modalidad B): la identidad estable es
- * `googleId` (el `sub` del ID Token de Google, único cuando existe). El alta es
- * idempotente por `googleId`, de modo que el mismo cliente no se duplica entre
- * reservas. `email` se guarda como dato de contacto/consulta, NO como clave de
- * identidad (no se vincula por coincidencia de correo sin verificación).
- * - `usuarioId` es un vínculo heredado opcional y único con `Usuario`. La
- * autenticación de clientes NO depende de él ni crea usuarios de personal; se
+ * el `googleId` (el `sub` del ID Token de Google). Es ÚNICO POR NEGOCIO: la
+ * misma cuenta de Google puede tener fichas independientes (e historiales de
+ * reservas separados) en negocios distintos.
+ * - `usuarioId` es un vínculo heredado opcional, único POR NEGOCIO.
+ * La autenticación de clientes NO depende de él ni crea usuarios de personal; se
  * conserva por compatibilidad con el historial existente.
  * `onDelete: SetNull`: borrar un usuario no elimina el historial de reservas.
  */
@@ -41,11 +40,13 @@ export type AggregateCliente = {
 export type ClienteAvgAggregateOutputType = {
   id: number | null
   usuarioId: number | null
+  negocioId: number | null
 }
 
 export type ClienteSumAggregateOutputType = {
   id: number | null
   usuarioId: number | null
+  negocioId: number | null
 }
 
 export type ClienteMinAggregateOutputType = {
@@ -56,6 +57,7 @@ export type ClienteMinAggregateOutputType = {
   googleId: string | null
   email: string | null
   usuarioId: number | null
+  negocioId: number | null
 }
 
 export type ClienteMaxAggregateOutputType = {
@@ -66,6 +68,7 @@ export type ClienteMaxAggregateOutputType = {
   googleId: string | null
   email: string | null
   usuarioId: number | null
+  negocioId: number | null
 }
 
 export type ClienteCountAggregateOutputType = {
@@ -76,6 +79,7 @@ export type ClienteCountAggregateOutputType = {
   googleId: number
   email: number
   usuarioId: number
+  negocioId: number
   _all: number
 }
 
@@ -83,11 +87,13 @@ export type ClienteCountAggregateOutputType = {
 export type ClienteAvgAggregateInputType = {
   id?: true
   usuarioId?: true
+  negocioId?: true
 }
 
 export type ClienteSumAggregateInputType = {
   id?: true
   usuarioId?: true
+  negocioId?: true
 }
 
 export type ClienteMinAggregateInputType = {
@@ -98,6 +104,7 @@ export type ClienteMinAggregateInputType = {
   googleId?: true
   email?: true
   usuarioId?: true
+  negocioId?: true
 }
 
 export type ClienteMaxAggregateInputType = {
@@ -108,6 +115,7 @@ export type ClienteMaxAggregateInputType = {
   googleId?: true
   email?: true
   usuarioId?: true
+  negocioId?: true
 }
 
 export type ClienteCountAggregateInputType = {
@@ -118,6 +126,7 @@ export type ClienteCountAggregateInputType = {
   googleId?: true
   email?: true
   usuarioId?: true
+  negocioId?: true
   _all?: true
 }
 
@@ -215,6 +224,7 @@ export type ClienteGroupByOutputType = {
   googleId: string | null
   email: string | null
   usuarioId: number | null
+  negocioId: number
   _count: ClienteCountAggregateOutputType | null
   _avg: ClienteAvgAggregateOutputType | null
   _sum: ClienteSumAggregateOutputType | null
@@ -248,7 +258,9 @@ export type ClienteWhereInput = {
   googleId?: Prisma.StringNullableFilter<"Cliente"> | string | null
   email?: Prisma.StringNullableFilter<"Cliente"> | string | null
   usuarioId?: Prisma.IntNullableFilter<"Cliente"> | number | null
+  negocioId?: Prisma.IntFilter<"Cliente"> | number
   usuario?: Prisma.XOR<Prisma.UsuarioNullableScalarRelationFilter, Prisma.UsuarioWhereInput> | null
+  negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
   reservations?: Prisma.ReservationListRelationFilter
 }
 
@@ -260,25 +272,32 @@ export type ClienteOrderByWithRelationInput = {
   googleId?: Prisma.SortOrderInput | Prisma.SortOrder
   email?: Prisma.SortOrderInput | Prisma.SortOrder
   usuarioId?: Prisma.SortOrderInput | Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   usuario?: Prisma.UsuarioOrderByWithRelationInput
+  negocio?: Prisma.NegocioOrderByWithRelationInput
   reservations?: Prisma.ReservationOrderByRelationAggregateInput
   _relevance?: Prisma.ClienteOrderByRelevanceInput
 }
 
 export type ClienteWhereUniqueInput = Prisma.AtLeast<{
   id?: number
-  googleId?: string
-  usuarioId?: number
+  negocioId_googleId?: Prisma.ClienteNegocioIdGoogleIdCompoundUniqueInput
+  negocioId_usuarioId?: Prisma.ClienteNegocioIdUsuarioIdCompoundUniqueInput
+  negocioId_id?: Prisma.ClienteNegocioIdIdCompoundUniqueInput
   AND?: Prisma.ClienteWhereInput | Prisma.ClienteWhereInput[]
   OR?: Prisma.ClienteWhereInput[]
   NOT?: Prisma.ClienteWhereInput | Prisma.ClienteWhereInput[]
   nombre?: Prisma.StringFilter<"Cliente"> | string
   apellido?: Prisma.StringNullableFilter<"Cliente"> | string | null
   telefono?: Prisma.StringNullableFilter<"Cliente"> | string | null
+  googleId?: Prisma.StringNullableFilter<"Cliente"> | string | null
   email?: Prisma.StringNullableFilter<"Cliente"> | string | null
+  usuarioId?: Prisma.IntNullableFilter<"Cliente"> | number | null
+  negocioId?: Prisma.IntFilter<"Cliente"> | number
   usuario?: Prisma.XOR<Prisma.UsuarioNullableScalarRelationFilter, Prisma.UsuarioWhereInput> | null
+  negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
   reservations?: Prisma.ReservationListRelationFilter
-}, "id" | "googleId" | "usuarioId">
+}, "id" | "negocioId_googleId" | "negocioId_usuarioId" | "negocioId_id">
 
 export type ClienteOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -288,6 +307,7 @@ export type ClienteOrderByWithAggregationInput = {
   googleId?: Prisma.SortOrderInput | Prisma.SortOrder
   email?: Prisma.SortOrderInput | Prisma.SortOrder
   usuarioId?: Prisma.SortOrderInput | Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   _count?: Prisma.ClienteCountOrderByAggregateInput
   _avg?: Prisma.ClienteAvgOrderByAggregateInput
   _max?: Prisma.ClienteMaxOrderByAggregateInput
@@ -306,6 +326,7 @@ export type ClienteScalarWhereWithAggregatesInput = {
   googleId?: Prisma.StringNullableWithAggregatesFilter<"Cliente"> | string | null
   email?: Prisma.StringNullableWithAggregatesFilter<"Cliente"> | string | null
   usuarioId?: Prisma.IntNullableWithAggregatesFilter<"Cliente"> | number | null
+  negocioId?: Prisma.IntWithAggregatesFilter<"Cliente"> | number
 }
 
 export type ClienteCreateInput = {
@@ -314,7 +335,8 @@ export type ClienteCreateInput = {
   telefono?: string | null
   googleId?: string | null
   email?: string | null
-  usuario?: Prisma.UsuarioCreateNestedOneWithoutClienteInput
+  usuario?: Prisma.UsuarioCreateNestedOneWithoutClientesInput
+  negocio: Prisma.NegocioCreateNestedOneWithoutClientesInput
   reservations?: Prisma.ReservationCreateNestedManyWithoutClienteInput
 }
 
@@ -326,6 +348,7 @@ export type ClienteUncheckedCreateInput = {
   googleId?: string | null
   email?: string | null
   usuarioId?: number | null
+  negocioId: number
   reservations?: Prisma.ReservationUncheckedCreateNestedManyWithoutClienteInput
 }
 
@@ -335,7 +358,8 @@ export type ClienteUpdateInput = {
   telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  usuario?: Prisma.UsuarioUpdateOneWithoutClienteNestedInput
+  usuario?: Prisma.UsuarioUpdateOneWithoutClientesNestedInput
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutClientesNestedInput
   reservations?: Prisma.ReservationUpdateManyWithoutClienteNestedInput
 }
 
@@ -347,6 +371,7 @@ export type ClienteUncheckedUpdateInput = {
   googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   usuarioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   reservations?: Prisma.ReservationUncheckedUpdateManyWithoutClienteNestedInput
 }
 
@@ -358,6 +383,7 @@ export type ClienteCreateManyInput = {
   googleId?: string | null
   email?: string | null
   usuarioId?: number | null
+  negocioId: number
 }
 
 export type ClienteUpdateManyMutationInput = {
@@ -376,17 +402,38 @@ export type ClienteUncheckedUpdateManyInput = {
   googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   usuarioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
-export type ClienteNullableScalarRelationFilter = {
-  is?: Prisma.ClienteWhereInput | null
-  isNot?: Prisma.ClienteWhereInput | null
+export type ClienteListRelationFilter = {
+  every?: Prisma.ClienteWhereInput
+  some?: Prisma.ClienteWhereInput
+  none?: Prisma.ClienteWhereInput
+}
+
+export type ClienteOrderByRelationAggregateInput = {
+  _count?: Prisma.SortOrder
 }
 
 export type ClienteOrderByRelevanceInput = {
   fields: Prisma.ClienteOrderByRelevanceFieldEnum | Prisma.ClienteOrderByRelevanceFieldEnum[]
   sort: Prisma.SortOrder
   search: string
+}
+
+export type ClienteNegocioIdGoogleIdCompoundUniqueInput = {
+  negocioId: number
+  googleId: string
+}
+
+export type ClienteNegocioIdUsuarioIdCompoundUniqueInput = {
+  negocioId: number
+  usuarioId: number
+}
+
+export type ClienteNegocioIdIdCompoundUniqueInput = {
+  negocioId: number
+  id: number
 }
 
 export type ClienteCountOrderByAggregateInput = {
@@ -397,11 +444,13 @@ export type ClienteCountOrderByAggregateInput = {
   googleId?: Prisma.SortOrder
   email?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
 }
 
 export type ClienteAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
 }
 
 export type ClienteMaxOrderByAggregateInput = {
@@ -412,6 +461,7 @@ export type ClienteMaxOrderByAggregateInput = {
   googleId?: Prisma.SortOrder
   email?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
 }
 
 export type ClienteMinOrderByAggregateInput = {
@@ -422,11 +472,13 @@ export type ClienteMinOrderByAggregateInput = {
   googleId?: Prisma.SortOrder
   email?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
 }
 
 export type ClienteSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
   usuarioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
 }
 
 export type ClienteScalarRelationFilter = {
@@ -434,36 +486,88 @@ export type ClienteScalarRelationFilter = {
   isNot?: Prisma.ClienteWhereInput
 }
 
-export type ClienteCreateNestedOneWithoutUsuarioInput = {
-  create?: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput>
-  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutUsuarioInput
-  connect?: Prisma.ClienteWhereUniqueInput
+export type ClienteCreateNestedManyWithoutNegocioInput = {
+  create?: Prisma.XOR<Prisma.ClienteCreateWithoutNegocioInput, Prisma.ClienteUncheckedCreateWithoutNegocioInput> | Prisma.ClienteCreateWithoutNegocioInput[] | Prisma.ClienteUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutNegocioInput | Prisma.ClienteCreateOrConnectWithoutNegocioInput[]
+  createMany?: Prisma.ClienteCreateManyNegocioInputEnvelope
+  connect?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
 }
 
-export type ClienteUncheckedCreateNestedOneWithoutUsuarioInput = {
-  create?: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput>
-  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutUsuarioInput
-  connect?: Prisma.ClienteWhereUniqueInput
+export type ClienteUncheckedCreateNestedManyWithoutNegocioInput = {
+  create?: Prisma.XOR<Prisma.ClienteCreateWithoutNegocioInput, Prisma.ClienteUncheckedCreateWithoutNegocioInput> | Prisma.ClienteCreateWithoutNegocioInput[] | Prisma.ClienteUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutNegocioInput | Prisma.ClienteCreateOrConnectWithoutNegocioInput[]
+  createMany?: Prisma.ClienteCreateManyNegocioInputEnvelope
+  connect?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
 }
 
-export type ClienteUpdateOneWithoutUsuarioNestedInput = {
-  create?: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput>
-  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutUsuarioInput
-  upsert?: Prisma.ClienteUpsertWithoutUsuarioInput
-  disconnect?: Prisma.ClienteWhereInput | boolean
-  delete?: Prisma.ClienteWhereInput | boolean
-  connect?: Prisma.ClienteWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.ClienteUpdateToOneWithWhereWithoutUsuarioInput, Prisma.ClienteUpdateWithoutUsuarioInput>, Prisma.ClienteUncheckedUpdateWithoutUsuarioInput>
+export type ClienteUpdateManyWithoutNegocioNestedInput = {
+  create?: Prisma.XOR<Prisma.ClienteCreateWithoutNegocioInput, Prisma.ClienteUncheckedCreateWithoutNegocioInput> | Prisma.ClienteCreateWithoutNegocioInput[] | Prisma.ClienteUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutNegocioInput | Prisma.ClienteCreateOrConnectWithoutNegocioInput[]
+  upsert?: Prisma.ClienteUpsertWithWhereUniqueWithoutNegocioInput | Prisma.ClienteUpsertWithWhereUniqueWithoutNegocioInput[]
+  createMany?: Prisma.ClienteCreateManyNegocioInputEnvelope
+  set?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  disconnect?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  delete?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  connect?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  update?: Prisma.ClienteUpdateWithWhereUniqueWithoutNegocioInput | Prisma.ClienteUpdateWithWhereUniqueWithoutNegocioInput[]
+  updateMany?: Prisma.ClienteUpdateManyWithWhereWithoutNegocioInput | Prisma.ClienteUpdateManyWithWhereWithoutNegocioInput[]
+  deleteMany?: Prisma.ClienteScalarWhereInput | Prisma.ClienteScalarWhereInput[]
 }
 
-export type ClienteUncheckedUpdateOneWithoutUsuarioNestedInput = {
-  create?: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput>
-  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutUsuarioInput
-  upsert?: Prisma.ClienteUpsertWithoutUsuarioInput
-  disconnect?: Prisma.ClienteWhereInput | boolean
-  delete?: Prisma.ClienteWhereInput | boolean
-  connect?: Prisma.ClienteWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.ClienteUpdateToOneWithWhereWithoutUsuarioInput, Prisma.ClienteUpdateWithoutUsuarioInput>, Prisma.ClienteUncheckedUpdateWithoutUsuarioInput>
+export type ClienteUncheckedUpdateManyWithoutNegocioNestedInput = {
+  create?: Prisma.XOR<Prisma.ClienteCreateWithoutNegocioInput, Prisma.ClienteUncheckedCreateWithoutNegocioInput> | Prisma.ClienteCreateWithoutNegocioInput[] | Prisma.ClienteUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutNegocioInput | Prisma.ClienteCreateOrConnectWithoutNegocioInput[]
+  upsert?: Prisma.ClienteUpsertWithWhereUniqueWithoutNegocioInput | Prisma.ClienteUpsertWithWhereUniqueWithoutNegocioInput[]
+  createMany?: Prisma.ClienteCreateManyNegocioInputEnvelope
+  set?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  disconnect?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  delete?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  connect?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  update?: Prisma.ClienteUpdateWithWhereUniqueWithoutNegocioInput | Prisma.ClienteUpdateWithWhereUniqueWithoutNegocioInput[]
+  updateMany?: Prisma.ClienteUpdateManyWithWhereWithoutNegocioInput | Prisma.ClienteUpdateManyWithWhereWithoutNegocioInput[]
+  deleteMany?: Prisma.ClienteScalarWhereInput | Prisma.ClienteScalarWhereInput[]
+}
+
+export type ClienteCreateNestedManyWithoutUsuarioInput = {
+  create?: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput> | Prisma.ClienteCreateWithoutUsuarioInput[] | Prisma.ClienteUncheckedCreateWithoutUsuarioInput[]
+  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutUsuarioInput | Prisma.ClienteCreateOrConnectWithoutUsuarioInput[]
+  createMany?: Prisma.ClienteCreateManyUsuarioInputEnvelope
+  connect?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+}
+
+export type ClienteUncheckedCreateNestedManyWithoutUsuarioInput = {
+  create?: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput> | Prisma.ClienteCreateWithoutUsuarioInput[] | Prisma.ClienteUncheckedCreateWithoutUsuarioInput[]
+  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutUsuarioInput | Prisma.ClienteCreateOrConnectWithoutUsuarioInput[]
+  createMany?: Prisma.ClienteCreateManyUsuarioInputEnvelope
+  connect?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+}
+
+export type ClienteUpdateManyWithoutUsuarioNestedInput = {
+  create?: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput> | Prisma.ClienteCreateWithoutUsuarioInput[] | Prisma.ClienteUncheckedCreateWithoutUsuarioInput[]
+  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutUsuarioInput | Prisma.ClienteCreateOrConnectWithoutUsuarioInput[]
+  upsert?: Prisma.ClienteUpsertWithWhereUniqueWithoutUsuarioInput | Prisma.ClienteUpsertWithWhereUniqueWithoutUsuarioInput[]
+  createMany?: Prisma.ClienteCreateManyUsuarioInputEnvelope
+  set?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  disconnect?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  delete?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  connect?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  update?: Prisma.ClienteUpdateWithWhereUniqueWithoutUsuarioInput | Prisma.ClienteUpdateWithWhereUniqueWithoutUsuarioInput[]
+  updateMany?: Prisma.ClienteUpdateManyWithWhereWithoutUsuarioInput | Prisma.ClienteUpdateManyWithWhereWithoutUsuarioInput[]
+  deleteMany?: Prisma.ClienteScalarWhereInput | Prisma.ClienteScalarWhereInput[]
+}
+
+export type ClienteUncheckedUpdateManyWithoutUsuarioNestedInput = {
+  create?: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput> | Prisma.ClienteCreateWithoutUsuarioInput[] | Prisma.ClienteUncheckedCreateWithoutUsuarioInput[]
+  connectOrCreate?: Prisma.ClienteCreateOrConnectWithoutUsuarioInput | Prisma.ClienteCreateOrConnectWithoutUsuarioInput[]
+  upsert?: Prisma.ClienteUpsertWithWhereUniqueWithoutUsuarioInput | Prisma.ClienteUpsertWithWhereUniqueWithoutUsuarioInput[]
+  createMany?: Prisma.ClienteCreateManyUsuarioInputEnvelope
+  set?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  disconnect?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  delete?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  connect?: Prisma.ClienteWhereUniqueInput | Prisma.ClienteWhereUniqueInput[]
+  update?: Prisma.ClienteUpdateWithWhereUniqueWithoutUsuarioInput | Prisma.ClienteUpdateWithWhereUniqueWithoutUsuarioInput[]
+  updateMany?: Prisma.ClienteUpdateManyWithWhereWithoutUsuarioInput | Prisma.ClienteUpdateManyWithWhereWithoutUsuarioInput[]
+  deleteMany?: Prisma.ClienteScalarWhereInput | Prisma.ClienteScalarWhereInput[]
 }
 
 export type NullableIntFieldUpdateOperationsInput = {
@@ -488,12 +592,74 @@ export type ClienteUpdateOneRequiredWithoutReservationsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ClienteUpdateToOneWithWhereWithoutReservationsInput, Prisma.ClienteUpdateWithoutReservationsInput>, Prisma.ClienteUncheckedUpdateWithoutReservationsInput>
 }
 
+export type ClienteCreateWithoutNegocioInput = {
+  nombre: string
+  apellido?: string | null
+  telefono?: string | null
+  googleId?: string | null
+  email?: string | null
+  usuario?: Prisma.UsuarioCreateNestedOneWithoutClientesInput
+  reservations?: Prisma.ReservationCreateNestedManyWithoutClienteInput
+}
+
+export type ClienteUncheckedCreateWithoutNegocioInput = {
+  id?: number
+  nombre: string
+  apellido?: string | null
+  telefono?: string | null
+  googleId?: string | null
+  email?: string | null
+  usuarioId?: number | null
+  reservations?: Prisma.ReservationUncheckedCreateNestedManyWithoutClienteInput
+}
+
+export type ClienteCreateOrConnectWithoutNegocioInput = {
+  where: Prisma.ClienteWhereUniqueInput
+  create: Prisma.XOR<Prisma.ClienteCreateWithoutNegocioInput, Prisma.ClienteUncheckedCreateWithoutNegocioInput>
+}
+
+export type ClienteCreateManyNegocioInputEnvelope = {
+  data: Prisma.ClienteCreateManyNegocioInput | Prisma.ClienteCreateManyNegocioInput[]
+  skipDuplicates?: boolean
+}
+
+export type ClienteUpsertWithWhereUniqueWithoutNegocioInput = {
+  where: Prisma.ClienteWhereUniqueInput
+  update: Prisma.XOR<Prisma.ClienteUpdateWithoutNegocioInput, Prisma.ClienteUncheckedUpdateWithoutNegocioInput>
+  create: Prisma.XOR<Prisma.ClienteCreateWithoutNegocioInput, Prisma.ClienteUncheckedCreateWithoutNegocioInput>
+}
+
+export type ClienteUpdateWithWhereUniqueWithoutNegocioInput = {
+  where: Prisma.ClienteWhereUniqueInput
+  data: Prisma.XOR<Prisma.ClienteUpdateWithoutNegocioInput, Prisma.ClienteUncheckedUpdateWithoutNegocioInput>
+}
+
+export type ClienteUpdateManyWithWhereWithoutNegocioInput = {
+  where: Prisma.ClienteScalarWhereInput
+  data: Prisma.XOR<Prisma.ClienteUpdateManyMutationInput, Prisma.ClienteUncheckedUpdateManyWithoutNegocioInput>
+}
+
+export type ClienteScalarWhereInput = {
+  AND?: Prisma.ClienteScalarWhereInput | Prisma.ClienteScalarWhereInput[]
+  OR?: Prisma.ClienteScalarWhereInput[]
+  NOT?: Prisma.ClienteScalarWhereInput | Prisma.ClienteScalarWhereInput[]
+  id?: Prisma.IntFilter<"Cliente"> | number
+  nombre?: Prisma.StringFilter<"Cliente"> | string
+  apellido?: Prisma.StringNullableFilter<"Cliente"> | string | null
+  telefono?: Prisma.StringNullableFilter<"Cliente"> | string | null
+  googleId?: Prisma.StringNullableFilter<"Cliente"> | string | null
+  email?: Prisma.StringNullableFilter<"Cliente"> | string | null
+  usuarioId?: Prisma.IntNullableFilter<"Cliente"> | number | null
+  negocioId?: Prisma.IntFilter<"Cliente"> | number
+}
+
 export type ClienteCreateWithoutUsuarioInput = {
   nombre: string
   apellido?: string | null
   telefono?: string | null
   googleId?: string | null
   email?: string | null
+  negocio: Prisma.NegocioCreateNestedOneWithoutClientesInput
   reservations?: Prisma.ReservationCreateNestedManyWithoutClienteInput
 }
 
@@ -504,6 +670,7 @@ export type ClienteUncheckedCreateWithoutUsuarioInput = {
   telefono?: string | null
   googleId?: string | null
   email?: string | null
+  negocioId: number
   reservations?: Prisma.ReservationUncheckedCreateNestedManyWithoutClienteInput
 }
 
@@ -512,34 +679,25 @@ export type ClienteCreateOrConnectWithoutUsuarioInput = {
   create: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput>
 }
 
-export type ClienteUpsertWithoutUsuarioInput = {
-  update: Prisma.XOR<Prisma.ClienteUpdateWithoutUsuarioInput, Prisma.ClienteUncheckedUpdateWithoutUsuarioInput>
-  create: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput>
-  where?: Prisma.ClienteWhereInput
+export type ClienteCreateManyUsuarioInputEnvelope = {
+  data: Prisma.ClienteCreateManyUsuarioInput | Prisma.ClienteCreateManyUsuarioInput[]
+  skipDuplicates?: boolean
 }
 
-export type ClienteUpdateToOneWithWhereWithoutUsuarioInput = {
-  where?: Prisma.ClienteWhereInput
+export type ClienteUpsertWithWhereUniqueWithoutUsuarioInput = {
+  where: Prisma.ClienteWhereUniqueInput
+  update: Prisma.XOR<Prisma.ClienteUpdateWithoutUsuarioInput, Prisma.ClienteUncheckedUpdateWithoutUsuarioInput>
+  create: Prisma.XOR<Prisma.ClienteCreateWithoutUsuarioInput, Prisma.ClienteUncheckedCreateWithoutUsuarioInput>
+}
+
+export type ClienteUpdateWithWhereUniqueWithoutUsuarioInput = {
+  where: Prisma.ClienteWhereUniqueInput
   data: Prisma.XOR<Prisma.ClienteUpdateWithoutUsuarioInput, Prisma.ClienteUncheckedUpdateWithoutUsuarioInput>
 }
 
-export type ClienteUpdateWithoutUsuarioInput = {
-  nombre?: Prisma.StringFieldUpdateOperationsInput | string
-  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  reservations?: Prisma.ReservationUpdateManyWithoutClienteNestedInput
-}
-
-export type ClienteUncheckedUpdateWithoutUsuarioInput = {
-  id?: Prisma.IntFieldUpdateOperationsInput | number
-  nombre?: Prisma.StringFieldUpdateOperationsInput | string
-  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  reservations?: Prisma.ReservationUncheckedUpdateManyWithoutClienteNestedInput
+export type ClienteUpdateManyWithWhereWithoutUsuarioInput = {
+  where: Prisma.ClienteScalarWhereInput
+  data: Prisma.XOR<Prisma.ClienteUpdateManyMutationInput, Prisma.ClienteUncheckedUpdateManyWithoutUsuarioInput>
 }
 
 export type ClienteCreateWithoutReservationsInput = {
@@ -548,7 +706,8 @@ export type ClienteCreateWithoutReservationsInput = {
   telefono?: string | null
   googleId?: string | null
   email?: string | null
-  usuario?: Prisma.UsuarioCreateNestedOneWithoutClienteInput
+  usuario?: Prisma.UsuarioCreateNestedOneWithoutClientesInput
+  negocio: Prisma.NegocioCreateNestedOneWithoutClientesInput
 }
 
 export type ClienteUncheckedCreateWithoutReservationsInput = {
@@ -559,6 +718,7 @@ export type ClienteUncheckedCreateWithoutReservationsInput = {
   googleId?: string | null
   email?: string | null
   usuarioId?: number | null
+  negocioId: number
 }
 
 export type ClienteCreateOrConnectWithoutReservationsInput = {
@@ -583,7 +743,8 @@ export type ClienteUpdateWithoutReservationsInput = {
   telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  usuario?: Prisma.UsuarioUpdateOneWithoutClienteNestedInput
+  usuario?: Prisma.UsuarioUpdateOneWithoutClientesNestedInput
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutClientesNestedInput
 }
 
 export type ClienteUncheckedUpdateWithoutReservationsInput = {
@@ -594,6 +755,89 @@ export type ClienteUncheckedUpdateWithoutReservationsInput = {
   googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   usuarioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
+}
+
+export type ClienteCreateManyNegocioInput = {
+  id?: number
+  nombre: string
+  apellido?: string | null
+  telefono?: string | null
+  googleId?: string | null
+  email?: string | null
+  usuarioId?: number | null
+}
+
+export type ClienteUpdateWithoutNegocioInput = {
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  usuario?: Prisma.UsuarioUpdateOneWithoutClientesNestedInput
+  reservations?: Prisma.ReservationUpdateManyWithoutClienteNestedInput
+}
+
+export type ClienteUncheckedUpdateWithoutNegocioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  usuarioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reservations?: Prisma.ReservationUncheckedUpdateManyWithoutClienteNestedInput
+}
+
+export type ClienteUncheckedUpdateManyWithoutNegocioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  usuarioId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+}
+
+export type ClienteCreateManyUsuarioInput = {
+  id?: number
+  nombre: string
+  apellido?: string | null
+  telefono?: string | null
+  googleId?: string | null
+  email?: string | null
+  negocioId: number
+}
+
+export type ClienteUpdateWithoutUsuarioInput = {
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutClientesNestedInput
+  reservations?: Prisma.ReservationUpdateManyWithoutClienteNestedInput
+}
+
+export type ClienteUncheckedUpdateWithoutUsuarioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
+  reservations?: Prisma.ReservationUncheckedUpdateManyWithoutClienteNestedInput
+}
+
+export type ClienteUncheckedUpdateManyWithoutUsuarioInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  apellido?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  telefono?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 
@@ -635,7 +879,9 @@ export type ClienteSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   googleId?: boolean
   email?: boolean
   usuarioId?: boolean
+  negocioId?: boolean
   usuario?: boolean | Prisma.Cliente$usuarioArgs<ExtArgs>
+  negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
   reservations?: boolean | Prisma.Cliente$reservationsArgs<ExtArgs>
   _count?: boolean | Prisma.ClienteCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["cliente"]>
@@ -650,11 +896,13 @@ export type ClienteSelectScalar = {
   googleId?: boolean
   email?: boolean
   usuarioId?: boolean
+  negocioId?: boolean
 }
 
-export type ClienteOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "nombre" | "apellido" | "telefono" | "googleId" | "email" | "usuarioId", ExtArgs["result"]["cliente"]>
+export type ClienteOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "nombre" | "apellido" | "telefono" | "googleId" | "email" | "usuarioId" | "negocioId", ExtArgs["result"]["cliente"]>
 export type ClienteInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   usuario?: boolean | Prisma.Cliente$usuarioArgs<ExtArgs>
+  negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
   reservations?: boolean | Prisma.Cliente$reservationsArgs<ExtArgs>
   _count?: boolean | Prisma.ClienteCountOutputTypeDefaultArgs<ExtArgs>
 }
@@ -663,6 +911,7 @@ export type $ClientePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
   name: "Cliente"
   objects: {
     usuario: Prisma.$UsuarioPayload<ExtArgs> | null
+    negocio: Prisma.$NegocioPayload<ExtArgs>
     reservations: Prisma.$ReservationPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -673,6 +922,10 @@ export type $ClientePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     googleId: string | null
     email: string | null
     usuarioId: number | null
+    /**
+     * Negocio al que pertenece la ficha del cliente. OBLIGATORIO.
+     */
+    negocioId: number
   }, ExtArgs["result"]["cliente"]>
   composites: {}
 }
@@ -1014,6 +1267,7 @@ readonly fields: ClienteFieldRefs;
 export interface Prisma__ClienteClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   usuario<T extends Prisma.Cliente$usuarioArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Cliente$usuarioArgs<ExtArgs>>): Prisma.Prisma__UsuarioClient<runtime.Types.Result.GetResult<Prisma.$UsuarioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  negocio<T extends Prisma.NegocioDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NegocioDefaultArgs<ExtArgs>>): Prisma.Prisma__NegocioClient<runtime.Types.Result.GetResult<Prisma.$NegocioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   reservations<T extends Prisma.Cliente$reservationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Cliente$reservationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ReservationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1051,6 +1305,7 @@ export interface ClienteFieldRefs {
   readonly googleId: Prisma.FieldRef<"Cliente", 'String'>
   readonly email: Prisma.FieldRef<"Cliente", 'String'>
   readonly usuarioId: Prisma.FieldRef<"Cliente", 'Int'>
+  readonly negocioId: Prisma.FieldRef<"Cliente", 'Int'>
 }
     
 

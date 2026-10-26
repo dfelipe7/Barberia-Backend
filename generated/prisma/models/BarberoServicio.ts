@@ -29,28 +29,33 @@ export type AggregateBarberoServicio = {
 export type BarberoServicioAvgAggregateOutputType = {
   barberoId: number | null
   servicioId: number | null
+  negocioId: number | null
 }
 
 export type BarberoServicioSumAggregateOutputType = {
   barberoId: number | null
   servicioId: number | null
+  negocioId: number | null
 }
 
 export type BarberoServicioMinAggregateOutputType = {
   barberoId: number | null
   servicioId: number | null
+  negocioId: number | null
   creadoEn: Date | null
 }
 
 export type BarberoServicioMaxAggregateOutputType = {
   barberoId: number | null
   servicioId: number | null
+  negocioId: number | null
   creadoEn: Date | null
 }
 
 export type BarberoServicioCountAggregateOutputType = {
   barberoId: number
   servicioId: number
+  negocioId: number
   creadoEn: number
   _all: number
 }
@@ -59,28 +64,33 @@ export type BarberoServicioCountAggregateOutputType = {
 export type BarberoServicioAvgAggregateInputType = {
   barberoId?: true
   servicioId?: true
+  negocioId?: true
 }
 
 export type BarberoServicioSumAggregateInputType = {
   barberoId?: true
   servicioId?: true
+  negocioId?: true
 }
 
 export type BarberoServicioMinAggregateInputType = {
   barberoId?: true
   servicioId?: true
+  negocioId?: true
   creadoEn?: true
 }
 
 export type BarberoServicioMaxAggregateInputType = {
   barberoId?: true
   servicioId?: true
+  negocioId?: true
   creadoEn?: true
 }
 
 export type BarberoServicioCountAggregateInputType = {
   barberoId?: true
   servicioId?: true
+  negocioId?: true
   creadoEn?: true
   _all?: true
 }
@@ -174,6 +184,7 @@ export type BarberoServicioGroupByArgs<ExtArgs extends runtime.Types.Extensions.
 export type BarberoServicioGroupByOutputType = {
   barberoId: number
   servicioId: number
+  negocioId: number
   creadoEn: Date
   _count: BarberoServicioCountAggregateOutputType | null
   _avg: BarberoServicioAvgAggregateOutputType | null
@@ -203,17 +214,21 @@ export type BarberoServicioWhereInput = {
   NOT?: Prisma.BarberoServicioWhereInput | Prisma.BarberoServicioWhereInput[]
   barberoId?: Prisma.IntFilter<"BarberoServicio"> | number
   servicioId?: Prisma.IntFilter<"BarberoServicio"> | number
+  negocioId?: Prisma.IntFilter<"BarberoServicio"> | number
   creadoEn?: Prisma.DateTimeFilter<"BarberoServicio"> | Date | string
   barbero?: Prisma.XOR<Prisma.BarberoScalarRelationFilter, Prisma.BarberoWhereInput>
   servicio?: Prisma.XOR<Prisma.ServicioScalarRelationFilter, Prisma.ServicioWhereInput>
+  negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
 }
 
 export type BarberoServicioOrderByWithRelationInput = {
   barberoId?: Prisma.SortOrder
   servicioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   creadoEn?: Prisma.SortOrder
   barbero?: Prisma.BarberoOrderByWithRelationInput
   servicio?: Prisma.ServicioOrderByWithRelationInput
+  negocio?: Prisma.NegocioOrderByWithRelationInput
 }
 
 export type BarberoServicioWhereUniqueInput = Prisma.AtLeast<{
@@ -223,14 +238,17 @@ export type BarberoServicioWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.BarberoServicioWhereInput | Prisma.BarberoServicioWhereInput[]
   barberoId?: Prisma.IntFilter<"BarberoServicio"> | number
   servicioId?: Prisma.IntFilter<"BarberoServicio"> | number
+  negocioId?: Prisma.IntFilter<"BarberoServicio"> | number
   creadoEn?: Prisma.DateTimeFilter<"BarberoServicio"> | Date | string
   barbero?: Prisma.XOR<Prisma.BarberoScalarRelationFilter, Prisma.BarberoWhereInput>
   servicio?: Prisma.XOR<Prisma.ServicioScalarRelationFilter, Prisma.ServicioWhereInput>
+  negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
 }, "barberoId_servicioId">
 
 export type BarberoServicioOrderByWithAggregationInput = {
   barberoId?: Prisma.SortOrder
   servicioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   creadoEn?: Prisma.SortOrder
   _count?: Prisma.BarberoServicioCountOrderByAggregateInput
   _avg?: Prisma.BarberoServicioAvgOrderByAggregateInput
@@ -245,6 +263,7 @@ export type BarberoServicioScalarWhereWithAggregatesInput = {
   NOT?: Prisma.BarberoServicioScalarWhereWithAggregatesInput | Prisma.BarberoServicioScalarWhereWithAggregatesInput[]
   barberoId?: Prisma.IntWithAggregatesFilter<"BarberoServicio"> | number
   servicioId?: Prisma.IntWithAggregatesFilter<"BarberoServicio"> | number
+  negocioId?: Prisma.IntWithAggregatesFilter<"BarberoServicio"> | number
   creadoEn?: Prisma.DateTimeWithAggregatesFilter<"BarberoServicio"> | Date | string
 }
 
@@ -252,11 +271,13 @@ export type BarberoServicioCreateInput = {
   creadoEn?: Date | string
   barbero: Prisma.BarberoCreateNestedOneWithoutServiciosInput
   servicio: Prisma.ServicioCreateNestedOneWithoutBarberosInput
+  negocio: Prisma.NegocioCreateNestedOneWithoutBarberoServiciosInput
 }
 
 export type BarberoServicioUncheckedCreateInput = {
   barberoId: number
   servicioId: number
+  negocioId: number
   creadoEn?: Date | string
 }
 
@@ -264,17 +285,20 @@ export type BarberoServicioUpdateInput = {
   creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   barbero?: Prisma.BarberoUpdateOneRequiredWithoutServiciosNestedInput
   servicio?: Prisma.ServicioUpdateOneRequiredWithoutBarberosNestedInput
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutBarberoServiciosNestedInput
 }
 
 export type BarberoServicioUncheckedUpdateInput = {
   barberoId?: Prisma.IntFieldUpdateOperationsInput | number
   servicioId?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type BarberoServicioCreateManyInput = {
   barberoId: number
   servicioId: number
+  negocioId: number
   creadoEn?: Date | string
 }
 
@@ -285,6 +309,7 @@ export type BarberoServicioUpdateManyMutationInput = {
 export type BarberoServicioUncheckedUpdateManyInput = {
   barberoId?: Prisma.IntFieldUpdateOperationsInput | number
   servicioId?: Prisma.IntFieldUpdateOperationsInput | number
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -306,29 +331,76 @@ export type BarberoServicioBarberoIdServicioIdCompoundUniqueInput = {
 export type BarberoServicioCountOrderByAggregateInput = {
   barberoId?: Prisma.SortOrder
   servicioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   creadoEn?: Prisma.SortOrder
 }
 
 export type BarberoServicioAvgOrderByAggregateInput = {
   barberoId?: Prisma.SortOrder
   servicioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
 }
 
 export type BarberoServicioMaxOrderByAggregateInput = {
   barberoId?: Prisma.SortOrder
   servicioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   creadoEn?: Prisma.SortOrder
 }
 
 export type BarberoServicioMinOrderByAggregateInput = {
   barberoId?: Prisma.SortOrder
   servicioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
   creadoEn?: Prisma.SortOrder
 }
 
 export type BarberoServicioSumOrderByAggregateInput = {
   barberoId?: Prisma.SortOrder
   servicioId?: Prisma.SortOrder
+  negocioId?: Prisma.SortOrder
+}
+
+export type BarberoServicioCreateNestedManyWithoutNegocioInput = {
+  create?: Prisma.XOR<Prisma.BarberoServicioCreateWithoutNegocioInput, Prisma.BarberoServicioUncheckedCreateWithoutNegocioInput> | Prisma.BarberoServicioCreateWithoutNegocioInput[] | Prisma.BarberoServicioUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberoServicioCreateOrConnectWithoutNegocioInput | Prisma.BarberoServicioCreateOrConnectWithoutNegocioInput[]
+  createMany?: Prisma.BarberoServicioCreateManyNegocioInputEnvelope
+  connect?: Prisma.BarberoServicioWhereUniqueInput | Prisma.BarberoServicioWhereUniqueInput[]
+}
+
+export type BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput = {
+  create?: Prisma.XOR<Prisma.BarberoServicioCreateWithoutNegocioInput, Prisma.BarberoServicioUncheckedCreateWithoutNegocioInput> | Prisma.BarberoServicioCreateWithoutNegocioInput[] | Prisma.BarberoServicioUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberoServicioCreateOrConnectWithoutNegocioInput | Prisma.BarberoServicioCreateOrConnectWithoutNegocioInput[]
+  createMany?: Prisma.BarberoServicioCreateManyNegocioInputEnvelope
+  connect?: Prisma.BarberoServicioWhereUniqueInput | Prisma.BarberoServicioWhereUniqueInput[]
+}
+
+export type BarberoServicioUpdateManyWithoutNegocioNestedInput = {
+  create?: Prisma.XOR<Prisma.BarberoServicioCreateWithoutNegocioInput, Prisma.BarberoServicioUncheckedCreateWithoutNegocioInput> | Prisma.BarberoServicioCreateWithoutNegocioInput[] | Prisma.BarberoServicioUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberoServicioCreateOrConnectWithoutNegocioInput | Prisma.BarberoServicioCreateOrConnectWithoutNegocioInput[]
+  upsert?: Prisma.BarberoServicioUpsertWithWhereUniqueWithoutNegocioInput | Prisma.BarberoServicioUpsertWithWhereUniqueWithoutNegocioInput[]
+  createMany?: Prisma.BarberoServicioCreateManyNegocioInputEnvelope
+  set?: Prisma.BarberoServicioWhereUniqueInput | Prisma.BarberoServicioWhereUniqueInput[]
+  disconnect?: Prisma.BarberoServicioWhereUniqueInput | Prisma.BarberoServicioWhereUniqueInput[]
+  delete?: Prisma.BarberoServicioWhereUniqueInput | Prisma.BarberoServicioWhereUniqueInput[]
+  connect?: Prisma.BarberoServicioWhereUniqueInput | Prisma.BarberoServicioWhereUniqueInput[]
+  update?: Prisma.BarberoServicioUpdateWithWhereUniqueWithoutNegocioInput | Prisma.BarberoServicioUpdateWithWhereUniqueWithoutNegocioInput[]
+  updateMany?: Prisma.BarberoServicioUpdateManyWithWhereWithoutNegocioInput | Prisma.BarberoServicioUpdateManyWithWhereWithoutNegocioInput[]
+  deleteMany?: Prisma.BarberoServicioScalarWhereInput | Prisma.BarberoServicioScalarWhereInput[]
+}
+
+export type BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput = {
+  create?: Prisma.XOR<Prisma.BarberoServicioCreateWithoutNegocioInput, Prisma.BarberoServicioUncheckedCreateWithoutNegocioInput> | Prisma.BarberoServicioCreateWithoutNegocioInput[] | Prisma.BarberoServicioUncheckedCreateWithoutNegocioInput[]
+  connectOrCreate?: Prisma.BarberoServicioCreateOrConnectWithoutNegocioInput | Prisma.BarberoServicioCreateOrConnectWithoutNegocioInput[]
+  upsert?: Prisma.BarberoServicioUpsertWithWhereUniqueWithoutNegocioInput | Prisma.BarberoServicioUpsertWithWhereUniqueWithoutNegocioInput[]
+  createMany?: Prisma.BarberoServicioCreateManyNegocioInputEnvelope
+  set?: Prisma.BarberoServicioWhereUniqueInput | Prisma.BarberoServicioWhereUniqueInput[]
+  disconnect?: Prisma.BarberoServicioWhereUniqueInput | Prisma.BarberoServicioWhereUniqueInput[]
+  delete?: Prisma.BarberoServicioWhereUniqueInput | Prisma.BarberoServicioWhereUniqueInput[]
+  connect?: Prisma.BarberoServicioWhereUniqueInput | Prisma.BarberoServicioWhereUniqueInput[]
+  update?: Prisma.BarberoServicioUpdateWithWhereUniqueWithoutNegocioInput | Prisma.BarberoServicioUpdateWithWhereUniqueWithoutNegocioInput[]
+  updateMany?: Prisma.BarberoServicioUpdateManyWithWhereWithoutNegocioInput | Prisma.BarberoServicioUpdateManyWithWhereWithoutNegocioInput[]
+  deleteMany?: Prisma.BarberoServicioScalarWhereInput | Prisma.BarberoServicioScalarWhereInput[]
 }
 
 export type BarberoServicioCreateNestedManyWithoutBarberoInput = {
@@ -415,9 +487,58 @@ export type BarberoServicioUncheckedUpdateManyWithoutServicioNestedInput = {
   deleteMany?: Prisma.BarberoServicioScalarWhereInput | Prisma.BarberoServicioScalarWhereInput[]
 }
 
+export type BarberoServicioCreateWithoutNegocioInput = {
+  creadoEn?: Date | string
+  barbero: Prisma.BarberoCreateNestedOneWithoutServiciosInput
+  servicio: Prisma.ServicioCreateNestedOneWithoutBarberosInput
+}
+
+export type BarberoServicioUncheckedCreateWithoutNegocioInput = {
+  barberoId: number
+  servicioId: number
+  creadoEn?: Date | string
+}
+
+export type BarberoServicioCreateOrConnectWithoutNegocioInput = {
+  where: Prisma.BarberoServicioWhereUniqueInput
+  create: Prisma.XOR<Prisma.BarberoServicioCreateWithoutNegocioInput, Prisma.BarberoServicioUncheckedCreateWithoutNegocioInput>
+}
+
+export type BarberoServicioCreateManyNegocioInputEnvelope = {
+  data: Prisma.BarberoServicioCreateManyNegocioInput | Prisma.BarberoServicioCreateManyNegocioInput[]
+  skipDuplicates?: boolean
+}
+
+export type BarberoServicioUpsertWithWhereUniqueWithoutNegocioInput = {
+  where: Prisma.BarberoServicioWhereUniqueInput
+  update: Prisma.XOR<Prisma.BarberoServicioUpdateWithoutNegocioInput, Prisma.BarberoServicioUncheckedUpdateWithoutNegocioInput>
+  create: Prisma.XOR<Prisma.BarberoServicioCreateWithoutNegocioInput, Prisma.BarberoServicioUncheckedCreateWithoutNegocioInput>
+}
+
+export type BarberoServicioUpdateWithWhereUniqueWithoutNegocioInput = {
+  where: Prisma.BarberoServicioWhereUniqueInput
+  data: Prisma.XOR<Prisma.BarberoServicioUpdateWithoutNegocioInput, Prisma.BarberoServicioUncheckedUpdateWithoutNegocioInput>
+}
+
+export type BarberoServicioUpdateManyWithWhereWithoutNegocioInput = {
+  where: Prisma.BarberoServicioScalarWhereInput
+  data: Prisma.XOR<Prisma.BarberoServicioUpdateManyMutationInput, Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioInput>
+}
+
+export type BarberoServicioScalarWhereInput = {
+  AND?: Prisma.BarberoServicioScalarWhereInput | Prisma.BarberoServicioScalarWhereInput[]
+  OR?: Prisma.BarberoServicioScalarWhereInput[]
+  NOT?: Prisma.BarberoServicioScalarWhereInput | Prisma.BarberoServicioScalarWhereInput[]
+  barberoId?: Prisma.IntFilter<"BarberoServicio"> | number
+  servicioId?: Prisma.IntFilter<"BarberoServicio"> | number
+  negocioId?: Prisma.IntFilter<"BarberoServicio"> | number
+  creadoEn?: Prisma.DateTimeFilter<"BarberoServicio"> | Date | string
+}
+
 export type BarberoServicioCreateWithoutBarberoInput = {
   creadoEn?: Date | string
   servicio: Prisma.ServicioCreateNestedOneWithoutBarberosInput
+  negocio: Prisma.NegocioCreateNestedOneWithoutBarberoServiciosInput
 }
 
 export type BarberoServicioUncheckedCreateWithoutBarberoInput = {
@@ -451,18 +572,10 @@ export type BarberoServicioUpdateManyWithWhereWithoutBarberoInput = {
   data: Prisma.XOR<Prisma.BarberoServicioUpdateManyMutationInput, Prisma.BarberoServicioUncheckedUpdateManyWithoutBarberoInput>
 }
 
-export type BarberoServicioScalarWhereInput = {
-  AND?: Prisma.BarberoServicioScalarWhereInput | Prisma.BarberoServicioScalarWhereInput[]
-  OR?: Prisma.BarberoServicioScalarWhereInput[]
-  NOT?: Prisma.BarberoServicioScalarWhereInput | Prisma.BarberoServicioScalarWhereInput[]
-  barberoId?: Prisma.IntFilter<"BarberoServicio"> | number
-  servicioId?: Prisma.IntFilter<"BarberoServicio"> | number
-  creadoEn?: Prisma.DateTimeFilter<"BarberoServicio"> | Date | string
-}
-
 export type BarberoServicioCreateWithoutServicioInput = {
   creadoEn?: Date | string
   barbero: Prisma.BarberoCreateNestedOneWithoutServiciosInput
+  negocio: Prisma.NegocioCreateNestedOneWithoutBarberoServiciosInput
 }
 
 export type BarberoServicioUncheckedCreateWithoutServicioInput = {
@@ -496,6 +609,30 @@ export type BarberoServicioUpdateManyWithWhereWithoutServicioInput = {
   data: Prisma.XOR<Prisma.BarberoServicioUpdateManyMutationInput, Prisma.BarberoServicioUncheckedUpdateManyWithoutServicioInput>
 }
 
+export type BarberoServicioCreateManyNegocioInput = {
+  barberoId: number
+  servicioId: number
+  creadoEn?: Date | string
+}
+
+export type BarberoServicioUpdateWithoutNegocioInput = {
+  creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  barbero?: Prisma.BarberoUpdateOneRequiredWithoutServiciosNestedInput
+  servicio?: Prisma.ServicioUpdateOneRequiredWithoutBarberosNestedInput
+}
+
+export type BarberoServicioUncheckedUpdateWithoutNegocioInput = {
+  barberoId?: Prisma.IntFieldUpdateOperationsInput | number
+  servicioId?: Prisma.IntFieldUpdateOperationsInput | number
+  creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type BarberoServicioUncheckedUpdateManyWithoutNegocioInput = {
+  barberoId?: Prisma.IntFieldUpdateOperationsInput | number
+  servicioId?: Prisma.IntFieldUpdateOperationsInput | number
+  creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
 export type BarberoServicioCreateManyBarberoInput = {
   servicioId: number
   creadoEn?: Date | string
@@ -504,6 +641,7 @@ export type BarberoServicioCreateManyBarberoInput = {
 export type BarberoServicioUpdateWithoutBarberoInput = {
   creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   servicio?: Prisma.ServicioUpdateOneRequiredWithoutBarberosNestedInput
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutBarberoServiciosNestedInput
 }
 
 export type BarberoServicioUncheckedUpdateWithoutBarberoInput = {
@@ -524,6 +662,7 @@ export type BarberoServicioCreateManyServicioInput = {
 export type BarberoServicioUpdateWithoutServicioInput = {
   creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   barbero?: Prisma.BarberoUpdateOneRequiredWithoutServiciosNestedInput
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutBarberoServiciosNestedInput
 }
 
 export type BarberoServicioUncheckedUpdateWithoutServicioInput = {
@@ -541,9 +680,11 @@ export type BarberoServicioUncheckedUpdateManyWithoutServicioInput = {
 export type BarberoServicioSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   barberoId?: boolean
   servicioId?: boolean
+  negocioId?: boolean
   creadoEn?: boolean
   barbero?: boolean | Prisma.BarberoDefaultArgs<ExtArgs>
   servicio?: boolean | Prisma.ServicioDefaultArgs<ExtArgs>
+  negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["barberoServicio"]>
 
 
@@ -551,13 +692,15 @@ export type BarberoServicioSelect<ExtArgs extends runtime.Types.Extensions.Inter
 export type BarberoServicioSelectScalar = {
   barberoId?: boolean
   servicioId?: boolean
+  negocioId?: boolean
   creadoEn?: boolean
 }
 
-export type BarberoServicioOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"barberoId" | "servicioId" | "creadoEn", ExtArgs["result"]["barberoServicio"]>
+export type BarberoServicioOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"barberoId" | "servicioId" | "negocioId" | "creadoEn", ExtArgs["result"]["barberoServicio"]>
 export type BarberoServicioInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   barbero?: boolean | Prisma.BarberoDefaultArgs<ExtArgs>
   servicio?: boolean | Prisma.ServicioDefaultArgs<ExtArgs>
+  negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
 }
 
 export type $BarberoServicioPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -565,10 +708,15 @@ export type $BarberoServicioPayload<ExtArgs extends runtime.Types.Extensions.Int
   objects: {
     barbero: Prisma.$BarberoPayload<ExtArgs>
     servicio: Prisma.$ServicioPayload<ExtArgs>
+    negocio: Prisma.$NegocioPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     barberoId: number
     servicioId: number
+    /**
+     * Negocio al que pertenece el vínculo barbero-servicio. OBLIGATORIO.
+     */
+    negocioId: number
     creadoEn: Date
   }, ExtArgs["result"]["barberoServicio"]>
   composites: {}
@@ -912,6 +1060,7 @@ export interface Prisma__BarberoServicioClient<T, Null = never, ExtArgs extends 
   readonly [Symbol.toStringTag]: "PrismaPromise"
   barbero<T extends Prisma.BarberoDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BarberoDefaultArgs<ExtArgs>>): Prisma.Prisma__BarberoClient<runtime.Types.Result.GetResult<Prisma.$BarberoPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   servicio<T extends Prisma.ServicioDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ServicioDefaultArgs<ExtArgs>>): Prisma.Prisma__ServicioClient<runtime.Types.Result.GetResult<Prisma.$ServicioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  negocio<T extends Prisma.NegocioDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NegocioDefaultArgs<ExtArgs>>): Prisma.Prisma__NegocioClient<runtime.Types.Result.GetResult<Prisma.$NegocioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -943,6 +1092,7 @@ export interface Prisma__BarberoServicioClient<T, Null = never, ExtArgs extends 
 export interface BarberoServicioFieldRefs {
   readonly barberoId: Prisma.FieldRef<"BarberoServicio", 'Int'>
   readonly servicioId: Prisma.FieldRef<"BarberoServicio", 'Int'>
+  readonly negocioId: Prisma.FieldRef<"BarberoServicio", 'Int'>
   readonly creadoEn: Prisma.FieldRef<"BarberoServicio", 'DateTime'>
 }
     

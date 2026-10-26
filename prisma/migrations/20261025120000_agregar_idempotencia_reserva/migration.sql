@@ -1,0 +1,43 @@
+-- ===========================================================================
+-- FASE 16 (CIERRE): IDEMPOTENCIA EN LA CREACIÓN DE RESERVAS
+-- ===========================================================================
+--
+-- Objetivo: que el reintento de un POST de reserva (doble clic, reintento
+-- tras un timeout) NO cree una segunda reserva, y que dos peticiones
+-- SIMULTÁNEAS con la misma clave no puedan crear resultados distintos.
+--
+-- Qué hace (ADITIVA, en un solo paso):
+--   1. Añade la columna `idempotencyKey` (VARCHAR(64), NULL) a `reservations`.
+--      Es NULLABLE: las reservas históricas y las creadas sin cabecera
+--      `Idempotency-Key` se quedan con NULL (y NULL no colisiona en un
+--      índice único).
+--   2. Añade el índice ÚNICO COMPUESTO `(negocioId, idempotencyKey)`.
+--
+-- Garantías:
+--   1. NO modifica ni borra datos, índices ni claves existentes. La
+--      restricción de ocupación de franja
+--      (`reservations_barberoId_date_startTime_slotActivo_key`) queda intacta.
+--   2. La unicidad es POR NEGOCIO: la misma clave en dos barberías son dos
+--      intentos distintos, y una clave nunca permite leer ni escribir una
+--      reserva de otra barbería.
+--   3. La protección REAL contra dos peticiones concurrentes con la misma
+--      clave es este índice (no una comprobación previa en la aplicación):
+--      la segunda transacción recibe una violación de unicidad (P2002) sobre
+--      `reservations_negocioId_idempotencyKey_key`.
+--   4. La garantía de franja ocupada sigue siendo el índice
+--      `(barberoId, date, startTime, slotActivo)`; este índice no la suplanta.
+--
+-- COMPATIBILIDAD: MySQL 8.0.46 con `lower_case_table_names = 0`.
+--   La tabla real es `reservations` (minúsculas, con `@@map`) y las columnas
+--   conservan el camelCase del esquema.
+-- ===========================================================================
+
+-- AlterTable: columna de la clave de idempotencia.
+ALTER TABLE `reservations` ADD COLUMN `idempotencyKey` VARCHAR(64) NULL;
+
+-- CreateIndex: unicidad COMPUESTA por negocio.
+--
+-- `negocioId` es NOT NULL, de modo que solo las filas con clave no nula
+-- compiten entre sí. Las filas con `idempotencyKey = NULL` quedan fuera de la
+-- restricción (NULL no colisiona), como exige el diseño.
+CREATE UNIQUE INDEX `reservations_negocioId_idempotencyKey_key` ON `reservations`(`negocioId`, `idempotencyKey`);

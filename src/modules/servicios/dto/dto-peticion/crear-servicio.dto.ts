@@ -62,7 +62,8 @@ export class CrearServicioDto {
 
   @ApiProperty({
     example: [1, 2],
-    description: 'IDs de los barberos que realizan este servicio',
+    description:
+      'IDs de los perfiles de barbero que realizan este servicio (Barbero.id, NO Usuario.id). Es la misma clave que devuelve el catálogo y que consume la disponibilidad.',
     required: false,
     type: [Number],
   })

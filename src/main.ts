@@ -3,10 +3,19 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import * as express from 'express';
-import { join } from 'node:path';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 import helmet from 'helmet';
+
+import {
+  construirOpcionesCors,
+  construirOrigenesPermitidos,
+} from './common/config/cors.config';
+import { swaggerHabilitado } from './common/config/swagger.config';
+import {
+  cabecerasSeguridadUploads,
+  directorioUploads,
+} from './common/config/uploads.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -15,7 +24,22 @@ async function bootstrap() {
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
   // Servir archivos estáticos subidos (/uploads)
-  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+  //
+  // El directorio lo fija `UPLOADS_DIR` (por defecto `<cwd>/uploads`). En
+  // Docker debe ser un VOLUMEN PERSISTENTE: el sistema de ficheros del
+  // contenedor es efímero.
+  app.use(
+    '/uploads',
+    express.static(directorioUploads(), {
+      setHeaders: (res) => {
+        for (const [cabecera, valor] of Object.entries(
+          cabecerasSeguridadUploads(),
+        )) {
+          res.setHeader(cabecera, valor);
+        }
+      },
+    }),
+  );
 
   // OWASP A05: Cabeceras de Seguridad
   // Helmet configura automáticamente cabeceras HTTP que previenen XSS, Clickjacking, y ocultan información del servidor.
@@ -27,22 +51,9 @@ async function bootstrap() {
   );
 
   // OWASP A05: Cross-Origin Resource Sharing (CORS)
-  // Restringe qué dominios pueden hacer peticiones a nuestra API. Solo permitimos a nuestro Frontend autorizado.
-  const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'https://barberia-frontend-production.up.railway.app',
-  ];
-  if (process.env.FRONTEND_URL) {
-    allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/$/, ''));
-  }
-
-  app.enableCors({
-    origin: allowedOrigins,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-  });
+  // Restringe qué dominios pueden hacer peticiones a nuestra API: la lista es
+  // EXPLICITA (nunca `*`, porque la API sirve con credenciales).
+  app.enableCors(construirOpcionesCors(construirOrigenesPermitidos()));
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -53,15 +64,18 @@ async function bootstrap() {
   );
 
   // OWASP A05: Ocultar documentación en Producción
-  // Swagger expone todos nuestros endpoints. En este caso lo habilitamos siempre para facilitar pruebas.
-  const config = new DocumentBuilder()
-    .setTitle('Barbería API')
-    .setDescription('La API del sistema de gestión de Barbería VIP')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, documentFactory);
+  // Swagger expone la superficie completa de la API. En producción NO se publica
+  // por defecto; se puede habilitar explícitamente con SWAGGER_HABILITADO=true.
+  if (swaggerHabilitado()) {
+    const config = new DocumentBuilder()
+      .setTitle('Barbería API')
+      .setDescription('La API del sistema de gestión de Barbería VIP')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const documentFactory = () => SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, documentFactory);
+  }
 
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }

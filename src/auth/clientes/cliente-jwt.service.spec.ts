@@ -48,7 +48,12 @@ describe('ClienteJwtService', () => {
     it('firmar falla de forma controlada (503) sin exponer detalles internos', () => {
       let capturado: unknown;
       try {
-        service.firmar({ clienteId: 7, email: null, nombre: 'Ana' });
+        service.firmar({
+          clienteId: 7,
+          email: null,
+          nombre: 'Ana',
+          negocioId: 10,
+        });
       } catch (error) {
         capturado = error;
       }
@@ -73,7 +78,12 @@ describe('ClienteJwtService', () => {
     it('resuelve el secreto perezosamente al firmar', () => {
       jwtService.sign.mockReturnValue('token-cliente');
 
-      service.firmar({ clienteId: 7, email: 'ana@gmail.com', nombre: 'Ana' });
+      service.firmar({
+        clienteId: 7,
+        email: 'ana@gmail.com',
+        nombre: 'Ana',
+        negocioId: 10,
+      });
 
       expect(configService.getOrThrow).toHaveBeenCalledWith(
         JWT_CLIENTE_SECRET_ENV,
@@ -87,6 +97,7 @@ describe('ClienteJwtService', () => {
         clienteId: 7,
         email: 'ana@gmail.com',
         nombre: 'Ana',
+        negocioId: 10,
       });
 
       expect(resultado).toBe('token-cliente');
@@ -97,6 +108,7 @@ describe('ClienteJwtService', () => {
           tipo: TIPO_TOKEN_CLIENTE,
           email: 'ana@gmail.com',
           nombre: 'Ana',
+          negocioId: 10,
         }),
         expect.objectContaining({
           secret: 'cliente-secret',
@@ -114,12 +126,14 @@ describe('ClienteJwtService', () => {
         tipo: TIPO_TOKEN_CLIENTE,
         email: 'ana@gmail.com',
         nombre: 'Ana',
+        negocioId: 10,
       });
 
       await expect(service.verificar('token')).resolves.toEqual({
         clienteId: 7,
         email: 'ana@gmail.com',
         nombre: 'Ana',
+        negocioId: 10,
       });
     });
 

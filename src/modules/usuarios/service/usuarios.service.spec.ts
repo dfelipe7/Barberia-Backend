@@ -16,6 +16,29 @@ describe('UsuariosService', () => {
   let administradoresService: jest.Mocked<AdministradoresService>;
   let barberosService: jest.Mocked<BarberosService>;
 
+  /**
+   * Sesiones de la petición: el payload del token con los roles EFECTIVOS en
+   * el negocio. Es el actor con el que se autoriza.
+   */
+  const sesionSuperadmin = {
+    id: 1,
+    roles: ['SUPERADMIN'],
+    superadmin: true,
+    negocioId: 10,
+  };
+  const sesionAdministrador = {
+    id: 3,
+    roles: ['ADMINISTRADOR'],
+    superadmin: false,
+    negocioId: 10,
+  };
+  const sesionBarbero = {
+    id: 2,
+    roles: ['BARBERO'],
+    superadmin: false,
+    negocioId: 10,
+  };
+
   beforeEach(async () => {
     const mockUsuariosRepository = {
       obtenerUsuarioPorGoogleId: jest.fn(),
@@ -72,16 +95,6 @@ describe('UsuariosService', () => {
     barberosService = module.get(BarberosService);
   });
 
-  describe('sincronizarSuperadmin', () => {
-    it('debe devolver confirmación de superadministradores verificados', async () => {
-      const resultados = await service.sincronizarSuperadmin();
-      expect(resultados).toHaveLength(1);
-      expect(resultados[0].mensaje).toContain(
-        'Superadministradores verificados',
-      );
-    });
-  });
-
   describe('obtenerMiPerfil', () => {
     it('debe devolver el usuario si existe', async () => {
       const mockUser = {
@@ -113,7 +126,7 @@ describe('UsuariosService', () => {
         nombre: 'Por Email',
         apellido: 'User',
         email: 'por.email@barberia.com',
-        rol: 'ADMINISTRADOR',
+        rol: 'PERSONAL',
         estado: 'ACTIVO',
         administrador: null,
         barbero: null,
@@ -158,7 +171,7 @@ describe('UsuariosService', () => {
         email: 'barbero@barberia.com',
         nombre: 'Carlos',
         apellido: 'Perez',
-        rol: 'BARBERO',
+        rol: 'PERSONAL',
         estado: 'ACTIVO',
         administrador: null,
         barbero: {
@@ -178,11 +191,11 @@ describe('UsuariosService', () => {
         mockCaller as any,
       );
 
-      const resultado = await service.obtenerUsuarioPorId(2, { id: 1 });
+      const resultado = await service.obtenerUsuarioPorId(2, sesionSuperadmin);
 
       expect(
         authorizationService.verificarPermisosConsulta,
-      ).toHaveBeenCalledWith(mockCaller, mockTarget);
+      ).toHaveBeenCalledWith(sesionSuperadmin, mockTarget);
       expect(resultado.id).toBe(2);
       expect(resultado.barbero?.porcentajeComision).toBe(45.5);
     });
@@ -192,7 +205,7 @@ describe('UsuariosService', () => {
     it('debe lanzar ConflictException si el usuario destino no existe', async () => {
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValue(null);
       await expect(
-        service.actualizarUsuario(999, {}, { id: 1 }),
+        service.actualizarUsuario(999, {}, sesionSuperadmin),
       ).rejects.toThrow('El usuario no existe');
     });
 
@@ -208,8 +221,8 @@ describe('UsuariosService', () => {
     });
 
     it('debe actualizar datos personales en BD exitosamente', async () => {
-      const mockTarget = { id: 2, rol: 'BARBERO' };
-      const mockCaller = { id: 1, rol: 'ADMINISTRADOR' };
+      const mockTarget = { id: 2, rol: 'PERSONAL' };
+      const mockCaller = { id: 1, rol: 'PERSONAL' };
 
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
         mockTarget as any,
@@ -225,7 +238,7 @@ describe('UsuariosService', () => {
       await service.actualizarUsuario(
         2,
         { nombre: 'Nuevo' },
-        { id: 1, sub: '1' },
+        sesionSuperadmin,
       );
 
       expect(usuariosRepository.actualizarUsuario).toHaveBeenCalledWith(2, {
@@ -236,8 +249,8 @@ describe('UsuariosService', () => {
     });
 
     it('debe rechazar que un no-SUPERADMIN modifique el rol de Administrador', async () => {
-      const mockTarget = { id: 2, rol: 'BARBERO', administrador: null };
-      const mockCaller = { id: 3, rol: 'ADMINISTRADOR' };
+      const mockTarget = { id: 2, rol: 'PERSONAL', administrador: null };
+      const mockCaller = { id: 3, rol: 'PERSONAL' };
 
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
         mockTarget as any,
@@ -247,15 +260,15 @@ describe('UsuariosService', () => {
       );
 
       await expect(
-        service.actualizarUsuario(2, { esAdministrador: true }, { id: 3 }),
+        service.actualizarUsuario(2, { esAdministrador: true }, sesionAdministrador),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('debe impedir que el superadmin se retire a sí mismo el rol de Administrador', async () => {
       const mockTarget = {
         id: 1,
-        rol: 'ADMINISTRADOR',
-        administrador: { estado: 'ACTIVO' },
+        rol: 'PERSONAL',
+        administrador: { estado: 'ACTIVO', negocioId: 10 },
       };
       const mockCaller = { id: 1, rol: 'SUPERADMIN' };
 
@@ -267,14 +280,14 @@ describe('UsuariosService', () => {
       );
 
       await expect(
-        service.actualizarUsuario(1, { esAdministrador: false }, { id: 1 }),
+        service.actualizarUsuario(1, { esAdministrador: false }, sesionSuperadmin),
       ).rejects.toThrow(ConflictException);
     });
 
     it('debe cambiar estado de administrador cuando un superadmin lo autoriza', async () => {
       const mockTarget = {
         id: 2,
-        rol: 'BARBERO',
+        rol: 'PERSONAL',
         administrador: { estado: 'INACTIVO' },
       };
       const mockCaller = { id: 1, rol: 'SUPERADMIN' };
@@ -289,7 +302,7 @@ describe('UsuariosService', () => {
         mockTarget as any,
       );
 
-      await service.actualizarUsuario(2, { esAdministrador: true }, { id: 1 });
+      await service.actualizarUsuario(2, { esAdministrador: true }, sesionSuperadmin);
 
       expect(
         administradoresService.cambiarEstadoAdministrador,
@@ -297,7 +310,7 @@ describe('UsuariosService', () => {
     });
 
     it('debe omitir el cambio de rol de Administrador cuando el estado solicitado coincide con el actual', async () => {
-      const mockTarget = { id: 2, rol: 'BARBERO', administrador: null };
+      const mockTarget = { id: 2, rol: 'PERSONAL', administrador: null };
       const mockCaller = { id: 1, rol: 'SUPERADMIN' };
 
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
@@ -310,7 +323,7 @@ describe('UsuariosService', () => {
         mockTarget as any,
       );
 
-      await service.actualizarUsuario(2, { esAdministrador: false }, { id: 1 });
+      await service.actualizarUsuario(2, { esAdministrador: false }, sesionSuperadmin);
 
       expect(
         administradoresService.cambiarEstadoAdministrador,
@@ -320,10 +333,10 @@ describe('UsuariosService', () => {
     it('debe rechazar que un barbero modifique o revoque su propio rol de barbero', async () => {
       const mockTarget = {
         id: 2,
-        rol: 'BARBERO',
-        barbero: { estado: 'ACTIVO' },
+        rol: 'PERSONAL',
+        barbero: { estado: 'ACTIVO', negocioId: 10 },
       };
-      const mockCaller = { id: 2, rol: 'BARBERO' };
+      const mockCaller = { id: 2, rol: 'PERSONAL' };
 
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
         mockTarget as any,
@@ -333,7 +346,7 @@ describe('UsuariosService', () => {
       );
 
       await expect(
-        service.actualizarUsuario(2, { esBarbero: false }, { id: 2 }),
+        service.actualizarUsuario(2, { esBarbero: false }, sesionBarbero),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -354,7 +367,7 @@ describe('UsuariosService', () => {
       await service.actualizarUsuario(
         2,
         { esBarbero: true, telefono: '3111234567' },
-        { id: 1 },
+        sesionSuperadmin,
       );
 
       expect(barberosService.configurarBarberoPorId).toHaveBeenCalledWith(2, {
@@ -366,8 +379,8 @@ describe('UsuariosService', () => {
     it('debe inactivar rol de barbero si esBarbero es false', async () => {
       const mockTarget = {
         id: 2,
-        rol: 'BARBERO',
-        barbero: { estado: 'ACTIVO' },
+        rol: 'PERSONAL',
+        barbero: { estado: 'ACTIVO', negocioId: 10 },
       };
       const mockCaller = { id: 1, rol: 'SUPERADMIN' };
 
@@ -381,20 +394,20 @@ describe('UsuariosService', () => {
         mockTarget as any,
       );
 
-      await service.actualizarUsuario(2, { esBarbero: false }, { id: 1 });
+      await service.actualizarUsuario(2, { esBarbero: false }, sesionSuperadmin);
 
       expect(barberosService.cambiarEstadoBarbero).toHaveBeenCalledWith(
         2,
         { estado: EstadoUsuario.INACTIVO },
-        { id: 1 },
+        sesionSuperadmin,
       );
     });
 
     it('debe actualizar teléfono y comisión de un barbero existente', async () => {
       const mockTarget = {
         id: 2,
-        rol: 'BARBERO',
-        barbero: { estado: 'ACTIVO' },
+        rol: 'PERSONAL',
+        barbero: { estado: 'ACTIVO', negocioId: 10 },
       };
       const mockCaller = { id: 1, rol: 'SUPERADMIN' };
 
@@ -411,12 +424,12 @@ describe('UsuariosService', () => {
       await service.actualizarUsuario(
         2,
         { telefono: '3200000000', porcentajeComision: 60 },
-        { id: 1 },
+        sesionSuperadmin,
       );
 
       expect(
         authorizationService.verificarPermisosComision,
-      ).toHaveBeenCalledWith(mockCaller, mockTarget);
+      ).toHaveBeenCalledWith(sesionSuperadmin, mockTarget);
       expect(barberosRepository.actualizarPerfilBarbero).toHaveBeenCalledWith(
         2,
         {
@@ -435,7 +448,7 @@ describe('UsuariosService', () => {
         service.cambiarEstadoUsuario(
           999,
           { estado: 'INACTIVO' as any },
-          { id: 1 },
+          sesionSuperadmin,
         ),
       ).rejects.toThrow('El usuario no existe');
     });
@@ -470,12 +483,12 @@ describe('UsuariosService', () => {
       await service.cambiarEstadoUsuario(
         2,
         { estado: 'INACTIVO' },
-        { id: 1, sub: '1' },
+        sesionSuperadmin,
       );
 
       expect(
         authorizationService.verificarPermisosCambioEstadoCuenta,
-      ).toHaveBeenCalledWith(mockCaller, mockTarget);
+      ).toHaveBeenCalledWith(sesionSuperadmin, mockTarget);
       expect(usuariosRepository.actualizarEstadoUsuario).toHaveBeenCalledWith(
         2,
         'INACTIVO',

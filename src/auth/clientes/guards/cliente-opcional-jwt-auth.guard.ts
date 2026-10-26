@@ -1,5 +1,7 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { ExecutionContext, Injectable } from '@nestjs/common';
 import { ClienteJwtService } from '../cliente-jwt.service';
+import { ClienteJwtAuthGuard } from './cliente-jwt-auth.guard';
+import { NegocioContextoService } from '../../../modules/negocios/negocio-contexto.service';
 import { extraerBearer } from './extraer-bearer';
 
 /**
@@ -8,25 +10,31 @@ import { extraerBearer } from './extraer-bearer';
  *
  * - Sin `Authorization` → no autentica; la reserva se trata como invitado.
  * - Con `Bearer` de cliente válido → publica `request.cliente`; Modalidad B.
- * - Con `Bearer` presente pero inválido, expirado o de personal → 401 (NUNCA se
- *   degrada silenciosamente a invitado).
+ * - Con `Bearer` presente pero inválido, expirado, de personal o de otra
+ *   barbería → 401/403 (NUNCA se degrada silenciosamente a invitado).
  */
 @Injectable()
-export class ClienteOpcionalJwtAuthGuard implements CanActivate {
-  constructor(private readonly clienteJwtService: ClienteJwtService) {}
+export class ClienteOpcionalJwtAuthGuard extends ClienteJwtAuthGuard {
+  constructor(
+    clienteJwtService: ClienteJwtService,
+    contextoService: NegocioContextoService,
+  ) {
+    super(clienteJwtService, contextoService);
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const token = extraerBearer(request.headers?.authorization);
+    const request = context.switchToHttp().getRequest<{
+      headers: { authorization?: string };
+    }>();
 
     // Sin token: la reserva continúa como invitado. Con token: se verifica la
     // identidad del cliente y, si es inválido, `verificar` lanza 401 (nunca se
     // degrada silenciosamente a invitado). En ambos casos autorizados se
     // permite el paso, por lo que el retorno se expresa una sola vez.
-    if (token) {
-      request.cliente = await this.clienteJwtService.verificar(token);
+    if (!extraerBearer(request.headers?.authorization)) {
+      return true;
     }
 
-    return true;
+    return super.canActivate(context);
   }
 }

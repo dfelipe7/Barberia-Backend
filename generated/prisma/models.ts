@@ -8,6 +8,8 @@
  *
  * 🟢 You can import this file directly.
  */
+export type * from './models/Negocio.js'
+export type * from './models/PerfilNegocio.js'
 export type * from './models/Usuario.js'
 export type * from './models/Administrador.js'
 export type * from './models/Barbero.js'
@@ -20,4 +22,5 @@ export type * from './models/GeneralClosure.js'
 export type * from './models/Reservation.js'
 export type * from './models/WhatsAppPlantilla.js'
 export type * from './models/ConfiguracionSistema.js'
+export type * from './models/ConfiguracionNegocio.js'
 export type * from './commonInputTypes.js'

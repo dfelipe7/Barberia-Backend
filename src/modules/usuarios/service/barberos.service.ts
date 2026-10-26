@@ -13,6 +13,8 @@ import { BarberoCatalogoDto } from '../dto/dto-respuesta/barbero-catalogo.dto';
 import { BarberoGestionDto } from '../dto/dto-respuesta/barbero-gestion.dto';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { construirActorSesion } from '../../../auth/sesion/sesion-personal';
+import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 
 @Injectable()
 export class BarberosService {
@@ -23,11 +25,47 @@ export class BarberosService {
     private readonly usuariosRepository: UsuariosRepository,
     private readonly authorizationService: UsuariosAuthorizationService,
     private readonly prisma: PrismaService,
+    private readonly aislamiento: NegocioAislamientoService,
   ) {}
 
   /**
+   * Perfil de BARBERO de la persona en el NEGOCIO ACTIVO.
+   *
+   * Una persona puede ser barbero en varias barberías (el perfil es único por
+   * negocio), así que el perfil que cuenta es SIEMPRE el de la barbería de la
+   * petición. Las relaciones cargadas por Prisma no las filtra la extensión de
+   * aislamiento, de modo que el filtro se aplica aquí de forma explícita.
+   */
+  private perfilBarberoEnNegocio(usuario: any) {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+
+    return (
+      (usuario?.barberos ?? []).find(
+        (perfil: any) => perfil.negocioId === negocioId,
+      ) ?? null
+    );
+  }
+
+  /**
+   * Perfil de ADMINISTRADOR de la persona en el NEGOCIO ACTIVO.
+   *
+   * Mismo criterio que `perfilBarberoEnNegocio`: una persona puede ser
+   * administradora de varias barberías.
+   */
+  private perfilAdministradorEnNegocio(usuario: any) {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+
+    return (
+      (usuario?.administradores ?? []).find(
+        (perfil: any) => perfil.negocioId === negocioId,
+      ) ?? null
+    );
+  }
+
+  /**
    * Crea un nuevo empleado barbero desde cero.
-   * Crea el usuario en MySQL con rol BARBERO y su perfil asociado.
+   * Crea el usuario en MySQL con rol PERSONAL y su perfil asociado en el
+   * negocio activo.
    */
   async crearBarbero(dto: CrearBarberoDto) {
     const usuarioExistente =
@@ -45,7 +83,9 @@ export class BarberosService {
             email: dto.email,
             nombre: dto.nombre,
             apellido: dto.apellido,
-            rol: 'BARBERO',
+            // El rol global ya no distingue administrador de barbero: los
+            // roles efectivos se derivan del perfil del negocio.
+            rol: 'PERSONAL',
           },
         });
 
@@ -55,6 +95,7 @@ export class BarberosService {
             telefono: dto.telefono,
             porcentajeComision: dto.porcentajeComision,
             fotoUrl: dto.fotoUrl,
+            negocioId: this.aislamiento.negocioIdRequerido(),
           },
         });
       });
@@ -109,8 +150,10 @@ export class BarberosService {
       throw new ConflictException('El usuario no existe');
     }
 
-    if (usuario.barbero) {
-      if ((usuario.barbero as any).estado === 'ACTIVO') {
+    const perfilBarbero = this.perfilBarberoEnNegocio(usuario);
+
+    if (perfilBarbero) {
+      if (perfilBarbero.estado === 'ACTIVO') {
         throw new ConflictException(
           'El usuario ya está configurado como barbero',
         );
@@ -145,8 +188,10 @@ export class BarberosService {
       throw new ConflictException('El usuario no existe');
     }
 
-    if (usuario.barbero) {
-      if ((usuario.barbero as any).estado === 'ACTIVO') {
+    const perfilBarbero = this.perfilBarberoEnNegocio(usuario);
+
+    if (perfilBarbero) {
+      if (perfilBarbero.estado === 'ACTIVO') {
         throw new ConflictException(
           'El usuario ya está configurado como barbero',
         );
@@ -163,9 +208,12 @@ export class BarberosService {
       }
     }
 
-    if (!usuario.administrador && usuario.rol !== 'SUPERADMIN') {
+    if (!this.perfilAdministradorEnNegocio(usuario)) {
+      // La condición es la MEMBRESÍA en ESTE negocio: una persona que es
+      // administradora (o superadmin) de OTRA barbería no puede convertirse
+      // en barbero aquí, y `Usuario.rol` no concede ningún privilegio.
       throw new ConflictException(
-        'El usuario no es un administrador ni superadmin',
+        'El usuario no es administrador de esta barbería',
       );
     }
 
@@ -191,7 +239,7 @@ export class BarberosService {
       throw new ConflictException('El usuario no existe');
     }
 
-    if (!usuario.barbero) {
+    if (!this.perfilBarberoEnNegocio(usuario)) {
       throw new ConflictException('El usuario no es un barbero');
     }
 
@@ -203,7 +251,10 @@ export class BarberosService {
         'El usuario autenticado no existe en la base de datos',
       );
     }
-    this.authorizationService.verificarPermisosComision(usuarioActual, usuario);
+    this.authorizationService.verificarPermisosComision(
+      construirActorSesion(usuarioAutenticado),
+      usuario,
+    );
     return this.barberosRepository.actualizarComision(
       usuarioId,
       dto.porcentajeComision,
@@ -213,6 +264,10 @@ export class BarberosService {
   /**
    * Obtiene la lista de barberos para el catálogo público.
    * Filtra barberos inactivos y oculta datos sensibles (comisión, email).
+   *
+   * El `id` devuelto es el `Barbero.id` (NO el `Usuario.id`): es la clave que
+   * consumen la disponibilidad y la reserva, de modo que el cliente puede
+   * encadenar catálogo â†’ disponibilidad â†’ reserva sin traducir identificadores.
    */
   async obtenerBarberosCatalogo(
     filtro?: FiltroBarberosDto,
@@ -232,6 +287,11 @@ export class BarberosService {
   /**
    * Obtiene la lista completa de barberos para la gestión interna.
    * Incluye datos sensibles como la comisión y el correo.
+   *
+   * `id` es el `Usuario.id` (identidad global de la persona: es la clave que
+   * consume la gestión de usuarios y el estado de la cuenta). `barberoId` es
+   * el `Barbero.id`, la clave del perfil de barbero dentro de la barbería: es
+   * la que consumen la asignación de servicios a barberos y la disponibilidad.
    */
   async obtenerBarberosGestion(
     filtro?: FiltroBarberosDto,
@@ -239,25 +299,33 @@ export class BarberosService {
     const barberos =
       await this.barberosRepository.obtenerBarberosGestion(filtro);
 
-    return barberos.map((barbero) => ({
-      id: barbero.usuario.id,
-      nombre: barbero.usuario.nombre,
-      apellido: barbero.usuario.apellido,
-      email: barbero.usuario.email,
-      telefono: barbero.telefono,
-      porcentajeComision: Number(barbero.porcentajeComision),
-      estado: barbero.estado,
-      fotoUrl: barbero.fotoUrl,
-      esAdministrador: Boolean(
-        barbero.usuario.administrador &&
-        (barbero.usuario.administrador as any).estado === 'ACTIVO',
-      ),
-      esSuperAdmin: barbero.usuario.rol === 'SUPERADMIN',
-      estadoAdmin: barbero.usuario.administrador
-        ? (barbero.usuario.administrador as any).estado
-        : undefined,
-      estadoGlobal: barbero.usuario.estado,
-    }));
+    return barberos.map((barbero) => {
+      // El carácter SUPERADMIN es de la MEMBRESÍA del negocio: un barbero es
+      // SUPERADMIN de esta barbería si su perfil de administrador aquí lo es.
+      const perfilAdmin = this.perfilAdministradorEnNegocio(
+        barbero.usuario,
+      ) as { estado?: string; superadmin?: boolean } | null;
+
+      return {
+        id: barbero.usuario.id,
+        barberoId: barbero.id,
+        nombre: barbero.usuario.nombre,
+        apellido: barbero.usuario.apellido,
+        email: barbero.usuario.email,
+        telefono: barbero.telefono,
+        porcentajeComision: Number(barbero.porcentajeComision),
+        estado: barbero.estado,
+        fotoUrl: barbero.fotoUrl,
+        esAdministrador: Boolean(
+          perfilAdmin && perfilAdmin.estado === 'ACTIVO',
+        ),
+        esSuperAdmin: perfilAdmin?.superadmin === true,
+        estadoAdmin: perfilAdmin?.estado,
+        // El rol global ya no distingue administrador de barbero: los roles
+        // efectivos se derivan de los perfiles del negocio.
+        estadoGlobal: barbero.usuario.estado,
+      };
+    });
   }
 
   /**
@@ -329,7 +397,7 @@ export class BarberosService {
 
     try {
       this.authorizationService.verificarPermisosEdicion(
-        usuarioActual,
+        construirActorSesion(usuarioAutenticado),
         usuarioObjetivo,
       );
     } catch (error) {
@@ -401,7 +469,7 @@ export class BarberosService {
       throw new ConflictException('El usuario no existe');
     }
 
-    if (!usuario.barbero) {
+    if (!this.perfilBarberoEnNegocio(usuario)) {
       throw new ConflictException('El usuario no es un barbero');
     }
 
@@ -415,7 +483,7 @@ export class BarberosService {
     }
 
     this.authorizationService.verificarPermisosCambioEstadoBarbero(
-      usuarioActual,
+      construirActorSesion(usuarioAutenticado),
       usuario,
     );
 
@@ -423,10 +491,14 @@ export class BarberosService {
     const activo = nuevoEstado === EstadoUsuario.ACTIVO;
 
     if (!activo) {
-      const esAdminActivo =
-        usuario.administrador?.estado === EstadoUsuario.ACTIVO ||
-        usuario.rol === 'ADMINISTRADOR';
-      const esSuperAdmin = usuario.rol === 'SUPERADMIN';
+      // El carácter SUPERADMIN es de la MEMBRESÍA de este negocio, no del
+      // `Usuario.rol` global.
+      const perfilAdmin = this.perfilAdministradorEnNegocio(usuario) as {
+        estado?: string;
+        superadmin?: boolean;
+      } | null;
+      const esAdminActivo = perfilAdmin?.estado === EstadoUsuario.ACTIVO;
+      const esSuperAdmin = perfilAdmin?.superadmin === true;
       if (!esSuperAdmin && !esAdminActivo) {
         await this.usuariosRepository.actualizarEstadoUsuario(
           usuarioId,

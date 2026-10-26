@@ -39,6 +39,9 @@ lerna-debug.log*
 .env
 .env.backup
 .env.development.local
+# Variables locales del entorno multitenant aislado (Fase 11).
+# Contiene credenciales reales: NUNCA se versionan.
+.env.multitenant-dev
 .env.test.local
 .env.production.local
 .env.local
@@ -78,5 +81,22 @@ Contexto_tecnico_backend_barberia_HE08.md
 Contexto_tecnico_HE04_Reservas_integracion_HE08.md
 README_SKILLS.md
 HE-04_integracion_disponibilidad.md
-/docs/
+# Trazabilidad:
+# - REQ: REQ-008
+# - Modelo ejecutor: minimax-m3.1-flash-free
+# - Propósito: versionar la trazabilidad de solicitudes y la referencia de API.
+# - Responsabilidad: exclusiones de Git; no define reglas de negocio.
+# Nota: /docs/ queda ignorado, pero se versionan las carpetas de trazabilidad
+# (REQ-008) y de documentación formal de API. No puede ser "/docs/" porque Git
+# no re-incluye un archivo si su directorio padre está excluido.
+/docs/**
+!/docs/solicitudes/
+!/docs/solicitudes/**
+!/docs/api/
+!/docs/api/**
 Libro1.xlsx
+opencode.json
+MULTITENANT.md
+FASE11_ENTORNO_MULTITENANT_DEV.md
+# Testing artifacts
+artifacts/

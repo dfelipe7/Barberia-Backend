@@ -6,5 +6,12 @@
   "transform": {
     "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "<rootDir>/tsconfig.e2e.json" }]
   },
-  "transformIgnorePatterns": ["node_modules/(?!(@nestjs/(config|jwt))/)"]
+  "transformIgnorePatterns": ["node_modules/(?!(@nestjs/(config|jwt|schedule))/)"],
+  "moduleNameMapper": {
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^@whiskeysockets/baileys$": "<rootDir>/__mocks__/@whiskeysockets-baileys.js"
+  },
+  "testPathIgnorePatterns": ["/node_modules/", "multitenant-"],
+  "globalTeardown": "<rootDir>/global-teardown-multitenant.js",
+  "testTimeout": 300000
 }

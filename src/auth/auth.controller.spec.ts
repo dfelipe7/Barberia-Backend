@@ -1,16 +1,40 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { GoogleAuthService } from './google/google-auth.service';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { SesionPersonalService } from './sesion/sesion-personal.service';
+import { JwtSesionGuard } from './guards/jwt-sesion.guard';
 
 describe('AuthController', () => {
   let controller: AuthController;
   let googleAuthService: jest.Mocked<GoogleAuthService>;
+  let sesionService: jest.Mocked<SesionPersonalService>;
+
+  const sesionToken = {
+    sub: '5',
+    id: 5,
+    email: 'barbero@gmail.com',
+    nombre: 'Carlos',
+    apellido: 'Perez',
+    tipo: 'PERSONAL',
+    rol: 'PERSONAL',
+    roles: ['BARBERO'],
+    superadmin: false,
+    ambito: 'NEGOCIO' as const,
+    negocioId: 10,
+    negocioSlug: 'kyrios-studio',
+    estado: 'ACTIVO',
+    fotoUrl: null,
+  };
 
   beforeEach(async () => {
     const mockGoogleAuthService = {
       loginConGoogle: jest.fn(),
-      refrescarSesion: jest.fn(),
+    };
+
+    const mockSesionService = {
+      cargarUsuario: jest.fn(),
+      renovar: jest.fn(),
+      cambiarNegocio: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -20,14 +44,19 @@ describe('AuthController', () => {
           provide: GoogleAuthService,
           useValue: mockGoogleAuthService,
         },
+        {
+          provide: SesionPersonalService,
+          useValue: mockSesionService,
+        },
       ],
     })
-      .overrideGuard(JwtAuthGuard)
+      .overrideGuard(JwtSesionGuard)
       .useValue({ canActivate: () => true })
       .compile();
 
     controller = module.get<AuthController>(AuthController);
     googleAuthService = module.get(GoogleAuthService);
+    sesionService = module.get(SesionPersonalService);
   });
 
   it('debe estar definido', () => {
@@ -43,9 +72,11 @@ describe('AuthController', () => {
         nombre: 'Felipe',
         apellido: 'Armero',
         rol: 'SUPERADMIN',
+        roles: ['SUPERADMIN'],
         estado: 'ACTIVO',
         fotoUrl: 'https://lh3.googleusercontent.com/a/photo.jpg',
       },
+      negocio: null,
     };
 
     googleAuthService.loginConGoogle.mockResolvedValue(mockResponse as any);
@@ -60,30 +91,48 @@ describe('AuthController', () => {
     expect(result).toEqual(mockResponse);
   });
 
-  it('debe llamar a googleAuthService.refrescarSesion con el ID de usuario del token', async () => {
+  it('debe renovar la sesión conservando su ámbito', async () => {
+    const usuario = {
+      id: 5,
+      email: 'barbero@gmail.com',
+      nombre: 'Carlos',
+      apellido: 'Perez',
+      rol: 'PERSONAL',
+      estado: 'ACTIVO',
+    };
     const mockResponse = {
       accessToken: 'new-refreshed-jwt',
-      usuario: {
-        id: 5,
-        email: 'barbero@gmail.com',
-        nombre: 'Carlos',
-        apellido: 'Perez',
-        rol: 'ADMINISTRADOR',
-        roles: ['ADMINISTRADOR', 'BARBERO'],
-        estado: 'ACTIVO',
-        fotoUrl: null,
-      },
+      usuario: { ...usuario, roles: ['BARBERO'], fotoUrl: null },
+      negocio: { id: 10, slug: 'kyrios-studio' },
     };
 
-    googleAuthService.refrescarSesion.mockResolvedValue(mockResponse);
+    sesionService.cargarUsuario.mockResolvedValue(usuario);
+    sesionService.renovar.mockResolvedValue(mockResponse as any);
 
-    const result = await controller.refrescarToken({
-      user: { id: 5, fotoUrl: 'https://lh3.google.com/avatar.jpg' },
-    });
+    const result = await controller.refrescarToken({ user: sesionToken });
 
-    expect(googleAuthService.refrescarSesion).toHaveBeenCalledWith(
-      5,
-      'https://lh3.google.com/avatar.jpg',
+    expect(sesionService.cargarUsuario).toHaveBeenCalledWith(5);
+    expect(sesionService.renovar).toHaveBeenCalled();
+    expect(result).toEqual(mockResponse);
+  });
+
+  it('debe cambiar de negocio usando el slug de la ruta', async () => {
+    const mockResponse = {
+      accessToken: 'jwt-token-otro-negocio',
+      usuario: { id: 5, roles: ['ADMINISTRADOR'] },
+      negocio: { id: 20, slug: 'otro-negocio' },
+    };
+
+    sesionService.cambiarNegocio.mockResolvedValue(mockResponse as any);
+
+    const result = await controller.cambiarNegocio(
+      { user: sesionToken },
+      'otro-negocio',
+    );
+
+    expect(sesionService.cambiarNegocio).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 5, negocioId: 10 }),
+      'otro-negocio',
     );
     expect(result).toEqual(mockResponse);
   });

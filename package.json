@@ -8,6 +8,7 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p test/tsconfig.e2e.json",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -18,7 +19,22 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "seed": "tsc -p tsconfig.seed.json && node dist/seed/prisma/seed.js"
+    "test:multitenant": "jest --config ./test/jest-multitenant.json",
+    "test:bateria": "node scripts/testing/run-battery.mjs",
+    "security:zap": "node scripts/testing/zap-run.mjs",
+    "seed": "tsc -p tsconfig.seed.json && node dist/seed/prisma/seed.js",
+    "multitenant:build": "tsc -p tsconfig.multitenant.json",
+    "multitenant:migrar": "npm run multitenant:build && node dist/multitenant/prisma/multitenant/migrar-negocio.js",
+    "multitenant:fundadores": "npm run multitenant:build && node dist/multitenant/prisma/multitenant/asignar-fundadores.js",
+    "multitenant:migrar-direccion": "npm run multitenant:build && node --env-file=.env.multitenant-dev dist/multitenant/prisma/multitenant/migrar-direccion.js",
+    "seed:local:multitenant": "npm run multitenant:build && node --env-file=.env.multitenant-dev dist/multitenant/prisma/multitenant/seed-local-desarrollo.js",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
+    "db:migrate:diff": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script",
+    "db:validate": "prisma validate",
+    "db:migrate:dev": "node --env-file=.env.multitenant-dev node_modules/prisma/build/index.js migrate deploy",
+    "db:migrate:status:dev": "node --env-file=.env.multitenant-dev node_modules/prisma/build/index.js migrate status",
+    "db:validate:dev": "node --env-file=.env.multitenant-dev node_modules/prisma/build/index.js validate"
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^3.0.2",

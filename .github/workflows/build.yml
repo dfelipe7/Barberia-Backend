@@ -4,9 +4,28 @@ on:
     branches:
       - master
       - main
+      - feature/cambio-arquitectura
   pull_request:
     types: [opened, synchronize, reopened]
 jobs:
+  quality:
+    name: Calidad (tipos y compilación)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm ci
+      # Validación de tipos del código de aplicación y de las pruebas de
+      # integración: cualquier error de tipos rompe la compilación.
+      - name: Validación de tipos
+        run: npm run typecheck
+      - name: Compilación
+        run: npm run build
+
   sonarqube:
     name: SonarQube
     runs-on: ubuntu-latest
@@ -20,6 +39,8 @@ jobs:
           node-version: '20'
       - name: Install dependencies
         run: npm ci
+      # Suite de pruebas unitarias con informe de cobertura (el análisis de
+      # SonarCloud consume este informe).
       - name: Run Tests with Coverage
         run: npm run test:cov
       - name: Cache SonarQube packages
@@ -32,3 +53,25 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  multitenant:
+    name: Multitenant (MariaDB real)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm ci
+      # Levanta un contenedor MariaDB efímero (el runner de ubuntu-latest
+      # dispone de Docker), aplica las migraciones reales del proyecto y
+      # ejecuta la suite de integración multitenant: aislamiento de consultas,
+      # autenticación por negocio, catálogos, configuración por negocio y la
+      # SUITE NEGATIVA de aislamiento entre negocios.
+      #
+      # `MARIADB_TEST_SKIP` NO se define a propósito: con Docker disponible las
+      # pruebas se ejecutan de verdad contra MariaDB.
+      - name: Ejecutar pruebas de integración multitenant
+        run: npm run test:multitenant

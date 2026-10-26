@@ -19,11 +19,18 @@ export type EstadoUsuario = (typeof EstadoUsuario)[keyof typeof EstadoUsuario]
 
 export const RolUsuario = {
   SUPERADMIN: 'SUPERADMIN',
-  ADMINISTRADOR: 'ADMINISTRADOR',
-  BARBERO: 'BARBERO'
+  PERSONAL: 'PERSONAL'
 } as const
 
 export type RolUsuario = (typeof RolUsuario)[keyof typeof RolUsuario]
+
+
+export const EstadoNegocio = {
+  ACTIVO: 'ACTIVO',
+  INACTIVO: 'INACTIVO'
+} as const
+
+export type EstadoNegocio = (typeof EstadoNegocio)[keyof typeof EstadoNegocio]
 
 
 export const EstadoServicio = {

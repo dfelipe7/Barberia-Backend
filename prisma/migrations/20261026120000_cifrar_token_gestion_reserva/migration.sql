@@ -1,0 +1,33 @@
+-- ===========================================================================
+-- FASE 16 (REVISIÓN): EL TOKEN DE GESTIÓN SE CONSERVA CIFRADO
+-- ===========================================================================
+--
+-- Problema: al repetir una reserva de INVITADO con la misma clave de
+-- idempotencia se emitía un token de gestión NUEVO y se SUSTITUÍA el hash
+-- almacenado. Eso rompía dos garantías:
+--
+--   1. El token que el cliente ya tenía (doble clic, o reintento cuya
+--      primera respuesta sí llegó) quedaba INVALIDADO en silencio: su
+--      gestión posterior respondía 404, indistinguible de "no existe".
+--   2. Con dos replays SIMULTÁNEOS, ambos escribían el mismo slot del hash
+--      anterior: el token del primero quedaba invalidado por el segundo.
+--
+-- Solución: el token NO se rota. Se guarda su copia CIFRADA para poder
+-- reproducir EXACTAMENTE la respuesta original en cada reintento. Así:
+--   - la respuesta de un reintento es la MISMA que la original (mismo
+--     token), como exige el contrato de idempotencia;
+--   - el reintento NO escribe nada: no hay carreras ni invalidaciones;
+--   - la validación sigue usando el HASH (tiempo constante, sin descifrar).
+--
+-- La columna es NULLABLE y aditiva: no modifica ni borra datos, no altera la
+-- restricción de ocupación de franja ni el índice de idempotencia. Las
+-- reservas anteriores a esta columna siguen validándose con su hash; sus
+-- reintentos devuelven la reserva SIN token (el token original sigue siendo
+-- válido para gestionar la reserva).
+--
+-- COMPATIBILIDAD: MySQL 8.0.46 con `lower_case_table_names = 0`.
+--   La tabla real es `reservations` (minúsculas, con `@@map`).
+-- ===========================================================================
+
+-- AlterTable: copia cifrada del token de gestión.
+ALTER TABLE `reservations` ADD COLUMN `gestionTokenCifrado` VARCHAR(255) NULL;

@@ -7,6 +7,8 @@ import { ReservationStatus } from '../../../../generated/prisma/enums';
 import { ReservasService, MENSAJE_RESERVA_CREADA } from './reservas.service';
 import { CrearReservaAdminDto } from '../dto/dto-peticion/crear-reserva-admin.dto';
 import { FiltroReservasAdminDto } from '../dto/dto-peticion/filtro-reservas-admin.dto';
+/** Token de gestión fijo: el hash guardado y el token devuelto deben ser el mismo. */
+const TOKEN_GESTION_PRUEBA = 'a'.repeat(64);
 
 describe('ReservasService - Administración (HU-13 y SUPERADMIN)', () => {
   let service: ReservasService;
@@ -35,6 +37,7 @@ describe('ReservasService - Administración (HU-13 y SUPERADMIN)', () => {
           status: datos.status ?? ReservationStatus.CONFIRMED,
           precioReservado: datos.precioReservado,
           gestionTokenHash: datos.gestionTokenHash,
+          gestionTokenCifrado: datos.gestionTokenCifrado,
           slotActivo: 1,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -104,6 +107,18 @@ describe('ReservasService - Administración (HU-13 y SUPERADMIN)', () => {
       configuracionService,
       whatsappService,
     );
+
+    // El token de la respuesta es el PERSISTIDO (descifrado): se simula el
+    // descifrado para no depender de la clave real en una prueba unitaria.
+    jest
+      .spyOn(service, 'descifrarTokenGestion')
+      .mockImplementation((cifrado) => (cifrado ? TOKEN_GESTION_PRUEBA : null));
+
+    // El token que se guarda (hash) y el que se devuelve deben ser el
+    // MISMO: por eso se fija tambien el token generado.
+    jest
+      .spyOn(service, 'generarTokenGestion')
+      .mockReturnValue(TOKEN_GESTION_PRUEBA);
   });
 
   describe('crearReservaAdmin (HU-13)', () => {
@@ -161,6 +176,7 @@ describe('ReservasService - Administración (HU-13 y SUPERADMIN)', () => {
           precioReservado: 25000,
           gestionTokenHash: null,
         }),
+        expect.objectContaining({ revalidar: expect.any(Function) }),
       );
       expect(whatsappService.enviarConfirmacionReserva).toHaveBeenCalled();
     });
@@ -202,6 +218,7 @@ describe('ReservasService - Administración (HU-13 y SUPERADMIN)', () => {
           },
           gestionTokenHash: expect.any(String),
         }),
+        expect.objectContaining({ revalidar: expect.any(Function) }),
       );
     });
 

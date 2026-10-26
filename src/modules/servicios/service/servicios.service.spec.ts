@@ -18,6 +18,7 @@ describe('ServiciosService', () => {
   beforeEach(async () => {
     const mockRepository = {
       obtenerBarberosActivosPorIds: jest.fn(),
+      obtenerBarberoActivoEnNegocio: jest.fn(),
       obtenerServicioPorNombre: jest.fn(),
       obtenerServicioPorId: jest.fn(),
       obtenerServicioActivoPorId: jest.fn(),
@@ -52,9 +53,7 @@ describe('ServiciosService', () => {
       };
 
       repository.obtenerServicioPorNombre.mockResolvedValue(null);
-      repository.obtenerBarberosActivosPorIds.mockResolvedValue([
-        { id: 1 } as any,
-      ]);
+      repository.obtenerBarberosActivosPorIds.mockResolvedValue([{ id: 1 }]);
 
       await expect(service.crearServicio(dto)).rejects.toThrow(
         BadRequestException,
@@ -91,7 +90,7 @@ describe('ServiciosService', () => {
       repository.obtenerBarberosActivosPorIds.mockResolvedValue([
         { id: 1 },
         { id: 2 },
-      ] as any);
+      ]);
       repository.crearServicio.mockResolvedValue({ id: 99, ...dto } as any);
 
       const resultado = await service.crearServicio(dto);
@@ -115,7 +114,7 @@ describe('ServiciosService', () => {
       repository.obtenerServicioPorNombre.mockResolvedValue(null);
       repository.crearServicio.mockResolvedValue({ id: 5, ...dto } as any);
 
-      const resultado = await service.crearServicio(dto as any);
+      const resultado = await service.crearServicio(dto);
 
       expect(resultado.id).toBe(5);
       expect(repository.obtenerBarberosActivosPorIds).not.toHaveBeenCalled();
@@ -148,6 +147,9 @@ describe('ServiciosService', () => {
 
   describe('obtenerServiciosPorBarbero', () => {
     it('debe listar servicios activos de un barbero', async () => {
+      repository.obtenerBarberoActivoEnNegocio.mockResolvedValue({
+        id: 5,
+      });
       repository.listarServiciosPorBarbero.mockResolvedValue([
         {
           id: 1,
@@ -160,7 +162,17 @@ describe('ServiciosService', () => {
 
       const res = await service.obtenerServiciosPorBarbero(5);
       expect(res).toHaveLength(1);
+      expect(repository.obtenerBarberoActivoEnNegocio).toHaveBeenCalledWith(5);
       expect(repository.listarServiciosPorBarbero).toHaveBeenCalledWith(5);
+    });
+
+    it('debe responder 404 si el barbero no pertenece a la barbería', async () => {
+      repository.obtenerBarberoActivoEnNegocio.mockResolvedValue(null);
+
+      await expect(service.obtenerServiciosPorBarbero(99)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(repository.listarServiciosPorBarbero).not.toHaveBeenCalled();
     });
   });
 
@@ -242,9 +254,7 @@ describe('ServiciosService', () => {
         nombre: 'Antiguo',
       } as any);
       repository.obtenerServicioPorNombre.mockResolvedValue(null);
-      repository.obtenerBarberosActivosPorIds.mockResolvedValue([
-        { id: 3 },
-      ] as any);
+      repository.obtenerBarberosActivosPorIds.mockResolvedValue([{ id: 3 }]);
       repository.actualizarServicio.mockResolvedValue({
         id: 99,
         ...dto,
@@ -391,7 +401,10 @@ describe('ServiciosService', () => {
       expect(resultado).toHaveLength(1);
       expect(resultado[0].nombre).toBe('Corte De Barba');
       expect(resultado[0].barberos).toHaveLength(1);
-      expect(resultado[0].barberos[0].id).toBe(50);
+      // El id publicado es el del perfil de barbero (Barbero.id = 5), NO el
+      // del usuario (Usuario.id = 50): es la clave que consumen la
+      // disponibilidad y la reserva.
+      expect(resultado[0].barberos[0].id).toBe(5);
     });
 
     it('Debe consultar servicios para gestión interna con filtro de búsqueda y estado', async () => {

@@ -39,7 +39,7 @@ describe('UsuariosRepository', () => {
         email: 'a@a.com',
         nombre: 'Juan',
         apellido: 'P',
-        rol: 'BARBERO' as const,
+        rol: 'PERSONAL' as const,
       };
       mockPrisma.usuario.create.mockResolvedValue({ id: 1, ...data });
       const result = await repository.crearUsuario(data);
@@ -54,7 +54,7 @@ describe('UsuariosRepository', () => {
       const result = await repository.obtenerUsuarioPorId(1);
       expect(mockPrisma.usuario.findUnique).toHaveBeenCalledWith({
         where: { id: 1 },
-        include: { administrador: true, barbero: true },
+        include: { administradores: true, barberos: true },
       });
       expect(result).toEqual({ id: 1 });
     });
@@ -69,7 +69,7 @@ describe('UsuariosRepository', () => {
       const result = await repository.obtenerUsuarioPorGoogleId('g-1');
       expect(mockPrisma.usuario.findUnique).toHaveBeenCalledWith({
         where: { googleId: 'g-1' },
-        include: { administrador: true, barbero: true },
+        include: { administradores: true, barberos: true },
       });
       expect(result?.googleId).toBe('g-1');
     });
@@ -84,7 +84,7 @@ describe('UsuariosRepository', () => {
       const result = await repository.obtenerUsuarioPorEmail('test@test.com');
       expect(mockPrisma.usuario.findUnique).toHaveBeenCalledWith({
         where: { email: 'test@test.com' },
-        include: { administrador: true, barbero: true },
+        include: { administradores: true, barberos: true },
       });
       expect(result?.email).toBe('test@test.com');
     });
@@ -123,14 +123,14 @@ describe('UsuariosRepository', () => {
     it('should update user rol', async () => {
       mockPrisma.usuario.update.mockResolvedValue({
         id: 1,
-        rol: 'ADMINISTRADOR',
+        rol: 'PERSONAL',
       });
-      const result = await repository.actualizarRol(1, 'ADMINISTRADOR');
+      const result = await repository.actualizarRol(1, 'PERSONAL');
       expect(mockPrisma.usuario.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { rol: 'ADMINISTRADOR' },
+        data: { rol: 'PERSONAL' },
       });
-      expect(result.rol).toBe('ADMINISTRADOR');
+      expect(result.rol).toBe('PERSONAL');
     });
   });
 });

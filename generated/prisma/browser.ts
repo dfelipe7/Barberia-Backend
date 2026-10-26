@@ -18,18 +18,86 @@ export { Prisma }
 export * as $Enums from './enums.js'
 export * from './enums.js';
 /**
- * Model Usuario
+ * Model Negocio
+ * Negocio (barbería) dentro de la plataforma SaaS.
  * 
+ * Es la entidad tenant: cada registro operativo (clientes, barberos,
+ * servicios, reservas, horarios, configuraciones) pertenece a un negocio.
+ * `Usuario` es global (identidad de la persona en la plataforma) y sus
+ * perfiles operativos son los que se asocian a un negocio.
+ * 
+ * `slug` es el identificador PÚBLICO y estable con el que se resuelve el
+ * negocio en cada petición (subdominio o cabecera `X-Negocio-Slug`).
+ * No debe contener información sensible: es visible en URLs y logs.
+ * 
+ * `onDelete: Restrict`: eliminar un negocio con datos exige una operación
+ * explícita; la vía prevista para "retirar" una barbería es `estado =
+ * INACTIVO`, que conserva el histórico.
+ */
+export type Negocio = Prisma.NegocioModel
+/**
+ * Model PerfilNegocio
+ * Perfil PÚBLICO de un negocio: identidad visual y ubicación.
+ * 
+ * RELACIÓN 1:1 CON `Negocio`
+ * - `negocioId` es ÚNICO: como máximo un perfil por barbería.
+ * - NO duplica el nombre ni el slug del negocio: se leen de `Negocio`.
+ * 
+ * POR QUÉ UN MODELO PROPIO Y NO `ConfiguracionNegocio`
+ * `ConfiguracionNegocio` es un almacén CLAVE/VALOR de políticas OPERATIVAS
+ * (antelación de cancelación, tolerancia de NO_SHOW): el valor es un texto con
+ * un discriminador de tipo. La marca y la ubicación son CONTENIDO PÚBLICO
+ * ESTRUCTURADO, con tipado, longitudes y coordenadas propias: meterlò en un
+ * almacén clave/valor obligaría a serializar y a validar a mano, y haría que
+ * un campo tan público dependiera de una clave de configuración.
+ * 
+ * TODOS LOS CAMPOS SON NULABLES: una barbería puede existir sin perfil
+ * completo mientras termina de configurarlo. La ausencia de un perfil NO es
+ * un error.
+ * 
+ * LAS IMÁGENES SON REFERENCIAS, NO ARCHIVOS: `faviconUrl`, `bannerUrl`,
+ * `logoBlancoUrl` y `logoNegroUrl` guardan RUTAS o URLs. En la base de datos
+ * NO se almacenan bytes, base64 ni archivos completos. La carga física de
+ * archivos es una fase posterior.
+ * 
+ * LA URL DEL MAPA NO SE GUARDA: se deriva de `latitud`/`longitud`, que son la
+ * única fuente de verdad. Así no puede quedar desincronizada.
+ */
+export type PerfilNegocio = Prisma.PerfilNegocioModel
+/**
+ * Model Usuario
+ * Identidad GLOBAL de la persona en la plataforma.
+ * 
+ * No pertenece a ningún negocio: es la persona. Sus permisos dentro de una
+ * barbería vienen de sus perfiles (`Administrador` / `Barbero`), no de esta
+ * tabla. Por eso las relaciones hacia `Usuario` NO son compuestas: el usuario
+ * es global y solo el PERFIL es por negocio.
+ * 
+ * Una persona puede tener VARIOS perfiles (uno por barbería en la que
+ * opera): las relaciones con los perfiles son uno-a-muchos.
  */
 export type Usuario = Prisma.UsuarioModel
 /**
  * Model Administrador
+ * Perfil de administrador de un negocio.
  * 
+ * `usuarioId` es ÚNICO POR NEGOCIO: la misma persona puede ser administradora
+ * de varias barberías (y de ninguna).
+ * 
+ * `superadmin` es el CARÁCTER de la membresía, no un atributo de la
+ * persona: `true` significa SUPERADMIN **de este negocio** y `false`
+ * ADMINISTRADOR de este negocio. El alcance es siempre el negocio de la fila:
+ * en este SaaS NO existe un superadmin de plataforma ni una sesión de
+ * plataforma. La columna es aditiva y no promueve a nadie: las membresías
+ * existentes siguen siendo ADMINISTRADOR.
  */
 export type Administrador = Prisma.AdministradorModel
 /**
  * Model Barbero
+ * Perfil de barbero de un negocio.
  * 
+ * `usuarioId` es ÚNICO POR NEGOCIO: la misma persona puede ser barbero en
+ * varias barberías (y de ninguna).
  */
 export type Barbero = Prisma.BarberoModel
 /**
@@ -39,19 +107,21 @@ export type Barbero = Prisma.BarberoModel
  * exige como mínimo nombre y número de contacto, por eso `apellido`/`telefono`
  * son opcionales en el modelo, aunque el flujo de invitado valide el teléfono).
  * - Autenticado con Google (HE-04, Modalidad B): la identidad estable es
- * `googleId` (el `sub` del ID Token de Google, único cuando existe). El alta es
- * idempotente por `googleId`, de modo que el mismo cliente no se duplica entre
- * reservas. `email` se guarda como dato de contacto/consulta, NO como clave de
- * identidad (no se vincula por coincidencia de correo sin verificación).
- * - `usuarioId` es un vínculo heredado opcional y único con `Usuario`. La
- * autenticación de clientes NO depende de él ni crea usuarios de personal; se
+ * el `googleId` (el `sub` del ID Token de Google). Es ÚNICO POR NEGOCIO: la
+ * misma cuenta de Google puede tener fichas independientes (e historiales de
+ * reservas separados) en negocios distintos.
+ * - `usuarioId` es un vínculo heredado opcional, único POR NEGOCIO.
+ * La autenticación de clientes NO depende de él ni crea usuarios de personal; se
  * conserva por compatibilidad con el historial existente.
  * `onDelete: SetNull`: borrar un usuario no elimina el historial de reservas.
  */
 export type Cliente = Prisma.ClienteModel
 /**
  * Model Servicio
+ * Servicio del catálogo de un negocio.
  * 
+ * `nombre` es ÚNICO POR NEGOCIO: dos barberías pueden tener un servicio
+ * llamado igual, pero un mismo negocio no puede repetirlo.
  */
 export type Servicio = Prisma.ServicioModel
 /**
@@ -92,8 +162,8 @@ export type GeneralClosure = Prisma.GeneralClosureModel
  * HE-08 detecte ocupación de franja. `precioReservado` conserva el precio del
  * `Servicio` calculado en el servidor al crear la reserva, para que las
  * consultas de HU-06/HU-07 no cambien si el catálogo sube de precio después.
- * Queda `NULL` para reservas anteriores a esta migración (no se inventan
- * snapshots retroactivos). El descuento y la idempotencia siguen fuera hasta
+ * Queda `NULL` para reservas creadas antes de que existiera esta columna (no se
+ * inventan snapshots retroactivos). El descuento y la idempotencia siguen fuera hasta
  * resolver D-07/D-08. La duración no se persiste: se resuelve del servicio
  * vigente. El precio y la duración NUNCA se confían al cliente.
  * 
@@ -104,11 +174,30 @@ export type GeneralClosure = Prisma.GeneralClosureModel
  * canceladas por franja, pero solo una activa; esto habilita la re-reserva.
  * `slotActivo` NO se declara aquí porque Prisma no expresa columnas generadas:
  * se crea en la migración SQL. Prisma Client funciona con o sin ella.
+ * 
+ * AISLAMIENTO (Fase 8): barbero, servicio y cliente se referencian con
+ * CLAVES FORÁNEAS COMPUESTAS `(negocioId, id)`: la base de datos impide que
+ * una reserva combine entidades de negocios distintos.
  */
 export type Reservation = Prisma.ReservationModel
 /**
  * Model WhatsAppPlantilla
+ * Plantilla de mensaje de WhatsApp.
  * 
+ * ALCANCE (HU-11): la plantilla puede ser GLOBAL de plataforma
+ * (`negocioId = NULL`) o propia de un negocio (`negocioId = X`).
+ * 
+ * REGLA DE RESOLUCIÓN: la plantilla DEL NEGOCIO tiene prioridad; si no
+ * existe, se usa la plantilla GLOBAL; si tampoco existe, el texto por defecto
+ * del código. Las filas globales son el VALOR POR DEFECTO de la plataforma
+ * (su propósito es explícito: el texto inicial de una barbería que aún no ha
+ * personalizado sus mensajes) y nunca sustituyen a la de un negocio.
+ * 
+ * `claveGlobal` es una columna GENERADA (creada en la migración SQL) que
+ * contiene el `tipo` cuando la plantilla es global y `NULL` cuando es de un
+ * negocio. Su índice único garantiza como máximo UNA plantilla global por
+ * tipo: en MySQL/MariaDB los `NULL` de un índice único no colisionan, de
+ * modo que las plantillas de negocio pueden repetirse el tipo que-sea.
  */
 export type WhatsAppPlantilla = Prisma.WhatsAppPlantillaModel
 /**
@@ -121,3 +210,19 @@ export type WhatsAppPlantilla = Prisma.WhatsAppPlantillaModel
  * se migran aquí: permanecen en variables de entorno.
  */
 export type ConfiguracionSistema = Prisma.ConfiguracionSistemaModel
+/**
+ * Model ConfiguracionNegocio
+ * Parámetro funcional con ámbito de NEGOCIO (tenant).
+ * 
+ * Separado de `ConfiguracionSistema` (parámetros globales de plataforma):
+ * aquí viven las políticas operativas de cada barbería, como el plazo de
+ * antelación para cancelar o la tolerancia de NO_SHOW. El nombre de la
+ * clave se reutiliza para todos los negocios, pero el VALOR es propio de
+ * cada uno, y la caché de configuración debe segmentarse por `negocioId`
+ * para que un negocio nunca lea el valor de otro.
+ * 
+ * La unicidad es por `(negocioId, clave)`: un mismo negocio no puede tener
+ * dos filas con la misma clave, pero dos negocios sí pueden usar la misma
+ * clave con valores distintos.
+ */
+export type ConfiguracionNegocio = Prisma.ConfiguracionNegocioModel

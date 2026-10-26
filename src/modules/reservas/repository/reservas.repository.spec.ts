@@ -5,6 +5,8 @@ import {
   esErrorReintentableTransaccion,
 } from './reservas.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
+import { crearAislamientoNegocio } from '../../negocios/negocio-aislamiento.test-helpers';
 
 jest.mock('../../../../generated/prisma/enums', () => ({
   WeekDay: {
@@ -41,6 +43,167 @@ const mockPrismaService = {
 
 const fecha = new Date('2026-11-01T00:00:00.000Z');
 
+/** Negocio activo usado por las pruebas de repositorio. */
+const NEGOCIO_ACTIVO = 1;
+
+/**
+ * Elimina el `negocioId` de un valor, en todas las posiciones en las que
+ * el aislamiento puede inyectarlo (`where`, `data` y los `data.create` /
+ * `data.update` del upsert).
+ */
+const sinNegocio = (valor: unknown): unknown => {
+  if (Array.isArray(valor)) {
+    return valor.map(sinNegocio);
+  }
+
+  if (valor === null || typeof valor !== 'object') {
+    return valor;
+  }
+
+  // Una `Date` (u otro objeto sin propiedades enumerables) se devuelve tal
+  // cual: recorrerla la convertiría en `{}` y la comparación fallaría.
+  if (valor instanceof Date) {
+    return valor;
+  }
+
+  const entrada = valor as Record<string, unknown>;
+  const salida: Record<string, unknown> = {};
+
+  for (const [clave, contenido] of Object.entries(entrada)) {
+    if (clave === 'negocioId') {
+      continue;
+    }
+    salida[clave] = sinNegocio(contenido);
+  }
+
+  return salida;
+};
+
+/**
+ * Recorre un valor y devuelve todos los `negocioId` que encuentra.
+ */
+const negocioIdsDe = (valor: unknown): unknown[] => {
+  if (Array.isArray(valor)) {
+    return valor.flatMap(negocioIdsDe);
+  }
+
+  if (valor === null || typeof valor !== 'object') {
+    return [];
+  }
+
+  const entrada = valor as Record<string, unknown>;
+  const encontrados: unknown[] = [];
+
+  for (const [clave, contenido] of Object.entries(entrada)) {
+    if (clave === 'negocioId') {
+      encontrados.push(contenido);
+      continue;
+    }
+    encontrados.push(...negocioIdsDe(contenido));
+  }
+
+  return encontrados;
+};
+
+/**
+ * Verifica que una llamada de Prisma corresponde a la consulta esperada, una
+ * vez APLICADO el aislamiento multitenant.
+ *
+ * La consulta esperada por las pruebas existentes describe la consulta SIN
+ * el filtro de negocio. Con el aislamiento, la consulta real incluye además
+ * el `negocioId` del negocio activo. Esta función compara ambas ignorando
+ * ese campo, y exige que TODOS los `negocioId` de la consulta real sean el
+ * del negocio activo: si el repositorio consultara o escribiera con otro
+ * negocio (o sin filtro), la aserción fallaría.
+ */
+/**
+ * Detecta el marcador `expect.objectContaining(...)`, que Jest expone con
+ * las propiedades `sample` e `inverse`.
+ */
+const esObjectContaining = (valor: unknown): boolean =>
+  valor !== null &&
+  typeof valor === 'object' &&
+  'sample' in (valor as Record<string, unknown>) &&
+  'inverse' in (valor as Record<string, unknown>);
+
+/**
+ * Compara la consulta real con la esperada, admitiendo que la esperada use
+ * `expect.objectContaining(...)` (que Jest no sabe comparar con
+ * `toEqual`): en ese caso se compara contra los CAMPOS que declara.
+ */
+const coincideConEsperado = (real: unknown, esperado: unknown): boolean => {
+  if (esObjectContaining(esperado)) {
+    const campos = (esperado as { sample: Record<string, unknown> }).sample;
+    const realObj = (real ?? {}) as Record<string, unknown>;
+
+    for (const [clave, valor] of Object.entries(campos)) {
+      if (!coincideConEsperado(realObj[clave], valor)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  if (Array.isArray(esperado)) {
+    if (!Array.isArray(real) || real.length !== esperado.length) {
+      return false;
+    }
+    return esperado.every((item, i) => coincideConEsperado(real[i], item));
+  }
+
+  if (esperado === null || typeof esperado !== 'object') {
+    return JSON.stringify(real) === JSON.stringify(esperado);
+  }
+
+  const esperadoObj = esperado as Record<string, unknown>;
+  const realObj = (real ?? {}) as Record<string, unknown>;
+
+  for (const [clave, valor] of Object.entries(esperadoObj)) {
+    if (!coincideConEsperado(realObj[clave], valor)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const esperarConsultaAislada = (mock: unknown, esperado: unknown): void => {
+  const registro = (mock as { mock?: { calls?: unknown[][] } } | undefined)
+    ?.mock;
+  const llamadas = registro?.calls ?? [];
+
+  const coincide = llamadas.some((args) => {
+    try {
+      expect(args.map(sinNegocio)).toEqual([esperado]);
+      return true;
+    } catch {
+      // El marcador `objectContaining` no se puede comparar con
+      // `toEqual`: se compara campo a campo.
+      return args.length === 1 && coincideConEsperado(args[0], esperado);
+    }
+  });
+
+  if (!coincide) {
+    throw new Error(
+      `Esperado (ignorando negocioId): ${JSON.stringify(esperado)}\n` +
+        `Llamadas recibidas: ${JSON.stringify(llamadas)}`,
+    );
+  }
+
+  for (const args of llamadas) {
+    for (const negocioId of args.flatMap(negocioIdsDe)) {
+      if (negocioId !== NEGOCIO_ACTIVO) {
+        throw new Error(
+          `La consulta usa el negocio ${String(
+            negocioId,
+          )} en lugar del negocio activo ${NEGOCIO_ACTIVO}`,
+        );
+      }
+    }
+  }
+};
+
 describe('ReservasRepository', () => {
   let repository: ReservasRepository;
 
@@ -49,6 +212,10 @@ describe('ReservasRepository', () => {
       providers: [
         ReservasRepository,
         { provide: PrismaService, useValue: mockPrismaService },
+        {
+          provide: NegocioAislamientoService,
+          useValue: crearAislamientoNegocio(),
+        },
       ],
     }).compile();
 
@@ -87,7 +254,7 @@ describe('ReservasRepository', () => {
       });
 
       expect(resultado).toBe(true);
-      expect(mockPrismaService.reservation.findFirst).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrismaService.reservation.findFirst, {
         where: {
           barberoId: 3,
           date: fecha,
@@ -132,7 +299,7 @@ describe('ReservasRepository', () => {
       });
 
       expect(resultado).toBe(false);
-      expect(mockPrismaService.reservation.findFirst).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrismaService.reservation.findFirst, {
         where: {
           barberoId: 3,
           date: fecha,
@@ -166,7 +333,7 @@ describe('ReservasRepository', () => {
       });
 
       expect(resultado).toBe(true);
-      expect(mockPrismaService.reservation.findFirst).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrismaService.reservation.findFirst, {
         where: {
           barberoId: 3,
           dayOfWeek: WeekDay.MONDAY,
@@ -207,13 +374,91 @@ describe('ReservasRepository', () => {
       const resultado = await repository.obtenerPorId(5);
 
       expect(resultado).toEqual({ id: 5 });
-      expect(mockPrismaService.reservation.findUnique).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrismaService.reservation.findUnique, {
         where: { id: 5 },
       });
     });
   });
 
   describe('crearConBloqueo', () => {
+    it('reintenta los errores TRANSITORIOS de concurrencia (P2034) hasta tres veces', async () => {
+      let intentos = 0;
+      mockPrismaService.$transaction.mockImplementation(() => {
+        intentos += 1;
+
+        if (intentos <= 2) {
+          return Promise.reject(
+            Object.assign(new Error('deadlock'), { code: 'P2034' }),
+          );
+        }
+
+        return Promise.resolve({ id: 99 });
+      });
+
+      const resultado = await repository.crearConBloqueo({
+        barberoId: 3,
+        servicioId: 2,
+        date: fecha,
+        dayOfWeek: WeekDay.MONDAY,
+        startTime: '09:00',
+        endTime: '10:00',
+        cliente: { clienteId: 55 },
+      });
+
+      // Primer intento + dos reintentos: el tercero succeeds.
+      expect(intentos).toBe(3);
+      expect(resultado).toEqual({ id: 99 });
+    });
+
+    it('reintenta también los deadlocks del motor (errno 1213) y agota los reintentos', async () => {
+      let intentos = 0;
+      mockPrismaService.$transaction.mockImplementation(() => {
+        intentos += 1;
+        return Promise.reject(
+          Object.assign(new Error('deadlock'), { errno: 1213 }),
+        );
+      });
+
+      await expect(
+        repository.crearConBloqueo({
+          barberoId: 3,
+          servicioId: 2,
+          date: fecha,
+          dayOfWeek: WeekDay.MONDAY,
+          startTime: '09:00',
+          endTime: '10:00',
+          cliente: { clienteId: 55 },
+        }),
+      ).rejects.toThrow('deadlock');
+
+      // Primer intento + tres reintentos = cuatro intentos en total.
+      expect(intentos).toBe(4);
+    });
+
+    it('NO reintenta una violación de unicidad (P2002): es una carrera perdida', async () => {
+      let intentos = 0;
+      mockPrismaService.$transaction.mockImplementation(() => {
+        intentos += 1;
+        return Promise.reject(
+          Object.assign(new Error('unique'), { code: 'P2002' }),
+        );
+      });
+
+      await expect(
+        repository.crearConBloqueo({
+          barberoId: 3,
+          servicioId: 2,
+          date: fecha,
+          dayOfWeek: WeekDay.MONDAY,
+          startTime: '09:00',
+          endTime: '10:00',
+          cliente: { clienteId: 55 },
+        }),
+      ).rejects.toThrow('unique');
+
+      expect(intentos).toBe(1);
+    });
+
     it('debe bloquear la fila del barbero y crear la reserva sobre un cliente existente', async () => {
       const txMock = {
         $queryRaw: jest.fn().mockResolvedValue([{ id: 3 }]),
@@ -242,7 +487,7 @@ describe('ReservasRepository', () => {
       expect(sql).toContain('Barbero');
       expect(llamadas[0][1]).toBe(3);
       expect(txMock.cliente.create).not.toHaveBeenCalled();
-      expect(txMock.reservation.create).toHaveBeenCalledWith({
+      esperarConsultaAislada(txMock.reservation.create, {
         data: {
           barberoId: 3,
           servicioId: 2,
@@ -280,7 +525,7 @@ describe('ReservasRepository', () => {
         cliente: { clienteId: 55 },
       });
 
-      expect(txMock.reservation.create).toHaveBeenCalledWith({
+      esperarConsultaAislada(txMock.reservation.create, {
         data: expect.objectContaining({ gestionTokenHash: 'hash-seguro-123' }),
       });
     });
@@ -306,7 +551,7 @@ describe('ReservasRepository', () => {
         cliente: { clienteId: 55 },
       });
 
-      expect(txMock.reservation.create).toHaveBeenCalledWith({
+      esperarConsultaAislada(txMock.reservation.create, {
         data: expect.objectContaining({ precioReservado: 50000 }),
       });
     });
@@ -335,7 +580,7 @@ describe('ReservasRepository', () => {
         },
       });
 
-      expect(txMock.cliente.create).toHaveBeenCalledWith({
+      esperarConsultaAislada(txMock.cliente.create, {
         data: {
           nombre: 'Ana',
           apellido: null,
@@ -343,7 +588,7 @@ describe('ReservasRepository', () => {
           usuarioId: null,
         },
       });
-      expect(txMock.reservation.create).toHaveBeenCalledWith({
+      esperarConsultaAislada(txMock.reservation.create, {
         data: expect.objectContaining({ clienteId: 77, servicioId: 2 }),
       });
     });
@@ -409,7 +654,7 @@ describe('ReservasRepository', () => {
       });
 
       expect(resultado).toBe(true);
-      expect(mockPrismaService.reservation.findFirst).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrismaService.reservation.findFirst, {
         where: {
           clienteId: 55,
           barberoId: 3,
@@ -450,7 +695,8 @@ describe('ReservasRepository', () => {
       const resultado = await repository.listarReservasDeCliente(55);
 
       expect(resultado).toEqual([{ id: 1 }]);
-      expect(mockPrismaService.reservation.findMany).toHaveBeenCalledWith(
+      esperarConsultaAislada(
+        mockPrismaService.reservation.findMany,
         expect.objectContaining({
           where: { clienteId: 55 },
           orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
@@ -466,7 +712,8 @@ describe('ReservasRepository', () => {
       const resultado = await repository.obtenerReservaDeCliente(55, 42);
 
       expect(resultado).toEqual({ id: 42 });
-      expect(mockPrismaService.reservation.findFirst).toHaveBeenCalledWith(
+      esperarConsultaAislada(
+        mockPrismaService.reservation.findFirst,
         expect.objectContaining({
           where: { id: 42, clienteId: 55 },
         }),
@@ -498,7 +745,8 @@ describe('ReservasRepository', () => {
       const resultado = await repository.obtenerReservaParaGestionInvitado(42);
 
       expect(resultado).toEqual(mockReserva);
-      expect(mockPrismaService.reservation.findUnique).toHaveBeenCalledWith(
+      esperarConsultaAislada(
+        mockPrismaService.reservation.findUnique,
         expect.objectContaining({
           where: { id: 42 },
           select: expect.objectContaining({
@@ -551,7 +799,8 @@ describe('ReservasRepository', () => {
       );
 
       expect(resultado).toEqual(mockReservas);
-      expect(mockPrismaService.reservation.findMany).toHaveBeenCalledWith(
+      esperarConsultaAislada(
+        mockPrismaService.reservation.findMany,
         expect.objectContaining({
           where: {
             barberoId: 3,
@@ -598,7 +847,8 @@ describe('ReservasRepository', () => {
       );
 
       expect(resultado).toEqual(mockReservas);
-      expect(mockPrismaService.reservation.findMany).toHaveBeenCalledWith(
+      esperarConsultaAislada(
+        mockPrismaService.reservation.findMany,
         expect.objectContaining({
           where: {
             barberoId: 3,
@@ -646,7 +896,7 @@ describe('ReservasRepository', () => {
       expect(sql).toContain('FOR UPDATE');
       expect(llamadas[0][1]).toBe(3);
 
-      expect(txMock.reservation.findFirst).toHaveBeenCalledWith({
+      esperarConsultaAislada(txMock.reservation.findFirst, {
         where: {
           id: { not: 42 },
           barberoId: 3,
@@ -658,7 +908,7 @@ describe('ReservasRepository', () => {
         select: { id: true },
       });
 
-      expect(txMock.reservation.update).toHaveBeenCalledWith({
+      esperarConsultaAislada(txMock.reservation.update, {
         where: { id: 42 },
         data: {
           barberoId: 3,
@@ -716,7 +966,7 @@ describe('ReservasRepository', () => {
 
       const resultado = await repository.cancelar(5);
 
-      expect(mockPrismaService.reservation.update).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrismaService.reservation.update, {
         where: { id: 5 },
         data: { status: ReservationStatus.CANCELLED },
       });
@@ -733,7 +983,7 @@ describe('ReservasRepository', () => {
 
       const resultado = await repository.completar(5);
 
-      expect(mockPrismaService.reservation.updateMany).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrismaService.reservation.updateMany, {
         where: {
           id: 5,
           status: {
@@ -765,7 +1015,7 @@ describe('ReservasRepository', () => {
 
       const res = await repository.obtenerReservaParaCompletar(42);
 
-      expect(mockPrismaService.reservation.findUnique).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrismaService.reservation.findUnique, {
         where: { id: 42 },
         select: expect.any(Object),
       });
@@ -779,7 +1029,7 @@ describe('ReservasRepository', () => {
 
       const resultado = await repository.marcarNoShow(5);
 
-      expect(mockPrismaService.reservation.updateMany).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrismaService.reservation.updateMany, {
         where: {
           id: 5,
           status: {
@@ -811,7 +1061,7 @@ describe('ReservasRepository', () => {
 
       const res = await repository.obtenerReservaParaNoShow(42);
 
-      expect(mockPrismaService.reservation.findUnique).toHaveBeenCalledWith({
+      esperarConsultaAislada(mockPrismaService.reservation.findUnique, {
         where: { id: 42 },
         select: expect.any(Object),
       });
@@ -827,7 +1077,7 @@ describe('ReservasRepository', () => {
 
         const res = await repository.obtenerReservaConRelaciones(42);
 
-        expect(mockPrismaService.reservation.findUnique).toHaveBeenCalledWith({
+        esperarConsultaAislada(mockPrismaService.reservation.findUnique, {
           where: { id: 42 },
           select: expect.any(Object),
         });
@@ -842,7 +1092,7 @@ describe('ReservasRepository', () => {
 
         const res = await repository.obtenerReservaAdminPorId(42);
 
-        expect(mockPrismaService.reservation.findUnique).toHaveBeenCalledWith({
+        esperarConsultaAislada(mockPrismaService.reservation.findUnique, {
           where: { id: 42 },
           select: expect.any(Object),
         });
@@ -857,7 +1107,7 @@ describe('ReservasRepository', () => {
 
         await repository.listarReservasAdmin({ fecha: fechaFiltro });
 
-        expect(mockPrismaService.reservation.findMany).toHaveBeenCalledWith({
+        esperarConsultaAislada(mockPrismaService.reservation.findMany, {
           where: { date: fechaFiltro },
           orderBy: [{ date: 'desc' }, { startTime: 'desc' }],
           select: expect.any(Object),
@@ -877,7 +1127,7 @@ describe('ReservasRepository', () => {
           clienteId: 5,
         });
 
-        expect(mockPrismaService.reservation.findMany).toHaveBeenCalledWith({
+        esperarConsultaAislada(mockPrismaService.reservation.findMany, {
           where: {
             date: { gte: desde, lte: hasta },
             barberoId: 2,
@@ -894,7 +1144,7 @@ describe('ReservasRepository', () => {
 
         await repository.listarReservasAdmin({});
 
-        expect(mockPrismaService.reservation.findMany).toHaveBeenCalledWith({
+        esperarConsultaAislada(mockPrismaService.reservation.findMany, {
           where: {},
           orderBy: [{ date: 'desc' }, { startTime: 'desc' }],
           select: expect.any(Object),
@@ -935,7 +1185,7 @@ describe('ReservasRepository', () => {
           },
         });
 
-        expect(txMock.cliente.create).toHaveBeenCalledWith({
+        esperarConsultaAislada(txMock.cliente.create, {
           data: {
             nombre: 'Carlos',
             apellido: null,

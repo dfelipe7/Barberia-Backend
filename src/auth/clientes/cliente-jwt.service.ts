@@ -20,6 +20,13 @@ export interface ClienteAutenticado {
   clienteId: number;
   email: string | null;
   nombre: string;
+  /**
+   * Barbería a la que queda vinculada la sesión del cliente.
+   *
+   * El token de cliente se ata al negocio en el que se inició sesión: el
+   * cliente de una barbería no puede usar su token en otra.
+   */
+  negocioId: number | null;
 }
 
 /** Datos con los que se emite la sesión de un cliente. */
@@ -27,6 +34,8 @@ export interface SesionCliente {
   clienteId: number;
   email: string | null;
   nombre: string;
+  /** Barbería a la que queda vinculada la sesión. */
+  negocioId: number | null;
 }
 
 /** Reclamaciones mínimas esperadas en un token de cliente. */
@@ -36,6 +45,7 @@ interface PayloadTokenCliente {
   tipo?: string;
   email?: string | null;
   nombre?: string;
+  negocioId?: number;
 }
 
 /**
@@ -84,6 +94,7 @@ export class ClienteJwtService {
         tipo: TIPO_TOKEN_CLIENTE,
         email: sesion.email,
         nombre: sesion.nombre,
+        negocioId: sesion.negocioId,
       },
       {
         secret,
@@ -131,6 +142,11 @@ export class ClienteJwtService {
       clienteId,
       email: payload.email ?? null,
       nombre: payload.nombre ?? '',
+      negocioId:
+        typeof payload.negocioId === 'number' &&
+        Number.isInteger(payload.negocioId)
+          ? payload.negocioId
+          : null,
     };
   }
 }
