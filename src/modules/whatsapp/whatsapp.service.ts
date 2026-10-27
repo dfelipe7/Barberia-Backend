@@ -211,7 +211,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         sockRef.ev.removeAllListeners('creds.update');
         (sockRef as any).ws?.close?.();
         (sockRef as any).ws?.terminate?.();
-        sockRef.end(undefined);
+        void sockRef.end(undefined);
       } catch (err) {
         this.logger.warn(`Error cerrando socket anterior: ${err}`);
       }
@@ -272,7 +272,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
             socket.ev.removeAllListeners('creds.update');
             (socket as any).ws?.close?.();
             (socket as any).ws?.terminate?.();
-            socket.end?.(undefined);
+            void socket.end?.(undefined);
           } catch {}
           return;
         }
