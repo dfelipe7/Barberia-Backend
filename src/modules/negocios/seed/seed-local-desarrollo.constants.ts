@@ -122,8 +122,8 @@ export interface ServicioLocalSpec {
 /**
  * LOS DOS NEGOCIOS DEL ESCENARIO DE PRUEBA INICIAL.
  *
- * - `KYRIOS STUDIO` (slug `kyrios-studio`): Duvan y Javier.
- * - `BARBERÍA DEMO 2` (slug `barberia-demo-2`): Rubeiro y Santiago.
+ * - `KYRIOS STUDIO` (slug `kyrios-studio`): Rubeiro y Santiago (cbalcazar).
+ * - `BARBERÍA DEMO 2` (slug `barberia-demo-2`): Duvan y Javier.
  *
  * Los NOMBRES visibles de las personas son los que ya figuran en el código del
  * proyecto para esos correos. El nombre informal con el que las menciona el
@@ -135,7 +135,26 @@ export const NEGOCIOS_LOCALES: readonly NegocioLocalSpec[] = [
     slug: 'kyrios-studio',
     superadmins: [
       {
-        email: 'armeroduvan8@gmail.com',
+        email: 'rromero@unicauca.edu.co',
+        nombre: 'Rubeiro',
+        apellido: 'Romero',
+      },
+      {
+        email: 'cbalcazar@unicauca.edu.co',
+        nombre: 'Santiago',
+        apellido: 'Balcazar',
+      },
+    ],
+    // Los barberos se crean en `seed-dev-completo` con correos derivados del
+    // superadmin del negocio (2 por negocio, comisiones distintas).
+    barberos: [],
+  },
+  {
+    nombre: 'BARBERÍA DEMO 2',
+    slug: 'barberia-demo-2',
+    superadmins: [
+      {
+        email: 'duvanfeli@unicauca.edu.co',
         nombre: 'Felipe',
         apellido: 'Armero',
       },
@@ -145,54 +164,8 @@ export const NEGOCIOS_LOCALES: readonly NegocioLocalSpec[] = [
         apellido: 'Anacona',
       },
     ],
-    barberos: [
-      {
-        clave: 'barbero1',
-        nombre: 'Barbero',
-        apellido: 'Desarrollo KYRIOS 1',
-        telefono: '+0000000001',
-        porcentajeComision: 40,
-      },
-      {
-        clave: 'barbero2',
-        nombre: 'Barbero',
-        apellido: 'Desarrollo KYRIOS 2',
-        telefono: '+0000000002',
-        porcentajeComision: 40,
-      },
-    ],
-  },
-  {
-    nombre: 'BARBERÍA DEMO 2',
-    slug: 'barberia-demo-2',
-    superadmins: [
-      {
-        email: 'rromero@unicauca.edu.co',
-        nombre: 'Rubeiro',
-        apellido: 'Romero',
-      },
-      {
-        email: 'csbalcazar@unicauca.edu.co',
-        nombre: 'Santiago',
-        apellido: 'Balcazar',
-      },
-    ],
-    barberos: [
-      {
-        clave: 'barbero1',
-        nombre: 'Barbero',
-        apellido: 'Desarrollo DEMO 2 1',
-        telefono: '+0000000003',
-        porcentajeComision: 40,
-      },
-      {
-        clave: 'barbero2',
-        nombre: 'Barbero',
-        apellido: 'Desarrollo DEMO 2 2',
-        telefono: '+0000000004',
-        porcentajeComision: 40,
-      },
-    ],
+    // Los barberos se crean en `seed-dev-completo`.
+    barberos: [],
   },
 ];
 
