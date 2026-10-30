@@ -32,7 +32,7 @@ Este documento describe **todos los cambios, módulos actualizados, endpoints cr
 En el paso al modelo multitenant, Prisma transformó las relaciones de `usuario.administrador` y `usuario.barbero` de 1:1 a 1:N (`administradores[]` y `barberos[]`), porque una persona puede tener perfiles en diferentes barberías. Esto provocaba que al intentar editar un usuario o cambiar sus roles en `EditarUsuarioPage`, el backend leyera los campos en `undefined` o fallara la validación de autorización.
 
 ### Cambios realizados:
-- **Normalización de perfiles en el servicio (`normalizarUsuario`):** Se introdujo una rutina que extrae el perfil activo de `administradores[]` y `barberos[]` que coincide con el `negocioId` de la petición.
+- **Método central de normalización (`normalizarPerfilesNegocio`):** Se introdujo una función en `usuarios.service.ts` que recibe el usuario de Prisma y extrae de los arreglos `administradores[]` y `barberos[]` el perfil específico que corresponde al `negocioId` activo de la petición, proyectándolos como `usuario.administrador` y `usuario.barbero` singulares. Esto resolvió el problema donde el panel no detectaba los roles del usuario al editarlo.
 - **Gestión segura de roles (`gestionarRolAdministrador` y `gestionarRolBarbero`):** Ahora permite al Superadmin activar o desactivar el perfil de administrador o barbero de un usuario para su sede sin alterar los roles globales ni los de otras barberías.
 - **Blindaje de autorización (`usuarios-authorization.service.ts`):** Verifica que la persona que edita a otro usuario sea realmente el `SUPERADMIN` de la barbería activa.
 - **Soporte en DTO (`usuario-perfil.dto.ts`):** Retorna `roles`, `administrador` y `barbero` computados fidedignamente para la sede en sesión.
@@ -51,7 +51,7 @@ En el paso al modelo multitenant, Prisma transformó las relaciones de `usuario.
 Al crear o editar un servicio (`POST /servicios` o `PATCH /servicios/:id`), el formulario permite seleccionar qué barberos prestan ese servicio (`barberoIds: number[]`). Anteriormente, la sincronización en la tabla intermedia `barberoServicios` fallaba porque la extensión de seguridad de Prisma rechazaba operaciones de borrado o creación masiva en modelos compuestos de relación que no tenían contexto directo.
 
 ### Cambios realizados:
-- **Validación de pertenencia multitenant:** Antes de asociar los barberos a un servicio, el servicio verifica explícitamente que todos los `barberoIds` pertenezcan a la **misma barbería activa** (`negocioId`).
+- **Normalización de IDs de Barberos (`normalizarYValidarBarberosActivos`):** Método implementado en `servicios.service.ts` que recibe los IDs enviados desde el frontend (que podían ser `Usuario.id` o `Barbero.id`) y los traduce de forma fidedigna al `Barbero.id` real de esa barbería, verificando que pertenezcan a la sede activa antes de insertarlos en la tabla intermedia `barberoServicios`.
 - **Sincronización en repositorio:** Se reescribió `sincronizarBarberos` en `servicios.repository.ts` usando transacciones controladas para eliminar asociaciones previas y recrear las nuevas de forma limpia.
 - **Ajuste en `prisma-extension-aislamiento.ts`:** Se refinó la regla de `deleteMany` para tablas intermedias tenant-scoped (`barberoServicios`) garantizando que siempre lleven el filtro de `negocioId`.
 
