@@ -144,6 +144,11 @@ export const NEGOCIOS_LOCALES: readonly NegocioLocalSpec[] = [
         nombre: 'Santiago',
         apellido: 'Balcazar',
       },
+      {
+        email: 'armeroduvan8@gmail.com',
+        nombre: 'Duvan',
+        apellido: 'Armero',
+      },
     ],
     // Los barberos se crean en `seed-dev-completo` con correos derivados del
     // superadmin del negocio (2 por negocio, comisiones distintas).

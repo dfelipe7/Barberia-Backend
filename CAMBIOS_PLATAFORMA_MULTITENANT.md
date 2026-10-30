@@ -76,8 +76,9 @@ Al crear o editar un servicio (`POST /servicios` o `PATCH /servicios/:id`), el f
 - **Ruta corta amigable en el Frontend:**
   - `http://localhost:5173/:slug/c/:id/:token`
   - Al abrir este enlace desde el celular, el cliente ve su comprobante, estado del turno y botones directos para reprogramar o cancelar.
-- **Integración con WhatsApp:**
+- **Integración con WhatsApp y Aislamiento Multi-Tenant de Sesiones:**
   - Los mensajes automáticos de confirmación, recordatorio y reprogramación ahora incluyen el enlace dinámico directo a la sede (`${frontendUrl}/${negocio.slug}/c/${reserva.id}/${token}`).
+  - **Aislamiento Multi-Sesión por Barbería (`whatsapp.service.ts`):** En lugar de un socket único global, el servicio gestiona un `Map<number, SesionWhatsAppNegocio>` que aísla los sockets de Baileys en memoria y en disco (`~/.barberia_whatsapp_sessions/negocio_N`). Cada sede cuenta con su propio ciclo de vida de conexión, código QR y número emisor independiente. Se agregaron pruebas unitarias completas en `whatsapp.service.spec.ts`.
 
 ---
 
