@@ -94,6 +94,7 @@ export interface DatosConfirmacionWhatsApp {
   fecha: string;
   hora: string;
   precio?: number | string | null;
+  enlaceGestion?: string | null;
 }
 
 /**
@@ -570,7 +571,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         direccion ? `📍 *Ubicación:* ${direccion}\n` : '',
       );
 
-    return conComerciales
+    const textoBase = conComerciales
       .replace(/{cliente}/g, datos.clienteNombre)
       .replace(/{servicio}/g, datos.servicioNombre)
       .replace(/{barbero}/g, datos.barberoNombre)
@@ -578,6 +579,19 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       .replace(/{hora}/g, datos.hora)
       .replace(/{precio}/g, precioTexto)
       .replace(/{ubicacion}/g, direccion);
+
+    if (datos.enlaceGestion) {
+      return (
+        `${textoBase}\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `📲 *¿Deseas cambiar o cancelar tu cita?*\n` +
+        `Puedes gestionarla en este enlace:\n` +
+        `${datos.enlaceGestion}\n` +
+        `━━━━━━━━━━━━━━━━━━━━`
+      );
+    }
+
+    return textoBase;
   }
 
   /**
@@ -967,7 +981,10 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       `✂️ *Servicio:* ${datos.servicioNombre}\n` +
       `💈 *Barbero:* ${datos.barberoNombre}\n` +
       ubicacion +
-      `_¡Te esperamos!_`;
+      `_¡Te esperamos!_` +
+      (datos.enlaceGestion
+        ? `\n\n━━━━━━━━━━━━━━━━━━━━\n📲 *¿Deseas volver a cambiar o cancelar tu cita?*\nPuedes gestionarla en este enlace:\n${datos.enlaceGestion}\n━━━━━━━━━━━━━━━━━━━━`
+        : '');
 
     return this.enviarMensaje(datos.telefono, mensaje);
   }

@@ -660,6 +660,42 @@ export class ReservasController {
     );
   }
 
+  @Get('invitado/:reservaId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Consultar el detalle de una reserva de invitado mediante token de gestión',
+    description:
+      'Permite a un cliente invitado consultar el estado y datos de su reserva mediante su token de gestión provisto en el encabezado X-Reservation-Management-Token o en el query param "token".',
+  })
+  @ApiParam({
+    name: 'reservaId',
+    example: 42,
+    description: 'Identificador de la reserva a consultar',
+  })
+  @ApiHeader({
+    name: 'X-Reservation-Management-Token',
+    description: 'Token de gestión de la reserva',
+    required: false,
+  })
+  async obtenerReservaInvitado(
+    @Param('reservaId', ParseIntPipe) reservaId: number,
+    @Headers('x-reservation-management-token') tokenHeader?: string,
+    @Query('token') tokenQuery?: string,
+  ) {
+    if (reservaId <= 0) {
+      throw new BadRequestException(
+        'El identificador de la reserva debe ser un entero positivo',
+      );
+    }
+
+    const token = (tokenHeader || tokenQuery || '').trim();
+    if (!token) {
+      throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
+    }
+
+    return this.reservasService.obtenerReservaInvitado(reservaId, token);
+  }
+
   @Patch('invitado/:reservaId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -698,6 +734,7 @@ export class ReservasController {
   async modificarReservaInvitado(
     @Param('reservaId', ParseIntPipe) reservaId: number,
     @Headers('x-reservation-management-token') tokenGestion: string | undefined,
+    @Query('token') tokenQuery: string | undefined,
     @Body() dto: ModificarReservaDto,
   ): Promise<ReservaModificadaResponseDto> {
     if (reservaId <= 0) {
@@ -706,13 +743,14 @@ export class ReservasController {
       );
     }
 
-    if (!tokenGestion || tokenGestion.trim().length === 0) {
+    const token = (tokenGestion || tokenQuery || '').trim();
+    if (!token) {
       throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
     }
 
     return this.reservasService.modificarReservaInvitado(
       reservaId,
-      tokenGestion.trim(),
+      token,
       dto,
     );
   }
@@ -753,6 +791,7 @@ export class ReservasController {
   async cancelarReservaInvitado(
     @Param('reservaId', ParseIntPipe) reservaId: number,
     @Headers('x-reservation-management-token') tokenGestion: string | undefined,
+    @Query('token') tokenQuery: string | undefined,
   ): Promise<ReservaCanceladaResponseDto> {
     if (reservaId <= 0) {
       throw new BadRequestException(
@@ -760,13 +799,14 @@ export class ReservasController {
       );
     }
 
-    if (!tokenGestion || tokenGestion.trim().length === 0) {
+    const token = (tokenGestion || tokenQuery || '').trim();
+    if (!token) {
       throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
     }
 
     return this.reservasService.cancelarReservaInvitado(
       reservaId,
-      tokenGestion.trim(),
+      token,
     );
   }
 
