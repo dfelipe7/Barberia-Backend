@@ -5,6 +5,7 @@ import { NegocioContextoMiddleware } from './middleware/negocio-contexto.middlew
 import { NegociosRepository } from './repository/negocios.repository';
 import { NegocioResolucionService } from './service/negocio-resolucion.service';
 import { NegocioRolesService } from './service/negocio-roles.service';
+import { NegociosPlataformaController } from './negocios-plataforma.controller';
 
 /**
  * Módulo de negocios (tenants) de la plataforma.
@@ -20,6 +21,7 @@ import { NegocioRolesService } from './service/negocio-roles.service';
  */
 @Global()
 @Module({
+  controllers: [NegociosPlataformaController],
   providers: [
     NegocioContextoService,
     NegocioAislamientoService,

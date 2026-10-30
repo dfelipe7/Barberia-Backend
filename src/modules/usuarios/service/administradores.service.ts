@@ -58,38 +58,93 @@ export class AdministradoresService {
    * Exclusivo para el SUPERADMIN.
    */
   async crearAdministrador(dto: CrearAdministradorDto) {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+    const emailNormalizado = dto.email.toLowerCase().trim();
+
     const usuarioExistente =
-      await this.usuariosRepository.obtenerUsuarioPorEmail(dto.email);
+      await this.usuariosRepository.obtenerUsuarioPorEmail(emailNormalizado);
+
     if (usuarioExistente) {
-      throw new ConflictException(
-        'Ya existe un usuario en el sistema con este correo electrónico.',
-      );
+      const adminEnNegocio = await this.prisma.administrador.findUnique({
+        where: {
+          negocioId_usuarioId: {
+            negocioId,
+            usuarioId: usuarioExistente.id,
+          },
+        },
+      });
+
+      if (adminEnNegocio) {
+        if (adminEnNegocio.estado === 'ACTIVO') {
+          throw new ConflictException(
+            'Este usuario ya se encuentra registrado como administrador en esta barbería.',
+          );
+        } else {
+          const adminReactivado = await this.prisma.administrador.update({
+            where: { id: adminEnNegocio.id },
+            data: { estado: 'ACTIVO' },
+          });
+          return {
+            mensaje: 'El administrador fue reactivado exitosamente en esta barbería.',
+            administrador: adminReactivado,
+          };
+        }
+      }
+
+      // El usuario existe en la plataforma, vincularlo como administrador a esta sede
+      try {
+        const administrador = await this.prisma.administrador.create({
+          data: {
+            usuarioId: usuarioExistente.id,
+            negocioId,
+            superadmin: false,
+            estado: 'ACTIVO',
+          },
+        });
+
+        this.logger.log(
+          `AUDIT: Administrador existente en red vinculado a la sede ${negocioId}. Email: ${emailNormalizado}`,
+        );
+
+        return {
+          mensaje: 'Usuario vinculado exitosamente como administrador en esta barbería.',
+          administrador,
+        };
+      } catch (error) {
+        this.logger.error('Error vinculando administrador existente a la sede:', error);
+        throw new ConflictException(
+          'El administrador no pudo vincularse a esta barbería. Intente nuevamente.',
+        );
+      }
     }
 
     try {
       const administrador = await this.prisma.$transaction(async (tx) => {
         const usuario = await tx.usuario.create({
           data: {
-            email: dto.email,
-            nombre: dto.nombre,
-            apellido: dto.apellido ?? '',
+            email: emailNormalizado,
+            nombre: dto.nombre.trim(),
+            apellido: (dto.apellido ?? '').trim(),
             // El rol global ya no distingue administrador de barbero: los
             // roles efectivos se derivan del perfil del negocio.
             rol: 'PERSONAL',
+            estado: 'ACTIVO',
           },
         });
 
         return tx.administrador.create({
           data: {
             usuarioId: usuario.id,
-            negocioId: this.aislamiento.negocioIdRequerido(),
+            negocioId,
+            superadmin: false,
+            estado: 'ACTIVO',
           },
         });
       });
 
       // OWASP A09: Registro de transacciones de alto valor
       this.logger.log(
-        `AUDIT: Nuevo Administrador creado en el sistema. Email: ${dto.email}`,
+        `AUDIT: Nuevo Administrador creado en el sistema. Email: ${emailNormalizado}`,
       );
 
       return {
@@ -111,6 +166,7 @@ export class AdministradoresService {
    * Obtiene la lista completa de todos los administradores del sistema con soporte de filtros.
    * Exclusivo para la tabla de gestión del SUPERADMIN.
    */
+  
   async obtenerAdministradores(
     filtro?: FiltroAdministradoresDto,
   ): Promise<AdministradorResponseDto[]> {

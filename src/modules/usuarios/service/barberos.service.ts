@@ -68,21 +68,82 @@ export class BarberosService {
    * negocio activo.
    */
   async crearBarbero(dto: CrearBarberoDto) {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+    const emailNormalizado = dto.email.toLowerCase().trim();
+
     const usuarioExistente =
-      await this.usuariosRepository.obtenerUsuarioPorEmail(dto.email);
+      await this.usuariosRepository.obtenerUsuarioPorEmail(emailNormalizado);
+
     if (usuarioExistente) {
-      throw new ConflictException(
-        'Ya existe un usuario en el sistema con este correo electrónico.',
-      );
+      // Verificar si ya tiene perfil de barbero en este negocio específico
+      const barberoEnNegocio = await this.prisma.barbero.findUnique({
+        where: {
+          negocioId_usuarioId: {
+            negocioId,
+            usuarioId: usuarioExistente.id,
+          },
+        },
+      });
+
+      if (barberoEnNegocio) {
+        if (barberoEnNegocio.estado === 'ACTIVO') {
+          throw new ConflictException(
+            'Este usuario ya se encuentra registrado como barbero en esta barbería.',
+          );
+        } else {
+          // Si estaba inactivo en esta sede, reactivarlo con la nueva comisión y teléfono
+          const barberoReactivado = await this.prisma.barbero.update({
+            where: { id: barberoEnNegocio.id },
+            data: {
+              estado: 'ACTIVO',
+              telefono: dto.telefono,
+              porcentajeComision: dto.porcentajeComision,
+              fotoUrl: dto.fotoUrl ?? barberoEnNegocio.fotoUrl,
+            },
+          });
+          return {
+            mensaje: 'El barbero fue reactivado exitosamente en esta barbería.',
+            barbero: barberoReactivado,
+          };
+        }
+      }
+
+      // El usuario existe en la plataforma (otra sede), vincularlo como barbero a esta sede
+      try {
+        const barbero = await this.prisma.barbero.create({
+          data: {
+            usuarioId: usuarioExistente.id,
+            negocioId,
+            telefono: dto.telefono,
+            porcentajeComision: dto.porcentajeComision,
+            fotoUrl: dto.fotoUrl,
+            estado: 'ACTIVO',
+          },
+        });
+
+        this.logger.log(
+          `AUDIT: Barbero existente en red vinculado a la sede ${negocioId}. Email: ${emailNormalizado}`,
+        );
+
+        return {
+          mensaje: 'Usuario vinculado exitosamente como barbero en esta barbería.',
+          barbero,
+        };
+      } catch (error) {
+        this.logger.error('Error vinculando barbero existente a la sede:', error);
+        throw new ConflictException(
+          'El barbero no pudo vincularse a esta barbería. Intente nuevamente.',
+        );
+      }
     }
 
     try {
       const barbero = await this.prisma.$transaction(async (tx) => {
         const usuario = await tx.usuario.create({
           data: {
-            email: dto.email,
-            nombre: dto.nombre,
-            apellido: dto.apellido,
+            email: emailNormalizado,
+            nombre: dto.nombre.trim(),
+            apellido: dto.apellido.trim(),
             // El rol global ya no distingue administrador de barbero: los
             // roles efectivos se derivan del perfil del negocio.
             rol: 'PERSONAL',
@@ -95,7 +156,7 @@ export class BarberosService {
             telefono: dto.telefono,
             porcentajeComision: dto.porcentajeComision,
             fotoUrl: dto.fotoUrl,
-            negocioId: this.aislamiento.negocioIdRequerido(),
+            negocioId,
           },
         });
       });
@@ -111,6 +172,8 @@ export class BarberosService {
       );
     }
   }
+
+  
 
   private async buscarUsuarioAutenticado(usuarioAutenticado: any) {
     if (usuarioAutenticado?.email) {
