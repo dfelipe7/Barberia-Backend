@@ -81,7 +81,13 @@ export class UsuariosService {
       );
     }
 
-    return this.mapearUsuarioPerfil(usuarioActual);
+    const actor = this.actorDe(usuarioAutenticado);
+    const usuarioNormalizado = this.normalizarPerfilesNegocio(
+      usuarioActual,
+      actor.negocioId,
+    );
+
+    return this.mapearUsuarioPerfil(usuarioNormalizado);
   }
 
   /**
@@ -108,12 +114,22 @@ export class UsuariosService {
       );
     }
 
-    this.authorizationService.verificarPermisosConsulta(
-      this.actorDe(usuarioAutenticado),
+    const actor = this.actorDe(usuarioAutenticado);
+
+    // Multitenant: Normalizamos los perfiles (administrador y barbero) del usuario
+    // objetivo para el negocio activo del actor antes de validar permisos y mapear el DTO.
+    // Esto garantiza que usuario.administrador y usuario.barbero no sean undefined.
+    const usuarioNormalizado = this.normalizarPerfilesNegocio(
       usuario,
+      actor.negocioId,
     );
 
-    return this.mapearUsuarioPerfil(usuario);
+    this.authorizationService.verificarPermisosConsulta(
+      actor,
+      usuarioNormalizado,
+    );
+
+    return this.mapearUsuarioPerfil(usuarioNormalizado);
   }
 
   /**
@@ -144,19 +160,30 @@ export class UsuariosService {
 
     const actor = this.actorDe(usuarioAutenticado);
 
-    this.authorizationService.verificarPermisosEdicion(actor, usuario);
+    // Multitenant: Normalizamos los perfiles del usuario objetivo respecto al negocio
+    // activo del actor. De esta forma, verificarPermisosEdicion y los métodos
+    // de gestión de roles encontrarán usuario.administrador y usuario.barbero del negocio
+    // en vez de undefined, previniendo el error 403 Forbidden.
+    const usuarioNormalizado = this.normalizarPerfilesNegocio(
+      usuario,
+      actor.negocioId,
+    );
+
+    this.authorizationService.verificarPermisosEdicion(actor, usuarioNormalizado);
 
     await this.actualizarDatosPersonales(usuarioId, dto);
-    await this.gestionarRolAdministrador(usuarioId, dto, usuario, actor);
+    await this.gestionarRolAdministrador(usuarioId, dto, usuarioNormalizado, actor);
     await this.gestionarRolBarbero(
       usuarioId,
       dto,
-      usuario,
+      usuarioNormalizado,
       actor,
       usuarioAutenticado,
     );
 
-    return this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+    const usuarioGuardado =
+      await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+    return this.normalizarPerfilesNegocio(usuarioGuardado, actor.negocioId);
   }
 
   /**
@@ -310,30 +337,62 @@ export class UsuariosService {
     });
   }
 
-  /** El objetivo tiene un perfil de administrador ACTIVO en ese negocio. */
+  /** 
+   * El objetivo tiene un perfil de administrador ACTIVO en ese negocio.
+   * Multitenant: Evalúa tanto el perfil normalizado en singular como el arreglo administradores[].
+   */
   private esAdminActivoEnNegocio(
     usuario: any,
     negocioId: number | null,
   ): boolean {
-    return (
-      !!usuario.administrador &&
-      negocioId !== null &&
+    if (negocioId === null || !usuario) return false;
+
+    // 1. Perfil singular normalizado
+    if (
+      usuario.administrador &&
       usuario.administrador.negocioId === negocioId &&
       usuario.administrador.estado === 'ACTIVO'
-    );
+    ) {
+      return true;
+    }
+
+    // 2. Multitenant (1:N): Arreglo administradores[] de Prisma
+    if (Array.isArray(usuario.administradores)) {
+      return usuario.administradores.some(
+        (a) => a.negocioId === negocioId && a.estado === 'ACTIVO',
+      );
+    }
+
+    return false;
   }
 
-  /** El objetivo tiene un perfil de barbero ACTIVO en ese negocio. */
+  /** 
+   * El objetivo tiene un perfil de barbero ACTIVO en ese negocio.
+   * Multitenant: Evalúa tanto el perfil normalizado en singular como el arreglo barberos[].
+   */
   private esBarberoActivoEnNegocio(
     usuario: any,
     negocioId: number | null,
   ): boolean {
-    return (
-      !!usuario.barbero &&
-      negocioId !== null &&
+    if (negocioId === null || !usuario) return false;
+
+    // 1. Perfil singular normalizado
+    if (
+      usuario.barbero &&
       usuario.barbero.negocioId === negocioId &&
       usuario.barbero.estado === 'ACTIVO'
-    );
+    ) {
+      return true;
+    }
+
+    // 2. Multitenant (1:N): Arreglo barberos[] de Prisma
+    if (Array.isArray(usuario.barberos)) {
+      return usuario.barberos.some(
+        (b) => b.negocioId === negocioId && b.estado === 'ACTIVO',
+      );
+    }
+
+    return false;
   }
 
   /**
@@ -364,9 +423,18 @@ export class UsuariosService {
       );
     }
 
-    this.authorizationService.verificarPermisosCambioEstadoCuenta(
-      this.actorDe(usuarioAutenticado),
+    const actor = this.actorDe(usuarioAutenticado);
+
+    // Multitenant: Normalizar perfiles para que la verificación de permisos
+    // pueda validar si el usuario objetivo es barbero o admin de este negocio.
+    const usuarioNormalizado = this.normalizarPerfilesNegocio(
       usuario,
+      actor.negocioId,
+    );
+
+    this.authorizationService.verificarPermisosCambioEstadoCuenta(
+      actor,
+      usuarioNormalizado,
     );
 
     const nuevoEstado = dto.estado;
@@ -380,6 +448,42 @@ export class UsuariosService {
    * Transforma el objeto de usuario proveniente de Prisma al DTO UsuarioPerfilDto.
    * Garantiza la conversión del Decimal de porcentajeComision a number para TypeScript y Swagger.
    */
+  /**
+   * Normaliza los perfiles de administrador y barbero de un usuario para que
+   * correspondan al negocio evaluado (por defecto, el del actor).
+   */
+  private normalizarPerfilesNegocio(usuario: any, negocioId: number | null) {
+    if (!usuario) return usuario;
+
+    let administrador = usuario.administrador;
+    if (
+      administrador === undefined &&
+      Array.isArray(usuario.administradores) &&
+      negocioId !== null
+    ) {
+      administrador =
+        usuario.administradores.find(
+          (a: any) => a.negocioId === negocioId,
+        ) ?? null;
+    }
+
+    let barbero = usuario.barbero;
+    if (
+      barbero === undefined &&
+      Array.isArray(usuario.barberos) &&
+      negocioId !== null
+    ) {
+      barbero =
+        usuario.barberos.find((b: any) => b.negocioId === negocioId) ?? null;
+    }
+
+    return {
+      ...usuario,
+      administrador,
+      barbero,
+    };
+  }
+
   private mapearUsuarioPerfil(usuario: any): UsuarioPerfilDto {
     return {
       id: usuario.id,
@@ -392,6 +496,7 @@ export class UsuariosService {
         ? {
             id: usuario.administrador.id,
             estado: usuario.administrador.estado,
+            superadmin: usuario.administrador.superadmin === true,
           }
         : null,
       barbero: usuario.barbero
