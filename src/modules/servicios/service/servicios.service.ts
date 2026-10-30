@@ -20,13 +20,16 @@ export class ServiciosService {
 
   /**
    * Valida que todos los IDs de barberos proporcionados pertenezcan a barberos
-   * existentes en la base de datos y que estén en estado ACTIVO.
+   * existentes en la base de datos y que estén en estado ACTIVO en este negocio.
    *
-   * Los identificadores son `Barbero.id` (NO `Usuario.id`).
+   * Multitenant: Recibe IDs que pueden ser `Barbero.id` o `Usuario.id` y los traduce
+   * siempre al `Barbero.id` real antes de guardar en la tabla intermedia `barberos_servicios`.
    */
-  private async validarBarberosActivos(barberoIds?: number[]) {
+  private async normalizarYValidarBarberosActivos(
+    barberoIds?: number[],
+  ): Promise<number[] | undefined> {
     if (!barberoIds || barberoIds.length === 0) {
-      return;
+      return barberoIds;
     }
 
     // Eliminar posibles duplicados enviados en el array
@@ -34,11 +37,22 @@ export class ServiciosService {
     const barberosActivos =
       await this.serviciosRepository.obtenerBarberosActivosPorIds(idsUnicos);
 
-    if (barberosActivos.length !== idsUnicos.length) {
+    // Mapear cada ID recibido a su Barbero.id real en esta barbería
+    const barberoIdsResueltos = idsUnicos.map((idEnviado) => {
+      const match = barberosActivos.find(
+        (b) => b.id === idEnviado || b.usuarioId === idEnviado,
+      );
+      return match ? match.id : null;
+    });
+
+    if (barberoIdsResueltos.some((id) => id === null)) {
       throw new BadRequestException(
         'Uno o más barberos seleccionados no existen o no se encuentran en estado ACTIVO',
       );
     }
+
+    // Retorna los Barbero.id únicos y normalizados
+    return [...new Set(barberoIdsResueltos as number[])];
   }
 
   /**
@@ -150,8 +164,10 @@ export class ServiciosService {
       throw new ConflictException('Ya existe un servicio con este nombre');
     }
 
-    // Seguridad: Validar que todos los barberos a asociar existan y estén activos
-    await this.validarBarberosActivos(dto.barberoIds);
+    // Seguridad Multitenant: Validar que todos los barberos a asociar existan y estén activos,
+    // y normalizar los IDs al Barbero.id real de la barbería.
+    const barberoIdsNormalizados =
+      await this.normalizarYValidarBarberosActivos(dto.barberoIds);
 
     return this.serviciosRepository.crearServicio({
       nombre: dto.nombre,
@@ -159,7 +175,7 @@ export class ServiciosService {
       precio: dto.precio,
       duracionMinutos: dto.duracionMinutos,
       fotoUrl: dto.fotoUrl,
-      barberoIds: dto.barberoIds,
+      barberoIds: barberoIdsNormalizados,
     });
   }
 
@@ -178,9 +194,11 @@ export class ServiciosService {
       }
     }
 
-    // Seguridad: Si se actualizan barberos, validar que todos existan y estén activos
+    // Seguridad Multitenant: Si se actualizan barberos, validar y normalizar al Barbero.id real
+    let barberoIdsNormalizados: number[] | undefined = undefined;
     if (dto.barberoIds !== undefined) {
-      await this.validarBarberosActivos(dto.barberoIds);
+      barberoIdsNormalizados =
+        await this.normalizarYValidarBarberosActivos(dto.barberoIds);
     }
 
     return this.serviciosRepository.actualizarServicio(id, {
@@ -189,7 +207,7 @@ export class ServiciosService {
       precio: dto.precio,
       duracionMinutos: dto.duracionMinutos,
       fotoUrl: dto.fotoUrl,
-      barberoIds: dto.barberoIds,
+      barberoIds: barberoIdsNormalizados,
     });
   }
 

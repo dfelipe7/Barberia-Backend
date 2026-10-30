@@ -123,7 +123,7 @@ export function crearExtensionAislamientoNegocio() {
           }
 
           if (OPERACIONES_DE_ESCRITURA.has(operation)) {
-            return query(forzarNegocioEnEscritura(argumentos, contexto.id));
+            return query(forzarNegocioEnEscritura(argumentos, contexto.id, operation));
           }
 
           return query(args);
@@ -225,14 +225,18 @@ function acotarUpsert(args: ArgsOperacion, negocioId: number): ArgsOperacion {
 /**
  * Fuerza el `negocioId` del contexto en una escritura.
  *
- * - `create` / `createMany`: el `data` lleva el `negocioId` forzado.
- * - `update` / `updateMany` / `delete` / `deleteMany`: el `where` incluye el
- *   `negocioId`, de modo que la operación solo afecta a filas del negocio
- *   activo.
+ * Principio de Inmutabilidad del Tenant:
+ * - `create` / `createMany`: el `data` lleva el `negocioId` forzado para que el registro
+ *   nazca asignado al negocio del contexto.
+ * - `update` / `updateMany` / `delete` / `deleteMany`: el aislamiento se aplica estrictamente
+ *   en el `where` (`where: { ...where, negocioId }`). En `update` NO se inyecta `negocioId`
+ *   en `data` porque en Prisma los campos de relación son inmutables y no existen en los DTOs de
+ *   actualización generados (evita el error 'Unknown argument negocioId').
  */
 function forzarNegocioEnEscritura(
   args: ArgsOperacion,
   negocioId: number,
+  operation?: string,
 ): ArgsOperacion {
   const where = args.where;
 
@@ -259,9 +263,24 @@ function forzarNegocioEnEscritura(
   }
 
   const resultado: ArgsOperacion = { ...args };
+  const esCreacion = operation === 'create' || operation === 'createMany';
 
   if (data !== undefined) {
-    resultado.data = { ...data, negocioId };
+    if (esCreacion) {
+      // Creación (INSERT): forzamos negocioId para que el nuevo registro nazca con su dueño
+      if (Array.isArray(data)) {
+        resultado.data = data.map((item) => ({ ...item, negocioId })) as any;
+      } else {
+        resultado.data = { ...data, negocioId };
+      }
+    } else {
+      // Actualización (UPDATE): el aislamiento vive en el WHERE. Si data traía negocioId plano,
+      // lo removemos para evitar colisiones con el esquema de Prisma (Unknown argument negocioId).
+      if (typeof data === 'object' && !Array.isArray(data) && 'negocioId' in data) {
+        const { negocioId: _, ...dataLimpio } = data as Record<string, unknown>;
+        resultado.data = dataLimpio;
+      }
+    }
   }
 
   if (where !== undefined) {

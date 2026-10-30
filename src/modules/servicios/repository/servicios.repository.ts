@@ -95,10 +95,17 @@ export class ServiciosRepository {
    * Restringido al negocio activo: no se pueden vincular barberos de otra
    * barbería al servicio.
    */
+  /**
+   * Consulta los barberos que existen y se encuentran en estado ACTIVO.
+   *
+   * Multitenant: Soporta búsqueda flexible por Barbero.id O por Usuario.id.
+   * Esto permite resolver el desfase de IDs entre los datos de usuario y las
+   * fichas de barbero de esta barbería, devolviendo ambos IDs para su normalización.
+   */
   async obtenerBarberosActivosPorIds(ids: number[]) {
     return this.prisma.barbero.findMany({
       where: this.aislamiento.filtroLectura({
-        id: { in: ids },
+        OR: [{ id: { in: ids } }, { usuarioId: { in: ids } }],
         estado: EstadoUsuario.ACTIVO,
         usuario: {
           estado: EstadoUsuario.ACTIVO,
@@ -106,6 +113,7 @@ export class ServiciosRepository {
       }),
       select: {
         id: true,
+        usuarioId: true,
       },
     });
   }
@@ -355,9 +363,11 @@ export class ServiciosRepository {
                 // el servicio pertenezcan al MISMO negocio que el vínculo (FK
                 // compuesta). Aquí se escriben los escalares; la integridad la
                 // garantiza el motor.
+                // En la creación anidada (nested create), Prisma infiere y propaga automáticamente
+                // el negocioId desde el servicio padre a BarberoServicio debido a la clave compuesta.
+                // BarberoServicioUncheckedCreateWithoutServicioInput solo acepta barberoId.
                 create: data.barberoIds.map((barberoId) => ({
                   barberoId,
-                  negocioId,
                 })),
               }
             : undefined,
@@ -400,9 +410,11 @@ export class ServiciosRepository {
                 deleteMany: {},
                 // Relación COMPUESTA: la integridad la garantiza el motor
                 // (FK compuesta barbero-servicio-negocio).
+                // En la creación anidada (nested create), Prisma infiere y propaga automáticamente
+                // el negocioId desde el servicio padre a BarberoServicio debido a la clave compuesta.
+                // BarberoServicioUncheckedCreateWithoutServicioInput solo acepta barberoId.
                 create: data.barberoIds.map((barberoId) => ({
                   barberoId,
-                  negocioId,
                 })),
               }
             : undefined,
