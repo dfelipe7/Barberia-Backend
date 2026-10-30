@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   UnauthorizedException,
+  NotFoundException,
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -9,6 +10,7 @@ import { GoogleTokenVerifier } from '../google/google-token-verifier.service';
 import { ClientesRepository } from '../../modules/reservas/repository/clientes.repository';
 import { ClienteJwtService } from './cliente-jwt.service';
 import { ClienteSesionResponseDto } from './dto/cliente-sesion-response.dto';
+import { ActualizarPerfilClienteDto } from './dto/actualizar-perfil-cliente.dto';
 import { NegocioContextoService } from '../../modules/negocios/negocio-contexto.service';
 
 /**
@@ -103,5 +105,31 @@ export class ClientesAuthService {
         email: cliente.email,
       },
     };
+  }
+  async obtenerPerfil(clienteId: number) {
+    const perfil = await this.clientesRepository.obtenerPorId(clienteId);
+    if (!perfil) {
+      throw new NotFoundException('Cliente no encontrado en esta barbería');
+    }
+    return {
+      id: perfil.id,
+      nombre: perfil.nombre,
+      apellido: perfil.apellido,
+      email: perfil.email,
+      telefono: perfil.telefono,
+    };
+  }
+
+  async actualizarPerfil(clienteId: number, dto: ActualizarPerfilClienteDto) {
+    const cliente = await this.clientesRepository.obtenerPorId(clienteId);
+    if (!cliente) {
+      throw new NotFoundException('Cliente no encontrado en esta barbería');
+    }
+
+    return this.clientesRepository.actualizarPerfil(clienteId, {
+      telefono: dto.telefono !== undefined ? (dto.telefono ? dto.telefono.trim() : null) : undefined,
+      nombre: dto.nombre ? dto.nombre.trim() : undefined,
+      apellido: dto.apellido !== undefined ? (dto.apellido ? dto.apellido.trim() : null) : undefined,
+    });
   }
 }

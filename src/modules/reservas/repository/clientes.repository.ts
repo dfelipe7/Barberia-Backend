@@ -164,4 +164,23 @@ export class ClientesRepository {
       },
     });
   }
+  /**
+   * Actualiza los datos de contacto o perfil de un cliente del negocio activo.
+   */
+  async actualizarPerfil(
+    id: number,
+    datos: { telefono?: string | null; nombre?: string; apellido?: string | null },
+  ) {
+    return this.prisma.cliente.update({
+      where: this.aislamiento.filtroEscritura({ id }),
+      data: datos,
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        email: true,
+        telefono: true,
+      },
+    });
+  }
 }

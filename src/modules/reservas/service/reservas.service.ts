@@ -1535,6 +1535,12 @@ export class ReservasService {
         );
       }
 
+      if (dto.telefono && (!existente.telefono || existente.telefono !== dto.telefono.trim())) {
+        await this.clientesRepository.actualizarPerfil(existente.id, {
+          telefono: dto.telefono.trim(),
+        });
+      }
+
       return {
         clienteDeReserva: { clienteId: existente.id },
         clienteIdConocido: existente.id,
