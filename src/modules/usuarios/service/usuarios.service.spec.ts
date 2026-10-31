@@ -235,11 +235,7 @@ describe('UsuariosService', () => {
         mockTarget as any,
       );
 
-      await service.actualizarUsuario(
-        2,
-        { nombre: 'Nuevo' },
-        sesionSuperadmin,
-      );
+      await service.actualizarUsuario(2, { nombre: 'Nuevo' }, sesionSuperadmin);
 
       expect(usuariosRepository.actualizarUsuario).toHaveBeenCalledWith(2, {
         nombre: 'Nuevo',
@@ -260,7 +256,11 @@ describe('UsuariosService', () => {
       );
 
       await expect(
-        service.actualizarUsuario(2, { esAdministrador: true }, sesionAdministrador),
+        service.actualizarUsuario(
+          2,
+          { esAdministrador: true },
+          sesionAdministrador,
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -280,7 +280,11 @@ describe('UsuariosService', () => {
       );
 
       await expect(
-        service.actualizarUsuario(1, { esAdministrador: false }, sesionSuperadmin),
+        service.actualizarUsuario(
+          1,
+          { esAdministrador: false },
+          sesionSuperadmin,
+        ),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -302,7 +306,11 @@ describe('UsuariosService', () => {
         mockTarget as any,
       );
 
-      await service.actualizarUsuario(2, { esAdministrador: true }, sesionSuperadmin);
+      await service.actualizarUsuario(
+        2,
+        { esAdministrador: true },
+        sesionSuperadmin,
+      );
 
       expect(
         administradoresService.cambiarEstadoAdministrador,
@@ -323,7 +331,11 @@ describe('UsuariosService', () => {
         mockTarget as any,
       );
 
-      await service.actualizarUsuario(2, { esAdministrador: false }, sesionSuperadmin);
+      await service.actualizarUsuario(
+        2,
+        { esAdministrador: false },
+        sesionSuperadmin,
+      );
 
       expect(
         administradoresService.cambiarEstadoAdministrador,
@@ -394,7 +406,11 @@ describe('UsuariosService', () => {
         mockTarget as any,
       );
 
-      await service.actualizarUsuario(2, { esBarbero: false }, sesionSuperadmin);
+      await service.actualizarUsuario(
+        2,
+        { esBarbero: false },
+        sesionSuperadmin,
+      );
 
       expect(barberosService.cambiarEstadoBarbero).toHaveBeenCalledWith(
         2,

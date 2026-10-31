@@ -277,10 +277,9 @@ describe('WhatsAppService', () => {
       );
       // El respaldo histórico solo se consulta cuando el perfil no tiene
       // dirección, y únicamente en el negocio del contexto.
-      expect(configuracionServiceMock.obtenerTextoDelNegocio).toHaveBeenCalledWith(
-        'negocio_direccion',
-        '',
-      );
+      expect(
+        configuracionServiceMock.obtenerTextoDelNegocio,
+      ).toHaveBeenCalledWith('negocio_direccion', '');
       // El respaldo histórico se lee SOLO del ámbito del negocio: nunca se
       // consulta el ámbito global de plataforma.
       expect(configuracionServiceMock.obtenerTexto).not.toHaveBeenCalled();

@@ -128,7 +128,11 @@ describe('Migración de datos al modelo multitenant (MariaDB real)', () => {
       { recursive: true },
     );
     rmSync(
-      join(destino, 'migrations', '20261020120000_endurecer_esquema_multitenant'),
+      join(
+        destino,
+        'migrations',
+        '20261020120000_endurecer_esquema_multitenant',
+      ),
       { recursive: true, force: true },
     );
     writeFileSync(

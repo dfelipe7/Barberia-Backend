@@ -120,9 +120,7 @@ describe('AdministradoresService', () => {
         id: 1,
         rol: 'PERSONAL',
         // Membresía SUPERADMIN en el negocio del contexto.
-        administradores: [
-          { negocioId: 1, estado: 'ACTIVO', superadmin: true },
-        ],
+        administradores: [{ negocioId: 1, estado: 'ACTIVO', superadmin: true }],
       } as any);
       await expect(
         service.cambiarEstadoAdministrador(1, 'INACTIVO'),

@@ -222,7 +222,12 @@ describe('Aislamiento negativo entre negocios (MariaDB real)', () => {
     );
 
     const barberoA = await prisma.barbero.upsert({
-      where: { negocioId_usuarioId: { negocioId: kyrios.id, usuarioId: barberoAUsuario.id } },
+      where: {
+        negocioId_usuarioId: {
+          negocioId: kyrios.id,
+          usuarioId: barberoAUsuario.id,
+        },
+      },
       update: {},
       create: {
         usuarioId: barberoAUsuario.id,
@@ -232,7 +237,12 @@ describe('Aislamiento negativo entre negocios (MariaDB real)', () => {
       },
     });
     const barberoB = await prisma.barbero.upsert({
-      where: { negocioId_usuarioId: { negocioId: negocioB.id, usuarioId: barberoBUsuario.id } },
+      where: {
+        negocioId_usuarioId: {
+          negocioId: negocioB.id,
+          usuarioId: barberoBUsuario.id,
+        },
+      },
       update: {},
       create: {
         usuarioId: barberoBUsuario.id,
@@ -460,9 +470,7 @@ describe('Aislamiento negativo entre negocios (MariaDB real)', () => {
     const sesion = await login(correo, slug);
 
     if (!sesion.negocio) {
-      throw new Error(
-        `No se pudo obtener la sesión operativa de '${slug}'`,
-      );
+      throw new Error(`No se pudo obtener la sesión operativa de '${slug}'`);
     }
 
     return sesion.accessToken;
@@ -1030,10 +1038,7 @@ describe('Aislamiento negativo entre negocios (MariaDB real)', () => {
     const { reservaA, reservaB } = await sembrar();
 
     // 1) Sesión operativa de SU barbería (tiene la membresía superadmin).
-    const token = await tokenOperativo(
-      'super@pruebas.local',
-      'kyrios-studio',
-    );
+    const token = await tokenOperativo('super@pruebas.local', 'kyrios-studio');
 
     // 2) Con la sesión de negocio, el SUPERADMIN opera SOLO en A.
     const listado = await request(app.getHttpServer())

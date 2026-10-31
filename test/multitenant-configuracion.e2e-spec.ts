@@ -182,8 +182,10 @@ describe('Configuración operativa por negocio (MariaDB real)', () => {
   };
 
   /** Ejecuta la lectura como si la petición fuera del negocio indicado. */
-  const leerEn = <T>(negocio: { id: number; slug: string }, operacion: () => Promise<T>) =>
-    contextoService.ejecutarEnContexto(negocio, operacion);
+  const leerEn = <T>(
+    negocio: { id: number; slug: string },
+    operacion: () => Promise<T>,
+  ) => contextoService.ejecutarEnContexto(negocio, operacion);
 
   it('1. cada negocio obtiene sus propios valores de configuración', async () => {
     if (OMITIR_SIN_DOCKER) return;

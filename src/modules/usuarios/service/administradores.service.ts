@@ -85,7 +85,8 @@ export class AdministradoresService {
             data: { estado: 'ACTIVO' },
           });
           return {
-            mensaje: 'El administrador fue reactivado exitosamente en esta barbería.',
+            mensaje:
+              'El administrador fue reactivado exitosamente en esta barbería.',
             administrador: adminReactivado,
           };
         }
@@ -107,11 +108,15 @@ export class AdministradoresService {
         );
 
         return {
-          mensaje: 'Usuario vinculado exitosamente como administrador en esta barbería.',
+          mensaje:
+            'Usuario vinculado exitosamente como administrador en esta barbería.',
           administrador,
         };
       } catch (error) {
-        this.logger.error('Error vinculando administrador existente a la sede:', error);
+        this.logger.error(
+          'Error vinculando administrador existente a la sede:',
+          error,
+        );
         throw new ConflictException(
           'El administrador no pudo vincularse a esta barbería. Intente nuevamente.',
         );
@@ -166,7 +171,7 @@ export class AdministradoresService {
    * Obtiene la lista completa de todos los administradores del sistema con soporte de filtros.
    * Exclusivo para la tabla de gestión del SUPERADMIN.
    */
-  
+
   async obtenerAdministradores(
     filtro?: FiltroAdministradoresDto,
   ): Promise<AdministradorResponseDto[]> {

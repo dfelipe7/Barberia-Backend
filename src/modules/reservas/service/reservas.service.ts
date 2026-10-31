@@ -318,7 +318,8 @@ export class ReservasService {
       if (telefono && this.whatsappService) {
         let enlaceGestion: string | null = null;
         if (respuesta.tokenGestion) {
-          const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+          const frontendUrl =
+            process.env.FRONTEND_URL || 'http://localhost:5173';
           const contexto = obtenerContextoNegocio();
           const slug = contexto?.slug || 'kyrios-studio';
           enlaceGestion = `${frontendUrl}/${slug}/c/${respuesta.id}/${respuesta.tokenGestion}`;
@@ -459,7 +460,7 @@ export class ReservasService {
    * HU-09 (Invitados): Cancelar una reserva de invitado mediante token de gestión.
    * Valida el token con comparación segura timingSafeEqual y ejecuta la cancelación idempotente.
    */
-    async cancelarReservaInvitado(
+  async cancelarReservaInvitado(
     reservaId: number,
     tokenGestion: string,
   ): Promise<ReservaCanceladaResponseDto> {
@@ -1156,21 +1157,29 @@ export class ReservasService {
     if (this.whatsappService) {
       void (async () => {
         try {
-          const cliente = await this.clientesRepository.obtenerPorId(reserva.clienteId);
+          const cliente = await this.clientesRepository.obtenerPorId(
+            reserva.clienteId,
+          );
           if (cliente?.telefono) {
             let enlaceGestion: string | null = null;
-            const tokenDescifrado = this.descifrarTokenGestion(reserva.gestionTokenCifrado);
+            const tokenDescifrado = this.descifrarTokenGestion(
+              reserva.gestionTokenCifrado,
+            );
             if (tokenDescifrado) {
               const slug = obtenerContextoNegocio()?.slug || 'kyrios-studio';
-              const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+              const frontendUrl =
+                process.env.FRONTEND_URL || 'http://localhost:5173';
               enlaceGestion = `${frontendUrl}/${slug}/c/${reservaActualizada.id}/${tokenDescifrado}`;
             }
 
             await this.whatsappService?.enviarReprogramacionReserva({
               telefono: cliente.telefono,
-              clienteNombre: `${cliente.nombre} ${cliente.apellido ?? ''}`.trim() || 'Cliente',
+              clienteNombre:
+                `${cliente.nombre} ${cliente.apellido ?? ''}`.trim() ||
+                'Cliente',
               servicioNombre: servicio.nombre,
-              barberoNombre: `${reservaActualizada.barbero.usuario.nombre} ${reservaActualizada.barbero.usuario.apellido}`.trim(),
+              barberoNombre:
+                `${reservaActualizada.barbero.usuario.nombre} ${reservaActualizada.barbero.usuario.apellido}`.trim(),
               fecha: fechaDestinoStr,
               hora: reservaActualizada.startTime,
               precio: precioHistorico,
@@ -1178,7 +1187,9 @@ export class ReservasService {
             });
           }
         } catch (err: any) {
-          this.logger.warn(`No se pudo enviar WhatsApp de reprogramación: ${err?.message ?? err}`);
+          this.logger.warn(
+            `No se pudo enviar WhatsApp de reprogramación: ${err?.message ?? err}`,
+          );
         }
       })();
     }
@@ -1250,19 +1261,26 @@ export class ReservasService {
     if (this.whatsappService) {
       void (async () => {
         try {
-          const cliente = await this.clientesRepository.obtenerPorId(reserva.clienteId);
+          const cliente = await this.clientesRepository.obtenerPorId(
+            reserva.clienteId,
+          );
           if (cliente?.telefono) {
             await this.whatsappService?.enviarCancelacionReserva({
               telefono: cliente.telefono,
-              clienteNombre: `${cliente.nombre} ${cliente.apellido ?? ''}`.trim() || 'Cliente',
+              clienteNombre:
+                `${cliente.nombre} ${cliente.apellido ?? ''}`.trim() ||
+                'Cliente',
               servicioNombre: reserva.servicio.nombre,
-              barberoNombre: `${reserva.barbero.usuario.nombre} ${reserva.barbero.usuario.apellido}`.trim(),
+              barberoNombre:
+                `${reserva.barbero.usuario.nombre} ${reserva.barbero.usuario.apellido}`.trim(),
               fecha: this.aFechaCalendario(reserva.date),
               hora: reserva.startTime,
             });
           }
         } catch (err: any) {
-          this.logger.warn(`No se pudo enviar WhatsApp de cancelación: ${err?.message ?? err}`);
+          this.logger.warn(
+            `No se pudo enviar WhatsApp de cancelación: ${err?.message ?? err}`,
+          );
         }
       })();
     }
@@ -1535,7 +1553,10 @@ export class ReservasService {
         );
       }
 
-      if (dto.telefono && (!existente.telefono || existente.telefono !== dto.telefono.trim())) {
+      if (
+        dto.telefono &&
+        (!existente.telefono || existente.telefono !== dto.telefono.trim())
+      ) {
         await this.clientesRepository.actualizarPerfil(existente.id, {
           telefono: dto.telefono.trim(),
         });

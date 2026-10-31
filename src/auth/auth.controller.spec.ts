@@ -79,7 +79,7 @@ describe('AuthController', () => {
       negocio: null,
     };
 
-    googleAuthService.loginConGoogle.mockResolvedValue(mockResponse as any);
+    googleAuthService.loginConGoogle.mockResolvedValue(mockResponse);
 
     const result = await controller.loginConGoogle({
       idToken: 'google-test-token',
@@ -107,7 +107,7 @@ describe('AuthController', () => {
     };
 
     sesionService.cargarUsuario.mockResolvedValue(usuario);
-    sesionService.renovar.mockResolvedValue(mockResponse as any);
+    sesionService.renovar.mockResolvedValue(mockResponse);
 
     const result = await controller.refrescarToken({ user: sesionToken });
 

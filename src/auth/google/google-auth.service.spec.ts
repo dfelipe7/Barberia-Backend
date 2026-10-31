@@ -224,7 +224,10 @@ describe('GoogleAuthService', () => {
       googleId: '123',
     } as any);
 
-    rolesService.perfilOperativo.mockResolvedValue({ roles: [], fotoUrl: null });
+    rolesService.perfilOperativo.mockResolvedValue({
+      roles: [],
+      fotoUrl: null,
+    });
 
     await expect(service.loginConGoogle('valid-token')).rejects.toThrow(
       ForbiddenException,

@@ -164,7 +164,9 @@ describe('Catálogos y disponibilidad aislados por negocio (MariaDB real)', () =
     const usuarioB = await crearUsuario('barbero-b@test.local');
 
     const barberoA = await prisma.barbero.upsert({
-      where: { negocioId_usuarioId: { negocioId: kyrios.id, usuarioId: usuarioA.id } },
+      where: {
+        negocioId_usuarioId: { negocioId: kyrios.id, usuarioId: usuarioA.id },
+      },
       update: {},
       create: {
         usuarioId: usuarioA.id,
@@ -174,7 +176,9 @@ describe('Catálogos y disponibilidad aislados por negocio (MariaDB real)', () =
       },
     });
     const barberoB = await prisma.barbero.upsert({
-      where: { negocioId_usuarioId: { negocioId: negocioB.id, usuarioId: usuarioB.id } },
+      where: {
+        negocioId_usuarioId: { negocioId: negocioB.id, usuarioId: usuarioB.id },
+      },
       update: {},
       create: {
         usuarioId: usuarioB.id,

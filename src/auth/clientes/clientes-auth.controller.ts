@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -57,11 +67,16 @@ export class ClientesAuthController {
   @Patch('perfil')
   @UseGuards(ClienteJwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Actualizar teléfono o datos del cliente autenticado' })
+  @ApiOperation({
+    summary: 'Actualizar teléfono o datos del cliente autenticado',
+  })
   async actualizarPerfil(
     @Req() req: any,
     @Body() dto: ActualizarPerfilClienteDto,
   ) {
-    return this.clientesAuthService.actualizarPerfil(req.cliente.clienteId, dto);
+    return this.clientesAuthService.actualizarPerfil(
+      req.cliente.clienteId,
+      dto,
+    );
   }
 }

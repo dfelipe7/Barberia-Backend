@@ -90,10 +90,7 @@ describe('SesionPersonalService', () => {
       expect(resultado.negocio).toEqual(NEGOCIO);
       expect(resultado.usuario.roles).toEqual(['SUPERADMIN']);
 
-      const claims = mockPersonalJwt.firmar.mock.calls[0][0] as Record<
-        string,
-        unknown
-      >;
+      const claims = mockPersonalJwt.firmar.mock.calls[0][0];
       expect(claims.negocioId).toBe(NEGOCIO.id);
       expect(claims.ambito).toBe('NEGOCIO');
       expect(claims.superadmin).toBe(true);
@@ -102,10 +99,7 @@ describe('SesionPersonalService', () => {
     it('NO marca superadmin si el rol efectivo no lo es', () => {
       service.emitirParaNegocio(usuario, NEGOCIO, ['ADMINISTRADOR'], null);
 
-      const claims = mockPersonalJwt.firmar.mock.calls[0][0] as Record<
-        string,
-        unknown
-      >;
+      const claims = mockPersonalJwt.firmar.mock.calls[0][0];
       expect(claims.superadmin).toBe(false);
     });
 
@@ -119,10 +113,7 @@ describe('SesionPersonalService', () => {
         null,
       );
 
-      const claims = mockPersonalJwt.firmar.mock.calls[0][0] as Record<
-        string,
-        unknown
-      >;
+      const claims = mockPersonalJwt.firmar.mock.calls[0][0];
       expect(claims.roles).toEqual(['ADMINISTRADOR']);
       expect(claims.superadmin).toBe(false);
     });

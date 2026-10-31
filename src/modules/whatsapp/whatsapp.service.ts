@@ -249,7 +249,10 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     // Temporizador estricto de 60 segundos si estamos en proceso de escaneo de QR
     if (!sesion.isConnected && !this.tieneSesionGuardada(sesion.negocioId)) {
       sesion.qrInactivityTimer = setTimeout(() => {
-        if (!sesion.isConnected && !this.tieneSesionGuardada(sesion.negocioId)) {
+        if (
+          !sesion.isConnected &&
+          !this.tieneSesionGuardada(sesion.negocioId)
+        ) {
           this.logger.log(
             `[Negocio ${sesion.negocioId}] Límite de 60 segundos alcanzado en el backend sin escaneo. Cerrando conexión de WhatsApp y entrando en REPOSO inmediatamente.`,
           );
@@ -549,7 +552,10 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  getStatus(negocioIdParam?: number): { conectado: boolean; qr: string | null } {
+  getStatus(negocioIdParam?: number): {
+    conectado: boolean;
+    qr: string | null;
+  } {
     const negocioId = this.resolverNegocioId(negocioIdParam);
     const sesion = this.obtenerOCrearSesion(negocioId);
     return {

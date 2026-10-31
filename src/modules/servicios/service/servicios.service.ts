@@ -166,8 +166,9 @@ export class ServiciosService {
 
     // Seguridad Multitenant: Validar que todos los barberos a asociar existan y estén activos,
     // y normalizar los IDs al Barbero.id real de la barbería.
-    const barberoIdsNormalizados =
-      await this.normalizarYValidarBarberosActivos(dto.barberoIds);
+    const barberoIdsNormalizados = await this.normalizarYValidarBarberosActivos(
+      dto.barberoIds,
+    );
 
     return this.serviciosRepository.crearServicio({
       nombre: dto.nombre,
@@ -197,8 +198,9 @@ export class ServiciosService {
     // Seguridad Multitenant: Si se actualizan barberos, validar y normalizar al Barbero.id real
     let barberoIdsNormalizados: number[] | undefined = undefined;
     if (dto.barberoIds !== undefined) {
-      barberoIdsNormalizados =
-        await this.normalizarYValidarBarberosActivos(dto.barberoIds);
+      barberoIdsNormalizados = await this.normalizarYValidarBarberosActivos(
+        dto.barberoIds,
+      );
     }
 
     return this.serviciosRepository.actualizarServicio(id, {

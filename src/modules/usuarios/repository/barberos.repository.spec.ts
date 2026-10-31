@@ -48,10 +48,7 @@ const sinNegocio = (valor: unknown, conservar = false): unknown => {
     // En una clave UNICA COMPUESTA el negocioId forma parte de la
     // identidad de la fila: se conserva para poder comprobar que
     // apunta al negocio activo.
-    salida[clave] = sinNegocio(
-      contenido,
-      clave.startsWith('negocioId_'),
-    );
+    salida[clave] = sinNegocio(contenido, clave.startsWith('negocioId_'));
   }
 
   return salida;

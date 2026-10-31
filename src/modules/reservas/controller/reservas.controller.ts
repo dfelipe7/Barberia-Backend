@@ -663,7 +663,8 @@ export class ReservasController {
   @Get('invitado/:reservaId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Consultar el detalle de una reserva de invitado mediante token de gestión',
+    summary:
+      'Consultar el detalle de una reserva de invitado mediante token de gestión',
     description:
       'Permite a un cliente invitado consultar el estado y datos de su reserva mediante su token de gestión provisto en el encabezado X-Reservation-Management-Token o en el query param "token".',
   })
@@ -748,11 +749,7 @@ export class ReservasController {
       throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
     }
 
-    return this.reservasService.modificarReservaInvitado(
-      reservaId,
-      token,
-      dto,
-    );
+    return this.reservasService.modificarReservaInvitado(reservaId, token, dto);
   }
 
   @Patch('invitado/:reservaId/cancelar')
@@ -804,10 +801,7 @@ export class ReservasController {
       throw new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE);
     }
 
-    return this.reservasService.cancelarReservaInvitado(
-      reservaId,
-      token,
-    );
+    return this.reservasService.cancelarReservaInvitado(reservaId, token);
   }
 
   /**

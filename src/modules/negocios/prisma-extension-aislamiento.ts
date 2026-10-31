@@ -123,7 +123,9 @@ export function crearExtensionAislamientoNegocio() {
           }
 
           if (OPERACIONES_DE_ESCRITURA.has(operation)) {
-            return query(forzarNegocioEnEscritura(argumentos, contexto.id, operation));
+            return query(
+              forzarNegocioEnEscritura(argumentos, contexto.id, operation),
+            );
           }
 
           return query(args);
@@ -276,7 +278,11 @@ function forzarNegocioEnEscritura(
     } else {
       // Actualización (UPDATE): el aislamiento vive en el WHERE. Si data traía negocioId plano,
       // lo removemos para evitar colisiones con el esquema de Prisma (Unknown argument negocioId).
-      if (typeof data === 'object' && !Array.isArray(data) && 'negocioId' in data) {
+      if (
+        typeof data === 'object' &&
+        !Array.isArray(data) &&
+        'negocioId' in data
+      ) {
         const { negocioId: _, ...dataLimpio } = data as Record<string, unknown>;
         resultado.data = dataLimpio;
       }

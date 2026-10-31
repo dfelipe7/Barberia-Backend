@@ -14,7 +14,11 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CrearNegocioPlataformaDto } from './dto/crear-negocio-plataforma.dto';
 import { CambiarEstadoNegocioDto } from './dto/cambiar-estado-negocio.dto';
-import { EstadoNegocio, EstadoUsuario, RolUsuario } from '../../../generated/prisma/enums';
+import {
+  EstadoNegocio,
+  EstadoUsuario,
+  RolUsuario,
+} from '../../../generated/prisma/enums';
 
 @ApiTags('Plataforma - Directorio de Negocios')
 @Controller('plataforma/negocios')
@@ -22,7 +26,10 @@ export class NegociosPlataformaController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar todas las barberías registradas en la plataforma con estadísticas' })
+  @ApiOperation({
+    summary:
+      'Listar todas las barberías registradas en la plataforma con estadísticas',
+  })
   async listarBarberias() {
     const negocios = await this.prisma.negocio.findMany({
       include: {
@@ -65,7 +72,10 @@ export class NegociosPlataformaController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Dar de alta una nueva barbería (tenant) en la plataforma con su dueño opcional' })
+  @ApiOperation({
+    summary:
+      'Dar de alta una nueva barbería (tenant) en la plataforma con su dueño opcional',
+  })
   async crearBarberia(@Body() dto: CrearNegocioPlataformaDto) {
     const slugNormalizado = dto.slug.toLowerCase().trim();
 
@@ -74,10 +84,17 @@ export class NegociosPlataformaController {
     });
 
     if (existe) {
-      throw new ConflictException(`Ya existe una barbería con el slug '${slugNormalizado}'.`);
+      throw new ConflictException(
+        `Ya existe una barbería con el slug '${slugNormalizado}'.`,
+      );
     }
 
-    let usuarioDueno: { id: number; email: string; nombre: string; apellido: string } | null = null;
+    let usuarioDueno: {
+      id: number;
+      email: string;
+      nombre: string;
+      apellido: string;
+    } | null = null;
 
     if (dto.adminEmail) {
       const emailNormalizado = dto.adminEmail.toLowerCase().trim();
@@ -152,7 +169,9 @@ export class NegociosPlataformaController {
   }
 
   @Patch(':id/estado')
-  @ApiOperation({ summary: 'Activar o desactivar una barbería en la plataforma' })
+  @ApiOperation({
+    summary: 'Activar o desactivar una barbería en la plataforma',
+  })
   async cambiarEstado(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CambiarEstadoNegocioDto,
@@ -182,4 +201,3 @@ export class NegociosPlataformaController {
     };
   }
 }
-

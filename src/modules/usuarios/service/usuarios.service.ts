@@ -169,10 +169,18 @@ export class UsuariosService {
       actor.negocioId,
     );
 
-    this.authorizationService.verificarPermisosEdicion(actor, usuarioNormalizado);
+    this.authorizationService.verificarPermisosEdicion(
+      actor,
+      usuarioNormalizado,
+    );
 
     await this.actualizarDatosPersonales(usuarioId, dto);
-    await this.gestionarRolAdministrador(usuarioId, dto, usuarioNormalizado, actor);
+    await this.gestionarRolAdministrador(
+      usuarioId,
+      dto,
+      usuarioNormalizado,
+      actor,
+    );
     await this.gestionarRolBarbero(
       usuarioId,
       dto,
@@ -337,7 +345,7 @@ export class UsuariosService {
     });
   }
 
-  /** 
+  /**
    * El objetivo tiene un perfil de administrador ACTIVO en ese negocio.
    * Multitenant: Evalúa tanto el perfil normalizado en singular como el arreglo administradores[].
    */
@@ -366,7 +374,7 @@ export class UsuariosService {
     return false;
   }
 
-  /** 
+  /**
    * El objetivo tiene un perfil de barbero ACTIVO en ese negocio.
    * Multitenant: Evalúa tanto el perfil normalizado en singular como el arreglo barberos[].
    */
@@ -462,9 +470,8 @@ export class UsuariosService {
       negocioId !== null
     ) {
       administrador =
-        usuario.administradores.find(
-          (a: any) => a.negocioId === negocioId,
-        ) ?? null;
+        usuario.administradores.find((a: any) => a.negocioId === negocioId) ??
+        null;
     }
 
     let barbero = usuario.barbero;

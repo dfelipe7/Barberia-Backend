@@ -126,11 +126,15 @@ export class BarberosService {
         );
 
         return {
-          mensaje: 'Usuario vinculado exitosamente como barbero en esta barbería.',
+          mensaje:
+            'Usuario vinculado exitosamente como barbero en esta barbería.',
           barbero,
         };
       } catch (error) {
-        this.logger.error('Error vinculando barbero existente a la sede:', error);
+        this.logger.error(
+          'Error vinculando barbero existente a la sede:',
+          error,
+        );
         throw new ConflictException(
           'El barbero no pudo vincularse a esta barbería. Intente nuevamente.',
         );
@@ -172,8 +176,6 @@ export class BarberosService {
       );
     }
   }
-
-  
 
   private async buscarUsuarioAutenticado(usuarioAutenticado: any) {
     if (usuarioAutenticado?.email) {

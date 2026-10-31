@@ -795,9 +795,7 @@ describe('BarberosService', () => {
         id: 1,
         barberos: [{ estado: 'ACTIVO', negocioId: 1 }],
         // Membresía SUPERADMIN de ESTE negocio: no se bloquea la cuenta global.
-        administradores: [
-          { negocioId: 1, estado: 'ACTIVO', superadmin: true },
-        ],
+        administradores: [{ negocioId: 1, estado: 'ACTIVO', superadmin: true }],
         rol: 'PERSONAL',
       });
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 2 });

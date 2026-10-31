@@ -127,9 +127,19 @@ export class ClientesAuthService {
     }
 
     return this.clientesRepository.actualizarPerfil(clienteId, {
-      telefono: dto.telefono !== undefined ? (dto.telefono ? dto.telefono.trim() : null) : undefined,
+      telefono:
+        dto.telefono !== undefined
+          ? dto.telefono
+            ? dto.telefono.trim()
+            : null
+          : undefined,
       nombre: dto.nombre ? dto.nombre.trim() : undefined,
-      apellido: dto.apellido !== undefined ? (dto.apellido ? dto.apellido.trim() : null) : undefined,
+      apellido:
+        dto.apellido !== undefined
+          ? dto.apellido
+            ? dto.apellido.trim()
+            : null
+          : undefined,
     });
   }
 }

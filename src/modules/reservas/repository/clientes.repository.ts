@@ -169,7 +169,11 @@ export class ClientesRepository {
    */
   async actualizarPerfil(
     id: number,
-    datos: { telefono?: string | null; nombre?: string; apellido?: string | null },
+    datos: {
+      telefono?: string | null;
+      nombre?: string;
+      apellido?: string | null;
+    },
   ) {
     return this.prisma.cliente.update({
       where: this.aislamiento.filtroEscritura({ id }),

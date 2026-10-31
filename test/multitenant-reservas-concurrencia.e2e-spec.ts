@@ -767,7 +767,9 @@ describe('Consistencia del flujo de reservas (MySQL 8.0 real)', () => {
 
     // 4) El replay NO crea otra reserva NI otro cliente.
     expect(
-      await prisma.reservation.count({ where: { negocioId: datos.negocioA.id } }),
+      await prisma.reservation.count({
+        where: { negocioId: datos.negocioA.id },
+      }),
     ).toBe(1);
     expect(
       await prisma.cliente.count({ where: { negocioId: datos.negocioA.id } }),
