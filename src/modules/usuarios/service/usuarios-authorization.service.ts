@@ -193,6 +193,14 @@ export class UsuariosAuthorizationService {
       );
     }
 
+    // Regla de Inmunidad: NINGÚN usuario (ni Administrador ni otro Superadmin)
+    // puede bloquear o desactivar la cuenta de un Superadministrador del negocio.
+    if (this.esSuperAdmin(usuarioObjetivo, actor.negocioId)) {
+      throw new ForbiddenException(
+        'No se puede desactivar la cuenta de un Superadministrador',
+      );
+    }
+
     // El SUPERADMIN tiene autorización completa DENTRO de su barbería.
     if (this.esSuperAdminDelNegocio(actor, usuarioObjetivo)) {
       return;
@@ -243,6 +251,16 @@ export class UsuariosAuthorizationService {
     actor: ActorSesion,
     usuarioObjetivo: PerfilesObjetivo,
   ) {
+    // Inmunidad: El perfil de barbero de un Superadmin solo puede ser modificado por él mismo.
+    if (
+      this.esSuperAdmin(usuarioObjetivo, actor.negocioId) &&
+      actor.id !== usuarioObjetivo.id
+    ) {
+      throw new ForbiddenException(
+        'No se puede modificar el perfil de barbero de un Superadministrador',
+      );
+    }
+
     // El SUPERADMIN tiene autorización completa DENTRO de su barbería.
     if (this.esSuperAdminDelNegocio(actor, usuarioObjetivo)) {
       return;

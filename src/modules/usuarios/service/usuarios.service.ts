@@ -20,7 +20,11 @@ import {
   ActorSesion,
   construirActorSesion,
 } from '../../../auth/sesion/sesion-personal';
-import { ROL_BARBERO } from '../../negocios/negocios.constants';
+import {
+  ROL_ADMINISTRADOR,
+  ROL_BARBERO,
+  ROL_SUPERADMIN,
+} from '../../negocios/negocios.constants';
 
 @Injectable()
 export class UsuariosService {
@@ -282,7 +286,11 @@ export class UsuariosService {
     actor: ActorSesion,
     usuarioAutenticado: any,
   ): Promise<void> {
-    if (actor.roles.includes(ROL_BARBERO)) {
+    if (
+      actor.roles.includes(ROL_BARBERO) &&
+      !actor.roles.includes(ROL_ADMINISTRADOR) &&
+      !actor.roles.includes(ROL_SUPERADMIN)
+    ) {
       throw new ForbiddenException(
         'Un barbero no puede modificar ni revocar su propio rol de Barbero',
       );

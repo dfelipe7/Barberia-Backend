@@ -16,6 +16,7 @@ import {
   UseGuards,
   InternalServerErrorException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -140,7 +141,7 @@ export class UsuariosController {
    */
   @Post(':usuarioId/barbero')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPERADMIN')
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @ApiOperation({
     summary: 'Configura el perfil de un usuario existente como barbero',
     description:
@@ -156,7 +157,21 @@ export class UsuariosController {
   async configurarBarberoPorId(
     @Param('usuarioId') usuarioId: string,
     @Body() dto: ConfigurarBarberoDto,
+    @Req() request?: any,
   ) {
+    const actor = request?.user;
+    if (actor) {
+      const esSuperAdmin =
+        Array.isArray(actor?.roles) && actor.roles.includes('SUPERADMIN');
+      const esMismoUsuario = Number(actor?.id) === Number(usuarioId);
+
+      if (!esSuperAdmin && !esMismoUsuario) {
+        throw new ForbiddenException(
+          'Solo puedes configurar tu propio perfil de barbero',
+        );
+      }
+    }
+
     return this.barberosService.configurarBarberoPorId(Number(usuarioId), dto);
   }
 

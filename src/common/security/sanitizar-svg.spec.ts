@@ -107,4 +107,16 @@ describe('sanitizarSvg', () => {
     expect(resultado).toContain('<linearGradient');
     expect(resultado).toContain('<text');
   });
+  it('conserva el auto-cierre /> en etiquetas como path o circle', () => {
+    const conAutoCierre =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' +
+      '<path d="M4 4h16v16H4z" fill="#0C0C0C" />' +
+      '<circle cx="12" cy="12" r="5" />' +
+      '</svg>';
+
+    const resultado = sanitizarSvg(conAutoCierre);
+    expect(resultado).toContain('<path d="M4 4h16v16H4z" fill="#0C0C0C" />');
+    expect(resultado).toContain('<circle cx="12" cy="12" r="5" />');
+    expect(resultado).not.toContain('>>');
+  });
 });
