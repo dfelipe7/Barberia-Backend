@@ -48,6 +48,16 @@ export class ActualizarPerfilNegocioDto {
   frasePrincipal?: string;
 
   @ApiPropertyOptional({
+    example: 'clasico-azul',
+    description: 'Identificador del tema visual / paleta de marca',
+    maxLength: 50,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  temaKey?: string;
+
+  @ApiPropertyOptional({
     example: 'Vía al Bosque, Tv 9A Norte',
     description: 'Dirección de la barbería',
     maxLength: LIMITE_DIRECCION,

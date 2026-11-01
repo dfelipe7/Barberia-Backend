@@ -13,6 +13,7 @@ export interface PerfilNegocioRegistro {
   id: number;
   negocioId: number;
   frasePrincipal: string | null;
+  temaKey: string | null;
   faviconUrl: string | null;
   bannerUrl: string | null;
   logoBlancoUrl: string | null;
@@ -29,6 +30,7 @@ export interface PerfilNegocioRegistro {
 
 /** Contenido y ubicación que se pueden actualizar del perfil. */
 export interface ContenidoUbicacionPerfil {
+  temaKey?: string | null;
   frasePrincipal: string | null;
   direccion: string | null;
   ciudad: string | null;
@@ -51,6 +53,7 @@ const SELECCION_PERFIL = {
   id: true,
   negocioId: true,
   frasePrincipal: true,
+  temaKey: true,
   faviconUrl: true,
   bannerUrl: true,
   logoBlancoUrl: true,
@@ -100,6 +103,7 @@ export class PerfilNegocioRepository {
       id: perfil.id,
       negocioId: perfil.negocioId,
       frasePrincipal: perfil.frasePrincipal,
+      temaKey: perfil.temaKey ?? 'clasico-azul',
       faviconUrl: perfil.faviconUrl,
       bannerUrl: perfil.bannerUrl,
       logoBlancoUrl: perfil.logoBlancoUrl,
@@ -166,6 +170,7 @@ export class PerfilNegocioRepository {
       id: perfil.id,
       negocioId: perfil.negocioId,
       frasePrincipal: perfil.frasePrincipal,
+      temaKey: perfil.temaKey ?? 'clasico-azul',
       faviconUrl: perfil.faviconUrl,
       bannerUrl: perfil.bannerUrl,
       logoBlancoUrl: perfil.logoBlancoUrl,

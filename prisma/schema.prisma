@@ -119,6 +119,9 @@ model PerfilNegocio {
   /// Frase principal de la marca (lema o descriptor corto).
   frasePrincipal String? @db.VarChar(200)
 
+  /// Identificador del preset de tema visual ('clasico-azul', 'cyber-lime', etc.)
+  temaKey String? @default("clasico-azul") @db.VarChar(50)
+
   // --- Identidad visual: REFERENCIAS a archivos (nunca binarios) ---
   faviconUrl    String? @db.VarChar(500)
   bannerUrl     String? @db.VarChar(500)

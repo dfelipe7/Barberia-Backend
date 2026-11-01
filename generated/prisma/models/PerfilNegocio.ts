@@ -68,6 +68,7 @@ export type PerfilNegocioMinAggregateOutputType = {
   id: number | null
   negocioId: number | null
   frasePrincipal: string | null
+  temaKey: string | null
   faviconUrl: string | null
   bannerUrl: string | null
   logoBlancoUrl: string | null
@@ -86,6 +87,7 @@ export type PerfilNegocioMaxAggregateOutputType = {
   id: number | null
   negocioId: number | null
   frasePrincipal: string | null
+  temaKey: string | null
   faviconUrl: string | null
   bannerUrl: string | null
   logoBlancoUrl: string | null
@@ -104,6 +106,7 @@ export type PerfilNegocioCountAggregateOutputType = {
   id: number
   negocioId: number
   frasePrincipal: number
+  temaKey: number
   faviconUrl: number
   bannerUrl: number
   logoBlancoUrl: number
@@ -138,6 +141,7 @@ export type PerfilNegocioMinAggregateInputType = {
   id?: true
   negocioId?: true
   frasePrincipal?: true
+  temaKey?: true
   faviconUrl?: true
   bannerUrl?: true
   logoBlancoUrl?: true
@@ -156,6 +160,7 @@ export type PerfilNegocioMaxAggregateInputType = {
   id?: true
   negocioId?: true
   frasePrincipal?: true
+  temaKey?: true
   faviconUrl?: true
   bannerUrl?: true
   logoBlancoUrl?: true
@@ -174,6 +179,7 @@ export type PerfilNegocioCountAggregateInputType = {
   id?: true
   negocioId?: true
   frasePrincipal?: true
+  temaKey?: true
   faviconUrl?: true
   bannerUrl?: true
   logoBlancoUrl?: true
@@ -279,6 +285,7 @@ export type PerfilNegocioGroupByOutputType = {
   id: number
   negocioId: number
   frasePrincipal: string | null
+  temaKey: string | null
   faviconUrl: string | null
   bannerUrl: string | null
   logoBlancoUrl: string | null
@@ -320,6 +327,7 @@ export type PerfilNegocioWhereInput = {
   id?: Prisma.IntFilter<"PerfilNegocio"> | number
   negocioId?: Prisma.IntFilter<"PerfilNegocio"> | number
   frasePrincipal?: Prisma.StringNullableFilter<"PerfilNegocio"> | string | null
+  temaKey?: Prisma.StringNullableFilter<"PerfilNegocio"> | string | null
   faviconUrl?: Prisma.StringNullableFilter<"PerfilNegocio"> | string | null
   bannerUrl?: Prisma.StringNullableFilter<"PerfilNegocio"> | string | null
   logoBlancoUrl?: Prisma.StringNullableFilter<"PerfilNegocio"> | string | null
@@ -339,6 +347,7 @@ export type PerfilNegocioOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   negocioId?: Prisma.SortOrder
   frasePrincipal?: Prisma.SortOrderInput | Prisma.SortOrder
+  temaKey?: Prisma.SortOrderInput | Prisma.SortOrder
   faviconUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   bannerUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   logoBlancoUrl?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -362,6 +371,7 @@ export type PerfilNegocioWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.PerfilNegocioWhereInput[]
   NOT?: Prisma.PerfilNegocioWhereInput | Prisma.PerfilNegocioWhereInput[]
   frasePrincipal?: Prisma.StringNullableFilter<"PerfilNegocio"> | string | null
+  temaKey?: Prisma.StringNullableFilter<"PerfilNegocio"> | string | null
   faviconUrl?: Prisma.StringNullableFilter<"PerfilNegocio"> | string | null
   bannerUrl?: Prisma.StringNullableFilter<"PerfilNegocio"> | string | null
   logoBlancoUrl?: Prisma.StringNullableFilter<"PerfilNegocio"> | string | null
@@ -381,6 +391,7 @@ export type PerfilNegocioOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   negocioId?: Prisma.SortOrder
   frasePrincipal?: Prisma.SortOrderInput | Prisma.SortOrder
+  temaKey?: Prisma.SortOrderInput | Prisma.SortOrder
   faviconUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   bannerUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   logoBlancoUrl?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -407,6 +418,7 @@ export type PerfilNegocioScalarWhereWithAggregatesInput = {
   id?: Prisma.IntWithAggregatesFilter<"PerfilNegocio"> | number
   negocioId?: Prisma.IntWithAggregatesFilter<"PerfilNegocio"> | number
   frasePrincipal?: Prisma.StringNullableWithAggregatesFilter<"PerfilNegocio"> | string | null
+  temaKey?: Prisma.StringNullableWithAggregatesFilter<"PerfilNegocio"> | string | null
   faviconUrl?: Prisma.StringNullableWithAggregatesFilter<"PerfilNegocio"> | string | null
   bannerUrl?: Prisma.StringNullableWithAggregatesFilter<"PerfilNegocio"> | string | null
   logoBlancoUrl?: Prisma.StringNullableWithAggregatesFilter<"PerfilNegocio"> | string | null
@@ -423,6 +435,7 @@ export type PerfilNegocioScalarWhereWithAggregatesInput = {
 
 export type PerfilNegocioCreateInput = {
   frasePrincipal?: string | null
+  temaKey?: string | null
   faviconUrl?: string | null
   bannerUrl?: string | null
   logoBlancoUrl?: string | null
@@ -442,6 +455,7 @@ export type PerfilNegocioUncheckedCreateInput = {
   id?: number
   negocioId: number
   frasePrincipal?: string | null
+  temaKey?: string | null
   faviconUrl?: string | null
   bannerUrl?: string | null
   logoBlancoUrl?: string | null
@@ -458,6 +472,7 @@ export type PerfilNegocioUncheckedCreateInput = {
 
 export type PerfilNegocioUpdateInput = {
   frasePrincipal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  temaKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   faviconUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   logoBlancoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -477,6 +492,7 @@ export type PerfilNegocioUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   frasePrincipal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  temaKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   faviconUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   logoBlancoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -495,6 +511,7 @@ export type PerfilNegocioCreateManyInput = {
   id?: number
   negocioId: number
   frasePrincipal?: string | null
+  temaKey?: string | null
   faviconUrl?: string | null
   bannerUrl?: string | null
   logoBlancoUrl?: string | null
@@ -511,6 +528,7 @@ export type PerfilNegocioCreateManyInput = {
 
 export type PerfilNegocioUpdateManyMutationInput = {
   frasePrincipal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  temaKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   faviconUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   logoBlancoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -529,6 +547,7 @@ export type PerfilNegocioUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   negocioId?: Prisma.IntFieldUpdateOperationsInput | number
   frasePrincipal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  temaKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   faviconUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   logoBlancoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -558,6 +577,7 @@ export type PerfilNegocioCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   negocioId?: Prisma.SortOrder
   frasePrincipal?: Prisma.SortOrder
+  temaKey?: Prisma.SortOrder
   faviconUrl?: Prisma.SortOrder
   bannerUrl?: Prisma.SortOrder
   logoBlancoUrl?: Prisma.SortOrder
@@ -583,6 +603,7 @@ export type PerfilNegocioMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   negocioId?: Prisma.SortOrder
   frasePrincipal?: Prisma.SortOrder
+  temaKey?: Prisma.SortOrder
   faviconUrl?: Prisma.SortOrder
   bannerUrl?: Prisma.SortOrder
   logoBlancoUrl?: Prisma.SortOrder
@@ -601,6 +622,7 @@ export type PerfilNegocioMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   negocioId?: Prisma.SortOrder
   frasePrincipal?: Prisma.SortOrder
+  temaKey?: Prisma.SortOrder
   faviconUrl?: Prisma.SortOrder
   bannerUrl?: Prisma.SortOrder
   logoBlancoUrl?: Prisma.SortOrder
@@ -668,6 +690,7 @@ export type NullableDecimalFieldUpdateOperationsInput = {
 
 export type PerfilNegocioCreateWithoutNegocioInput = {
   frasePrincipal?: string | null
+  temaKey?: string | null
   faviconUrl?: string | null
   bannerUrl?: string | null
   logoBlancoUrl?: string | null
@@ -685,6 +708,7 @@ export type PerfilNegocioCreateWithoutNegocioInput = {
 export type PerfilNegocioUncheckedCreateWithoutNegocioInput = {
   id?: number
   frasePrincipal?: string | null
+  temaKey?: string | null
   faviconUrl?: string | null
   bannerUrl?: string | null
   logoBlancoUrl?: string | null
@@ -717,6 +741,7 @@ export type PerfilNegocioUpdateToOneWithWhereWithoutNegocioInput = {
 
 export type PerfilNegocioUpdateWithoutNegocioInput = {
   frasePrincipal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  temaKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   faviconUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   logoBlancoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -734,6 +759,7 @@ export type PerfilNegocioUpdateWithoutNegocioInput = {
 export type PerfilNegocioUncheckedUpdateWithoutNegocioInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   frasePrincipal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  temaKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   faviconUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   logoBlancoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -754,6 +780,7 @@ export type PerfilNegocioSelect<ExtArgs extends runtime.Types.Extensions.Interna
   id?: boolean
   negocioId?: boolean
   frasePrincipal?: boolean
+  temaKey?: boolean
   faviconUrl?: boolean
   bannerUrl?: boolean
   logoBlancoUrl?: boolean
@@ -775,6 +802,7 @@ export type PerfilNegocioSelectScalar = {
   id?: boolean
   negocioId?: boolean
   frasePrincipal?: boolean
+  temaKey?: boolean
   faviconUrl?: boolean
   bannerUrl?: boolean
   logoBlancoUrl?: boolean
@@ -789,7 +817,7 @@ export type PerfilNegocioSelectScalar = {
   updatedAt?: boolean
 }
 
-export type PerfilNegocioOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "negocioId" | "frasePrincipal" | "faviconUrl" | "bannerUrl" | "logoBlancoUrl" | "logoNegroUrl" | "direccion" | "ciudad" | "departamento" | "referencia" | "latitud" | "longitud" | "createdAt" | "updatedAt", ExtArgs["result"]["perfilNegocio"]>
+export type PerfilNegocioOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "negocioId" | "frasePrincipal" | "temaKey" | "faviconUrl" | "bannerUrl" | "logoBlancoUrl" | "logoNegroUrl" | "direccion" | "ciudad" | "departamento" | "referencia" | "latitud" | "longitud" | "createdAt" | "updatedAt", ExtArgs["result"]["perfilNegocio"]>
 export type PerfilNegocioInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
 }
@@ -809,6 +837,10 @@ export type $PerfilNegocioPayload<ExtArgs extends runtime.Types.Extensions.Inter
      * Frase principal de la marca (lema o descriptor corto).
      */
     frasePrincipal: string | null
+    /**
+     * Identificador del preset de tema visual ('clasico-azul', 'cyber-lime', etc.)
+     */
+    temaKey: string | null
     faviconUrl: string | null
     bannerUrl: string | null
     logoBlancoUrl: string | null
@@ -1201,6 +1233,7 @@ export interface PerfilNegocioFieldRefs {
   readonly id: Prisma.FieldRef<"PerfilNegocio", 'Int'>
   readonly negocioId: Prisma.FieldRef<"PerfilNegocio", 'Int'>
   readonly frasePrincipal: Prisma.FieldRef<"PerfilNegocio", 'String'>
+  readonly temaKey: Prisma.FieldRef<"PerfilNegocio", 'String'>
   readonly faviconUrl: Prisma.FieldRef<"PerfilNegocio", 'String'>
   readonly bannerUrl: Prisma.FieldRef<"PerfilNegocio", 'String'>
   readonly logoBlancoUrl: Prisma.FieldRef<"PerfilNegocio", 'String'>

@@ -11,6 +11,13 @@ export class ContenidoMarcaDto {
     nullable: true,
   })
   frasePrincipal: string | null;
+
+  @ApiPropertyOptional({
+    example: 'clasico-azul',
+    description: 'Identificador del tema visual / paleta de marca',
+    nullable: true,
+  })
+  temaKey: string | null;
 }
 
 /**
