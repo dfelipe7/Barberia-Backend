@@ -1,5 +1,4 @@
 import {
-  IsEmail,
   IsOptional,
   IsString,
   MinLength,
@@ -40,16 +39,6 @@ export class ActualizarUsuarioDto {
     message: 'El apellido solo puede contener letras y espacios',
   })
   apellido?: string;
-
-  @ApiProperty({
-    example: 'nuevo@correo.com',
-    description: 'Correo del usuario',
-    required: false,
-  })
-  @IsOptional()
-  @IsEmail()
-  @MaxLength(255, { message: 'El correo no puede tener más de 255 caracteres' })
-  email?: string;
 
   @ApiProperty({
     example: '1234567890',

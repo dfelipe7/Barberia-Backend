@@ -59,10 +59,25 @@ export class GoogleAuthService {
       );
     }
 
+    if (payload.email_verified !== true) {
+      throw new UnauthorizedException(
+        'La cuenta de Google debe tener un correo electrónico verificado.',
+      );
+    }
+
     const email = payload.email.toLowerCase().trim();
-    const usuario = await this.prisma.usuario.findUnique({
-      where: { email },
+
+    // 1) Por googleId (identidad estable). 2) Por email como respaldo para
+    // cuentas que aún no han vinculado su Google.
+    let usuario = await this.prisma.usuario.findUnique({
+      where: { googleId: payload.sub },
     });
+
+    if (!usuario) {
+      usuario = await this.prisma.usuario.findUnique({
+        where: { email },
+      });
+    }
 
     if (!usuario) {
       this.logger.warn(
@@ -70,6 +85,18 @@ export class GoogleAuthService {
       );
       throw new UnauthorizedException(
         'No tienes acceso a la plataforma. Tu correo no está registrado en el personal de la barbería.',
+      );
+    }
+
+    // Defensa contra Account Takeover: el googleId del token debe coincidir
+    // con el registrado. Un email puede cambiar de dueño (dominio reasignado,
+    // proveedor no-Gmail, etc.) pero el `sub` de Google es estable por cuenta.
+    if (usuario.googleId && usuario.googleId !== payload.sub) {
+      this.logger.warn(
+        `Acceso rechazado: ${email} presentó un googleId distinto al registrado.`,
+      );
+      throw new UnauthorizedException(
+        'La cuenta de Google no coincide con la registrada para este correo.',
       );
     }
 
@@ -81,6 +108,11 @@ export class GoogleAuthService {
     }
 
     // Vincular googleId si es la primera vez que inicia sesión con Google
+    // Limitación conocida (fuera de alcance de esta fase): si un administrador
+    // crea la cuenta sin googleId y el correo cambia de dueño ANTES del primer
+    // login con Google, el nuevo titular del correo podría vincular su cuenta.
+    // Mitigación pendiente: exigir verificación de email al vincular la primera
+    // vez (link mágico) o que el primer login lo inicie un administrador.
     if (!usuario.googleId && payload.sub) {
       await this.prisma.usuario.update({
         where: { id: usuario.id },

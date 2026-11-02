@@ -91,14 +91,22 @@ describe('UsuariosRepository', () => {
   });
 
   describe('actualizarUsuario', () => {
-    it('should update a user', async () => {
-      mockPrisma.usuario.update.mockResolvedValue({ id: 1, nombre: 'Carlos' });
-      const result = await repository.actualizarUsuario(1, {
+    it('should update only the allowed personal fields', async () => {
+      mockPrisma.usuario.update.mockResolvedValue({
+        id: 1,
         nombre: 'Carlos',
+        apellido: 'P',
       });
+      const datos: Parameters<UsuariosRepository['actualizarUsuario']>[1] = {
+        nombre: 'Carlos',
+        apellido: 'P',
+      };
+
+      const result = await repository.actualizarUsuario(1, datos);
+
       expect(mockPrisma.usuario.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { nombre: 'Carlos' },
+        data: datos,
       });
       expect(result.nombre).toBe('Carlos');
     });
