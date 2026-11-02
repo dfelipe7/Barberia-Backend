@@ -19,6 +19,7 @@ The backend has closed critical security vulnerabilities involving cross-tenant 
 - **New behavior:** 
   - A dedicated public endpoint **`GET /plataforma/negocios/publico`** (unauthenticated) has been introduced specifically for the public exploration hub. It returns a reduced, flattened DTO without internal business telemetry or private operational data.
   - The administrative endpoints **`GET /plataforma/negocios`**, **`POST /plataforma/negocios`**, and **`PATCH /plataforma/negocios/:id/estado`** are now strictly protected behind `JwtSesionGuard` and `PlataformaAdminGuard`. They require a valid staff JWT whose authenticated email is included in the backend's `PLATFORM_ADMIN_EMAILS` environment allowlist.
+  - `PLATFORM_ADMIN_EMAILS` is a comma-separated list of emails (for example `admin1@correo.com,admin2@correo.com`). If it is empty or missing, the administrative routes return **403 Forbidden** (fail-closed).
 
 ### Frontend File to Update
 - `Barberia-Frontend/src/pages/Plataforma/PlataformaHubPage.tsx`
@@ -133,31 +134,27 @@ Missing `tipo` will be rejected immediately with **HTTP 400 Bad Request**.
 
 ## 8. Backend References
 
-The following backend files were introduced or modified in this PR:
+The following backend files were modified in this PR:
 - `src/auth/google/google-auth.service.ts`
 - `src/auth/google/google-auth.service.spec.ts`
-- `src/modules/negocios/dto/negocio-publico.dto.ts` *(new)*
-- `src/modules/negocios/guards/plataforma-admin.guard.ts` *(new)*
-- `src/modules/negocios/guards/plataforma-admin.guard.spec.ts` *(new)*
 - `src/modules/negocios/negocios-plataforma.controller.ts`
-- `src/modules/negocios/plataforma.controller.spec.ts` *(new)*
 - `src/modules/negocios/negocios.module.ts`
 - `src/modules/usuarios/dto/dto-peticion/actualizar-usuario.dto.ts`
-- `src/modules/usuarios/dto/dto-peticion/cambiar-estado-usuario-gestion.dto.ts` *(new)*
 - `src/modules/usuarios/controller/usuarios.controller.ts`
 - `src/modules/usuarios/service/usuarios.service.ts`
 - `src/modules/usuarios/service/usuarios.service.spec.ts`
-- `src/modules/usuarios/service/usuarios-authorization.service.ts`
-- `src/modules/usuarios/service/usuarios-authorization.service.spec.ts`
-- `src/modules/usuarios/service/administradores.service.ts`
-- `src/modules/usuarios/service/administradores.service.spec.ts`
-- `src/modules/usuarios/service/barberos.service.ts`
-- `src/modules/usuarios/service/barberos.service.spec.ts`
-- `src/modules/usuarios/repository/administradores.repository.ts`
-- `src/modules/usuarios/repository/administradores.repository.spec.ts`
 - `src/modules/usuarios/repository/usuarios.repository.ts`
 - `src/modules/usuarios/repository/usuarios.repository.spec.ts`
+- `src/modules/reservas/controller/reservas.controller.spec.ts`
+- `src/modules/servicios/service/servicios.service.spec.ts`
 - `.env.example`
 - `.env.multitenant-dev.example`
+
+Supporting files already present (not modified in this PR):
+- `src/modules/negocios/dto/negocio-publico.dto.ts`
+- `src/modules/negocios/guards/plataforma-admin.guard.ts`
+- `src/modules/negocios/guards/plataforma-admin.guard.spec.ts`
+- `src/modules/negocios/plataforma.controller.spec.ts`
+- `src/modules/usuarios/dto/dto-peticion/cambiar-estado-usuario-gestion.dto.ts`
 
 > **Note:** **NO** Prisma migrations were generated and `prisma/schema.prisma` was **NOT** modified.

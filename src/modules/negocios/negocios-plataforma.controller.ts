@@ -9,11 +9,19 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CrearNegocioPlataformaDto } from './dto/crear-negocio-plataforma.dto';
 import { CambiarEstadoNegocioDto } from './dto/cambiar-estado-negocio.dto';
+import { NegocioPublicoDto } from './dto/negocio-publico.dto';
+import { JwtSesionGuard } from '../../auth/guards/jwt-sesion.guard';
+import { PlataformaAdminGuard } from './guards/plataforma-admin.guard';
 import {
   EstadoNegocio,
   EstadoUsuario,
@@ -25,7 +33,44 @@ import {
 export class NegociosPlataformaController {
   constructor(private readonly prisma: PrismaService) {}
 
+  @Get('publico')
+  @ApiOperation({
+    summary:
+      'Listar las barberías activas para el directorio público de la plataforma',
+  })
+  @ApiOkResponse({ type: [NegocioPublicoDto] })
+  async listarBarberiasPublicas() {
+    const negocios = await this.prisma.negocio.findMany({
+      where: { estado: EstadoNegocio.ACTIVO },
+      select: {
+        id: true,
+        nombre: true,
+        slug: true,
+        perfil: {
+          select: {
+            ciudad: true,
+            logoBlancoUrl: true,
+            bannerUrl: true,
+            frasePrincipal: true,
+          },
+        },
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    return negocios.map((negocio) => ({
+      id: negocio.id,
+      nombre: negocio.nombre,
+      slug: negocio.slug,
+      ciudad: negocio.perfil?.ciudad ?? null,
+      logoBlancoUrl: negocio.perfil?.logoBlancoUrl ?? null,
+      bannerUrl: negocio.perfil?.bannerUrl ?? null,
+      frasePrincipal: negocio.perfil?.frasePrincipal ?? null,
+    }));
+  }
+
   @Get()
+  @UseGuards(JwtSesionGuard, PlataformaAdminGuard)
   @ApiOperation({
     summary:
       'Listar todas las barberías registradas en la plataforma con estadísticas',
@@ -72,6 +117,7 @@ export class NegociosPlataformaController {
   }
 
   @Post()
+  @UseGuards(JwtSesionGuard, PlataformaAdminGuard)
   @ApiOperation({
     summary:
       'Dar de alta una nueva barbería (tenant) en la plataforma con su dueño opcional',
@@ -169,6 +215,7 @@ export class NegociosPlataformaController {
   }
 
   @Patch(':id/estado')
+  @UseGuards(JwtSesionGuard, PlataformaAdminGuard)
   @ApiOperation({
     summary: 'Activar o desactivar una barbería en la plataforma',
   })

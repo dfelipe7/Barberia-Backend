@@ -53,7 +53,9 @@ describe('ServiciosService', () => {
       };
 
       repository.obtenerServicioPorNombre.mockResolvedValue(null);
-      repository.obtenerBarberosActivosPorIds.mockResolvedValue([{ id: 1 }]);
+      repository.obtenerBarberosActivosPorIds.mockResolvedValue([
+        { id: 1, usuarioId: 1 },
+      ]);
 
       await expect(service.crearServicio(dto)).rejects.toThrow(
         BadRequestException,
@@ -88,8 +90,8 @@ describe('ServiciosService', () => {
 
       repository.obtenerServicioPorNombre.mockResolvedValue(null);
       repository.obtenerBarberosActivosPorIds.mockResolvedValue([
-        { id: 1 },
-        { id: 2 },
+        { id: 1, usuarioId: 1 },
+        { id: 2, usuarioId: 2 },
       ]);
       repository.crearServicio.mockResolvedValue({ id: 99, ...dto } as any);
 
@@ -254,7 +256,9 @@ describe('ServiciosService', () => {
         nombre: 'Antiguo',
       } as any);
       repository.obtenerServicioPorNombre.mockResolvedValue(null);
-      repository.obtenerBarberosActivosPorIds.mockResolvedValue([{ id: 3 }]);
+      repository.obtenerBarberosActivosPorIds.mockResolvedValue([
+        { id: 3, usuarioId: 3 },
+      ]);
       repository.actualizarServicio.mockResolvedValue({
         id: 99,
         ...dto,

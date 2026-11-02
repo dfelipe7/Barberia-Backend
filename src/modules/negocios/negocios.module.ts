@@ -6,6 +6,8 @@ import { NegociosRepository } from './repository/negocios.repository';
 import { NegocioResolucionService } from './service/negocio-resolucion.service';
 import { NegocioRolesService } from './service/negocio-roles.service';
 import { NegociosPlataformaController } from './negocios-plataforma.controller';
+import { AuthModule } from '../../auth/auth.module';
+import { PlataformaAdminGuard } from './guards/plataforma-admin.guard';
 
 /**
  * Módulo de negocios (tenants) de la plataforma.
@@ -21,8 +23,10 @@ import { NegociosPlataformaController } from './negocios-plataforma.controller';
  */
 @Global()
 @Module({
+  imports: [AuthModule],
   controllers: [NegociosPlataformaController],
   providers: [
+    PlataformaAdminGuard,
     NegocioContextoService,
     NegocioAislamientoService,
     NegocioResolucionService,

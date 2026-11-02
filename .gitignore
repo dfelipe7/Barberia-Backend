@@ -100,3 +100,4 @@ MULTITENANT.md
 FASE11_ENTORNO_MULTITENANT_DEV.md
 # Testing artifacts
 artifacts/
+.vscode
