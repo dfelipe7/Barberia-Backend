@@ -190,3 +190,8 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+## Contribuir
+
+> Este repositorio sigue [AGENTS.md](./AGENTS.md) para agentes de IA y mantiene
+> su deuda técnica documentada en [TECH_DEBT.md](./TECH_DEBT.md).

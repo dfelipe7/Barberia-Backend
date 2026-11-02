@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Inyecta trailers de IA si están exportados en el entorno.
+# Ver AGENTS.md §3.4.
+set -e
+
+COMMIT_MSG_FILE="$1"
+
+# Sin AI_TOOL, el commit es humano: no se toca.
+[ -z "${AI_TOOL:-}" ] && exit 0
+
+# No duplicar si el humano o el agente ya los escribieron.
+if grep -q '^AI-Assisted-By:' "$COMMIT_MSG_FILE"; then
+  exit 0
+fi
+
+{
+  echo ""
+  echo "AI-Assisted-By: ${AI_TOOL}"
+  [ -n "${AI_MODEL:-}"   ] && echo "AI-Model: ${AI_MODEL}"
+  [ -n "${AI_SESSION:-}" ] && echo "AI-Session: ${AI_SESSION}"
+} >> "$COMMIT_MSG_FILE"
+
