@@ -101,6 +101,7 @@ export const PerfilNegocioScalarFieldEnum = {
   id: 'id',
   negocioId: 'negocioId',
   frasePrincipal: 'frasePrincipal',
+  temaKey: 'temaKey',
   faviconUrl: 'faviconUrl',
   bannerUrl: 'bannerUrl',
   logoBlancoUrl: 'logoBlancoUrl',
@@ -339,6 +340,7 @@ export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 
 export const PerfilNegocioOrderByRelevanceFieldEnum = {
   frasePrincipal: 'frasePrincipal',
+  temaKey: 'temaKey',
   faviconUrl: 'faviconUrl',
   bannerUrl: 'bannerUrl',
   logoBlancoUrl: 'logoBlancoUrl',

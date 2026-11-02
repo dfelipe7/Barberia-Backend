@@ -221,3 +221,64 @@ Al crear o editar un servicio (`POST /servicios` o `PATCH /servicios/:id`), el f
 | `PATCH` | `/usuarios/:id` | `UsuariosController` | Edita usuario y gestiona sus roles dentro de la sede activa |
 | `POST` | `/servicios` | `ServiciosController` | Crea servicio asociando barberos de la sede activa |
 | `PATCH` | `/servicios/:id` | `ServiciosController` | Actualiza servicio y sincroniza barberos asociados |
+
+
+---
+
+## 12. Arquitectura de Sesiones Multi-Pestaña y Aislamiento por Sede (Path-Prefix Multi-Tenancy)
+
+### ¿Por qué se hizo? (Problema previo)
+1. **Colisión de sesiones en el mismo navegador:** En un SaaS multi-tenant, `localStorage` es compartido por todas las pestañas de un mismo origen (`localhost:5173` o dominio de producción). Si un usuario abría dos barberías en pestañas diferentes (ej. `kyrios-studio` y `barberia-demo-2`), la segunda sobreescribía la clave global `token_barberia` y `negocio_sesion_slug`.
+2. **Salto involuntario de barbería y errores 403 Forbidden:** Al cerrar sesión en una pestaña o iniciar sesión como cliente, los enlaces genéricos sin prefijo (como `/cliente/iniciar-sesion` o `/dashboard`) recurrían a leer el `localStorage` global compartido, adoptando el slug de la otra barbería y redirigiendo la pestaña a una sede equivocada.
+3. **Inconsistencia de tema en Producción:** El modal para crear barberías en `/plataforma` usaba variables CSS dinámicas (`var(--surface-card-bg)`). En local el usuario tenía Modo Oscuro activo, pero en producción Railway cargaba en Modo Claro por defecto, provocando etiquetas blancas invisibles sobre fondo blanco y cajas de texto negras discordantes.
+
+### ¿Qué se implementó? (Solución Enterprise)
+
+#### A. Prefijo Estricto de Rutas (*Path-Prefix Routing*)
+- **Rutas de Administración:** `/:slug/dashboard`, `/:slug/servicios`, `/:slug/barberos`, `/:slug/horarios`, `/:slug/reservas`, `/:slug/usuarios`, `/:slug/whatsapp`, `/:slug/mi-perfil`.
+- **Rutas de Clientes:** `/:slug/cliente/iniciar-sesion`, `/:slug/cliente/registro`, `/:slug/cliente/mi-cuenta`, `/:slug/reservar`.
+- La URL (`window.location.pathname`) actúa como la **única fuente de verdad (*Single Source of Truth*)**, eliminando cualquier ambigüedad sobre a qué sede pertenece cada pestaña.
+
+#### B. Particionado de Almacenamiento (*Storage Namespacing*)
+- Las sesiones en `localStorage` se almacenan con claves individuales por sede:
+  - `token_barberia_${slug}` y `usuario_barberia_${slug}` (personal y administradores).
+  - `token_cliente_${slug}` y `cliente_${slug}` (clientes finales).
+- Permite la coexistencia simultánea de múltiples sesiones activas en el mismo navegador sin sobreescrituras ni interferencias.
+
+#### C. Aislamiento por Pestaña con `sessionStorage`
+- Cada pestaña guarda en su propio `sessionStorage` privado la clave `tab_negocio_slug`.
+- Si una pestaña navega momentáneamente por rutas intermedias o realiza una recarga (**F5**), consulta primero su `sessionStorage` privado, garantizando que nunca lea ni adopte el slug de una pestaña vecina.
+
+#### D. Inyección Dinámica en Interceptores HTTP (Axios)
+- Tanto `apiClient` como `reservasApiClient` extraen dinámicamente el slug de la ruta actual e inyectan:
+  - `X-Negocio-Slug: <slug>`
+  - `Authorization: Bearer <token_de_esta_sede>`
+- Se removió la redirección agresiva en el interceptor 401 que forzaba cambios de URL globales en toda la ventana.
+
+#### E. Cierre de Sesión Quirúrgico (*Scoped Logout*)
+- El evento de sincronización entre pestañas (`barberia_logout_event`) envía ahora el payload `{ slug }`.
+- Si se cierra sesión en Kyrios Studio, únicamente las pestañas pertenecientes a `kyrios-studio` se recargan; las pestañas abiertas con `barberia-demo-2` permanecen activas sin interrupción.
+
+#### F. Blindaje Visual del Modal de Creación en el Hub
+- Se asignó la clase `hub-plataforma-modal` con estilos forzados de fondo oscuro (`#121215`), texto blanco y botón de cierre invertido en `PlataformaHubPage.css`.
+- Garantiza que el formulario de creación de sedes sea 100% legible y visualmente consistente tanto en local como en producción.
+
+### Archivos Modificados:
+- `Barberia-Frontend/src/App.tsx`
+- `Barberia-Frontend/src/auth/AuthContext.tsx`
+- `Barberia-Frontend/src/auth/AuthProvider.tsx`
+- `Barberia-Frontend/src/features/reservas/api/reservas.service.ts`
+- `Barberia-Frontend/src/features/reservas/pages/ClienteAccesoPage.tsx`
+- `Barberia-Frontend/src/features/reservas/pages/ClientePortalPage.tsx`
+- `Barberia-Frontend/src/features/reservas/pages/ReservaClientePage.tsx`
+- `Barberia-Frontend/src/pages/Dashboard/Dashboard.tsx`
+- `Barberia-Frontend/src/pages/Home/components/HomeNavbar.tsx`
+- `Barberia-Frontend/src/pages/Login/LoginPage.tsx`
+- `Barberia-Frontend/src/pages/Plataforma/PlataformaHubPage.tsx`
+- `Barberia-Frontend/src/pages/Plataforma/PlataformaHubPage.css`
+- `Barberia-Frontend/src/pages/SinAcceso/SinAcceso.tsx`
+- `Barberia-Frontend/src/shared/components/ProtectedRoute.tsx`
+- `Barberia-Frontend/src/shared/layout/Header.tsx`
+- `Barberia-Frontend/src/shared/layout/Sidebar.tsx`
+- `Barberia-Frontend/src/shared/layout/UserDropdown.tsx`
+- `Barberia-Frontend/src/shared/lib/http/axios.ts`

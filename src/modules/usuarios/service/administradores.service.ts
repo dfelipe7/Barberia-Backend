@@ -187,6 +187,7 @@ export class AdministradoresService {
       estadoAdmin: administrador.estado, // Estado del rol de administrador
       esBarbero: (administrador.usuario.barberos ?? []).length > 0,
       estadoBarbero: (administrador.usuario.barberos ?? [])[0]?.estado,
+      esSuperAdmin: administrador.superadmin === true,
     }));
   }
 

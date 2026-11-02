@@ -58,6 +58,7 @@ describe('BarberosService', () => {
         {
           provide: PrismaService,
           useValue: {
+            barbero: { findUnique: jest.fn().mockResolvedValue({ id: 1, estado: "ACTIVO" }) },
             $transaction: jest.fn(async (cb) => {
               const tx = {
                 usuario: { create: jest.fn().mockResolvedValue({ id: 1 }) },

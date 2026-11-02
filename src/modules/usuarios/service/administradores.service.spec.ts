@@ -31,6 +31,11 @@ describe('AdministradoresService', () => {
     };
 
     prismaMock = {
+      administrador: {
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+      },
       $transaction: jest.fn(async (cb) => {
         const tx = {
           usuario: { create: jest.fn().mockResolvedValue({ id: 1 }) },
@@ -69,6 +74,10 @@ describe('AdministradoresService', () => {
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({
         id: 1,
       } as any);
+      prismaMock.administrador.findUnique.mockResolvedValue({
+        id: 10,
+        estado: 'ACTIVO',
+      });
       await expect(
         service.crearAdministrador({
           email: 'test@test.com',
@@ -323,6 +332,7 @@ describe('AdministradoresService', () => {
         estadoAdmin: 'ACTIVO',
         esBarbero: false,
         estadoBarbero: undefined,
+        esSuperAdmin: false,
       });
     });
   });

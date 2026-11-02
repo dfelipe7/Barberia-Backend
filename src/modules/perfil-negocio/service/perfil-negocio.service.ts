@@ -120,6 +120,7 @@ export class PerfilNegocioService {
       () =>
         this.repository.guardar(contexto.id, {
           frasePrincipal: dto.frasePrincipal ?? null,
+          ...(dto.temaKey !== undefined ? { temaKey: dto.temaKey } : {}),
           direccion: dto.direccion ?? null,
           ciudad: dto.ciudad ?? null,
           departamento: dto.departamento ?? null,
@@ -404,6 +405,7 @@ export class PerfilNegocioService {
       negocio,
       configurado: perfil !== null,
       frasePrincipal: perfil?.frasePrincipal ?? null,
+      temaKey: perfil?.temaKey ?? "clasico-azul",
       faviconUrl: perfil?.faviconUrl ?? null,
       bannerUrl: perfil?.bannerUrl ?? null,
       logoBlancoUrl: perfil?.logoBlancoUrl ?? null,
@@ -431,6 +433,7 @@ export class PerfilNegocioService {
       configurado: perfil !== null,
       contenido: {
         frasePrincipal: perfil?.frasePrincipal ?? null,
+        temaKey: perfil?.temaKey ?? 'clasico-azul',
       },
       ubicacion: {
         direccion: perfil?.direccion ?? null,
