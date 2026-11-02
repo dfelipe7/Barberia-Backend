@@ -8,8 +8,12 @@ import {
 } from '@nestjs/common';
 
 import { BarberosRepository } from '../repository/barberos.repository';
+import { AdministradoresRepository } from '../repository/administradores.repository';
 import { ActualizarUsuarioDto } from '../dto/dto-peticion/actualizar-usuario.dto';
-import { CambiarEstadoUsuarioDto } from '../dto/dto-peticion/cambiar-estado-usuario.dto';
+import {
+  CambiarEstadoUsuarioGestionDto,
+  TipoMembresiaEstado,
+} from '../dto/dto-peticion/cambiar-estado-usuario-gestion.dto';
 import { UsuarioPerfilDto } from '../dto/dto-respuesta/usuario-perfil.dto';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
 import { UsuariosRepository } from '../repository/usuarios.repository';
@@ -33,6 +37,7 @@ export class UsuariosService {
   constructor(
     private readonly usuariosRepository: UsuariosRepository,
     private readonly barberosRepository: BarberosRepository,
+    private readonly administradoresRepository: AdministradoresRepository,
     private readonly authorizationService: UsuariosAuthorizationService,
     @Inject(forwardRef(() => AdministradoresService))
     private readonly administradoresService: AdministradoresService,
@@ -205,9 +210,8 @@ export class UsuariosService {
     usuarioId: number,
     dto: ActualizarUsuarioDto,
   ): Promise<void> {
-    if (dto.email || dto.nombre || dto.apellido) {
+    if (dto.nombre || dto.apellido) {
       await this.usuariosRepository.actualizarUsuario(usuarioId, {
-        email: dto.email,
         nombre: dto.nombre,
         apellido: dto.apellido,
       });
@@ -412,17 +416,15 @@ export class UsuariosService {
   }
 
   /**
-   * Cambia el estado de la cuenta global del usuario (ACTIVO/INACTIVO).
-   * Al inactivar, bloquea el acceso en la plataforma, impidiendo el inicio de sesión.
-   * NOTA: Esta acción solo afecta el acceso global. Los roles (admin/barbero)
-   * mantienen su propio estado independiente. Si el usuario queda sin roles
-   * activos al desbloquear, el administrador deberá restaurarlos manualmente.
+   * Cambia el estado de una membresía del usuario en la barbería actual.
+   * No modifica el estado global de la cuenta, de modo que la persona no
+   * pierde el acceso a sus demás barberías.
    */
   async cambiarEstadoUsuario(
     usuarioId: number,
-    dto: CambiarEstadoUsuarioDto,
+    dto: CambiarEstadoUsuarioGestionDto,
     usuarioAutenticado: any,
-  ) {
+  ): Promise<UsuarioPerfilDto> {
     const usuario =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
@@ -441,22 +443,53 @@ export class UsuariosService {
 
     const actor = this.actorDe(usuarioAutenticado);
 
-    // Multitenant: Normalizar perfiles para que la verificación de permisos
-    // pueda validar si el usuario objetivo es barbero o admin de este negocio.
     const usuarioNormalizado = this.normalizarPerfilesNegocio(
       usuario,
       actor.negocioId,
-    );
+    ) as Parameters<
+      UsuariosAuthorizationService['verificarPermisosCambioEstadoCuenta']
+    >[1];
 
     this.authorizationService.verificarPermisosCambioEstadoCuenta(
       actor,
       usuarioNormalizado,
     );
 
-    const nuevoEstado = dto.estado;
-    return this.usuariosRepository.actualizarEstadoUsuario(
-      usuarioId,
-      nuevoEstado,
+    const quiereAdministrador =
+      dto.tipo === TipoMembresiaEstado.ADMINISTRADOR ||
+      dto.tipo === TipoMembresiaEstado.AMBOS;
+    const quiereBarbero =
+      dto.tipo === TipoMembresiaEstado.BARBERO ||
+      dto.tipo === TipoMembresiaEstado.AMBOS;
+
+    if (quiereAdministrador && !usuarioNormalizado.administrador) {
+      throw new ConflictException(
+        'El usuario no es administrador de esta barbería',
+      );
+    }
+
+    if (quiereBarbero && !usuarioNormalizado.barbero) {
+      throw new ConflictException('El usuario no es barbero de esta barbería');
+    }
+
+    if (quiereAdministrador) {
+      await this.administradoresRepository.actualizarEstadoAdministrador(
+        usuarioId,
+        dto.estado,
+      );
+    }
+
+    if (quiereBarbero) {
+      await this.barberosRepository.actualizarEstadoBarbero(
+        usuarioId,
+        dto.estado,
+      );
+    }
+
+    const usuarioGuardado =
+      await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+    return this.mapearUsuarioPerfil(
+      this.normalizarPerfilesNegocio(usuarioGuardado, actor.negocioId),
     );
   }
 
@@ -468,7 +501,10 @@ export class UsuariosService {
    * Normaliza los perfiles de administrador y barbero de un usuario para que
    * correspondan al negocio evaluado (por defecto, el del actor).
    */
-  private normalizarPerfilesNegocio(usuario: any, negocioId: number | null) {
+  private normalizarPerfilesNegocio(
+    usuario: any,
+    negocioId: number | null,
+  ): any {
     if (!usuario) return usuario;
 
     let administrador = usuario.administrador;

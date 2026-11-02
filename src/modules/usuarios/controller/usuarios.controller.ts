@@ -33,7 +33,7 @@ import { Roles } from '../../../auth/roles/roles.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { ActualizarUsuarioDto } from '../dto/dto-peticion/actualizar-usuario.dto';
-import { CambiarEstadoUsuarioDto } from '../dto/dto-peticion/cambiar-estado-usuario.dto';
+import { CambiarEstadoUsuarioGestionDto } from '../dto/dto-peticion/cambiar-estado-usuario-gestion.dto';
 import { ConfigurarBarberoDto } from '../dto/dto-peticion/configurar-barbero.dto';
 import { UsuarioPerfilDto } from '../dto/dto-respuesta/usuario-perfil.dto';
 import { UsuariosService } from '../service/usuarios.service';
@@ -240,17 +240,20 @@ export class UsuariosController {
   @Patch(':usuarioId/estado')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
-  @ApiOperation({ summary: 'Cambia el estado (activo/inactivo) de un usuario' })
+  @ApiOperation({
+    summary:
+      'Cambia el estado de una membresía del usuario en la barbería actual',
+  })
   @ApiOkResponse({
-    description: 'Estado global del usuario cambiado exitosamente.',
+    description: 'Estado de la membresía cambiado exitosamente.',
   })
   @ApiForbiddenResponse({
     description:
-      'Un Administrador no puede bloquear a otro Administrador o Superadmin.',
+      'No tienes permisos para cambiar el estado de esta membresía.',
   })
   async cambiarEstadoUsuario(
     @Param('usuarioId') usuarioId: string,
-    @Body() dto: CambiarEstadoUsuarioDto,
+    @Body() dto: CambiarEstadoUsuarioGestionDto,
     @Req() request: any,
   ) {
     return this.usuariosService.cambiarEstadoUsuario(
