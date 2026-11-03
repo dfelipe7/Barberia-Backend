@@ -45,37 +45,6 @@ const incluirBarberos = (negocioId: number) => ({
  * Fragmento para incluir únicamente los barberos ACTIVOS que cuentan con al menos
  * una franja horaria configurada en su semana laboral (weeklySlots.some(active: true)).
  */
-const INCLUDE_BARBEROS_CATALOGO = {
-  barberos: {
-    where: {
-      barbero: {
-        estado: EstadoUsuario.ACTIVO,
-        usuario: {
-          estado: EstadoUsuario.ACTIVO,
-        },
-        weeklySlots: {
-          some: {
-            active: true,
-          },
-        },
-      },
-    },
-    include: {
-      barbero: {
-        include: {
-          usuario: {
-            select: {
-              id: true,
-              nombre: true,
-              apellido: true,
-              email: true,
-            },
-          },
-        },
-      },
-    },
-  },
-};
 
 @Injectable()
 export class ServiciosRepository {
@@ -394,8 +363,6 @@ export class ServiciosRepository {
       barberoIds?: number[];
     },
   ) {
-    const negocioId = this.aislamiento.negocioIdRequerido();
-
     return await this.prisma.servicio.update({
       where: this.aislamiento.filtroEscritura({ id }),
       data: {

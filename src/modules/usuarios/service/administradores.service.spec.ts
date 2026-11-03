@@ -41,7 +41,7 @@ describe('AdministradoresService', () => {
           usuario: { create: jest.fn().mockResolvedValue({ id: 1 }) },
           administrador: { create: jest.fn().mockResolvedValue({ id: 1 }) },
         };
-        return cb(tx);
+        return await cb(tx);
       }),
     };
 

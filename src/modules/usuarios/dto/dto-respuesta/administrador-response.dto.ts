@@ -50,7 +50,8 @@ export class AdministradorResponseDto {
 
   @ApiProperty({
     example: true,
-    description: 'Indica si el administrador es Superadministrador de la barbería',
+    description:
+      'Indica si el administrador es Superadministrador de la barbería',
     required: false,
   })
   esSuperAdmin?: boolean;

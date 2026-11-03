@@ -283,7 +283,8 @@ function forzarNegocioEnEscritura(
         !Array.isArray(data) &&
         'negocioId' in data
       ) {
-        const { negocioId: _, ...dataLimpio } = data as Record<string, unknown>;
+        const dataLimpio = { ...(data as Record<string, unknown>) };
+        delete dataLimpio.negocioId;
         resultado.data = dataLimpio;
       }
     }

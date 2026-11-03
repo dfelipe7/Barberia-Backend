@@ -572,12 +572,8 @@ describe('UsuariosService', () => {
       expect(
         administradoresRepository.actualizarEstadoAdministrador,
       ).toHaveBeenCalledWith(2, 'INACTIVO');
-      expect(
-        barberosRepository.actualizarEstadoBarbero,
-      ).not.toHaveBeenCalled();
-      expect(
-        usuariosRepository.actualizarEstadoUsuario,
-      ).not.toHaveBeenCalled();
+      expect(barberosRepository.actualizarEstadoBarbero).not.toHaveBeenCalled();
+      expect(usuariosRepository.actualizarEstadoUsuario).not.toHaveBeenCalled();
     });
 
     it('actualiza solo la membresía de barbero pedida', async () => {
@@ -596,15 +592,14 @@ describe('UsuariosService', () => {
         sesionSuperadmin,
       );
 
-      expect(
-        barberosRepository.actualizarEstadoBarbero,
-      ).toHaveBeenCalledWith(2, 'INACTIVO');
+      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(
+        2,
+        'INACTIVO',
+      );
       expect(
         administradoresRepository.actualizarEstadoAdministrador,
       ).not.toHaveBeenCalled();
-      expect(
-        usuariosRepository.actualizarEstadoUsuario,
-      ).not.toHaveBeenCalled();
+      expect(usuariosRepository.actualizarEstadoUsuario).not.toHaveBeenCalled();
     });
 
     it('actualiza ambas membresías cuando tipo es ambos', async () => {
@@ -624,9 +619,10 @@ describe('UsuariosService', () => {
       expect(
         administradoresRepository.actualizarEstadoAdministrador,
       ).toHaveBeenCalledWith(2, 'INACTIVO');
-      expect(
-        barberosRepository.actualizarEstadoBarbero,
-      ).toHaveBeenCalledWith(2, 'INACTIVO');
+      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(
+        2,
+        'INACTIVO',
+      );
     });
 
     it('responde 409 si la membresía pedida no existe en el negocio', async () => {

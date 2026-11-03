@@ -38,6 +38,12 @@ import {
   BloqueoHorarioResponseDto,
 } from '../dto/dto-respuesta/bloqueo-horario-response.dto';
 
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
+
+interface RequestConUsuario {
+  user?: Partial<ClaimsSesionPersonal>;
+}
+
 @ApiTags('Bloqueos de horario')
 @ApiBearerAuth()
 @Controller('usuarios/me/barbero')
@@ -85,7 +91,7 @@ export class BloqueosHorarioController {
       'La verificación de reservas activas (HE-04) no está integrada; la creación se rechaza para no omitir la regla.',
   })
   async crearBloqueo(
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
     @Body() dto: CrearBloqueoHorarioDto,
   ): Promise<BloqueoHorarioAccionResponseDto> {
     return this.bloqueosHorarioService.crearBloqueo(request.user, dto);
@@ -114,7 +120,7 @@ export class BloqueosHorarioController {
       'El usuario autenticado no tiene un perfil de barbero asociado.',
   })
   async listarBloqueos(
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
     @Query() filtro: FiltroBloqueosHorarioDto,
   ): Promise<BloqueoHorarioResponseDto[]> {
     return this.bloqueosHorarioService.listarBloqueos(request.user, filtro);
@@ -159,7 +165,7 @@ export class BloqueosHorarioController {
       'La verificación de reservas activas (HE-04) no está integrada; el cambio de horario se rechaza para no omitir la regla.',
   })
   async actualizarBloqueo(
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ActualizarBloqueoHorarioDto,
   ): Promise<BloqueoHorarioAccionResponseDto> {
@@ -195,7 +201,7 @@ export class BloqueosHorarioController {
     description: 'El bloqueo no está ACTIVE (transición inválida).',
   })
   async cancelarBloqueo(
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
     @Param('id', ParseIntPipe) id: number,
   ): Promise<BloqueoHorarioAccionResponseDto> {
     return this.bloqueosHorarioService.cancelarBloqueo(request.user, id);
@@ -230,7 +236,7 @@ export class BloqueosHorarioController {
     description: 'El bloqueo no está ACTIVE (transición inválida).',
   })
   async reactivarBloqueo(
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
     @Param('id', ParseIntPipe) id: number,
   ): Promise<BloqueoHorarioAccionResponseDto> {
     return this.bloqueosHorarioService.reactivarBloqueo(request.user, id);

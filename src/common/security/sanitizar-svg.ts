@@ -239,7 +239,7 @@ export function sanitizarSvg(contenido: string): string {
 
       const esAutoCierre = !cierre && /\/\s*$/.test(atributos);
 
-      return `<${cierre}${nombreOriginal}${saneados}${esAutoCierre ? " />" : ">"}`;
+      return `<${cierre}${nombreOriginal}${saneados}${esAutoCierre ? ' />' : '>'}`;
     },
   );
 

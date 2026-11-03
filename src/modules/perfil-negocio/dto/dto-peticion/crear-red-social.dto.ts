@@ -59,4 +59,3 @@ export class ReemplazarRedesSocialesDto {
   @ApiProperty({ type: [CrearRedSocialDto] })
   redes: CrearRedSocialDto[];
 }
-

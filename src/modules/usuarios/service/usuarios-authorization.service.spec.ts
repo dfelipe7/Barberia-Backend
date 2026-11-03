@@ -301,19 +301,16 @@ describe('UsuariosAuthorizationService', () => {
 
     it('SUPERADMIN de SU barbería NO puede cambiar el estado ni bloquear a otro SUPERADMIN de su barbería', () => {
       expect(() =>
-        service.verificarPermisosCambioEstadoCuenta(
-          actor(1, ['SUPERADMIN']),
-          {
-            id: 2,
-            rol: 'PERSONAL',
-            administrador: {
-              estado: 'ACTIVO',
-              negocioId: NEGOCIO,
-              superadmin: true,
-            },
-            barbero: null,
+        service.verificarPermisosCambioEstadoCuenta(actor(1, ['SUPERADMIN']), {
+          id: 2,
+          rol: 'PERSONAL',
+          administrador: {
+            estado: 'ACTIVO',
+            negocioId: NEGOCIO,
+            superadmin: true,
           },
-        ),
+          barbero: null,
+        }),
       ).toThrow(ForbiddenException);
     });
 

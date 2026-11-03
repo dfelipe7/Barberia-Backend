@@ -6,9 +6,7 @@ import { ActualizarRedSocialDto } from './actualizar-red-social.dto';
  * Valida un DTO con las MISMAS reglas que aplica el `ValidationPipe` global
  * de la aplicación (`whitelist` y `forbidNonWhitelisted`).
  */
-async function validar(
-  datos: Record<string, unknown>,
-): Promise<string[]> {
+async function validar(datos: Record<string, unknown>): Promise<string[]> {
   const instancia = plainToInstance(ActualizarRedSocialDto, datos);
 
   const errores = await validate(instancia, {
@@ -85,4 +83,3 @@ describe('ActualizarRedSocialDto', () => {
     expect(errores.length).toBeGreaterThan(0);
   });
 });
-

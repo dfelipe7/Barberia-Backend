@@ -16,6 +16,24 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { construirActorSesion } from '../../../auth/sesion/sesion-personal';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
+
+/** Tipo del usuario con relaciones de barberos y administradores cargadas */
+type UsuarioConRelaciones = {
+  id: number;
+  email: string | null;
+  nombre: string;
+  apellido: string;
+  rol: string;
+  estado: string;
+  barberos?: Array<{ negocioId: number; estado: string }>;
+  administradores?: Array<{
+    negocioId: number;
+    estado: string;
+    superadmin: boolean;
+  }>;
+};
+
 @Injectable()
 export class BarberosService {
   private readonly logger = new Logger(BarberosService.name);
@@ -36,12 +54,13 @@ export class BarberosService {
    * petición. Las relaciones cargadas por Prisma no las filtra la extensión de
    * aislamiento, de modo que el filtro se aplica aquí de forma explícita.
    */
-  private perfilBarberoEnNegocio(usuario: any) {
+  private perfilBarberoEnNegocio(usuario: UsuarioConRelaciones) {
     const negocioId = this.aislamiento.negocioIdRequerido();
 
     return (
       (usuario?.barberos ?? []).find(
-        (perfil: any) => perfil.negocioId === negocioId,
+        (perfil: { negocioId: number; estado: string }) =>
+          perfil.negocioId === negocioId,
       ) ?? null
     );
   }
@@ -52,12 +71,13 @@ export class BarberosService {
    * Mismo criterio que `perfilBarberoEnNegocio`: una persona puede ser
    * administradora de varias barberías.
    */
-  private perfilAdministradorEnNegocio(usuario: any) {
+  private perfilAdministradorEnNegocio(usuario: UsuarioConRelaciones) {
     const negocioId = this.aislamiento.negocioIdRequerido();
 
     return (
       (usuario?.administradores ?? []).find(
-        (perfil: any) => perfil.negocioId === negocioId,
+        (perfil: { negocioId: number; estado: string; superadmin: boolean }) =>
+          perfil.negocioId === negocioId,
       ) ?? null
     );
   }
@@ -177,7 +197,9 @@ export class BarberosService {
     }
   }
 
-  private async buscarUsuarioAutenticado(usuarioAutenticado: any) {
+  private async buscarUsuarioAutenticado(
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
+  ) {
     if (usuarioAutenticado?.email) {
       const u = await this.usuariosRepository.obtenerUsuarioPorEmail(
         usuarioAutenticado.email,
@@ -295,7 +317,7 @@ export class BarberosService {
   async actualizarComision(
     usuarioId: number,
     dto: ActualizarComisionDto,
-    usuarioAutenticado: any,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ) {
     const usuario =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
@@ -400,7 +422,7 @@ export class BarberosService {
   async subirFotoBarbero(
     usuarioId: number,
     archivo: Express.Multer.File,
-    usuarioAutenticado?: any,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ) {
     if (!archivo) {
       throw new ConflictException(
@@ -444,13 +466,15 @@ export class BarberosService {
   private eliminarArchivoSilencioso(ruta: string): void {
     try {
       fs.unlinkSync(ruta);
-    } catch {}
+    } catch {
+      // Intencional: ignorar si el archivo no existe
+    }
   }
 
   private async verificarPermisoSubidaFoto(
     usuarioId: number,
     archivo: Express.Multer.File,
-    usuarioAutenticado: any,
+    usuarioAutenticado: Partial<ClaimsSesionPersonal>,
   ): Promise<void> {
     const usuarioObjetivo =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
@@ -525,7 +549,7 @@ export class BarberosService {
   async cambiarEstadoBarbero(
     usuarioId: number,
     dto: CambiarEstadoUsuarioDto,
-    usuarioAutenticado: any,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ) {
     const usuario =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);

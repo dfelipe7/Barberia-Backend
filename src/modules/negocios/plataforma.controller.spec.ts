@@ -167,7 +167,6 @@ describe('NegociosPlataformaController', () => {
   });
 
   describe('Guard metadata en métodos', () => {
-    /* eslint-disable @typescript-eslint/unbound-method, @typescript-eslint/no-unsafe-assignment */
     it('los métodos de administración tienen JwtSesionGuard y PlataformaAdminGuard', () => {
       const guardsListar = Reflect.getMetadata(
         '__guards__',

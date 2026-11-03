@@ -30,6 +30,40 @@ import {
   ROL_SUPERADMIN,
 } from '../../negocios/negocios.constants';
 
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
+import { Prisma } from '../../../../generated/prisma/client';
+
+export type UsuarioPerfilAdministrador = {
+  id: number;
+  negocioId: number;
+  estado: string;
+  superadmin: boolean;
+};
+
+export type UsuarioPerfilBarbero = {
+  id: number;
+  negocioId: number;
+  telefono: string;
+  porcentajeComision: Prisma.Decimal | number | string;
+  fotoUrl: string | null;
+  estado: string;
+};
+
+export type UsuarioConPerfiles = {
+  id: number;
+  email: string | null;
+  nombre: string;
+  apellido: string;
+  rol: string;
+  estado: string;
+  administrador?: UsuarioPerfilAdministrador | null;
+  barbero?: UsuarioPerfilBarbero | null;
+  administradores?: UsuarioPerfilAdministrador[];
+  barberos?: UsuarioPerfilBarbero[];
+};
+
+export type UsuarioNormalizado = UsuarioConPerfiles;
+
 @Injectable()
 export class UsuariosService {
   private readonly logger = new Logger(UsuariosService.name);
@@ -50,11 +84,15 @@ export class UsuariosService {
    * negocio). Es lo que se usa para autorizar; el registro de `Usuario` solo
    * se usa para saber que la identidad existe.
    */
-  private actorDe(usuarioAutenticado: any): ActorSesion {
+  private actorDe(
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
+  ): ActorSesion {
     return construirActorSesion(usuarioAutenticado);
   }
 
-  private async buscarUsuarioAutenticado(usuarioAutenticado: any) {
+  private async buscarUsuarioAutenticado(
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
+  ) {
     if (usuarioAutenticado?.email) {
       const u = await this.usuariosRepository.obtenerUsuarioPorEmail(
         usuarioAutenticado.email,
@@ -80,7 +118,9 @@ export class UsuariosService {
   /**
    * Obtiene el perfil del usuario autenticado en base a su token.
    */
-  async obtenerMiPerfil(usuarioAutenticado: any): Promise<UsuarioPerfilDto> {
+  async obtenerMiPerfil(
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
+  ): Promise<UsuarioPerfilDto> {
     const usuarioActual =
       await this.buscarUsuarioAutenticado(usuarioAutenticado);
 
@@ -105,7 +145,7 @@ export class UsuariosService {
    */
   async obtenerUsuarioPorId(
     usuarioId: number,
-    usuarioAutenticado: any,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ): Promise<UsuarioPerfilDto> {
     const usuario =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
@@ -149,8 +189,8 @@ export class UsuariosService {
   async actualizarUsuario(
     usuarioId: number,
     dto: ActualizarUsuarioDto,
-    usuarioAutenticado: any,
-  ) {
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
+  ): Promise<UsuarioNormalizado> {
     const usuario =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
@@ -225,7 +265,7 @@ export class UsuariosService {
   private async gestionarRolAdministrador(
     usuarioId: number,
     dto: ActualizarUsuarioDto,
-    usuario: any,
+    usuario: UsuarioNormalizado,
     actor: ActorSesion,
   ): Promise<void> {
     if (dto.esAdministrador === undefined) {
@@ -266,9 +306,9 @@ export class UsuariosService {
   private async gestionarRolBarbero(
     usuarioId: number,
     dto: ActualizarUsuarioDto,
-    usuario: any,
+    usuario: UsuarioNormalizado,
     actor: ActorSesion,
-    usuarioAutenticado: any,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ): Promise<void> {
     const estadoBarberoActual = this.esBarberoActivoEnNegocio(
       usuario,
@@ -294,9 +334,9 @@ export class UsuariosService {
   private async cambiarEstadoRolBarbero(
     usuarioId: number,
     dto: ActualizarUsuarioDto,
-    usuario: any,
+    usuario: UsuarioNormalizado,
     actor: ActorSesion,
-    usuarioAutenticado: any,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ): Promise<void> {
     if (
       actor.roles.includes(ROL_BARBERO) &&
@@ -334,7 +374,7 @@ export class UsuariosService {
   private async actualizarPerfilBarberoSiAplica(
     usuarioId: number,
     dto: ActualizarUsuarioDto,
-    usuario: any,
+    usuario: UsuarioNormalizado,
     actor: ActorSesion,
   ): Promise<void> {
     const enviaDatosPerfil =
@@ -362,7 +402,7 @@ export class UsuariosService {
    * Multitenant: Evalúa tanto el perfil normalizado en singular como el arreglo administradores[].
    */
   private esAdminActivoEnNegocio(
-    usuario: any,
+    usuario: UsuarioNormalizado | null | undefined,
     negocioId: number | null,
   ): boolean {
     if (negocioId === null || !usuario) return false;
@@ -391,7 +431,7 @@ export class UsuariosService {
    * Multitenant: Evalúa tanto el perfil normalizado en singular como el arreglo barberos[].
    */
   private esBarberoActivoEnNegocio(
-    usuario: any,
+    usuario: UsuarioNormalizado | null | undefined,
     negocioId: number | null,
   ): boolean {
     if (negocioId === null || !usuario) return false;
@@ -423,7 +463,7 @@ export class UsuariosService {
   async cambiarEstadoUsuario(
     usuarioId: number,
     dto: CambiarEstadoUsuarioGestionDto,
-    usuarioAutenticado: any,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ): Promise<UsuarioPerfilDto> {
     const usuario =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
@@ -502,10 +542,11 @@ export class UsuariosService {
    * correspondan al negocio evaluado (por defecto, el del actor).
    */
   private normalizarPerfilesNegocio(
-    usuario: any,
+    usuario: UsuarioConPerfiles | null | undefined,
     negocioId: number | null,
-  ): any {
-    if (!usuario) return usuario;
+  ): UsuarioNormalizado {
+    if (!usuario) return {} as UsuarioNormalizado;
+    // comprobado arriba
 
     let administrador = usuario.administrador;
     if (
@@ -514,8 +555,9 @@ export class UsuariosService {
       negocioId !== null
     ) {
       administrador =
-        usuario.administradores.find((a: any) => a.negocioId === negocioId) ??
-        null;
+        usuario.administradores.find(
+          (a: UsuarioPerfilAdministrador) => a.negocioId === negocioId,
+        ) ?? null;
     }
 
     let barbero = usuario.barbero;
@@ -525,7 +567,9 @@ export class UsuariosService {
       negocioId !== null
     ) {
       barbero =
-        usuario.barberos.find((b: any) => b.negocioId === negocioId) ?? null;
+        usuario.barberos.find(
+          (b: UsuarioPerfilBarbero) => b.negocioId === negocioId,
+        ) ?? null;
     }
 
     return {
@@ -535,10 +579,10 @@ export class UsuariosService {
     };
   }
 
-  private mapearUsuarioPerfil(usuario: any): UsuarioPerfilDto {
+  private mapearUsuarioPerfil(usuario: UsuarioNormalizado): UsuarioPerfilDto {
     return {
       id: usuario.id,
-      email: usuario.email,
+      email: usuario.email ?? '',
       nombre: usuario.nombre,
       apellido: usuario.apellido,
       rol: usuario.rol,

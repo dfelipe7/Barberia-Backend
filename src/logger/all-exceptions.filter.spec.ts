@@ -8,13 +8,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 import { AlertsService } from '../modules/alerts/alerts.service';
-import {
-  HttpException,
-  HttpStatus,
-  Logger,
-  ArgumentsHost,
-} from '@nestjs/common';
-import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { HttpException, HttpStatus, ArgumentsHost } from '@nestjs/common';
 
 describe('AllExceptionsFilter', () => {
   let filter: AllExceptionsFilter;

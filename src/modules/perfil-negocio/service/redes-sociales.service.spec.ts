@@ -301,7 +301,9 @@ describe('RedesSocialesService', () => {
       );
       await expect(
         service.actualizar(1, { nombre: 'Nuevo Nombre' }),
-      ).rejects.toThrow('Solo las redes de tipo OTRO pueden cambiar de nombre.');
+      ).rejects.toThrow(
+        'Solo las redes de tipo OTRO pueden cambiar de nombre.',
+      );
     });
 
     it('actualizar cambia nombre de una OTRO sin colisión → OK', async () => {

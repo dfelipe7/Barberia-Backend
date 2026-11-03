@@ -181,7 +181,6 @@ const esperarConsultaAislada = (mock: unknown, esperado: unknown): void => {
 
 describe('BarberosRepository', () => {
   let repository: BarberosRepository;
-  let prisma: PrismaService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -196,7 +195,6 @@ describe('BarberosRepository', () => {
     }).compile();
 
     repository = module.get<BarberosRepository>(BarberosRepository);
-    prisma = module.get<PrismaService>(PrismaService);
     jest.clearAllMocks();
   });
 

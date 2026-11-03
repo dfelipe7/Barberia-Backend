@@ -4,7 +4,6 @@ import { BarberosService } from './barberos.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
 import { BarberosRepository } from '../repository/barberos.repository';
 import { UsuariosAuthorizationService } from './usuarios-authorization.service';
-import { FiltroBarberosDto } from '../dto/dto-peticion/filtro-barberos.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 jest.mock('../../../../generated/prisma/enums', () => ({
@@ -58,13 +57,17 @@ describe('BarberosService', () => {
         {
           provide: PrismaService,
           useValue: {
-            barbero: { findUnique: jest.fn().mockResolvedValue({ id: 1, estado: "ACTIVO" }) },
+            barbero: {
+              findUnique: jest
+                .fn()
+                .mockResolvedValue({ id: 1, estado: 'ACTIVO' }),
+            },
             $transaction: jest.fn(async (cb) => {
               const tx = {
                 usuario: { create: jest.fn().mockResolvedValue({ id: 1 }) },
                 barbero: { create: jest.fn().mockResolvedValue({ id: 1 }) },
               };
-              return cb(tx);
+              return await cb(tx);
             }),
           },
         },
@@ -144,7 +147,7 @@ describe('BarberosService', () => {
       });
       barberosRepository.crearPerfilBarbero.mockResolvedValue({ id: 1 });
 
-      const result = await service.configurarBarbero('b@b.com', {
+      await service.configurarBarbero('b@b.com', {
         telefono: '300',
         porcentajeComision: 50,
       });

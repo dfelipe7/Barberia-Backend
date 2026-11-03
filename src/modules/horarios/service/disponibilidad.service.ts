@@ -1,3 +1,4 @@
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
 import {
   BadRequestException,
   ForbiddenException,
@@ -144,7 +145,7 @@ export class DisponibilidadService {
    * @throws ForbiddenException si el usuario no tiene perfil de barbero.
    */
   async obtenerDisponibilidadDetalladaDelBarberoAutenticado(
-    usuarioAutenticado: unknown,
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
     consulta: { servicioId?: number; fecha: string },
   ): Promise<DisponibilidadDetalladaResponseDto> {
     const usuarioId = this.resolverUsuarioId(usuarioAutenticado);
@@ -168,7 +169,9 @@ export class DisponibilidadService {
    * Extrae el `Usuario.id` del payload JWT. El guard publica `id` (numérico) y
    * `sub` (string); ambos corresponden al ID del usuario, nunca al del barbero.
    */
-  private resolverUsuarioId(usuarioAutenticado: any): number {
+  private resolverUsuarioId(
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
+  ): number {
     const idCrudo = usuarioAutenticado?.id ?? usuarioAutenticado?.sub;
     const usuarioId = Number(idCrudo);
 

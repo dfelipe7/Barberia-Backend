@@ -62,6 +62,12 @@ import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { Roles } from '../../../auth/roles/roles.decorator';
 
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
+
+interface RequestConUsuario {
+  user?: Partial<ClaimsSesionPersonal>;
+}
+
 /** Petición con la identidad de cliente que publica el guard de cliente. */
 interface PeticionConCliente {
   cliente?: { clienteId: number };
@@ -467,7 +473,7 @@ export class ReservasController {
       'El usuario no tiene rol BARBERO, carece de perfil de barbero o se encuentra inactivo',
   })
   async obtenerMiAgendaSemanal(
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
     @Query() consulta: ConsultaAgendaSemanalDto,
   ): Promise<AgendaSemanalBarberoResponseDto> {
     return this.reservasService.obtenerAgendaSemanalBarbero(
@@ -501,7 +507,7 @@ export class ReservasController {
       'El usuario no tiene rol BARBERO, carece de perfil de barbero o se encuentra inactivo',
   })
   async obtenerMiAgenda(
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
     @Query() consulta: ConsultaAgendaBarberoDto,
   ): Promise<AgendaBarberoResponseDto> {
     return this.reservasService.obtenerAgendaBarbero(request.user, consulta);

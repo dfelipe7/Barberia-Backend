@@ -36,6 +36,11 @@ import { BarberoCatalogoDto } from '../dto/dto-respuesta/barbero-catalogo.dto';
 import { BarberosService } from '../service/barberos.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
 import { ApiNegocioHeader } from '../../../common/decorators/api-negocio-header.decorator';
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
+
+interface RequestConUsuario {
+  user?: Partial<ClaimsSesionPersonal>;
+}
 
 @ApiTags('Barberos')
 @ApiBearerAuth()
@@ -120,7 +125,7 @@ export class BarberosController {
   async actualizarComision(
     @Param('usuarioId') usuarioId: string,
     @Body() dto: ActualizarComisionDto,
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
   ) {
     return this.barberosService.actualizarComision(
       Number(usuarioId),
@@ -152,7 +157,7 @@ export class BarberosController {
   async cambiarEstadoBarbero(
     @Param('usuarioId') usuarioId: string,
     @Body() dto: CambiarEstadoUsuarioDto,
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
   ) {
     return this.barberosService.cambiarEstadoBarbero(
       Number(usuarioId),
@@ -168,7 +173,7 @@ export class BarberosController {
   @ApiOperation({ summary: 'Sube la foto de perfil del barbero autenticado' })
   async subirMiFoto(
     @UploadedFile() file: Express.Multer.File,
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
   ) {
     if (!file) {
       throw new BadRequestException('Debe seleccionar un archivo de imagen');
@@ -177,7 +182,7 @@ export class BarberosController {
     const usuario = usuarioId
       ? await this.usuariosRepository.obtenerUsuarioPorId(usuarioId)
       : await this.usuariosRepository.obtenerUsuarioPorEmail(
-          request.user?.email,
+          request.user?.email ?? '',
         );
 
     if (!usuario) {
@@ -192,12 +197,12 @@ export class BarberosController {
   @ApiOperation({
     summary: 'Elimina la foto de perfil del barbero autenticado',
   })
-  async eliminarMiFoto(@Req() request: any) {
+  async eliminarMiFoto(@Req() request: RequestConUsuario) {
     const usuarioId = request.user?.id ? Number(request.user.id) : null;
     const usuario = usuarioId
       ? await this.usuariosRepository.obtenerUsuarioPorId(usuarioId)
       : await this.usuariosRepository.obtenerUsuarioPorEmail(
-          request.user?.email,
+          request.user?.email ?? '',
         );
 
     if (!usuario) {
@@ -226,7 +231,7 @@ export class BarberosController {
   async subirFotoBarberoPorId(
     @Param('usuarioId') usuarioId: string,
     @UploadedFile() file: Express.Multer.File,
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
   ) {
     if (!file) {
       throw new BadRequestException('Debe seleccionar un archivo de imagen');

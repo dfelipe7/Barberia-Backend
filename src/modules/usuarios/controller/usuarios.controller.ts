@@ -43,6 +43,15 @@ import {
   ROL_ADMINISTRADOR,
   ROL_SUPERADMIN,
 } from '../../negocios/negocios.constants';
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
+
+interface RequestConUsuario {
+  user?: Partial<ClaimsSesionPersonal>;
+}
+
+interface RequestConUsuarioOpcional {
+  user?: Partial<ClaimsSesionPersonal>;
+}
 
 @ApiTags('Usuarios')
 @ApiBearerAuth()
@@ -124,11 +133,11 @@ export class UsuariosController {
   @ApiOkResponse({ description: 'Perfil de barbero configurado con éxito.' })
   @ApiBadRequestResponse({ description: 'Datos inválidos en el formulario.' })
   async configurarMiPerfilComoBarbero(
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
     @Body() dto: ConfigurarBarberoDto,
   ) {
     return this.barberosService.configurarBarbero(
-      request.user.email || request.user.sub,
+      (request.user?.email ?? request.user?.sub) as string,
       dto,
     );
   }
@@ -157,7 +166,7 @@ export class UsuariosController {
   async configurarBarberoPorId(
     @Param('usuarioId') usuarioId: string,
     @Body() dto: ConfigurarBarberoDto,
-    @Req() request?: any,
+    @Req() request?: RequestConUsuarioOpcional,
   ) {
     const actor = request?.user;
     if (actor) {
@@ -182,7 +191,7 @@ export class UsuariosController {
     description: 'Datos del perfil actual.',
     type: UsuarioPerfilDto,
   })
-  async obtenerMiPerfil(@Req() request: any) {
+  async obtenerMiPerfil(@Req() request: RequestConUsuario) {
     return this.usuariosService.obtenerMiPerfil(request.user);
   }
 
@@ -208,7 +217,7 @@ export class UsuariosController {
   })
   async obtenerUsuarioPorId(
     @Param('usuarioId') usuarioId: string,
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
   ) {
     return this.usuariosService.obtenerUsuarioPorId(
       Number(usuarioId),
@@ -228,8 +237,8 @@ export class UsuariosController {
   async actualizarUsuario(
     @Param('usuarioId') usuarioId: string,
     @Body() dto: ActualizarUsuarioDto,
-    @Req() request: any,
-  ) {
+    @Req() request: RequestConUsuario,
+  ): Promise<unknown> {
     return this.usuariosService.actualizarUsuario(
       Number(usuarioId),
       dto,
@@ -248,13 +257,12 @@ export class UsuariosController {
     description: 'Estado de la membresía cambiado exitosamente.',
   })
   @ApiForbiddenResponse({
-    description:
-      'No tienes permisos para cambiar el estado de esta membresía.',
+    description: 'No tienes permisos para cambiar el estado de esta membresía.',
   })
   async cambiarEstadoUsuario(
     @Param('usuarioId') usuarioId: string,
     @Body() dto: CambiarEstadoUsuarioGestionDto,
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
   ) {
     return this.usuariosService.cambiarEstadoUsuario(
       Number(usuarioId),

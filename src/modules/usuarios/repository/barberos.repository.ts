@@ -3,6 +3,14 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
 
+/** Tipo para condiciones de filtro dinámicas en consultas de barberos */
+type WhereCondicionBarbero = Record<string, unknown> & {
+  estado?: EstadoUsuario;
+  usuario?: Record<string, unknown>;
+  OR?: Array<Record<string, unknown>>;
+  weeklySlots?: Record<string, unknown>;
+};
+
 @Injectable()
 export class BarberosRepository {
   constructor(
@@ -102,7 +110,7 @@ export class BarberosRepository {
   }
 
   async obtenerBarberosCatalogo(filtro?: { nombre?: string }) {
-    const whereCondition: any = {
+    const whereCondicion: WhereCondicionBarbero = {
       estado: EstadoUsuario.ACTIVO,
       usuario: {
         estado: EstadoUsuario.ACTIVO,
@@ -115,14 +123,16 @@ export class BarberosRepository {
     };
 
     if (filtro?.nombre) {
-      whereCondition.usuario.OR = [
+      const u = whereCondicion.usuario ?? {};
+      u['OR'] = [
         { nombre: { contains: filtro.nombre } },
         { apellido: { contains: filtro.nombre } },
       ];
+      whereCondicion.usuario = u;
     }
 
     return this.prisma.barbero.findMany({
-      where: this.aislamiento.filtroLectura(whereCondition),
+      where: this.aislamiento.filtroLectura(whereCondicion),
       include: {
         usuario: {
           select: {
@@ -139,16 +149,16 @@ export class BarberosRepository {
     nombre?: string;
     estado?: EstadoUsuario;
   }) {
-    const whereCondition: any = {};
+    const whereCondicion: WhereCondicionBarbero = {};
 
     if (filtro?.estado) {
       if (filtro.estado === EstadoUsuario.ACTIVO) {
-        whereCondition.estado = EstadoUsuario.ACTIVO;
-        whereCondition.usuario = {
+        whereCondicion.estado = EstadoUsuario.ACTIVO;
+        whereCondicion.usuario = {
           estado: EstadoUsuario.ACTIVO,
         };
       } else {
-        whereCondition.OR = [
+        whereCondicion.OR = [
           { estado: EstadoUsuario.INACTIVO },
           { usuario: { estado: EstadoUsuario.INACTIVO } },
         ];
@@ -156,8 +166,8 @@ export class BarberosRepository {
     }
 
     if (filtro?.nombre) {
-      if (!whereCondition.usuario) whereCondition.usuario = {};
-      whereCondition.usuario.OR = [
+      if (!whereCondicion.usuario) whereCondicion.usuario = {};
+      whereCondicion.usuario['OR'] = [
         { nombre: { contains: filtro.nombre } },
         { apellido: { contains: filtro.nombre } },
         { email: { contains: filtro.nombre } },
@@ -165,7 +175,7 @@ export class BarberosRepository {
     }
 
     return this.prisma.barbero.findMany({
-      where: this.aislamiento.filtroLectura(whereCondition),
+      where: this.aislamiento.filtroLectura(whereCondicion),
       include: {
         usuario: {
           include: {

@@ -1,11 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
-import {
-  INestApplication,
-  MiddlewareConsumer,
-  Module,
-  NotFoundException,
-} from '@nestjs/common';
+import { INestApplication, MiddlewareConsumer, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';

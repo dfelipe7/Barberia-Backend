@@ -42,4 +42,3 @@ export class ActualizarRedSocialDto {
   @Min(0)
   orden?: number;
 }
-

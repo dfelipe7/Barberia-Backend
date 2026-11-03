@@ -1,11 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ClientesAuthController } from './clientes-auth.controller';
 import { ClientesAuthService } from './clientes-auth.service';
+import { ClienteJwtAuthGuard } from './guards/cliente-jwt-auth.guard';
 
 describe('ClientesAuthController', () => {
   let controller: ClientesAuthController;
 
-  const clientesAuthService = { loginConGoogle: jest.fn() };
+  const clientesAuthService = {
+    loginConGoogle: jest.fn(),
+    obtenerPerfil: jest.fn(),
+    actualizarPerfil: jest.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -13,7 +18,10 @@ describe('ClientesAuthController', () => {
       providers: [
         { provide: ClientesAuthService, useValue: clientesAuthService },
       ],
-    }).compile();
+    })
+      .overrideGuard(ClienteJwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<ClientesAuthController>(ClientesAuthController);
     jest.clearAllMocks();

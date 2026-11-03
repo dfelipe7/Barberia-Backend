@@ -22,6 +22,11 @@ import { ClientesAuthService } from './clientes-auth.service';
 import { ClienteSesionResponseDto } from './dto/cliente-sesion-response.dto';
 import { ActualizarPerfilClienteDto } from './dto/actualizar-perfil-cliente.dto';
 import { ClienteJwtAuthGuard } from './guards/cliente-jwt-auth.guard';
+import { ClienteAutenticado } from './cliente-jwt.service';
+
+interface RequestConCliente {
+  cliente: ClienteAutenticado;
+}
 
 /**
  * Inicio de sesión de CLIENTES con Google (HE-04, Modalidad B).
@@ -60,7 +65,7 @@ export class ClientesAuthController {
   @UseGuards(ClienteJwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener el perfil del cliente autenticado' })
-  async obtenerPerfil(@Req() req: any) {
+  async obtenerPerfil(@Req() req: RequestConCliente) {
     return this.clientesAuthService.obtenerPerfil(req.cliente.clienteId);
   }
 
@@ -71,7 +76,7 @@ export class ClientesAuthController {
     summary: 'Actualizar teléfono o datos del cliente autenticado',
   })
   async actualizarPerfil(
-    @Req() req: any,
+    @Req() req: RequestConCliente,
     @Body() dto: ActualizarPerfilClienteDto,
   ) {
     return this.clientesAuthService.actualizarPerfil(

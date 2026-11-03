@@ -3,7 +3,6 @@ import {
   Logger,
   OnModuleInit,
   OnModuleDestroy,
-  Optional,
 } from '@nestjs/common';
 import makeWASocket, {
   DisconnectReason,

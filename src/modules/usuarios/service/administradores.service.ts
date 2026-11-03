@@ -12,6 +12,39 @@ import { AdministradorResponseDto } from '../dto/dto-respuesta/administrador-res
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 
+/** Tipo del usuario con relaciones de administradores y barberos cargadas */
+type UsuarioConRelaciones = {
+  id: number;
+  email: string | null;
+  nombre: string;
+  apellido: string;
+  rol: string;
+  estado: string;
+  administradores: Array<{
+    negocioId: number;
+    estado: string;
+    superadmin: boolean;
+  }>;
+  barberos: Array<{ negocioId: number; estado: string }>;
+};
+
+/** Tipo del resultado de obtenerAdministradores (con include de usuario y barberos) */
+type AdministradorConUsuario = {
+  id: number;
+  estado: string;
+  superadmin: boolean;
+  usuarioId: number;
+  negocioId: number;
+  usuario: {
+    id: number;
+    nombre: string;
+    apellido: string;
+    email: string | null;
+    estado: string;
+    barberos: Array<{ estado: string }>;
+  };
+};
+
 @Injectable()
 export class AdministradoresService {
   private readonly logger = new Logger(AdministradoresService.name);
@@ -31,23 +64,25 @@ export class AdministradoresService {
    * cargadas por Prisma no las filtra la extensión de aislamiento, de modo que
    * el filtro se aplica aquí de forma explícita.
    */
-  private perfilAdministradorEnNegocio(usuario: any) {
+  private perfilAdministradorEnNegocio(usuario: UsuarioConRelaciones) {
     const negocioId = this.aislamiento.negocioIdRequerido();
 
     return (
       (usuario?.administradores ?? []).find(
-        (perfil: any) => perfil.negocioId === negocioId,
+        (perfil: { negocioId: number; estado: string; superadmin: boolean }) =>
+          perfil.negocioId === negocioId,
       ) ?? null
     );
   }
 
   /** Perfil de BARBERO de la persona en el NEGOCIO ACTIVO. */
-  private perfilBarberoEnNegocio(usuario: any) {
+  private perfilBarberoEnNegocio(usuario: UsuarioConRelaciones) {
     const negocioId = this.aislamiento.negocioIdRequerido();
 
     return (
       (usuario?.barberos ?? []).find(
-        (perfil: any) => perfil.negocioId === negocioId,
+        (perfil: { negocioId: number; estado: string }) =>
+          perfil.negocioId === negocioId,
       ) ?? null
     );
   }
@@ -178,11 +213,11 @@ export class AdministradoresService {
     const administradores =
       await this.administradoresRepository.obtenerAdministradores(filtro);
 
-    return administradores.map((administrador: any) => ({
+    return administradores.map((administrador: AdministradorConUsuario) => ({
       id: administrador.usuario.id,
       nombre: administrador.usuario.nombre,
       apellido: administrador.usuario.apellido,
-      email: administrador.usuario.email,
+      email: administrador.usuario.email ?? '',
       estado: administrador.usuario.estado, // Estado de la cuenta global
       estadoAdmin: administrador.estado, // Estado del rol de administrador
       esBarbero: (administrador.usuario.barberos ?? []).length > 0,
@@ -244,7 +279,7 @@ export class AdministradoresService {
    * El rol GLOBAL ya no se modifica: los roles efectivos se derivan del
    * perfil del negocio, no de `Usuario.rol`.
    */
-  private async promoverAdministrador(usuario: any) {
+  private async promoverAdministrador(usuario: UsuarioConRelaciones) {
     const perfilAdmin = this.perfilAdministradorEnNegocio(usuario);
 
     if (perfilAdmin && perfilAdmin.estado === 'ACTIVO') {
@@ -291,7 +326,7 @@ export class AdministradoresService {
    * El rol GLOBAL no se modifica: los roles efectivos se derivan del perfil
    * del negocio.
    */
-  private async revocarAdministrador(usuario: any) {
+  private async revocarAdministrador(usuario: UsuarioConRelaciones) {
     if (!this.perfilAdministradorEnNegocio(usuario)) {
       throw new ConflictException(
         'Este usuario no tiene privilegios de Administrador',

@@ -44,6 +44,12 @@ import {
   BloqueoHorarioResponseDto,
 } from '../dto/dto-respuesta/bloqueo-horario-response.dto';
 
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
+
+interface RequestConUsuario {
+  user?: Partial<ClaimsSesionPersonal>;
+}
+
 @ApiTags('Horarios - Administración')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -290,7 +296,7 @@ export class AdminHorariosController {
   async reactivarBloqueo(
     @Param('barberoId', ParseIntPipe) barberoId: number,
     @Param('id', ParseIntPipe) id: number,
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
   ): Promise<BloqueoHorarioAccionResponseDto> {
     return this.bloqueosHorarioService.reactivarBloqueoDeBarbero(
       barberoId,

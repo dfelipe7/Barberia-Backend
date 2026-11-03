@@ -18,6 +18,12 @@ import { HorarioSemanalService } from '../service/horario-semanal.service';
 import { ReemplazarHorarioSemanalDto } from '../dto/dto-peticion/reemplazar-horario-semanal.dto';
 import { HorarioSemanalResponseDto } from '../dto/dto-respuesta/horario-semanal-response.dto';
 
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
+
+interface RequestConUsuario {
+  user?: Partial<ClaimsSesionPersonal>;
+}
+
 @ApiTags('Horarios')
 @ApiBearerAuth()
 @Controller('usuarios/me/barbero')
@@ -43,7 +49,7 @@ export class HorarioSemanalController {
     description:
       'El usuario autenticado no tiene un perfil de barbero asociado.',
   })
-  async obtenerMiHorarioSemanal(@Req() request: any) {
+  async obtenerMiHorarioSemanal(@Req() request: RequestConUsuario) {
     return this.horarioSemanalService.obtenerMiHorarioSemanal(request.user);
   }
 
@@ -87,7 +93,7 @@ export class HorarioSemanalController {
       'El usuario autenticado no tiene un perfil de barbero asociado.',
   })
   async reemplazarMiHorarioSemanal(
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
     @Body() dto: ReemplazarHorarioSemanalDto,
   ) {
     return this.horarioSemanalService.reemplazarMiHorarioSemanal(

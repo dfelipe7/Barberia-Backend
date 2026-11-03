@@ -23,4 +23,3 @@ export class RedSocialResponseDto {
   @ApiProperty({ example: true })
   activo: boolean;
 }
-

@@ -405,7 +405,7 @@ export class PerfilNegocioService {
       negocio,
       configurado: perfil !== null,
       frasePrincipal: perfil?.frasePrincipal ?? null,
-      temaKey: perfil?.temaKey ?? "clasico-azul",
+      temaKey: perfil?.temaKey ?? 'clasico-azul',
       faviconUrl: perfil?.faviconUrl ?? null,
       bannerUrl: perfil?.bannerUrl ?? null,
       logoBlancoUrl: perfil?.logoBlancoUrl ?? null,

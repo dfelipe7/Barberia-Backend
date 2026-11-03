@@ -194,7 +194,10 @@ describe('Redes sociales por negocio (Fase 18 - E2E)', () => {
     });
   };
 
-  const login = async (email: string, slug: string): Promise<{ token: string }> => {
+  const login = async (
+    email: string,
+    slug: string,
+  ): Promise<{ token: string }> => {
     const res = await request(app.getHttpServer())
       .post('/auth/google/personal')
       .set('X-Negocio-Slug', slug)
@@ -237,8 +240,17 @@ describe('Redes sociales por negocio (Fase 18 - E2E)', () => {
       .set('Authorization', `Bearer ${token}`)
       .set('X-Negocio-Slug', SLUG_A)
       .send([
-        { tipo: TipoRedSocial.INSTAGRAM, url: 'https://instagram.com/a', orden: 1 },
-        { tipo: TipoRedSocial.OTRO, nombre: 'Blog Oficial', url: 'https://blog.com', orden: 2 },
+        {
+          tipo: TipoRedSocial.INSTAGRAM,
+          url: 'https://instagram.com/a',
+          orden: 1,
+        },
+        {
+          tipo: TipoRedSocial.OTRO,
+          nombre: 'Blog Oficial',
+          url: 'https://blog.com',
+          orden: 2,
+        },
       ]);
 
     expect(res.status).toBe(200);
@@ -259,7 +271,11 @@ describe('Redes sociales por negocio (Fase 18 - E2E)', () => {
       .set('Authorization', `Bearer ${token}`)
       .set('X-Negocio-Slug', SLUG_A)
       .send([
-        { tipo: TipoRedSocial.FACEBOOK, url: 'https://facebook.com/a', orden: 1 },
+        {
+          tipo: TipoRedSocial.FACEBOOK,
+          url: 'https://facebook.com/a',
+          orden: 1,
+        },
       ]);
 
     const resB = await request(app.getHttpServer())
@@ -280,9 +296,7 @@ describe('Redes sociales por negocio (Fase 18 - E2E)', () => {
       .put('/perfil-negocio/redes-sociales')
       .set('Authorization', `Bearer ${token}`)
       .set('X-Negocio-Slug', SLUG_A)
-      .send([
-        { tipo: TipoRedSocial.OTRO, url: 'https://blog.com', orden: 1 },
-      ]);
+      .send([{ tipo: TipoRedSocial.OTRO, url: 'https://blog.com', orden: 1 }]);
 
     expect(res.status).toBe(400);
   });
@@ -304,4 +318,3 @@ describe('Redes sociales por negocio (Fase 18 - E2E)', () => {
     expect(res.status).toBe(400);
   });
 });
-

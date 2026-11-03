@@ -196,7 +196,10 @@ describe('Redes sociales CRUD y Reactivación (Fase 18 - E2E)', () => {
     return { negocioA, negocioB };
   };
 
-  const login = async (email: string, slug: string): Promise<{ token: string }> => {
+  const login = async (
+    email: string,
+    slug: string,
+  ): Promise<{ token: string }> => {
     const res = await request(app.getHttpServer())
       .post('/auth/google/personal')
       .set('X-Negocio-Slug', slug)
@@ -228,9 +231,13 @@ describe('Redes sociales CRUD y Reactivación (Fase 18 - E2E)', () => {
       .send({ url: 'https://instagram.com/nuevo' });
 
     expect(res.status).toBe(200);
-    expect(cuerpo<RedSocialResponseDto>(res).url).toBe('https://instagram.com/nuevo');
+    expect(cuerpo<RedSocialResponseDto>(res).url).toBe(
+      'https://instagram.com/nuevo',
+    );
 
-    const enBd = await prisma.redSocialNegocio.findUnique({ where: { id: red.id } });
+    const enBd = await prisma.redSocialNegocio.findUnique({
+      where: { id: red.id },
+    });
     expect(enBd?.url).toBe('https://instagram.com/nuevo');
   });
 
@@ -391,7 +398,11 @@ describe('Redes sociales CRUD y Reactivación (Fase 18 - E2E)', () => {
       .set('Authorization', `Bearer ${token}`)
       .set('X-Negocio-Slug', SLUG_A)
       .send([
-        { tipo: TipoRedSocial.INSTAGRAM, url: 'https://instagram.com/renovado', orden: 1 },
+        {
+          tipo: TipoRedSocial.INSTAGRAM,
+          url: 'https://instagram.com/renovado',
+          orden: 1,
+        },
       ]);
 
     expect(res.status).toBe(200);
@@ -490,4 +501,3 @@ describe('Redes sociales CRUD y Reactivación (Fase 18 - E2E)', () => {
     expect(res.status).toBe(400);
   });
 });
-
