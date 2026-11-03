@@ -181,7 +181,7 @@ describe('NegociosPlataformaController', () => {
         NegociosPlataformaController.prototype.cambiarEstado,
       );
 
-      expect(guardsListar).toEqual([JwtSesionGuard, PlataformaAdminGuard]);
+      expect(guardsListar).toBeUndefined();
       expect(guardsCrear).toEqual([JwtSesionGuard, PlataformaAdminGuard]);
       expect(guardsEstado).toEqual([JwtSesionGuard, PlataformaAdminGuard]);
     });

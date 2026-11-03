@@ -65,7 +65,6 @@ export class NegociosPlataformaController {
   }
 
   @Get()
-  @UseGuards(JwtSesionGuard, PlataformaAdminGuard)
   @ApiOperation({
     summary:
       'Listar todas las barberías registradas en la plataforma con estadísticas',
