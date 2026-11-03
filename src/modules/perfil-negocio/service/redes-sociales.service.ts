@@ -43,9 +43,11 @@ export class RedesSocialesService {
   /**
    * Lista las redes sociales ACTIVAS del negocio del contexto.
    */
-  async listar(): Promise<RedSocialResponseDto[]> {
+  async listar(incluirInactivas = false): Promise<RedSocialResponseDto[]> {
     const contexto = this.contextoRequerido();
-    const filas = await this.redesRepository.listarPorNegocio(contexto.id);
+    const filas = incluirInactivas
+      ? await this.redesRepository.listarPorNegocio(contexto.id, true)
+      : await this.redesRepository.listarPorNegocio(contexto.id);
 
     return filas.map((f) => this.mapear(f));
   }
@@ -161,6 +163,22 @@ export class RedesSocialesService {
    * Soft-delete: marca la red como inactiva.
    * Idempotente: si ya está desactivada, se devuelve tal cual.
    */
+  /**
+   * Eliminación definitiva de la red social.
+   */
+  async eliminarFisico(id: number): Promise<RedSocialResponseDto> {
+    const contexto = this.contextoRequerido();
+    const existente = await this.redesRepository.obtenerPorId(contexto.id, id);
+    if (!existente) {
+      throw new NotFoundException(
+        `La red social con id ${id} no existe en este negocio.`,
+      );
+    }
+
+    const eliminada = await this.redesRepository.eliminarFisico(contexto.id, id);
+    return this.mapear(eliminada);
+  }
+
   async desactivar(id: number): Promise<RedSocialResponseDto> {
     const contexto = this.contextoRequerido();
     const actual = await this.redesRepository.obtenerPorId(contexto.id, id);

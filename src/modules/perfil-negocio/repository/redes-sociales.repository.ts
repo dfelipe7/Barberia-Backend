@@ -46,9 +46,16 @@ export class RedesSocialesRepository {
    * Devuelve las redes sociales ACTIVAS del negocio, ordenadas por `orden`
    * ascendente y, en caso de empate, por `id` ascendente.
    */
-  async listarPorNegocio(negocioId: number): Promise<RedSocialRegistro[]> {
+  async listarPorNegocio(
+    negocioId: number,
+    incluirInactivas = false,
+  ): Promise<RedSocialRegistro[]> {
+    const where = incluirInactivas
+      ? { negocioId }
+      : { negocioId, activo: true };
+
     const filas = await this.prisma.redSocialNegocio.findMany({
-      where: this.aislamiento.filtroLectura({ negocioId, activo: true }),
+      where: this.aislamiento.filtroLectura(where),
       orderBy: [{ orden: 'asc' }, { id: 'asc' }],
       select: SELECCION_RED_SOCIAL,
     });
@@ -146,6 +153,16 @@ export class RedesSocialesRepository {
   /**
    * Soft-delete: marca la red como `activo = false`.
    */
+  /**
+   * Eliminación física: borra definitivamente el registro de la BD.
+   */
+  async eliminarFisico(negocioId: number, id: number): Promise<RedSocialRegistro> {
+    return this.prisma.redSocialNegocio.delete({
+      where: { negocioId_id: { negocioId, id } },
+      select: SELECCION_RED_SOCIAL,
+    });
+  }
+
   async desactivar(negocioId: number, id: number): Promise<RedSocialRegistro> {
     return this.prisma.redSocialNegocio.update({
       where: { negocioId_id: { negocioId, id } },

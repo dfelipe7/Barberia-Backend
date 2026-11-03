@@ -1,4 +1,5 @@
 import {
+  Query,
   Body,
   Controller,
   Delete,
@@ -19,6 +20,7 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiQuery,
   ApiParam,
   ApiResponse,
   ApiTags,
@@ -451,16 +453,26 @@ export class PerfilNegocioController {
   @ApiOperation({
     summary: 'Lista las redes sociales activas del negocio',
     description:
-      'Endpoint PÚBLICO. Devuelve las redes sociales activas del negocio del contexto, ordenadas por `orden` ascendente.',
+      'Endpoint PÚBLICO. Devuelve las redes sociales activas del negocio del contexto. Si se envía ?todas=true o ?incluirInactivas=true, devuelve todas.',
   })
+  @ApiQuery({ name: 'todas', required: false, type: Boolean })
+  @ApiQuery({ name: 'incluirInactivas', required: false, type: Boolean })
   @ApiResponse({
     status: 200,
-    description: 'Lista de redes sociales activas',
+    description: 'Lista de redes sociales',
     type: [RedSocialResponseDto],
   })
   @ApiResponse({ status: 403, description: 'Sin contexto de negocio' })
-  async listarRedesSociales(): Promise<RedSocialResponseDto[]> {
-    return this.redesSocialesService.listar();
+  async listarRedesSociales(
+    @Query('todas') todas?: string,
+    @Query('incluirInactivas') incluirInactivasParam?: string,
+  ): Promise<RedSocialResponseDto[]> {
+    const incluir =
+      todas === 'true' ||
+      todas === '1' ||
+      incluirInactivasParam === 'true' ||
+      incluirInactivasParam === '1';
+    return this.redesSocialesService.listar(incluir);
   }
 
   /**
@@ -546,16 +558,29 @@ export class PerfilNegocioController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Desactiva una red social (soft delete)',
+    summary: 'Desactiva o elimina una red social',
     description:
-      'Marca la red como inactiva sin borrarla. Idempotente: desactivar una ya desactivada devuelve 200.',
+      'Por defecto marca la red como inactiva (soft-delete). Si se envía ?definitivo=true o ?fisico=true, la borra definitivamente.',
   })
   @ApiParam({ name: 'id', description: 'ID de la red social' })
+  @ApiQuery({ name: 'definitivo', required: false, type: Boolean })
+  @ApiQuery({ name: 'fisico', required: false, type: Boolean })
   @ApiResponse({ status: 200, type: RedSocialResponseDto })
   @ApiResponse({ status: 404, description: 'La red no existe en este negocio' })
   async desactivarRedSocial(
     @Param('id', ParseIntPipe) id: number,
+    @Query('definitivo') definitivo?: string,
+    @Query('fisico') fisico?: string,
   ): Promise<RedSocialResponseDto> {
+    const esDefinitivo =
+      definitivo === 'true' ||
+      definitivo === '1' ||
+      fisico === 'true' ||
+      fisico === '1';
+
+    if (esDefinitivo) {
+      return this.redesSocialesService.eliminarFisico(id);
+    }
     return this.redesSocialesService.desactivar(id);
   }
 
