@@ -3,6 +3,11 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseIntPipe,
+  Patch,
   Post,
   Put,
   UploadedFile,
@@ -14,6 +19,7 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -24,12 +30,19 @@ import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { ApiNegocioHeader } from '../../../common/decorators/api-negocio-header.decorator';
 import { crearMulterMemoryOptions } from '../../../common/config/multer.config';
 import { PerfilNegocioService } from '../service/perfil-negocio.service';
+import { RedesSocialesService } from '../service/redes-sociales.service';
 import {
   ActualizarPerfilNegocioDto,
   ActualizarReferenciasPerfilDto,
 } from '../dto/dto-peticion/actualizar-perfil-negocio.dto';
+import {
+  CrearRedSocialDto,
+  ReemplazarRedesSocialesDto,
+} from '../dto/dto-peticion/crear-red-social.dto';
+import { ActualizarRedSocialDto } from '../dto/dto-peticion/actualizar-red-social.dto';
 import { PerfilNegocioPublicoResponseDto } from '../dto/dto-respuesta/perfil-negocio-publico.response.dto';
 import { PerfilNegocioGestionResponseDto } from '../dto/dto-respuesta/perfil-negocio-gestion.response.dto';
+import { RedSocialResponseDto } from '../dto/dto-respuesta/red-social.response.dto';
 import {
   LIMITE_BYTES_PNG,
   LIMITE_BYTES_SVG,
@@ -37,7 +50,7 @@ import {
 } from '../perfil-negocio.constants';
 
 /**
- * API del perfil de marca y ubicación de la barbería (Fase 14).
+ * API del perfil de marca y ubicación de la barbería (Fases 14, 15 y 18).
  *
  * El negocio SIEMPRE es el del contexto de la petición (subdominio o
  * cabecera `X-Negocio-Slug`), validado por el servidor. Ninguna ruta acepta
@@ -49,11 +62,19 @@ import {
  * - `GET /perfil-negocio/gestion`      -> SUPERADMIN / ADMINISTRADOR.
  * - `PUT /perfil-negocio`               -> SUPERADMIN / ADMINISTRADOR.
  * - `PUT /perfil-negocio/referencias`   -> SUPERADMIN / ADMINISTRADOR.
+ * - `GET /perfil-negocio/redes-sociales`           -> PÚBLICA.
+ * - `PUT /perfil-negocio/redes-sociales`            -> SUPERADMIN / ADMINISTRADOR.
+ * - `PATCH /perfil-negocio/redes-sociales/:id`      -> SUPERADMIN / ADMINISTRADOR.
+ * - `DELETE /perfil-negocio/redes-sociales/:id`     -> SUPERADMIN / ADMINISTRADOR.
+ * - `PATCH /perfil-negocio/redes-sociales/:id/activar` -> SUPERADMIN / ADMINISTRADOR.
  */
 @ApiTags('perfil-negocio')
 @Controller('perfil-negocio')
 export class PerfilNegocioController {
-  constructor(private readonly service: PerfilNegocioService) {}
+  constructor(
+    private readonly service: PerfilNegocioService,
+    private readonly redesSocialesService: RedesSocialesService,
+  ) {}
 
   /**
    * GET /perfil-negocio
@@ -184,11 +205,6 @@ export class PerfilNegocioController {
   /**
    * POST /perfil-negocio/favicon
    * Sube o reemplaza el FAVICON del negocio (SVG).
-   *
-   * El archivo se valida por su CONTENIDO real, se sanea y se guarda con un
-   * nombre generado por el servidor en el espacio del negocio.
-   *
-   * Acceso restringido: SUPERADMIN y ADMINISTRADOR del negocio del contexto.
    */
   @Post('favicon')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -343,9 +359,6 @@ export class PerfilNegocioController {
   /**
    * DELETE /perfil-negocio/favicon
    * Elimina el favicon del negocio y su archivo físico.
-   *
-   * Primero se limpia la referencia del perfil y después se borra el archivo:
-   * nunca queda una referencia rota.
    */
   @Delete('favicon')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -421,5 +434,158 @@ export class PerfilNegocioController {
   @ApiResponse({ status: 403, description: 'No autorizado' })
   async eliminarLogoNegro(): Promise<PerfilNegocioGestionResponseDto> {
     return this.service.eliminarRecurso(RECURSOS_PERFIL.LOGO_NEGRO);
+  }
+
+  // =========================================================================
+  // REDES SOCIALES (Fase 18)
+  // =========================================================================
+
+  /**
+   * GET /perfil-negocio/redes-sociales
+   * Lista las redes sociales ACTIVAS del negocio.
+   *
+   * PÚBLICA: no requiere autenticación.
+   */
+  @Get('redes-sociales')
+  @ApiNegocioHeader()
+  @ApiOperation({
+    summary: 'Lista las redes sociales activas del negocio',
+    description:
+      'Endpoint PÚBLICO. Devuelve las redes sociales activas del negocio del contexto, ordenadas por `orden` ascendente.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de redes sociales activas',
+    type: [RedSocialResponseDto],
+  })
+  @ApiResponse({ status: 403, description: 'Sin contexto de negocio' })
+  async listarRedesSociales(): Promise<RedSocialResponseDto[]> {
+    return this.redesSocialesService.listar();
+  }
+
+  /**
+   * PUT /perfil-negocio/redes-sociales
+   * Reemplaza el conjunto de redes sociales del negocio.
+   *
+   * Semántica de REEMPLAZO SUAVE: las redes ausentes se desactivan,
+   * las presentes se crean o actualizan conservando su `id`.
+   *
+   * Acceso restringido: SUPERADMIN y ADMINISTRADOR del negocio del contexto.
+   */
+  @Put('redes-sociales')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Reemplaza el conjunto de redes sociales del negocio',
+    description:
+      'Semántica de reemplazo suave: las redes ausentes se desactivan (soft-delete) y las presentes se crean o actualizan. El id de cada red se conserva para que el historial no se rompa.',
+  })
+  @ApiBody({ type: [CrearRedSocialDto] })
+  @ApiResponse({
+    status: 200,
+    description: 'Redes sociales actualizadas',
+    type: [RedSocialResponseDto],
+  })
+  @ApiResponse({ status: 400, description: 'Datos inválidos' })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
+  @ApiResponse({ status: 403, description: 'No autorizado' })
+  async reemplazarRedesSociales(
+    @Body() body: ReemplazarRedesSocialesDto | CrearRedSocialDto[],
+  ): Promise<RedSocialResponseDto[]> {
+    const redes = Array.isArray(body) ? body : (body?.redes ?? []);
+    return this.redesSocialesService.reemplazar(redes);
+  }
+
+  /**
+   * PATCH /perfil-negocio/redes-sociales/:id
+   * Actualiza parcialmente UNA red social (url, nombre u orden).
+   *
+   * - Solo las redes de tipo OTRO pueden cambiar de nombre.
+   * - Debe enviarse al menos un campo.
+   *
+   * Acceso restringido: SUPERADMIN y ADMINISTRADOR del negocio del contexto.
+   */
+  @Patch('redes-sociales/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
+  @ApiParam({ name: 'id', description: 'ID de la red social' })
+  @ApiOperation({
+    summary: 'Actualiza una red social del negocio',
+    description:
+      'Cambia url, orden o nombre (este último solo si la red es de tipo OTRO). ' +
+      'No admite cambiar el tipo ni el estado.',
+  })
+  @ApiBody({ type: ActualizarRedSocialDto })
+  @ApiResponse({ status: 200, type: RedSocialResponseDto })
+  @ApiResponse({ status: 400, description: 'Payload inválido' })
+  @ApiResponse({ status: 404, description: 'La red no existe en este negocio' })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflicto de unicidad del nombre (OTRO)',
+  })
+  async actualizarRedSocial(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarRedSocialDto,
+  ): Promise<RedSocialResponseDto> {
+    return this.redesSocialesService.actualizar(id, dto);
+  }
+
+  /**
+   * DELETE /perfil-negocio/redes-sociales/:id
+   * Soft-delete: marca la red social como inactiva.
+   *
+   * Idempotente: si ya está desactivada, devuelve 200 con la fila tal cual.
+   *
+   * Acceso restringido: SUPERADMIN y ADMINISTRADOR del negocio del contexto.
+   */
+  @Delete('redes-sociales/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Desactiva una red social (soft delete)',
+    description:
+      'Marca la red como inactiva sin borrarla. Idempotente: desactivar una ya desactivada devuelve 200.',
+  })
+  @ApiParam({ name: 'id', description: 'ID de la red social' })
+  @ApiResponse({ status: 200, type: RedSocialResponseDto })
+  @ApiResponse({ status: 404, description: 'La red no existe en este negocio' })
+  async desactivarRedSocial(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<RedSocialResponseDto> {
+    return this.redesSocialesService.desactivar(id);
+  }
+
+  /**
+   * PATCH /perfil-negocio/redes-sociales/:id/activar
+   * Reactiva una red social previamente desactivada.
+   *
+   * Idempotente: activar una ya activa devuelve 200.
+   *
+   * Acceso restringido: SUPERADMIN y ADMINISTRADOR del negocio del contexto.
+   */
+  @Patch('redes-sociales/:id/activar')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Reactiva una red social desactivada',
+    description: 'Idempotente: activar una ya activa devuelve 200.',
+  })
+  @ApiParam({ name: 'id', description: 'ID de la red social' })
+  @ApiResponse({ status: 200, type: RedSocialResponseDto })
+  @ApiResponse({ status: 404, description: 'La red no existe en este negocio' })
+  @ApiResponse({
+    status: 409,
+    description: 'Ya hay otra activa con el mismo (tipo, nombre)',
+  })
+  async activarRedSocial(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<RedSocialResponseDto> {
+    return this.redesSocialesService.activar(id);
   }
 }

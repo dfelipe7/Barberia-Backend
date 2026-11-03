@@ -399,6 +399,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   Negocio: 'Negocio',
   PerfilNegocio: 'PerfilNegocio',
+  RedSocialNegocio: 'RedSocialNegocio',
   Usuario: 'Usuario',
   Administrador: 'Administrador',
   Barbero: 'Barbero',
@@ -427,7 +428,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "negocio" | "perfilNegocio" | "usuario" | "administrador" | "barbero" | "cliente" | "servicio" | "barberoServicio" | "barberWeeklySlot" | "barberScheduleBlock" | "generalClosure" | "reservation" | "whatsAppPlantilla" | "configuracionSistema" | "configuracionNegocio"
+    modelProps: "negocio" | "perfilNegocio" | "redSocialNegocio" | "usuario" | "administrador" | "barbero" | "cliente" | "servicio" | "barberoServicio" | "barberWeeklySlot" | "barberScheduleBlock" | "generalClosure" | "reservation" | "whatsAppPlantilla" | "configuracionSistema" | "configuracionNegocio"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -560,6 +561,72 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.PerfilNegocioCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.PerfilNegocioCountAggregateOutputType> | number
+        }
+      }
+    }
+    RedSocialNegocio: {
+      payload: Prisma.$RedSocialNegocioPayload<ExtArgs>
+      fields: Prisma.RedSocialNegocioFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.RedSocialNegocioFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RedSocialNegocioPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.RedSocialNegocioFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RedSocialNegocioPayload>
+        }
+        findFirst: {
+          args: Prisma.RedSocialNegocioFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RedSocialNegocioPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.RedSocialNegocioFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RedSocialNegocioPayload>
+        }
+        findMany: {
+          args: Prisma.RedSocialNegocioFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RedSocialNegocioPayload>[]
+        }
+        create: {
+          args: Prisma.RedSocialNegocioCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RedSocialNegocioPayload>
+        }
+        createMany: {
+          args: Prisma.RedSocialNegocioCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        delete: {
+          args: Prisma.RedSocialNegocioDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RedSocialNegocioPayload>
+        }
+        update: {
+          args: Prisma.RedSocialNegocioUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RedSocialNegocioPayload>
+        }
+        deleteMany: {
+          args: Prisma.RedSocialNegocioDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.RedSocialNegocioUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        upsert: {
+          args: Prisma.RedSocialNegocioUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RedSocialNegocioPayload>
+        }
+        aggregate: {
+          args: Prisma.RedSocialNegocioAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateRedSocialNegocio>
+        }
+        groupBy: {
+          args: Prisma.RedSocialNegocioGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.RedSocialNegocioGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.RedSocialNegocioCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.RedSocialNegocioCountAggregateOutputType> | number
         }
       }
     }
@@ -1495,6 +1562,21 @@ export const PerfilNegocioScalarFieldEnum = {
 export type PerfilNegocioScalarFieldEnum = (typeof PerfilNegocioScalarFieldEnum)[keyof typeof PerfilNegocioScalarFieldEnum]
 
 
+export const RedSocialNegocioScalarFieldEnum = {
+  id: 'id',
+  negocioId: 'negocioId',
+  tipo: 'tipo',
+  nombre: 'nombre',
+  url: 'url',
+  orden: 'orden',
+  activo: 'activo',
+  creadoEn: 'creadoEn',
+  actualizadoEn: 'actualizadoEn'
+} as const
+
+export type RedSocialNegocioScalarFieldEnum = (typeof RedSocialNegocioScalarFieldEnum)[keyof typeof RedSocialNegocioScalarFieldEnum]
+
+
 export const UsuarioScalarFieldEnum = {
   id: 'id',
   googleId: 'googleId',
@@ -1730,6 +1812,14 @@ export const PerfilNegocioOrderByRelevanceFieldEnum = {
 export type PerfilNegocioOrderByRelevanceFieldEnum = (typeof PerfilNegocioOrderByRelevanceFieldEnum)[keyof typeof PerfilNegocioOrderByRelevanceFieldEnum]
 
 
+export const RedSocialNegocioOrderByRelevanceFieldEnum = {
+  nombre: 'nombre',
+  url: 'url'
+} as const
+
+export type RedSocialNegocioOrderByRelevanceFieldEnum = (typeof RedSocialNegocioOrderByRelevanceFieldEnum)[keyof typeof RedSocialNegocioOrderByRelevanceFieldEnum]
+
+
 export const UsuarioOrderByRelevanceFieldEnum = {
   googleId: 'googleId',
   email: 'email',
@@ -1874,6 +1964,20 @@ export type DecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel,
 
 
 /**
+ * Reference to a field of type 'TipoRedSocial'
+ */
+export type EnumTipoRedSocialFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TipoRedSocial'>
+    
+
+
+/**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+/**
  * Reference to a field of type 'RolUsuario'
  */
 export type EnumRolUsuarioFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'RolUsuario'>
@@ -1884,13 +1988,6 @@ export type EnumRolUsuarioFieldRefInput<$PrismaModel> = FieldRefInputType<$Prism
  * Reference to a field of type 'EstadoUsuario'
  */
 export type EnumEstadoUsuarioFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'EstadoUsuario'>
-    
-
-
-/**
- * Reference to a field of type 'Boolean'
- */
-export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 
@@ -2095,6 +2192,7 @@ export type PrismaClientOptions = PrismaClientOptionsWithAccelerateUrl | PrismaC
 export type GlobalOmitConfig = {
   negocio?: Prisma.NegocioOmit
   perfilNegocio?: Prisma.PerfilNegocioOmit
+  redSocialNegocio?: Prisma.RedSocialNegocioOmit
   usuario?: Prisma.UsuarioOmit
   administrador?: Prisma.AdministradorOmit
   barbero?: Prisma.BarberoOmit

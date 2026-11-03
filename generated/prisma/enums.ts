@@ -33,6 +33,17 @@ export const EstadoNegocio = {
 export type EstadoNegocio = (typeof EstadoNegocio)[keyof typeof EstadoNegocio]
 
 
+export const TipoRedSocial = {
+  TIKTOK: 'TIKTOK',
+  FACEBOOK: 'FACEBOOK',
+  INSTAGRAM: 'INSTAGRAM',
+  WHATSAPP: 'WHATSAPP',
+  OTRO: 'OTRO'
+} as const
+
+export type TipoRedSocial = (typeof TipoRedSocial)[keyof typeof TipoRedSocial]
+
+
 export const EstadoServicio = {
   ACTIVO: 'ACTIVO',
   INACTIVO: 'INACTIVO'

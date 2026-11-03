@@ -60,28 +60,29 @@ enum EstadoNegocio {
 /// explícita; la vía prevista para "retirar" una barbería es `estado =
 /// INACTIVO`, que conserva el histórico.
 model Negocio {
-  id          Int           @id @default(autoincrement())
-  slug        String        @unique @db.VarChar(63)
-  nombre      String        @db.VarChar(150)
-  estado      EstadoNegocio @default(ACTIVO)
-  zonaHoraria String        @default("America/Bogota") @db.VarChar(64)
-  creadoEn    DateTime      @default(now())
-  actualizadoEn DateTime    @updatedAt
+  id            Int           @id @default(autoincrement())
+  slug          String        @unique @db.VarChar(63)
+  nombre        String        @db.VarChar(150)
+  estado        EstadoNegocio @default(ACTIVO)
+  zonaHoraria   String        @default("America/Bogota") @db.VarChar(64)
+  creadoEn      DateTime      @default(now())
+  actualizadoEn DateTime      @updatedAt
 
   // Relaciones inversas: los perfiles operativos pertenecen a un negocio.
-  administradores   Administrador[]
-  barberos          Barbero[]
-  clientes          Cliente[]
-  servicios         Servicio[]
-  barberoServicios  BarberoServicio[]
-  reservas          Reservation[]
-  franjasSemanales  BarberWeeklySlot[]
-  bloqueosHorario   BarberScheduleBlock[]
-  cierresGenerales  GeneralClosure[]
-  configuraciones   ConfiguracionNegocio[]
+  administradores    Administrador[]
+  barberos           Barbero[]
+  clientes           Cliente[]
+  servicios          Servicio[]
+  barberoServicios   BarberoServicio[]
+  reservas           Reservation[]
+  franjasSemanales   BarberWeeklySlot[]
+  bloqueosHorario    BarberScheduleBlock[]
+  cierresGenerales   GeneralClosure[]
+  configuraciones    ConfiguracionNegocio[]
   plantillasWhatsApp WhatsAppPlantilla[]
   /// Perfil público de marca y ubicación (relación 1:1).
-  perfil            PerfilNegocio?
+  perfil             PerfilNegocio?
+  redesSociales      RedSocialNegocio[]
 
   @@map("negocios")
 }
@@ -112,9 +113,9 @@ model Negocio {
 /// LA URL DEL MAPA NO SE GUARDA: se deriva de `latitud`/`longitud`, que son la
 /// única fuente de verdad. Así no puede quedar desincronizada.
 model PerfilNegocio {
-  id        Int     @id @default(autoincrement())
+  id        Int @id @default(autoincrement())
   /// Negocio al que pertenece el perfil. UNICO: un perfil por barbería.
-  negocioId Int     @unique
+  negocioId Int @unique
 
   /// Frase principal de la marca (lema o descriptor corto).
   frasePrincipal String? @db.VarChar(200)
@@ -129,15 +130,15 @@ model PerfilNegocio {
   logoNegroUrl  String? @db.VarChar(500)
 
   // --- Ubicación ---
-  direccion    String? @db.VarChar(200)
-  ciudad       String? @db.VarChar(120)
-  departamento String? @db.VarChar(120)
+  direccion    String?  @db.VarChar(200)
+  ciudad       String?  @db.VarChar(120)
+  departamento String?  @db.VarChar(120)
   /// Referencia opcional para orientarse ("Local 2, junto a la panadería").
-  referencia String? @db.VarChar(200)
+  referencia   String?  @db.VarChar(200)
   /// Coordenadas en grados decimales. `Decimal(10,7)` aporta ~1 cm de
   /// precisión y cubre el rango de longitud (±180) sin desbordar.
-  latitud  Decimal? @db.Decimal(10, 7)
-  longitud Decimal? @db.Decimal(10, 7)
+  latitud      Decimal? @db.Decimal(10, 7)
+  longitud     Decimal? @db.Decimal(10, 7)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -145,6 +146,47 @@ model PerfilNegocio {
   negocio Negocio @relation(fields: [negocioId], references: [id], onDelete: Cascade)
 
   @@map("perfiles_negocio")
+}
+
+/// Tipo de red social del negocio. Los predefinidos (TIKTOK, FACEBOOK,
+/// INSTAGRAM, WHATSAPP) están limitados a UNO por negocio; OTRO permite
+/// varias entradas siempre que `nombre` no se repita.
+enum TipoRedSocial {
+  TIKTOK
+  FACEBOOK
+  INSTAGRAM
+  WHATSAPP
+  OTRO
+}
+
+/// Red social pública del negocio (parte del perfil).
+///
+/// ALCANCE
+/// - Vive fuera de `PerfilNegocio` porque un negocio puede tener VARIAS
+///   (una por red, más las "OTRO" que agregue).
+/// - AISLAMIENTO: modelo tenant-scoped. Se filtra por `negocioId` vía
+///   `NegocioAislamientoService` y la extensión de Prisma.
+/// - UNICIDAD: `(negocioId, tipo, nombre)`. Para predefinidos el backend
+///   fija `nombre` al canónico (`TikTok`, `Facebook`, …), de modo que solo
+///   pueda existir uno. Para OTRO, `nombre` lo pone el usuario y actúa
+///   como discriminante.
+model RedSocialNegocio {
+  id            Int           @id @default(autoincrement())
+  negocioId     Int
+  tipo          TipoRedSocial
+  nombre        String        @db.VarChar(80)
+  url           String        @db.VarChar(500)
+  orden         Int           @default(0)
+  activo        Boolean       @default(true)
+  creadoEn      DateTime      @default(now())
+  actualizadoEn DateTime      @updatedAt
+
+  negocio Negocio @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+
+  @@unique([negocioId, tipo, nombre])
+  @@unique([negocioId, id])
+  @@index([negocioId, activo, orden])
+  @@map("redes_sociales_negocio")
 }
 
 /// Identidad GLOBAL de la persona en la plataforma.
@@ -157,11 +199,11 @@ model PerfilNegocio {
 /// Una persona puede tener VARIOS perfiles (uno por barbería en la que
 /// opera): las relaciones con los perfiles son uno-a-muchos.
 model Usuario {
-  id         Int           @id @default(autoincrement())
-  googleId   String?       @unique
-  email      String        @unique
-  nombre     String
-  apellido   String
+  id       Int           @id @default(autoincrement())
+  googleId String?       @unique
+  email    String        @unique
+  nombre   String
+  apellido String
   /// Valor GLOBAL heredado del modelo de negocio único. **NO concede ningún
   /// privilegio**: los roles efectivos se derivan de las MEMBRESÍAS
   /// (`Administrador` / `Barbero`) de la persona en el negocio del contexto.
@@ -169,12 +211,12 @@ model Usuario {
   /// SUPERADMIN vive en `Administrador.superadmin` (membresía por negocio).
   /// Se conserva por compatibilidad de datos y de contrato, y es
   /// INFORMATIVO.
-  rol        RolUsuario
-  estado     EstadoUsuario @default(ACTIVO)
+  rol      RolUsuario
+  estado   EstadoUsuario @default(ACTIVO)
 
   administradores Administrador[]
-  barberos       Barbero[]
-  clientes       Cliente[]
+  barberos        Barbero[]
+  clientes        Cliente[]
 }
 
 /// Perfil de administrador de un negocio.
@@ -189,16 +231,16 @@ model Usuario {
 /// plataforma. La columna es aditiva y no promueve a nadie: las membresías
 /// existentes siguen siendo ADMINISTRADOR.
 model Administrador {
-  id        Int           @id @default(autoincrement())
-  usuarioId Int
+  id         Int           @id @default(autoincrement())
+  usuarioId  Int
   /// Negocio al que pertenece el perfil. OBLIGATORIO: un perfil sin
   /// negocio no puede existir.
-  negocioId Int
-  estado    EstadoUsuario @default(ACTIVO)
+  negocioId  Int
+  estado     EstadoUsuario @default(ACTIVO)
   /// SUPERADMIN de ESTE negocio (`true`) o ADMINISTRADOR (`false`).
   /// La autorización depende exclusivamente de esta membresía activa y del
   /// contexto del negocio: `Usuario.rol` no concede ningún privilegio.
-  superadmin Boolean @default(false)
+  superadmin Boolean       @default(false)
 
   usuario Usuario @relation(fields: [usuarioId], references: [id])
   negocio Negocio @relation(fields: [negocioId], references: [id], onDelete: Restrict)
@@ -215,17 +257,17 @@ model Administrador {
 /// `usuarioId` es ÚNICO POR NEGOCIO: la misma persona puede ser barbero en
 /// varias barberías (y de ninguna).
 model Barbero {
-  id                Int           @id @default(autoincrement())
-  usuarioId         Int
+  id                 Int           @id @default(autoincrement())
+  usuarioId          Int
   /// Negocio al que pertenece el perfil. OBLIGATORIO.
-  negocioId         Int
-  telefono          String
+  negocioId          Int
+  telefono           String
   porcentajeComision Decimal       @db.Decimal(5, 2)
-  fotoUrl           String?       @db.VarChar(500)
-  estado            EstadoUsuario @default(ACTIVO)
+  fotoUrl            String?       @db.VarChar(500)
+  estado             EstadoUsuario @default(ACTIVO)
 
-  usuario   Usuario         @relation(fields: [usuarioId], references: [id])
-  negocio   Negocio         @relation(fields: [negocioId], references: [id], onDelete: Restrict)
+  usuario   Usuario           @relation(fields: [usuarioId], references: [id])
+  negocio   Negocio           @relation(fields: [negocioId], references: [id], onDelete: Restrict)
   servicios BarberoServicio[] // <--- Conexión con la tabla intermedia
 
   weeklySlots  BarberWeeklySlot[]
@@ -284,17 +326,17 @@ enum EstadoServicio {
 /// `nombre` es ÚNICO POR NEGOCIO: dos barberías pueden tener un servicio
 /// llamado igual, pero un mismo negocio no puede repetirlo.
 model Servicio {
-  id              Int            @id @default(autoincrement())
-  nombre          String         @db.VarChar(100)
-  descripcion     String?        @db.Text
-  precio          Decimal        @db.Decimal(10, 2)
-  duracionMinutos Int            // Fundamental para calcular los bloques de las citas (ej. 30, 45, 60 min)
-  fotoUrl         String?        @db.VarChar(500) // Para el catálogo visual de clientes
-  estado          EstadoServicio @default(ACTIVO)
+  id              Int               @id @default(autoincrement())
+  nombre          String            @db.VarChar(100)
+  descripcion     String?           @db.Text
+  precio          Decimal           @db.Decimal(10, 2)
+  duracionMinutos Int // Fundamental para calcular los bloques de las citas (ej. 30, 45, 60 min)
+  fotoUrl         String?           @db.VarChar(500) // Para el catálogo visual de clientes
+  estado          EstadoServicio    @default(ACTIVO)
   /// Negocio dueño del catálogo y de los precios. OBLIGATORIO.
   negocioId       Int
-  creadoEn        DateTime       @default(now())
-  actualizadoEn   DateTime       @updatedAt
+  creadoEn        DateTime          @default(now())
+  actualizadoEn   DateTime          @updatedAt
   barberos        BarberoServicio[] // <--- Conexión con la tabla intermedia
   reservations    Reservation[]
 
@@ -478,18 +520,18 @@ enum ReservationStatus {
 /// CLAVES FORÁNEAS COMPUESTAS `(negocioId, id)`: la base de datos impide que
 /// una reserva combine entidades de negocios distintos.
 model Reservation {
-  id         Int               @id @default(autoincrement())
-  barberoId  Int
-  servicioId Int
-  clienteId  Int
-  date       DateTime          @db.Date // fecha de calendario (America/Bogota)
-  dayOfWeek  WeekDay           // derivada de `date`; desnormalizada para la consulta semanal
-  startTime  String            @db.VarChar(5) // HH:mm
-  endTime    String            @db.VarChar(5) // HH:mm
-  status     ReservationStatus @default(PENDING)
+  id                  Int               @id @default(autoincrement())
+  barberoId           Int
+  servicioId          Int
+  clienteId           Int
+  date                DateTime          @db.Date // fecha de calendario (America/Bogota)
+  dayOfWeek           WeekDay // derivada de `date`; desnormalizada para la consulta semanal
+  startTime           String            @db.VarChar(5) // HH:mm
+  endTime             String            @db.VarChar(5) // HH:mm
+  status              ReservationStatus @default(PENDING)
   // Precio del servicio aplicado al crear la reserva (calculado en el servidor).
   // `NULL` para reservas creadas antes de que existiera esta columna.
-  precioReservado Decimal?     @db.Decimal(10, 2)
+  precioReservado     Decimal?          @db.Decimal(10, 2)
   // Hash del token criptográfico de gestión para reservas de invitados.
   // Permite modificar o cancelar la reserva sin requerir inicio de sesión.
   // `NULL` para reservas creadas por clientes autenticados o anteriores a esta columna.
@@ -500,16 +542,16 @@ model Reservation {
   // original: así la idempotencia nunca invalida una credencial ya entregada
   // ni devuelve un token distinto al que el cliente ya tiene.
   // NUNCA se guarda el token en texto claro.
-  gestionTokenHash String?     @db.VarChar(255)
+  gestionTokenHash    String?           @db.VarChar(255)
   // Token de gestión CIFRADO (AES-256-GCM). `NULL` en las reservas de
   // cliente autenticado y en las creadas antes de esta columna.
-  gestionTokenCifrado String? @db.VarChar(255)
+  gestionTokenCifrado String?           @db.VarChar(255)
   // Control de recordatorio automático por WhatsApp (2 horas antes)
-  recordatorioEnviado Boolean  @default(false)
+  recordatorioEnviado Boolean           @default(false)
   /// Negocio al que pertenece la reserva. OBLIGATORIO.
-  negocioId  Int
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
+  negocioId           Int
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   // Columna generada a nivel de base de datos: `1` si el estado ocupa la
   // franja, `NULL` si `CANCELLED` (ver migración). Se declara como `@db.TinyInt`
@@ -517,11 +559,22 @@ model Reservation {
   // expresión generada solo exista en SQL. Prisma Client la expone como lectura.
   slotActivo Int? @db.TinyInt
 
-  barbero  Barbero  @relation(fields: [negocioId, barberoId], references: [negocioId, id], onDelete: Restrict)
-  servicio Servicio @relation(fields: [negocioId, servicioId], references: [negocioId, id], onDelete: Restrict)
-  cliente  Cliente  @relation(fields: [negocioId, clienteId], references: [negocioId, id], onDelete: Restrict)
-  negocio  Negocio @relation(fields: [negocioId], references: [id], onDelete: Restrict)
+  barbero        Barbero  @relation(fields: [negocioId, barberoId], references: [negocioId, id], onDelete: Restrict)
+  servicio       Servicio @relation(fields: [negocioId, servicioId], references: [negocioId, id], onDelete: Restrict)
+  cliente        Cliente  @relation(fields: [negocioId, clienteId], references: [negocioId, id], onDelete: Restrict)
+  negocio        Negocio  @relation(fields: [negocioId], references: [id], onDelete: Restrict)
+  /// Clave de idempotencia del intento de reserva (cabecera `Idempotency-Key`).
+  /// NULA para las reservas históricas y para las creadas sin cabecera de
+  /// idempotencia. La unicidad es COMPUESTA por negocio: la misma clave en dos
+  /// barberías son dos intentos distintos, y una clave nunca permite acceder a
+  /// una reserva de otro negocio.
+  idempotencyKey String?  @db.VarChar(64)
 
+  // Unicidad de franja ocupada: `slotActivo` es NULL para estados no ocupantes,
+  // y NULL no colisiona en MySQL/MariaDB, de modo que varias reservas canceladas
+  // coexisten y solo una activa por franja (re-reserva tras CANCELLED).
+  @@unique([barberoId, date, startTime, slotActivo])
+  @@unique([negocioId, idempotencyKey])
   // Consulta de ocupación por fecha concreta (método 1 del puerto HE-08).
   @@index([barberoId, date, status])
   // Consulta de ocupación recurrente sin fecha (método 2 del puerto HE-08).
@@ -531,17 +584,6 @@ model Reservation {
   @@index([clienteId])
   // Filtro por negocio (aislamiento multitenant).
   @@index([negocioId])
-  // Unicidad de franja ocupada: `slotActivo` es NULL para estados no ocupantes,
-  // y NULL no colisiona en MySQL/MariaDB, de modo que varias reservas canceladas
-  // coexisten y solo una activa por franja (re-reserva tras CANCELLED).
-  @@unique([barberoId, date, startTime, slotActivo])
-  /// Clave de idempotencia del intento de reserva (cabecera `Idempotency-Key`).
-  /// NULA para las reservas históricas y para las creadas sin cabecera de
-  /// idempotencia. La unicidad es COMPUESTA por negocio: la misma clave en dos
-  /// barberías son dos intentos distintos, y una clave nunca permite acceder a
-  /// una reserva de otro negocio.
-  idempotencyKey String? @db.VarChar(64)
-  @@unique([negocioId, idempotencyKey])
   @@map("reservations")
 }
 
@@ -565,18 +607,18 @@ model Reservation {
 /// tipo: en MySQL/MariaDB los `NULL` de un índice único no colisionan, de
 /// modo que las plantillas de negocio pueden repetirse el tipo que-sea.
 model WhatsAppPlantilla {
-  id      Int     @id @default(autoincrement())
-  tipo    String  @db.VarChar(50) // CONFIRMACION, RECORDATORIO, etc.
-  mensaje String  @db.Text
-  activo  Boolean @default(true)
+  id          Int      @id @default(autoincrement())
+  tipo        String   @db.VarChar(50) // CONFIRMACION, RECORDATORIO, etc.
+  mensaje     String   @db.Text
+  activo      Boolean  @default(true)
   /// Negocio al que pertenece la plantilla. `NULL` = plantilla GLOBAL de
   /// plataforma.
-  negocioId Int?
+  negocioId   Int?
   /// Columna generada: `tipo` si la plantilla es global, `NULL` si es de un
   /// negocio. Prisma no expresa columnas generadas: se declara para que no
   /// genere drift, y la expresión solo existe en la migración SQL. Es ÚNICA:
   /// garantiza como máximo una plantilla global por tipo.
-  claveGlobal String? @unique @db.VarChar(50)
+  claveGlobal String?  @unique @db.VarChar(50)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -53,6 +53,7 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   Negocio: 'Negocio',
   PerfilNegocio: 'PerfilNegocio',
+  RedSocialNegocio: 'RedSocialNegocio',
   Usuario: 'Usuario',
   Administrador: 'Administrador',
   Barbero: 'Barbero',
@@ -117,6 +118,21 @@ export const PerfilNegocioScalarFieldEnum = {
 } as const
 
 export type PerfilNegocioScalarFieldEnum = (typeof PerfilNegocioScalarFieldEnum)[keyof typeof PerfilNegocioScalarFieldEnum]
+
+
+export const RedSocialNegocioScalarFieldEnum = {
+  id: 'id',
+  negocioId: 'negocioId',
+  tipo: 'tipo',
+  nombre: 'nombre',
+  url: 'url',
+  orden: 'orden',
+  activo: 'activo',
+  creadoEn: 'creadoEn',
+  actualizadoEn: 'actualizadoEn'
+} as const
+
+export type RedSocialNegocioScalarFieldEnum = (typeof RedSocialNegocioScalarFieldEnum)[keyof typeof RedSocialNegocioScalarFieldEnum]
 
 
 export const UsuarioScalarFieldEnum = {
@@ -352,6 +368,14 @@ export const PerfilNegocioOrderByRelevanceFieldEnum = {
 } as const
 
 export type PerfilNegocioOrderByRelevanceFieldEnum = (typeof PerfilNegocioOrderByRelevanceFieldEnum)[keyof typeof PerfilNegocioOrderByRelevanceFieldEnum]
+
+
+export const RedSocialNegocioOrderByRelevanceFieldEnum = {
+  nombre: 'nombre',
+  url: 'url'
+} as const
+
+export type RedSocialNegocioOrderByRelevanceFieldEnum = (typeof RedSocialNegocioOrderByRelevanceFieldEnum)[keyof typeof RedSocialNegocioOrderByRelevanceFieldEnum]
 
 
 export const UsuarioOrderByRelevanceFieldEnum = {

@@ -478,10 +478,6 @@ export type AdministradorUncheckedUpdateManyWithoutUsuarioNestedInput = {
   deleteMany?: Prisma.AdministradorScalarWhereInput | Prisma.AdministradorScalarWhereInput[]
 }
 
-export type BoolFieldUpdateOperationsInput = {
-  set?: boolean
-}
-
 export type AdministradorCreateWithoutNegocioInput = {
   estado?: $Enums.EstadoUsuario
   superadmin?: boolean

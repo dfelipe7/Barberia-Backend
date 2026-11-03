@@ -114,6 +114,47 @@ Missing `tipo` will be rejected immediately with **HTTP 400 Bad Request**.
 
 ---
 
+## 5.1 Redes Sociales del Negocio (Fase 18)
+
+Se añaden endpoints de gestión granular y consulta para las redes sociales vinculadas al perfil del negocio:
+
+### 1. GET /perfil-negocio/redes-sociales
+- **Acceso:** Público (requiere contexto de negocio `X-Negocio-Slug` o subdominio).
+- **Descripción:** Devuelve las redes sociales activas ordenadas por `orden` ascendente.
+- **Respuesta 200:** Array de `RedSocialResponseDto` (`[{ id, tipo, nombre, url, orden, activo }]`).
+
+### 2. PUT /perfil-negocio/redes-sociales
+- **Acceso:** Privado (`SUPERADMIN`, `ADMINISTRADOR`).
+- **Descripción:** Reemplazo suave (bulk upsert): desactiva las ausentes (`activo: false`) y crea/actualiza las presentes preservando sus IDs.
+- **Cuerpo:** Array de `CrearRedSocialDto` (`[{ tipo, nombre?, url, orden? }]`).
+
+### 3. PATCH /perfil-negocio/redes-sociales/:id
+- **Acceso:** Privado (`SUPERADMIN`, `ADMINISTRADOR`).
+- **Descripción:** Edita parcialmente `url`, `orden` o `nombre` (este último solo permitido si `tipo === 'OTRO'`).
+- **Cuerpo:** `ActualizarRedSocialDto` (`{ url?, nombre?, orden? }`, al menos un campo).
+- **Errores:**
+  - `400 Bad Request`: Payload vacío, URL inválida (debe ser HTTPS), o intento de renombrar una red predefinida.
+  - `404 Not Found`: Red inexistente en el negocio del contexto.
+  - `409 Conflict`: Si el nuevo nombre colisiona con otra red `OTRO` activa del negocio.
+
+### 4. DELETE /perfil-negocio/redes-sociales/:id
+- **Acceso:** Privado (`SUPERADMIN`, `ADMINISTRADOR`).
+- **Descripción:** Soft delete idempotente. Marca `activo: false` sin destruir el registro en la base de datos.
+- **Respuesta 200:** Devuelve el registro con `activo: false`.
+- **Idempotencia:** Llamar `DELETE` consecutivamente responde 200 en cada llamada.
+- **Errores:** `404 Not Found` si el ID no pertenece al negocio.
+
+### 5. PATCH /perfil-negocio/redes-sociales/:id/activar
+- **Acceso:** Privado (`SUPERADMIN`, `ADMINISTRADOR`).
+- **Descripción:** Inverso de DELETE: reactiva una red previamente desactivada (`activo: true`).
+- **Respuesta 200:** Devuelve el registro con `activo: true`.
+- **Idempotencia:** Si la red ya está activa, responde 200 devolviendo el registro actual.
+- **Errores:**
+  - `404 Not Found`: Si la red no existe en el negocio.
+  - `409 Conflict`: Si al reactivar existe ya otra red activa con la misma combinación `(tipo, nombre)`.
+
+---
+
 ## 6. Non-Goals / Out of Scope for Frontend in this PR
 
 - **Global account deactivation:** Tenant administrators can no longer deactivate a person's global platform login. Global deactivation will be managed via a future platform-level administration panel.
