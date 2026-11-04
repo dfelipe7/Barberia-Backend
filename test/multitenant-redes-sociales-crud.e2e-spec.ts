@@ -165,27 +165,25 @@ describe('Redes sociales CRUD y Reactivación (Fase 18 - E2E)', () => {
 
     await prisma.administrador.upsert({
       where: {
-        usuarioId_negocioId: { usuarioId: superA.id, negocioId: negocioA.id },
+        negocioId_usuarioId: { negocioId: negocioA.id, usuarioId: superA.id },
       },
-      update: { rol: 'SUPERADMIN', activo: true },
+      update: { superadmin: true },
       create: {
         usuarioId: superA.id,
         negocioId: negocioA.id,
-        rol: 'SUPERADMIN',
-        activo: true,
+        superadmin: true,
       },
     });
 
     await prisma.administrador.upsert({
       where: {
-        usuarioId_negocioId: { usuarioId: superB.id, negocioId: negocioB.id },
+        negocioId_usuarioId: { negocioId: negocioB.id, usuarioId: superB.id },
       },
-      update: { rol: 'SUPERADMIN', activo: true },
+      update: { superadmin: true },
       create: {
         usuarioId: superB.id,
         negocioId: negocioB.id,
-        rol: 'SUPERADMIN',
-        activo: true,
+        superadmin: true,
       },
     });
 
