@@ -135,9 +135,9 @@ export const NEGOCIOS_LOCALES: readonly NegocioLocalSpec[] = [
     slug: 'kyrios-studio',
     superadmins: [
       {
-        email: 'rromero@unicauca.edu.co',
-        nombre: 'Rubeiro',
-        apellido: 'Romero',
+        email: 'armeroduvan8@gmail.com',
+        nombre: 'Duvan',
+        apellido: 'Armero',
       },
       {
         email: 'cbalcazar@unicauca.edu.co',
@@ -167,9 +167,9 @@ export const NEGOCIOS_LOCALES: readonly NegocioLocalSpec[] = [
     slug: 'barberia-demo-2',
     superadmins: [
       {
-        email: 'duvanfeli@unicauca.edu.co',
-        nombre: 'Felipe',
-        apellido: 'Armero',
+        email: 'rromero@unicauca.edu.co',
+        nombre: 'Rubeiro',
+        apellido: 'Romero',
       },
       {
         email: 'javieraceron@unicauca.edu.co',

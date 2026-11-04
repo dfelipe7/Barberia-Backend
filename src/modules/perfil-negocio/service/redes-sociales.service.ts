@@ -89,6 +89,9 @@ export class RedesSocialesService {
     // Validaciones previas
     const tiposUsados = new Set<TipoRedSocial>();
     for (const dto of dtos) {
+      if (!dto.url || !dto.url.startsWith('https://')) {
+        throw new BadRequestException('La URL debe ser válida y usar HTTPS.');
+      }
       if (dto.tipo === TipoRedSocial.OTRO) {
         if (!dto.nombre || dto.nombre.trim().length === 0) {
           throw new BadRequestException(
