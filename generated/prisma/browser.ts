@@ -65,6 +65,21 @@ export type Negocio = Prisma.NegocioModel
  */
 export type PerfilNegocio = Prisma.PerfilNegocioModel
 /**
+ * Model RedSocialNegocio
+ * Red social pública del negocio (parte del perfil).
+ * 
+ * ALCANCE
+ * - Vive fuera de `PerfilNegocio` porque un negocio puede tener VARIAS
+ * (una por red, más las "OTRO" que agregue).
+ * - AISLAMIENTO: modelo tenant-scoped. Se filtra por `negocioId` vía
+ * `NegocioAislamientoService` y la extensión de Prisma.
+ * - UNICIDAD: `(negocioId, tipo, nombre)`. Para predefinidos el backend
+ * fija `nombre` al canónico (`TikTok`, `Facebook`, …), de modo que solo
+ * pueda existir uno. Para OTRO, `nombre` lo pone el usuario y actúa
+ * como discriminante.
+ */
+export type RedSocialNegocio = Prisma.RedSocialNegocioModel
+/**
  * Model Usuario
  * Identidad GLOBAL de la persona en la plataforma.
  * 

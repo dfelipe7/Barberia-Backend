@@ -135,9 +135,9 @@ export const NEGOCIOS_LOCALES: readonly NegocioLocalSpec[] = [
     slug: 'kyrios-studio',
     superadmins: [
       {
-        email: 'rromero@unicauca.edu.co',
-        nombre: 'Rubeiro',
-        apellido: 'Romero',
+        email: 'armeroduvan8@gmail.com',
+        nombre: 'Duvan',
+        apellido: 'Armero',
       },
       {
         email: 'cbalcazar@unicauca.edu.co',
@@ -145,18 +145,31 @@ export const NEGOCIOS_LOCALES: readonly NegocioLocalSpec[] = [
         apellido: 'Balcazar',
       },
     ],
-    // Los barberos se crean en `seed-dev-completo` con correos derivados del
-    // superadmin del negocio (2 por negocio, comisiones distintas).
-    barberos: [],
+    barberos: [
+      {
+        clave: 'barbero1',
+        nombre: 'Barbero',
+        apellido: 'Desarrollo KYRIOS 1',
+        telefono: '+0000000001',
+        porcentajeComision: 40,
+      },
+      {
+        clave: 'barbero2',
+        nombre: 'Barbero',
+        apellido: 'Desarrollo KYRIOS 2',
+        telefono: '+0000000002',
+        porcentajeComision: 40,
+      },
+    ],
   },
   {
     nombre: 'BARBERÍA DEMO 2',
     slug: 'barberia-demo-2',
     superadmins: [
       {
-        email: 'duvanfeli@unicauca.edu.co',
-        nombre: 'Felipe',
-        apellido: 'Armero',
+        email: 'rromero@unicauca.edu.co',
+        nombre: 'Rubeiro',
+        apellido: 'Romero',
       },
       {
         email: 'javieraceron@unicauca.edu.co',
@@ -164,8 +177,22 @@ export const NEGOCIOS_LOCALES: readonly NegocioLocalSpec[] = [
         apellido: 'Anacona',
       },
     ],
-    // Los barberos se crean en `seed-dev-completo`.
-    barberos: [],
+    barberos: [
+      {
+        clave: 'barbero1',
+        nombre: 'Barbero',
+        apellido: 'Desarrollo DEMO 2 1',
+        telefono: '+0000000003',
+        porcentajeComision: 40,
+      },
+      {
+        clave: 'barbero2',
+        nombre: 'Barbero',
+        apellido: 'Desarrollo DEMO 2 2',
+        telefono: '+0000000004',
+        porcentajeComision: 40,
+      },
+    ],
   },
 ];
 

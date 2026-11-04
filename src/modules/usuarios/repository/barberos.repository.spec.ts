@@ -48,10 +48,7 @@ const sinNegocio = (valor: unknown, conservar = false): unknown => {
     // En una clave UNICA COMPUESTA el negocioId forma parte de la
     // identidad de la fila: se conserva para poder comprobar que
     // apunta al negocio activo.
-    salida[clave] = sinNegocio(
-      contenido,
-      clave.startsWith('negocioId_'),
-    );
+    salida[clave] = sinNegocio(contenido, clave.startsWith('negocioId_'));
   }
 
   return salida;
@@ -184,7 +181,6 @@ const esperarConsultaAislada = (mock: unknown, esperado: unknown): void => {
 
 describe('BarberosRepository', () => {
   let repository: BarberosRepository;
-  let prisma: PrismaService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -199,7 +195,6 @@ describe('BarberosRepository', () => {
     }).compile();
 
     repository = module.get<BarberosRepository>(BarberosRepository);
-    prisma = module.get<PrismaService>(PrismaService);
     jest.clearAllMocks();
   });
 

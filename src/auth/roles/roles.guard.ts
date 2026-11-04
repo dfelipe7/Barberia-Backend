@@ -33,6 +33,19 @@ import { ROLES_KEY } from './roles.decorator';
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
+  /**
+   * Evalúa si el usuario autenticado posee al menos uno de los roles autorizados para el endpoint.
+   *
+   * @remarks
+   * Autorización Basada en Membresías por Sede (RBAC):
+   * Contrasta los metadatos `@Roles(...)` del controlador/método contra `request.user.roles`.
+   * Los roles evaluados son exclusivamente los calculados para la membresía activa del usuario
+   * en la sede de la petición (`SUPERADMIN`, `ADMIN`, `BARBERO`), desestimando roles globales.
+   *
+   * @param context - Contexto de ejecución de NestJS.
+   * @returns `true` si la ruta no exige roles o el usuario cuenta con el permiso requerido.
+   * @throws {ForbiddenException} Si el rol del usuario en esta sede es insuficiente para la operación.
+   */
   canActivate(context: ExecutionContext): boolean {
     const roles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
       context.getHandler(),

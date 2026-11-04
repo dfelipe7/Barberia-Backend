@@ -44,15 +44,20 @@ export const crearMulterOptions = (
         callback(null, `${prefijo}-${randomSuffix}${extension}`);
       },
     }),
-    fileFilter: (_req: any, file: any, callback: any) => {
+    fileFilter: (
+      _req: unknown,
+      file: Express.Multer.File,
+      callback: (error: Error | null, acceptFile: boolean) => void,
+    ) => {
       // OWASP A08: Validación estricta de extensiones y tipos MIME para mitigar cargas maliciosas (.php, .exe, .sh)
       if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
-        return callback(
+        callback(
           new BadRequestException(
             'Formato de archivo no permitido. Solo se aceptan imágenes JPG, JPEG, PNG o WEBP',
           ),
           false,
         );
+        return;
       }
       callback(null, true);
     },

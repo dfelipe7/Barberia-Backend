@@ -87,7 +87,10 @@ class PruebaController {
   @Get('cliente')
   @UseGuards(ClienteJwtAuthGuard)
   cliente(@Req() req: any) {
-    return { clienteId: req.cliente.clienteId, negocioId: req.cliente.negocioId };
+    return {
+      clienteId: req.cliente.clienteId,
+      negocioId: req.cliente.negocioId,
+    };
   }
 }
 
@@ -217,19 +220,26 @@ describe('Autenticación y autorización por negocio (MariaDB real)', () => {
     const sinPerfil = await crearUsuario('sinperfil@test.local', 'PERSONAL');
 
     await prisma.administrador.upsert({
-      where: { negocioId_usuarioId: { negocioId: negocioA.id, usuarioId: adminA.id } },
+      where: {
+        negocioId_usuarioId: { negocioId: negocioA.id, usuarioId: adminA.id },
+      },
       update: {},
       create: { usuarioId: adminA.id, negocioId: negocioA.id },
     });
     await prisma.administrador.upsert({
-      where: { negocioId_usuarioId: { negocioId: negocioA.id, usuarioId: cross.id } },
+      where: {
+        negocioId_usuarioId: { negocioId: negocioA.id, usuarioId: cross.id },
+      },
       update: {},
       create: { usuarioId: cross.id, negocioId: negocioA.id },
     });
     // El SUPERADMIN lo es DE UNA BARBERÍA: lo decide su membresía.
     await prisma.administrador.upsert({
       where: {
-        negocioId_usuarioId: { negocioId: negocioA.id, usuarioId: superadmin.id },
+        negocioId_usuarioId: {
+          negocioId: negocioA.id,
+          usuarioId: superadmin.id,
+        },
       },
       update: { superadmin: true },
       create: {
@@ -239,7 +249,9 @@ describe('Autenticación y autorización por negocio (MariaDB real)', () => {
       },
     });
     await prisma.barbero.upsert({
-      where: { negocioId_usuarioId: { negocioId: negocioA.id, usuarioId: barberoA.id } },
+      where: {
+        negocioId_usuarioId: { negocioId: negocioA.id, usuarioId: barberoA.id },
+      },
       update: {},
       create: {
         usuarioId: barberoA.id,
@@ -249,7 +261,9 @@ describe('Autenticación y autorización por negocio (MariaDB real)', () => {
       },
     });
     await prisma.barbero.upsert({
-      where: { negocioId_usuarioId: { negocioId: negocioB.id, usuarioId: cross.id } },
+      where: {
+        negocioId_usuarioId: { negocioId: negocioB.id, usuarioId: cross.id },
+      },
       update: {},
       create: {
         usuarioId: cross.id,
@@ -259,7 +273,15 @@ describe('Autenticación y autorización por negocio (MariaDB real)', () => {
       },
     });
 
-    return { negocioA, negocioB, adminA, barberoA, cross, superadmin, sinPerfil };
+    return {
+      negocioA,
+      negocioB,
+      adminA,
+      barberoA,
+      cross,
+      superadmin,
+      sinPerfil,
+    };
   };
 
   const login = async (correo: string, slug?: string) => {

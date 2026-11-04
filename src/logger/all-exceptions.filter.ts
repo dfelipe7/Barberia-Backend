@@ -43,7 +43,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<RespuestaDelFiltro>();
-    const request = ctx.getRequest();
+    const request = ctx.getRequest<PeticionSeguro>();
 
     const status =
       exception instanceof HttpException
@@ -75,7 +75,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // El contexto que se registra y se envía por correo NO incluye el cuerpo de
     // la petición: ahí viajan el ID token de Google, las contraseñas y los
     // datos de acceso. Tampoco se incluyen cabeceras ni cookies.
-    const logContext = construirContextoSeguro(request as PeticionSeguro, {
+    const logContext = construirContextoSeguro(request, {
       status,
       message,
       codigoError: typeof code === 'string' ? code : undefined,
@@ -86,7 +86,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     // OWASP A09: Monitoreo de Seguridad (Alertas Tempranas)
     // Si es 401 o 403, lo registramos como una Advertencia (warn) de seguridad
-    if (status === HttpStatus.UNAUTHORIZED || status === HttpStatus.FORBIDDEN) {
+    if (status === 401 || status === 403) {
       this.logger.warn(
         `Security Event [${status}]: Intento de acceso denegado`,
         logContext,
@@ -94,7 +94,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
       // OWASP A09: Evitar fatiga de alertas. Solo enviar correo si es intento de violación de roles (403).
       // Los 401 (sesión expirada) se guardan en el log físico pero no envían correo.
-      if (status === HttpStatus.FORBIDDEN) {
+      if (status === 403) {
         this.alertsService
           .sendSecurityAlert(status, logContext)
           .catch((err) => {

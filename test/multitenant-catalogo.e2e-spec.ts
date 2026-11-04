@@ -1,11 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
-import {
-  INestApplication,
-  MiddlewareConsumer,
-  Module,
-  NotFoundException,
-} from '@nestjs/common';
+import { INestApplication, MiddlewareConsumer, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -164,7 +159,9 @@ describe('Catálogos y disponibilidad aislados por negocio (MariaDB real)', () =
     const usuarioB = await crearUsuario('barbero-b@test.local');
 
     const barberoA = await prisma.barbero.upsert({
-      where: { negocioId_usuarioId: { negocioId: kyrios.id, usuarioId: usuarioA.id } },
+      where: {
+        negocioId_usuarioId: { negocioId: kyrios.id, usuarioId: usuarioA.id },
+      },
       update: {},
       create: {
         usuarioId: usuarioA.id,
@@ -174,7 +171,9 @@ describe('Catálogos y disponibilidad aislados por negocio (MariaDB real)', () =
       },
     });
     const barberoB = await prisma.barbero.upsert({
-      where: { negocioId_usuarioId: { negocioId: negocioB.id, usuarioId: usuarioB.id } },
+      where: {
+        negocioId_usuarioId: { negocioId: negocioB.id, usuarioId: usuarioB.id },
+      },
       update: {},
       create: {
         usuarioId: usuarioB.id,

@@ -277,10 +277,9 @@ describe('WhatsAppService', () => {
       );
       // El respaldo histórico solo se consulta cuando el perfil no tiene
       // dirección, y únicamente en el negocio del contexto.
-      expect(configuracionServiceMock.obtenerTextoDelNegocio).toHaveBeenCalledWith(
-        'negocio_direccion',
-        '',
-      );
+      expect(
+        configuracionServiceMock.obtenerTextoDelNegocio,
+      ).toHaveBeenCalledWith('negocio_direccion', '');
       // El respaldo histórico se lee SOLO del ámbito del negocio: nunca se
       // consulta el ámbito global de plataforma.
       expect(configuracionServiceMock.obtenerTexto).not.toHaveBeenCalled();
@@ -459,6 +458,75 @@ describe('WhatsAppService', () => {
       expect(enmascararTelefono(null)).toBe('***');
       expect(enmascararTelefono(undefined)).toBe('***');
       expect(enmascararTelefono('123')).toBe('****');
+    });
+  });
+
+  describe('Aislamiento Multi-Tenant de Sesiones de WhatsApp', () => {
+    const NEGOCIO_B = { id: 2, slug: 'barberia-demo-2' };
+
+    it('debe asignar directorios de sesión independientes para cada barbería', () => {
+      const dirNegocio1 = service.obtenerDirectorioSesion(1);
+      const dirNegocio2 = service.obtenerDirectorioSesion(2);
+
+      expect(dirNegocio1).not.toBe(dirNegocio2);
+      expect(dirNegocio2).toContain('negocio_2');
+    });
+
+    it('el estado de conexión de un negocio no debe afectar al otro (aislamiento de sockets)', () => {
+      contextoServiceMock.obtenerContexto.mockReturnValue({
+        id: 1,
+        slug: 'kyrios-studio',
+      });
+      const sesion1 = (service as any).obtenerOCrearSesion(1);
+      sesion1.isConnected = true;
+      sesion1.qrDataUrl = null;
+
+      const statusNegocio1 = service.getStatus();
+      expect(statusNegocio1.conectado).toBe(true);
+      expect(statusNegocio1.qr).toBeNull();
+
+      contextoServiceMock.obtenerContexto.mockReturnValue(NEGOCIO_B);
+      const statusNegocio2 = service.getStatus();
+      expect(statusNegocio2.conectado).toBe(false);
+    });
+
+    it('resolverNegocioId debe respetar el parámetro explícito sobre el contexto', () => {
+      contextoServiceMock.obtenerContexto.mockReturnValue({
+        id: 1,
+        slug: 'kyrios-studio',
+      });
+      expect(service.resolverNegocioId(2)).toBe(2);
+      expect(service.resolverNegocioId()).toBe(1);
+    });
+
+    it('enviarMensaje aísla los envíos según el negocio', async () => {
+      const sesion1 = (service as any).obtenerOCrearSesion(1);
+      sesion1.isConnected = true;
+      sesion1.sock = {
+        sendMessage: jest.fn().mockResolvedValue({ key: { id: 'msg-1' } }),
+      };
+
+      const sesion2 = (service as any).obtenerOCrearSesion(2);
+      sesion2.isConnected = false;
+      sesion2.sock = null;
+
+      contextoServiceMock.obtenerContexto.mockReturnValue({
+        id: 1,
+        slug: 'kyrios-studio',
+      });
+      const enviado1 = await service.enviarMensaje(
+        '3001234567',
+        'Mensaje de Kyrios',
+      );
+      expect(enviado1).toBe(true);
+      expect(sesion1.sock.sendMessage).toHaveBeenCalled();
+
+      contextoServiceMock.obtenerContexto.mockReturnValue(NEGOCIO_B);
+      const enviado2 = await service.enviarMensaje(
+        '3001234567',
+        'Mensaje de Demo 2',
+      );
+      expect(enviado2).toBe(false);
     });
   });
 });

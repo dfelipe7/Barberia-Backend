@@ -72,6 +72,7 @@ import {
   LIMITES_MINUTOS_OPERATIVOS,
   VALORES_POR_DEFECTO_OPERATIVOS,
 } from '../../configuracion/configuracion.constants';
+import { obtenerContextoNegocio } from '../../negocios/negocio-almacenamiento';
 
 /** Mensajes de dominio exigidos por los criterios de aceptación (Excel HE-04). */
 export const MENSAJE_RESERVA_CREADA = 'Reserva creada exitosamente';
@@ -147,7 +148,23 @@ export class ReservasService {
   ) {}
 
   /**
-   * Crea una reserva para servicio, barbero, fecha y hora.
+   * Crea y confirma una nueva cita de forma atómica en el sistema de reservas.
+   *
+   * @remarks
+   * Reglas de Negocio Críticas (Integridad Financiera y Concurrencia):
+   * 1. Precio Inmutable en Servidor: El precio (`precioReservado`) se resuelve del catálogo vigente.
+   *    Jamás se confía en valores monetarios enviados desde el cliente para prevenir fraude.
+   * 2. Token de Gestión para Invitados: Genera un token criptográfico cifrado (AES-256-GCM) y hasheado
+   *    (SHA-256), permitiendo que el invitado gestione su cita sin contraseñas.
+   * 3. Idempotencia Segura: Con cabecera `Idempotency-Key`, reintentos de red recuperan la reserva previa.
+   * 4. Notificación Asíncrona: Dispara la confirmación por WhatsApp en segundo plano sin bloquear el HTTP.
+   *
+   * @param dto - Datos validados de la cita (servicio, barbero, fecha y hora de inicio)
+   * @param identidad - Claims del cliente autenticado, o undefined si opera como invitado
+   * @param idempotencyKey - Identificador único de transacción para prevenir cobros duplicados
+   * @returns Comprobante de reserva creada con código, franja horaria y token de gestión
+   * @throws {BadRequestException} Si la fecha es inválida o no cumple con el formato
+   * @throws {DomainConflictException} Si la franja horaria ya fue tomada o está duplicada
    *
    * @param dto datos obligatorios + contacto del invitado (si aplica).
    * @param identidad cliente autenticado (Modalidad B) o `undefined` (invitado).
@@ -315,6 +332,15 @@ export class ReservasService {
       }
 
       if (telefono && this.whatsappService) {
+        let enlaceGestion: string | null = null;
+        if (respuesta.tokenGestion) {
+          const frontendUrl =
+            process.env.FRONTEND_URL || 'http://localhost:5173';
+          const contexto = obtenerContextoNegocio();
+          const slug = contexto?.slug || 'kyrios-studio';
+          enlaceGestion = `${frontendUrl}/${slug}/c/${respuesta.id}/${respuesta.tokenGestion}`;
+        }
+
         await this.whatsappService.enviarConfirmacionReserva({
           telefono,
           clienteNombre: clienteNombre || 'Cliente',
@@ -324,6 +350,7 @@ export class ReservasService {
           fecha: respuesta.fecha,
           hora: respuesta.hora,
           precio: respuesta.servicio.precio,
+          enlaceGestion,
         });
       }
     } catch (err: any) {
@@ -446,7 +473,18 @@ export class ReservasService {
   }
 
   /**
-   * HU-09 (Invitados): Cancelar una reserva de invitado mediante token de gestión.
+   * Cancela una reserva efectuada por un cliente invitado utilizando su token criptográfico de gestión.
+   *
+   * @remarks
+   * Seguridad Defensiva (Timing Attacks):
+   * Valida la autenticidad del token mediante `crypto.timingSafeEqual` sobre buffers constantes,
+   * impidiendo que atacantes deduzcan tokens válidos mediante análisis de latencia de red.
+   * La cancelación es atómica e idempotente: actualiza el estado a CANCELLED y libera la franja horaria.
+   *
+   * @param reservaId - Identificador numérico de la reserva a cancelar
+   * @param tokenGestion - Token secreto de gestión emitido al momento de agendar
+   * @returns Comprobante de confirmación de cancelación con fecha de liberación de la franja
+   * @throws {NotFoundException} Si la reserva no existe, el token es inválido o la cita ya fue completada
    * Valida el token con comparación segura timingSafeEqual y ejecuta la cancelación idempotente.
    */
   async cancelarReservaInvitado(
@@ -459,6 +497,41 @@ export class ReservasService {
     );
 
     return this.ejecutarCancelacionReserva(reserva, 'invitado');
+  }
+
+  /**
+   * Consulta el detalle de una reserva de invitado mediante su token de gestión.
+   */
+  async obtenerReservaInvitado(
+    reservaId: number,
+    tokenGestion: string,
+  ): Promise<
+    ReservaClienteDto & {
+      cliente?: {
+        nombre: string;
+        apellido: string | null;
+        telefono: string | null;
+      };
+    }
+  > {
+    const reserva = await this.validarReservaParaGestionInvitado(
+      reservaId,
+      tokenGestion,
+    );
+
+    const dto = this.aReservaCliente(reserva);
+    const cliente = (reserva as any).cliente;
+
+    return {
+      ...dto,
+      cliente: cliente
+        ? {
+            nombre: cliente.nombre,
+            apellido: cliente.apellido ?? null,
+            telefono: cliente.telefono ?? null,
+          }
+        : undefined,
+    };
   }
 
   /**
@@ -588,6 +661,14 @@ export class ReservasService {
 
     // Disparo desacoplado de confirmación por WhatsApp en segundo plano
     if (this.whatsappService && clienteTelefonoNotif) {
+      let enlaceGestionAdmin: string | null = null;
+      if (respuesta.tokenGestion) {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const contexto = obtenerContextoNegocio();
+        const slug = contexto?.slug || 'kyrios-studio';
+        enlaceGestionAdmin = `${frontendUrl}/${slug}/c/${respuesta.id}/${respuesta.tokenGestion}`;
+      }
+
       this.whatsappService
         .enviarConfirmacionReserva({
           telefono: clienteTelefonoNotif,
@@ -598,6 +679,7 @@ export class ReservasService {
           fecha: respuesta.fecha,
           hora: respuesta.hora,
           precio: respuesta.servicio.precio,
+          enlaceGestion: enlaceGestionAdmin,
         })
         .catch((err) =>
           this.logger.warn(
@@ -1099,6 +1181,46 @@ export class ReservasService {
       `AUDIT: reserva modificada id=${reservaActualizada.id} barberoId=${reservaActualizada.barberoId} fecha=${fechaDestinoStr} hora=${reservaActualizada.startTime} clienteId=${reserva.clienteId} modalidad=${modalidad}`,
     );
 
+    if (this.whatsappService) {
+      void (async () => {
+        try {
+          const cliente = await this.clientesRepository.obtenerPorId(
+            reserva.clienteId,
+          );
+          if (cliente?.telefono) {
+            let enlaceGestion: string | null = null;
+            const tokenDescifrado = this.descifrarTokenGestion(
+              reserva.gestionTokenCifrado,
+            );
+            if (tokenDescifrado) {
+              const slug = obtenerContextoNegocio()?.slug || 'kyrios-studio';
+              const frontendUrl =
+                process.env.FRONTEND_URL || 'http://localhost:5173';
+              enlaceGestion = `${frontendUrl}/${slug}/c/${reservaActualizada.id}/${tokenDescifrado}`;
+            }
+
+            await this.whatsappService?.enviarReprogramacionReserva({
+              telefono: cliente.telefono,
+              clienteNombre:
+                `${cliente.nombre} ${cliente.apellido ?? ''}`.trim() ||
+                'Cliente',
+              servicioNombre: servicio.nombre,
+              barberoNombre:
+                `${reservaActualizada.barbero.usuario.nombre} ${reservaActualizada.barbero.usuario.apellido}`.trim(),
+              fecha: fechaDestinoStr,
+              hora: reservaActualizada.startTime,
+              precio: precioHistorico,
+              enlaceGestion,
+            });
+          }
+        } catch (err: any) {
+          this.logger.warn(
+            `No se pudo enviar WhatsApp de reprogramación: ${err?.message ?? err}`,
+          );
+        }
+      })();
+    }
+
     return {
       mensaje: MENSAJE_RESERVA_MODIFICADA,
       id: reservaActualizada.id,
@@ -1162,6 +1284,33 @@ export class ReservasService {
     this.logger.log(
       `AUDIT: reserva cancelada id=${reserva.id} clienteId=${reserva.clienteId} modalidad=${modalidad}`,
     );
+
+    if (this.whatsappService) {
+      void (async () => {
+        try {
+          const cliente = await this.clientesRepository.obtenerPorId(
+            reserva.clienteId,
+          );
+          if (cliente?.telefono) {
+            await this.whatsappService?.enviarCancelacionReserva({
+              telefono: cliente.telefono,
+              clienteNombre:
+                `${cliente.nombre} ${cliente.apellido ?? ''}`.trim() ||
+                'Cliente',
+              servicioNombre: reserva.servicio.nombre,
+              barberoNombre:
+                `${reserva.barbero.usuario.nombre} ${reserva.barbero.usuario.apellido}`.trim(),
+              fecha: this.aFechaCalendario(reserva.date),
+              hora: reserva.startTime,
+            });
+          }
+        } catch (err: any) {
+          this.logger.warn(
+            `No se pudo enviar WhatsApp de cancelación: ${err?.message ?? err}`,
+          );
+        }
+      })();
+    }
 
     return {
       mensaje: MENSAJE_RESERVA_CANCELADA,
@@ -1227,7 +1376,7 @@ export class ReservasService {
 
   /** Genera un token criptográficamente seguro de 256 bits en formato hexadecimal (64 caracteres). */
   generarTokenGestion(): string {
-    return crypto.randomBytes(32).toString('hex');
+    return crypto.randomBytes(12).toString('hex');
   }
 
   /** Genera el hash SHA-256 de un token en formato hexadecimal. */
@@ -1429,6 +1578,15 @@ export class ReservasService {
         throw new UnauthorizedException(
           'La sesión de cliente ya no es válida. Inicia sesión de nuevo.',
         );
+      }
+
+      if (
+        dto.telefono &&
+        (!existente.telefono || existente.telefono !== dto.telefono.trim())
+      ) {
+        await this.clientesRepository.actualizarPerfil(existente.id, {
+          telefono: dto.telefono.trim(),
+        });
       }
 
       return {

@@ -1,5 +1,16 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
   ApiBody,
   ApiOkResponse,
   ApiOperation,
@@ -9,6 +20,13 @@ import {
 import { GoogleLoginDto } from '../google/dto/google-login.dto';
 import { ClientesAuthService } from './clientes-auth.service';
 import { ClienteSesionResponseDto } from './dto/cliente-sesion-response.dto';
+import { ActualizarPerfilClienteDto } from './dto/actualizar-perfil-cliente.dto';
+import { ClienteJwtAuthGuard } from './guards/cliente-jwt-auth.guard';
+import { ClienteAutenticado } from './cliente-jwt.service';
+
+interface RequestConCliente {
+  cliente: ClienteAutenticado;
+}
 
 /**
  * Inicio de sesión de CLIENTES con Google (HE-04, Modalidad B).
@@ -42,5 +60,28 @@ export class ClientesAuthController {
     @Body() dto: GoogleLoginDto,
   ): Promise<ClienteSesionResponseDto> {
     return this.clientesAuthService.loginConGoogle(dto.idToken);
+  }
+  @Get('perfil')
+  @UseGuards(ClienteJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obtener el perfil del cliente autenticado' })
+  async obtenerPerfil(@Req() req: RequestConCliente) {
+    return this.clientesAuthService.obtenerPerfil(req.cliente.clienteId);
+  }
+
+  @Patch('perfil')
+  @UseGuards(ClienteJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Actualizar teléfono o datos del cliente autenticado',
+  })
+  async actualizarPerfil(
+    @Req() req: RequestConCliente,
+    @Body() dto: ActualizarPerfilClienteDto,
+  ) {
+    return this.clientesAuthService.actualizarPerfil(
+      req.cliente.clienteId,
+      dto,
+    );
   }
 }

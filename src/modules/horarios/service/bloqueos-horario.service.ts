@@ -1,3 +1,4 @@
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
 import {
   Inject,
   Injectable,
@@ -70,7 +71,7 @@ export class BloqueosHorarioService {
    * autenticado tras validar fecha, horario, solapamientos, cierres y reservas.
    */
   async crearBloqueo(
-    usuarioAutenticado: any,
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
     dto: CrearBloqueoHorarioDto,
   ): Promise<BloqueoHorarioAccionResponseDto> {
     const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
@@ -82,7 +83,7 @@ export class BloqueosHorarioService {
    * y estado.
    */
   async listarBloqueos(
-    usuarioAutenticado: any,
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
     filtro: FiltroBloqueosHorarioDto,
   ): Promise<BloqueoHorarioResponseDto[]> {
     const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
@@ -95,7 +96,7 @@ export class BloqueosHorarioService {
    * semanal, los solapamientos, los cierres y las reservas antes de persistir.
    */
   async actualizarBloqueo(
-    usuarioAutenticado: any,
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
     id: number,
     dto: ActualizarBloqueoHorarioDto,
   ): Promise<BloqueoHorarioAccionResponseDto> {
@@ -109,7 +110,7 @@ export class BloqueosHorarioService {
    * aplicando.
    */
   async cancelarBloqueo(
-    usuarioAutenticado: any,
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
     id: number,
   ): Promise<BloqueoHorarioAccionResponseDto> {
     const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
@@ -122,7 +123,7 @@ export class BloqueosHorarioService {
    * El bloqueo deja de excluir disponibilidad, pero se conserva el historial.
    */
   async reactivarBloqueo(
-    usuarioAutenticado: any,
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
     id: number,
   ): Promise<BloqueoHorarioAccionResponseDto> {
     const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
@@ -185,7 +186,7 @@ export class BloqueosHorarioService {
   async reactivarBloqueoDeBarbero(
     barberoId: number,
     id: number,
-    usuarioAutenticado: any,
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
   ): Promise<BloqueoHorarioAccionResponseDto> {
     const barbero = await this.obtenerBarberoObjetivo(barberoId);
     return this.ejecutarReactivacionBloqueo(
@@ -341,7 +342,7 @@ export class BloqueosHorarioService {
   private async ejecutarReactivacionBloqueo(
     barberoId: number,
     id: number,
-    usuarioAutenticado: any,
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
     esAdmin: boolean,
   ): Promise<BloqueoHorarioAccionResponseDto> {
     const bloqueo = await this.obtenerBloqueoDelBarbero(barberoId, id);
@@ -365,7 +366,9 @@ export class BloqueosHorarioService {
    * Resuelve el perfil de barbero del usuario autenticado.
    * Lanza 403 si el usuario no está relacionado con un barbero.
    */
-  private async obtenerBarberoAutenticado(usuarioAutenticado: any) {
+  private async obtenerBarberoAutenticado(
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
+  ) {
     const usuarioId = this.resolverUsuarioId(usuarioAutenticado);
     const barbero =
       await this.barberosRepository.obtenerBarberoPorUsuarioId(usuarioId);
@@ -383,7 +386,9 @@ export class BloqueosHorarioService {
    * Extrae el `Usuario.id` del payload JWT. El guard publica `id` (numérico) y
    * `sub` (string); ambos corresponden al ID del usuario, nunca al del barbero.
    */
-  private resolverUsuarioId(usuarioAutenticado: any): number {
+  private resolverUsuarioId(
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
+  ): number {
     const idCrudo = usuarioAutenticado?.id ?? usuarioAutenticado?.sub;
     const usuarioId = Number(idCrudo);
 

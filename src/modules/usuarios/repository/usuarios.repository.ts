@@ -59,7 +59,6 @@ export class UsuariosRepository {
     data: {
       nombre?: string;
       apellido?: string;
-      email?: string;
     },
   ) {
     return this.prisma.usuario.update({

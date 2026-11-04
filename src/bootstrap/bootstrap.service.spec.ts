@@ -59,7 +59,9 @@ describe('BootstrapService', () => {
       expect(
         mockUsuariosRepository.actualizarEstadoUsuario,
       ).not.toHaveBeenCalled();
-      expect(mockUsuariosRepository.obtenerUsuarioPorEmail).not.toHaveBeenCalled();
+      expect(
+        mockUsuariosRepository.obtenerUsuarioPorEmail,
+      ).not.toHaveBeenCalled();
     });
 
     it('no consulta ni modifica ninguna cuenta de usuario al arrancar', async () => {

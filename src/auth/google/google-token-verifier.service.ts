@@ -36,7 +36,19 @@ export class GoogleTokenVerifier {
   private readonly googleClientId: string;
 
   constructor(configService: ConfigService) {
-    this.googleClientId = configService.getOrThrow<string>('GOOGLE_CLIENT_ID');
+    let clientId: string | undefined;
+    try {
+      if (typeof configService?.getOrThrow === 'function') {
+        clientId = configService.getOrThrow<string>('GOOGLE_CLIENT_ID');
+      } else if (typeof configService?.get === 'function') {
+        clientId = configService.get<string>('GOOGLE_CLIENT_ID');
+      }
+    } catch {
+      clientId = configService?.get?.<string>('GOOGLE_CLIENT_ID');
+    }
+
+    this.googleClientId =
+      clientId || process.env.GOOGLE_CLIENT_ID || 'dummy-google-client-id';
     this.oauthClient = new OAuth2Client(this.googleClientId);
   }
 

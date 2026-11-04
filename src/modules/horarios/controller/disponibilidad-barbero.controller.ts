@@ -17,6 +17,12 @@ import { DisponibilidadService } from '../service/disponibilidad.service';
 import { ConsultaDisponibilidadDto } from '../dto/dto-peticion/consulta-disponibilidad.dto';
 import { DisponibilidadDetalladaResponseDto } from '../dto/dto-respuesta/disponibilidad-response.dto';
 
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
+
+interface RequestConUsuario {
+  user?: Partial<ClaimsSesionPersonal>;
+}
+
 /**
  * Consulta de disponibilidad detallada del barbero autenticado.
  *
@@ -62,7 +68,7 @@ export class DisponibilidadBarberoController {
       'La verificación de reservas activas (HE-04) no está integrada; la consulta se rechaza para no anunciar franjas potencialmente ocupadas.',
   })
   async consultarMiDisponibilidad(
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
     @Query() consulta: ConsultaDisponibilidadDto,
   ): Promise<DisponibilidadDetalladaResponseDto> {
     return this.disponibilidadService.obtenerDisponibilidadDetalladaDelBarberoAutenticado(

@@ -16,6 +16,24 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { construirActorSesion } from '../../../auth/sesion/sesion-personal';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
+
+/** Tipo del usuario con relaciones de barberos y administradores cargadas */
+type UsuarioConRelaciones = {
+  id: number;
+  email: string | null;
+  nombre: string;
+  apellido: string;
+  rol: string;
+  estado: string;
+  barberos?: Array<{ negocioId: number; estado: string }>;
+  administradores?: Array<{
+    negocioId: number;
+    estado: string;
+    superadmin: boolean;
+  }>;
+};
+
 @Injectable()
 export class BarberosService {
   private readonly logger = new Logger(BarberosService.name);
@@ -36,12 +54,13 @@ export class BarberosService {
    * petición. Las relaciones cargadas por Prisma no las filtra la extensión de
    * aislamiento, de modo que el filtro se aplica aquí de forma explícita.
    */
-  private perfilBarberoEnNegocio(usuario: any) {
+  private perfilBarberoEnNegocio(usuario: UsuarioConRelaciones) {
     const negocioId = this.aislamiento.negocioIdRequerido();
 
     return (
       (usuario?.barberos ?? []).find(
-        (perfil: any) => perfil.negocioId === negocioId,
+        (perfil: { negocioId: number; estado: string }) =>
+          perfil.negocioId === negocioId,
       ) ?? null
     );
   }
@@ -52,12 +71,13 @@ export class BarberosService {
    * Mismo criterio que `perfilBarberoEnNegocio`: una persona puede ser
    * administradora de varias barberías.
    */
-  private perfilAdministradorEnNegocio(usuario: any) {
+  private perfilAdministradorEnNegocio(usuario: UsuarioConRelaciones) {
     const negocioId = this.aislamiento.negocioIdRequerido();
 
     return (
       (usuario?.administradores ?? []).find(
-        (perfil: any) => perfil.negocioId === negocioId,
+        (perfil: { negocioId: number; estado: string; superadmin: boolean }) =>
+          perfil.negocioId === negocioId,
       ) ?? null
     );
   }
@@ -68,21 +88,86 @@ export class BarberosService {
    * negocio activo.
    */
   async crearBarbero(dto: CrearBarberoDto) {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+    const emailNormalizado = dto.email.toLowerCase().trim();
+
     const usuarioExistente =
-      await this.usuariosRepository.obtenerUsuarioPorEmail(dto.email);
+      await this.usuariosRepository.obtenerUsuarioPorEmail(emailNormalizado);
+
     if (usuarioExistente) {
-      throw new ConflictException(
-        'Ya existe un usuario en el sistema con este correo electrónico.',
-      );
+      // Verificar si ya tiene perfil de barbero en este negocio específico
+      const barberoEnNegocio = await this.prisma.barbero.findUnique({
+        where: {
+          negocioId_usuarioId: {
+            negocioId,
+            usuarioId: usuarioExistente.id,
+          },
+        },
+      });
+
+      if (barberoEnNegocio) {
+        if (barberoEnNegocio.estado === 'ACTIVO') {
+          throw new ConflictException(
+            'Este usuario ya se encuentra registrado como barbero en esta barbería.',
+          );
+        } else {
+          // Si estaba inactivo en esta sede, reactivarlo con la nueva comisión y teléfono
+          const barberoReactivado = await this.prisma.barbero.update({
+            where: { id: barberoEnNegocio.id },
+            data: {
+              estado: 'ACTIVO',
+              telefono: dto.telefono,
+              porcentajeComision: dto.porcentajeComision,
+              fotoUrl: dto.fotoUrl ?? barberoEnNegocio.fotoUrl,
+            },
+          });
+          return {
+            mensaje: 'El barbero fue reactivado exitosamente en esta barbería.',
+            barbero: barberoReactivado,
+          };
+        }
+      }
+
+      // El usuario existe en la plataforma (otra sede), vincularlo como barbero a esta sede
+      try {
+        const barbero = await this.prisma.barbero.create({
+          data: {
+            usuarioId: usuarioExistente.id,
+            negocioId,
+            telefono: dto.telefono,
+            porcentajeComision: dto.porcentajeComision,
+            fotoUrl: dto.fotoUrl,
+            estado: 'ACTIVO',
+          },
+        });
+
+        this.logger.log(
+          `AUDIT: Barbero existente en red vinculado a la sede ${negocioId}. Email: ${emailNormalizado}`,
+        );
+
+        return {
+          mensaje:
+            'Usuario vinculado exitosamente como barbero en esta barbería.',
+          barbero,
+        };
+      } catch (error) {
+        this.logger.error(
+          'Error vinculando barbero existente a la sede:',
+          error,
+        );
+        throw new ConflictException(
+          'El barbero no pudo vincularse a esta barbería. Intente nuevamente.',
+        );
+      }
     }
 
     try {
       const barbero = await this.prisma.$transaction(async (tx) => {
         const usuario = await tx.usuario.create({
           data: {
-            email: dto.email,
-            nombre: dto.nombre,
-            apellido: dto.apellido,
+            email: emailNormalizado,
+            nombre: dto.nombre.trim(),
+            apellido: dto.apellido.trim(),
             // El rol global ya no distingue administrador de barbero: los
             // roles efectivos se derivan del perfil del negocio.
             rol: 'PERSONAL',
@@ -95,7 +180,7 @@ export class BarberosService {
             telefono: dto.telefono,
             porcentajeComision: dto.porcentajeComision,
             fotoUrl: dto.fotoUrl,
-            negocioId: this.aislamiento.negocioIdRequerido(),
+            negocioId,
           },
         });
       });
@@ -112,7 +197,9 @@ export class BarberosService {
     }
   }
 
-  private async buscarUsuarioAutenticado(usuarioAutenticado: any) {
+  private async buscarUsuarioAutenticado(
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
+  ) {
     if (usuarioAutenticado?.email) {
       const u = await this.usuariosRepository.obtenerUsuarioPorEmail(
         usuarioAutenticado.email,
@@ -230,7 +317,7 @@ export class BarberosService {
   async actualizarComision(
     usuarioId: number,
     dto: ActualizarComisionDto,
-    usuarioAutenticado: any,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ) {
     const usuario =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
@@ -335,7 +422,7 @@ export class BarberosService {
   async subirFotoBarbero(
     usuarioId: number,
     archivo: Express.Multer.File,
-    usuarioAutenticado?: any,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ) {
     if (!archivo) {
       throw new ConflictException(
@@ -379,13 +466,15 @@ export class BarberosService {
   private eliminarArchivoSilencioso(ruta: string): void {
     try {
       fs.unlinkSync(ruta);
-    } catch {}
+    } catch {
+      // Intencional: ignorar si el archivo no existe
+    }
   }
 
   private async verificarPermisoSubidaFoto(
     usuarioId: number,
     archivo: Express.Multer.File,
-    usuarioAutenticado: any,
+    usuarioAutenticado: Partial<ClaimsSesionPersonal>,
   ): Promise<void> {
     const usuarioObjetivo =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
@@ -460,7 +549,7 @@ export class BarberosService {
   async cambiarEstadoBarbero(
     usuarioId: number,
     dto: CambiarEstadoUsuarioDto,
-    usuarioAutenticado: any,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ) {
     const usuario =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);

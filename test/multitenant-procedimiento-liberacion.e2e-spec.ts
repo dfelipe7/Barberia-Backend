@@ -59,7 +59,11 @@ describe('Procedimiento de liberación de la Fase 8', () => {
       );
       return 0;
     } catch (error) {
-      const exec = error as { status?: number; stdout?: string; stderr?: string };
+      const exec = error as {
+        status?: number;
+        stdout?: string;
+        stderr?: string;
+      };
       return exec.status ?? 1;
     }
   };

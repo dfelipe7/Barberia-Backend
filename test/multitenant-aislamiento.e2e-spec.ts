@@ -118,7 +118,9 @@ describe('Aislamiento entre negocios A y B (MariaDB real)', () => {
     });
 
     const barberoA = await prisma.barbero.upsert({
-      where: { negocioId_usuarioId: { negocioId: NEGOCIO_A, usuarioId: usuarioA.id } },
+      where: {
+        negocioId_usuarioId: { negocioId: NEGOCIO_A, usuarioId: usuarioA.id },
+      },
       update: {},
       create: {
         usuarioId: usuarioA.id,
@@ -128,7 +130,9 @@ describe('Aislamiento entre negocios A y B (MariaDB real)', () => {
       },
     });
     const barberoB = await prisma.barbero.upsert({
-      where: { negocioId_usuarioId: { negocioId: NEGOCIO_B, usuarioId: usuarioB.id } },
+      where: {
+        negocioId_usuarioId: { negocioId: NEGOCIO_B, usuarioId: usuarioB.id },
+      },
       update: {},
       create: {
         usuarioId: usuarioB.id,

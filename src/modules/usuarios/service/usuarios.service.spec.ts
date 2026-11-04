@@ -2,16 +2,24 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UsuariosService } from './usuarios.service';
 import { UsuariosRepository } from '../repository/usuarios.repository';
 import { BarberosRepository } from '../repository/barberos.repository';
+import { AdministradoresRepository } from '../repository/administradores.repository';
 import { UsuariosAuthorizationService } from './usuarios-authorization.service';
 import { AdministradoresService } from './administradores.service';
 import { BarberosService } from './barberos.service';
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
+import { TipoMembresiaEstado } from '../dto/dto-peticion/cambiar-estado-usuario-gestion.dto';
+import { ActualizarUsuarioDto } from '../dto/dto-peticion/actualizar-usuario.dto';
+
+type UsuarioMock = Awaited<
+  ReturnType<UsuariosRepository['obtenerUsuarioPorId']>
+>;
 
 describe('UsuariosService', () => {
   let service: UsuariosService;
   let usuariosRepository: jest.Mocked<UsuariosRepository>;
   let barberosRepository: jest.Mocked<BarberosRepository>;
+  let administradoresRepository: jest.Mocked<AdministradoresRepository>;
   let authorizationService: jest.Mocked<UsuariosAuthorizationService>;
   let administradoresService: jest.Mocked<AdministradoresService>;
   let barberosService: jest.Mocked<BarberosService>;
@@ -51,6 +59,11 @@ describe('UsuariosService', () => {
 
     const mockBarberosRepository = {
       actualizarPerfilBarbero: jest.fn(),
+      actualizarEstadoBarbero: jest.fn(),
+    };
+
+    const mockAdministradoresRepository = {
+      actualizarEstadoAdministrador: jest.fn(),
     };
 
     const mockAuthorizationService = {
@@ -76,6 +89,10 @@ describe('UsuariosService', () => {
         { provide: UsuariosRepository, useValue: mockUsuariosRepository },
         { provide: BarberosRepository, useValue: mockBarberosRepository },
         {
+          provide: AdministradoresRepository,
+          useValue: mockAdministradoresRepository,
+        },
+        {
           provide: UsuariosAuthorizationService,
           useValue: mockAuthorizationService,
         },
@@ -90,6 +107,7 @@ describe('UsuariosService', () => {
     service = module.get<UsuariosService>(UsuariosService);
     usuariosRepository = module.get(UsuariosRepository);
     barberosRepository = module.get(BarberosRepository);
+    administradoresRepository = module.get(AdministradoresRepository);
     authorizationService = module.get(UsuariosAuthorizationService);
     administradoresService = module.get(AdministradoresService);
     barberosService = module.get(BarberosService);
@@ -235,16 +253,41 @@ describe('UsuariosService', () => {
         mockTarget as any,
       );
 
+      await service.actualizarUsuario(2, { nombre: 'Nuevo' }, sesionSuperadmin);
+
+      expect(usuariosRepository.actualizarUsuario).toHaveBeenCalledWith(2, {
+        nombre: 'Nuevo',
+        apellido: undefined,
+      });
+    });
+
+    it('no reenvía el email al repositorio aunque llegue en el cuerpo', async () => {
+      const mockTarget = { id: 2, rol: 'PERSONAL' };
+      const mockCaller = { id: 1, rol: 'PERSONAL' };
+
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
+        mockTarget as any,
+      );
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
+        mockCaller as any,
+      );
+      usuariosRepository.actualizarUsuario.mockResolvedValue({} as any);
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
+        mockTarget as any,
+      );
+
       await service.actualizarUsuario(
         2,
-        { nombre: 'Nuevo' },
+        {
+          nombre: 'Nuevo',
+          email: 'inyectado@correo.com',
+        } as ActualizarUsuarioDto,
         sesionSuperadmin,
       );
 
       expect(usuariosRepository.actualizarUsuario).toHaveBeenCalledWith(2, {
         nombre: 'Nuevo',
         apellido: undefined,
-        email: undefined,
       });
     });
 
@@ -260,7 +303,11 @@ describe('UsuariosService', () => {
       );
 
       await expect(
-        service.actualizarUsuario(2, { esAdministrador: true }, sesionAdministrador),
+        service.actualizarUsuario(
+          2,
+          { esAdministrador: true },
+          sesionAdministrador,
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -280,7 +327,11 @@ describe('UsuariosService', () => {
       );
 
       await expect(
-        service.actualizarUsuario(1, { esAdministrador: false }, sesionSuperadmin),
+        service.actualizarUsuario(
+          1,
+          { esAdministrador: false },
+          sesionSuperadmin,
+        ),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -302,7 +353,11 @@ describe('UsuariosService', () => {
         mockTarget as any,
       );
 
-      await service.actualizarUsuario(2, { esAdministrador: true }, sesionSuperadmin);
+      await service.actualizarUsuario(
+        2,
+        { esAdministrador: true },
+        sesionSuperadmin,
+      );
 
       expect(
         administradoresService.cambiarEstadoAdministrador,
@@ -323,7 +378,11 @@ describe('UsuariosService', () => {
         mockTarget as any,
       );
 
-      await service.actualizarUsuario(2, { esAdministrador: false }, sesionSuperadmin);
+      await service.actualizarUsuario(
+        2,
+        { esAdministrador: false },
+        sesionSuperadmin,
+      );
 
       expect(
         administradoresService.cambiarEstadoAdministrador,
@@ -394,7 +453,11 @@ describe('UsuariosService', () => {
         mockTarget as any,
       );
 
-      await service.actualizarUsuario(2, { esBarbero: false }, sesionSuperadmin);
+      await service.actualizarUsuario(
+        2,
+        { esBarbero: false },
+        sesionSuperadmin,
+      );
 
       expect(barberosService.cambiarEstadoBarbero).toHaveBeenCalledWith(
         2,
@@ -442,12 +505,22 @@ describe('UsuariosService', () => {
   });
 
   describe('cambiarEstadoUsuario', () => {
+    const prepararLlamada = (target: any, refrescado: any = target) => {
+      usuariosRepository.obtenerUsuarioPorId
+        .mockResolvedValueOnce(target as UsuarioMock)
+        .mockResolvedValueOnce({ id: 1, rol: 'SUPERADMIN' } as UsuarioMock)
+        .mockResolvedValueOnce(refrescado as UsuarioMock);
+    };
+
     it('debe lanzar ConflictException si el usuario a modificar no existe', async () => {
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValue(null);
       await expect(
         service.cambiarEstadoUsuario(
           999,
-          { estado: 'INACTIVO' as any },
+          {
+            estado: 'INACTIVO',
+            tipo: TipoMembresiaEstado.ADMINISTRADOR,
+          },
           sesionSuperadmin,
         ),
       ).rejects.toThrow('El usuario no existe');
@@ -462,37 +535,137 @@ describe('UsuariosService', () => {
       await expect(
         service.cambiarEstadoUsuario(
           2,
-          { estado: 'INACTIVO' as any },
+          {
+            estado: 'INACTIVO',
+            tipo: TipoMembresiaEstado.ADMINISTRADOR,
+          },
           { id: 999 },
         ),
       ).rejects.toThrow('El usuario autenticado no existe en la base de datos');
     });
 
-    it('debe cambiar el estado en BD exitosamente', async () => {
-      const mockTarget = { id: 2 };
-      const mockCaller = { id: 1, rol: 'SUPERADMIN' };
-
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
-        mockTarget as any,
-      );
-      usuariosRepository.obtenerUsuarioPorId.mockResolvedValueOnce(
-        mockCaller as any,
-      );
-      usuariosRepository.actualizarEstadoUsuario.mockResolvedValue({} as any);
+    it('actualiza solo la membresía de administrador pedida', async () => {
+      const target = {
+        id: 2,
+        administradores: [{ negocioId: 10, estado: 'ACTIVO' }],
+      };
+      prepararLlamada(target);
 
       await service.cambiarEstadoUsuario(
         2,
-        { estado: 'INACTIVO' },
+        {
+          estado: 'INACTIVO',
+          tipo: TipoMembresiaEstado.ADMINISTRADOR,
+        },
         sesionSuperadmin,
       );
 
       expect(
         authorizationService.verificarPermisosCambioEstadoCuenta,
-      ).toHaveBeenCalledWith(sesionSuperadmin, mockTarget);
-      expect(usuariosRepository.actualizarEstadoUsuario).toHaveBeenCalledWith(
+      ).toHaveBeenCalledWith(
+        sesionSuperadmin,
+        expect.objectContaining({
+          id: 2,
+          administrador: { negocioId: 10, estado: 'ACTIVO' },
+        }),
+      );
+      expect(
+        administradoresRepository.actualizarEstadoAdministrador,
+      ).toHaveBeenCalledWith(2, 'INACTIVO');
+      expect(barberosRepository.actualizarEstadoBarbero).not.toHaveBeenCalled();
+      expect(usuariosRepository.actualizarEstadoUsuario).not.toHaveBeenCalled();
+    });
+
+    it('actualiza solo la membresía de barbero pedida', async () => {
+      const target = {
+        id: 2,
+        barberos: [{ negocioId: 10, estado: 'ACTIVO' }],
+      };
+      prepararLlamada(target);
+
+      await service.cambiarEstadoUsuario(
+        2,
+        {
+          estado: 'INACTIVO',
+          tipo: TipoMembresiaEstado.BARBERO,
+        },
+        sesionSuperadmin,
+      );
+
+      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(
         2,
         'INACTIVO',
       );
+      expect(
+        administradoresRepository.actualizarEstadoAdministrador,
+      ).not.toHaveBeenCalled();
+      expect(usuariosRepository.actualizarEstadoUsuario).not.toHaveBeenCalled();
+    });
+
+    it('actualiza ambas membresías cuando tipo es ambos', async () => {
+      const target = {
+        id: 2,
+        administradores: [{ negocioId: 10, estado: 'ACTIVO' }],
+        barberos: [{ negocioId: 10, estado: 'ACTIVO' }],
+      };
+      prepararLlamada(target);
+
+      await service.cambiarEstadoUsuario(
+        2,
+        { estado: 'INACTIVO', tipo: TipoMembresiaEstado.AMBOS },
+        sesionSuperadmin,
+      );
+
+      expect(
+        administradoresRepository.actualizarEstadoAdministrador,
+      ).toHaveBeenCalledWith(2, 'INACTIVO');
+      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(
+        2,
+        'INACTIVO',
+      );
+    });
+
+    it('responde 409 si la membresía pedida no existe en el negocio', async () => {
+      const target = { id: 2, administradores: [] };
+      prepararLlamada(target);
+
+      await expect(
+        service.cambiarEstadoUsuario(
+          2,
+          {
+            estado: 'INACTIVO',
+            tipo: TipoMembresiaEstado.ADMINISTRADOR,
+          },
+          sesionSuperadmin,
+        ),
+      ).rejects.toThrow('El usuario no es administrador de esta barbería');
+      expect(
+        administradoresRepository.actualizarEstadoAdministrador,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('autoriza antes de revelar si la membresía existe', async () => {
+      const target = { id: 2, administradores: [] };
+      prepararLlamada(target);
+      authorizationService.verificarPermisosCambioEstadoCuenta.mockImplementationOnce(
+        () => {
+          throw new ForbiddenException('sin permisos');
+        },
+      );
+
+      await expect(
+        service.cambiarEstadoUsuario(
+          2,
+          {
+            estado: 'INACTIVO',
+            tipo: TipoMembresiaEstado.ADMINISTRADOR,
+          },
+          sesionSuperadmin,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(
+        administradoresRepository.actualizarEstadoAdministrador,
+      ).not.toHaveBeenCalled();
     });
   });
 });

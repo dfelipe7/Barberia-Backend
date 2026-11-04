@@ -243,6 +243,7 @@ describe('ReservasController', () => {
       const resultado = await controller.modificarReservaInvitado(
         42,
         tokenValido,
+        undefined,
         modDto,
       );
 
@@ -263,12 +264,18 @@ describe('ReservasController', () => {
         controller.modificarReservaInvitado(
           42,
           undefined,
+          undefined,
           cuerpoConTokenInyectado,
         ),
       ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
 
       await expect(
-        controller.modificarReservaInvitado(42, '', cuerpoConTokenInyectado),
+        controller.modificarReservaInvitado(
+          42,
+          '',
+          undefined,
+          cuerpoConTokenInyectado,
+        ),
       ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
 
       expect(reservasService.modificarReservaInvitado).not.toHaveBeenCalled();
@@ -285,6 +292,7 @@ describe('ReservasController', () => {
         controller.modificarReservaInvitado(
           42,
           tokenIncorrecto,
+          undefined,
           cuerpoConTokenInyectado,
         ),
       ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
@@ -302,13 +310,18 @@ describe('ReservasController', () => {
       );
 
       await expect(
-        controller.modificarReservaInvitado(9999, tokenValido, modDto),
+        controller.modificarReservaInvitado(
+          9999,
+          tokenValido,
+          undefined,
+          modDto,
+        ),
       ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
     });
 
     it('5. Rechaza con 400 si el reservaId es menor o igual a 0', async () => {
       await expect(
-        controller.modificarReservaInvitado(0, tokenValido, modDto),
+        controller.modificarReservaInvitado(0, tokenValido, undefined, modDto),
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(reservasService.modificarReservaInvitado).not.toHaveBeenCalled();
@@ -329,6 +342,7 @@ describe('ReservasController', () => {
       const resultado = await controller.cancelarReservaInvitado(
         42,
         tokenValido,
+        undefined,
       );
 
       expect(resultado).toBe(mockRespuesta);
@@ -340,11 +354,11 @@ describe('ReservasController', () => {
 
     it('2. Sin encabezado, la cancelación no se autoriza (404 genérico)', async () => {
       await expect(
-        controller.cancelarReservaInvitado(42, undefined),
+        controller.cancelarReservaInvitado(42, undefined, undefined),
       ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
 
       await expect(
-        controller.cancelarReservaInvitado(42, '   '),
+        controller.cancelarReservaInvitado(42, '   ', undefined),
       ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
 
       expect(reservasService.cancelarReservaInvitado).not.toHaveBeenCalled();
@@ -356,7 +370,7 @@ describe('ReservasController', () => {
       );
 
       await expect(
-        controller.cancelarReservaInvitado(42, tokenIncorrecto),
+        controller.cancelarReservaInvitado(42, tokenIncorrecto, undefined),
       ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
 
       expect(reservasService.cancelarReservaInvitado).toHaveBeenCalledWith(
@@ -371,13 +385,13 @@ describe('ReservasController', () => {
       );
 
       await expect(
-        controller.cancelarReservaInvitado(9999, tokenValido),
+        controller.cancelarReservaInvitado(9999, tokenValido, undefined),
       ).rejects.toThrow(new NotFoundException(MENSAJE_RESERVA_NO_DISPONIBLE));
     });
 
     it('5. Rechaza con 400 si el reservaId es menor o igual a 0', async () => {
       await expect(
-        controller.cancelarReservaInvitado(-5, tokenValido),
+        controller.cancelarReservaInvitado(-5, tokenValido, undefined),
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(reservasService.cancelarReservaInvitado).not.toHaveBeenCalled();

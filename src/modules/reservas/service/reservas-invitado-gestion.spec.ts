@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import * as crypto from 'node:crypto';
 import { ReservationStatus, WeekDay } from '../../../../generated/prisma/enums';
 import {
@@ -383,10 +378,6 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
   // 7. El token de una reserva no permite gestionar otra (responde 404 idéntico a inexistente).
   it('7. El token de una reserva A no permite gestionar una reserva B (responde 404 idéntico a inexistente)', async () => {
     const tokenReservaA = crypto.randomBytes(32).toString('hex');
-    const hashReservaA = crypto
-      .createHash('sha256')
-      .update(tokenReservaA)
-      .digest('hex');
 
     const tokenReservaB = crypto.randomBytes(32).toString('hex');
     const hashReservaB = crypto

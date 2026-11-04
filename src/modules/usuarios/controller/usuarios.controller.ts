@@ -16,6 +16,7 @@ import {
   UseGuards,
   InternalServerErrorException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -32,7 +33,7 @@ import { Roles } from '../../../auth/roles/roles.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { ActualizarUsuarioDto } from '../dto/dto-peticion/actualizar-usuario.dto';
-import { CambiarEstadoUsuarioDto } from '../dto/dto-peticion/cambiar-estado-usuario.dto';
+import { CambiarEstadoUsuarioGestionDto } from '../dto/dto-peticion/cambiar-estado-usuario-gestion.dto';
 import { ConfigurarBarberoDto } from '../dto/dto-peticion/configurar-barbero.dto';
 import { UsuarioPerfilDto } from '../dto/dto-respuesta/usuario-perfil.dto';
 import { UsuariosService } from '../service/usuarios.service';
@@ -42,6 +43,15 @@ import {
   ROL_ADMINISTRADOR,
   ROL_SUPERADMIN,
 } from '../../negocios/negocios.constants';
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
+
+interface RequestConUsuario {
+  user?: Partial<ClaimsSesionPersonal>;
+}
+
+interface RequestConUsuarioOpcional {
+  user?: Partial<ClaimsSesionPersonal>;
+}
 
 @ApiTags('Usuarios')
 @ApiBearerAuth()
@@ -123,11 +133,11 @@ export class UsuariosController {
   @ApiOkResponse({ description: 'Perfil de barbero configurado con éxito.' })
   @ApiBadRequestResponse({ description: 'Datos inválidos en el formulario.' })
   async configurarMiPerfilComoBarbero(
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
     @Body() dto: ConfigurarBarberoDto,
   ) {
     return this.barberosService.configurarBarbero(
-      request.user.email || request.user.sub,
+      (request.user?.email ?? request.user?.sub) as string,
       dto,
     );
   }
@@ -140,7 +150,7 @@ export class UsuariosController {
    */
   @Post(':usuarioId/barbero')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPERADMIN')
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
   @ApiOperation({
     summary: 'Configura el perfil de un usuario existente como barbero',
     description:
@@ -156,7 +166,21 @@ export class UsuariosController {
   async configurarBarberoPorId(
     @Param('usuarioId') usuarioId: string,
     @Body() dto: ConfigurarBarberoDto,
+    @Req() request?: RequestConUsuarioOpcional,
   ) {
+    const actor = request?.user;
+    if (actor) {
+      const esSuperAdmin =
+        Array.isArray(actor?.roles) && actor.roles.includes('SUPERADMIN');
+      const esMismoUsuario = Number(actor?.id) === Number(usuarioId);
+
+      if (!esSuperAdmin && !esMismoUsuario) {
+        throw new ForbiddenException(
+          'Solo puedes configurar tu propio perfil de barbero',
+        );
+      }
+    }
+
     return this.barberosService.configurarBarberoPorId(Number(usuarioId), dto);
   }
 
@@ -167,7 +191,7 @@ export class UsuariosController {
     description: 'Datos del perfil actual.',
     type: UsuarioPerfilDto,
   })
-  async obtenerMiPerfil(@Req() request: any) {
+  async obtenerMiPerfil(@Req() request: RequestConUsuario) {
     return this.usuariosService.obtenerMiPerfil(request.user);
   }
 
@@ -193,7 +217,7 @@ export class UsuariosController {
   })
   async obtenerUsuarioPorId(
     @Param('usuarioId') usuarioId: string,
-    @Req() request: any,
+    @Req() request: RequestConUsuario,
   ) {
     return this.usuariosService.obtenerUsuarioPorId(
       Number(usuarioId),
@@ -213,8 +237,8 @@ export class UsuariosController {
   async actualizarUsuario(
     @Param('usuarioId') usuarioId: string,
     @Body() dto: ActualizarUsuarioDto,
-    @Req() request: any,
-  ) {
+    @Req() request: RequestConUsuario,
+  ): Promise<unknown> {
     return this.usuariosService.actualizarUsuario(
       Number(usuarioId),
       dto,
@@ -225,18 +249,20 @@ export class UsuariosController {
   @Patch(':usuarioId/estado')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
-  @ApiOperation({ summary: 'Cambia el estado (activo/inactivo) de un usuario' })
+  @ApiOperation({
+    summary:
+      'Cambia el estado de una membresía del usuario en la barbería actual',
+  })
   @ApiOkResponse({
-    description: 'Estado global del usuario cambiado exitosamente.',
+    description: 'Estado de la membresía cambiado exitosamente.',
   })
   @ApiForbiddenResponse({
-    description:
-      'Un Administrador no puede bloquear a otro Administrador o Superadmin.',
+    description: 'No tienes permisos para cambiar el estado de esta membresía.',
   })
   async cambiarEstadoUsuario(
     @Param('usuarioId') usuarioId: string,
-    @Body() dto: CambiarEstadoUsuarioDto,
-    @Req() request: any,
+    @Body() dto: CambiarEstadoUsuarioGestionDto,
+    @Req() request: RequestConUsuario,
   ) {
     return this.usuariosService.cambiarEstadoUsuario(
       Number(usuarioId),

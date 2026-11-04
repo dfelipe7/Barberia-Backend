@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   UnauthorizedException,
+  NotFoundException,
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -9,6 +10,7 @@ import { GoogleTokenVerifier } from '../google/google-token-verifier.service';
 import { ClientesRepository } from '../../modules/reservas/repository/clientes.repository';
 import { ClienteJwtService } from './cliente-jwt.service';
 import { ClienteSesionResponseDto } from './dto/cliente-sesion-response.dto';
+import { ActualizarPerfilClienteDto } from './dto/actualizar-perfil-cliente.dto';
 import { NegocioContextoService } from '../../modules/negocios/negocio-contexto.service';
 
 /**
@@ -34,6 +36,22 @@ export class ClientesAuthService {
     private readonly contextoService: NegocioContextoService,
   ) {}
 
+  /**
+   * Autentica o registra automáticamente a un cliente final mediante su cuenta de Google.
+   *
+   * @remarks
+   * Modelo Abierto (B2C):
+   * A diferencia del personal administrativo (Sistema Cerrado), cualquier cliente con un correo
+   * de Google verificado puede registrarse para reservar citas y consultar su historial.
+   * La identidad se ancla de forma idempotente en `Cliente.googleId` (`sub` del token).
+   * La cuenta de cliente se vincula estrictamente a la barbería del contexto activo.
+   *
+   * @param idToken - Token criptográfico emitido por Google Identity Services
+   * @returns Sesión de cliente con token JWT de corta duración y perfil del cliente
+   * @throws {UnauthorizedException} Si el token no es válido o el correo no está verificado
+   * @throws {ForbiddenException} Si la petición carece de contexto de barbería
+   * @throws {ConflictException} Si la cuenta de Google ya se encuentra vinculada a otra sede
+   */
   async loginConGoogle(idToken: string): Promise<ClienteSesionResponseDto> {
     const payload = await this.googleTokenVerifier.verificar(idToken);
 
@@ -103,5 +121,41 @@ export class ClientesAuthService {
         email: cliente.email,
       },
     };
+  }
+  async obtenerPerfil(clienteId: number) {
+    const perfil = await this.clientesRepository.obtenerPorId(clienteId);
+    if (!perfil) {
+      throw new NotFoundException('Cliente no encontrado en esta barbería');
+    }
+    return {
+      id: perfil.id,
+      nombre: perfil.nombre,
+      apellido: perfil.apellido,
+      email: perfil.email,
+      telefono: perfil.telefono,
+    };
+  }
+
+  async actualizarPerfil(clienteId: number, dto: ActualizarPerfilClienteDto) {
+    const cliente = await this.clientesRepository.obtenerPorId(clienteId);
+    if (!cliente) {
+      throw new NotFoundException('Cliente no encontrado en esta barbería');
+    }
+
+    return this.clientesRepository.actualizarPerfil(clienteId, {
+      telefono:
+        dto.telefono !== undefined
+          ? dto.telefono
+            ? dto.telefono.trim()
+            : null
+          : undefined,
+      nombre: dto.nombre ? dto.nombre.trim() : undefined,
+      apellido:
+        dto.apellido !== undefined
+          ? dto.apellido
+            ? dto.apellido.trim()
+            : null
+          : undefined,
+    });
   }
 }

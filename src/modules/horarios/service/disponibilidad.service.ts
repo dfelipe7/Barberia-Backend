@@ -1,3 +1,4 @@
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
 import {
   BadRequestException,
   ForbiddenException,
@@ -66,7 +67,23 @@ export class DisponibilidadService {
   ) {}
 
   /**
-   * Calcula el estado efectivo de cada franja de la jornada para un barbero en
+   * Evalúa el estado de disponibilidad en tiempo real de cada franja horaria de la jornada para un profesional.
+   *
+   * @remarks
+   * Arquitectura de Dominio (Fuente Única de Verdad):
+   * Aplica un pipeline de reglas de negocio (`ReglaDisponibilidad[]`) ordenadas por precedencia:
+   * 1. Cierre general de sede (`CLOSURE`).
+   * 2. Bloqueo administrativo de agenda (`BLOCKED`).
+   * 3. Fuera de jornada laboral o descanso (`OUTSIDE_SCHEDULE`).
+   * 4. Reserva activa preexistente (`RESERVED`).
+   * Si ninguna regla intercepta la franja, se califica como disponible (`AVAILABLE`).
+   * Adopta política fail-closed: si el proveedor de reservas falla, rechaza con 503 para no anunciar turnos colisionados.
+   *
+   * @param consulta - Parámetros de consulta (barberoId, servicioId, fecha de atención)
+   * @returns Listado exhaustivo de franjas horarias con su estado calificado
+   * @throws {BadRequestException} Si la fecha es inválida o el servicio no está asignado al barbero
+   * @throws {NotFoundException} Si el barbero o servicio no existen o están suspendidos
+   * @throws {ServiceUnavailableException} Si el subsistema de reservas no responde (fail-closed)
    * una fecha. Es la fuente de verdad única que HE-04 debe consumir.
    *
    * @throws BadRequestException si la fecha es inválida o el servicio no está
@@ -144,7 +161,7 @@ export class DisponibilidadService {
    * @throws ForbiddenException si el usuario no tiene perfil de barbero.
    */
   async obtenerDisponibilidadDetalladaDelBarberoAutenticado(
-    usuarioAutenticado: unknown,
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
     consulta: { servicioId?: number; fecha: string },
   ): Promise<DisponibilidadDetalladaResponseDto> {
     const usuarioId = this.resolverUsuarioId(usuarioAutenticado);
@@ -168,7 +185,9 @@ export class DisponibilidadService {
    * Extrae el `Usuario.id` del payload JWT. El guard publica `id` (numérico) y
    * `sub` (string); ambos corresponden al ID del usuario, nunca al del barbero.
    */
-  private resolverUsuarioId(usuarioAutenticado: any): number {
+  private resolverUsuarioId(
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
+  ): number {
     const idCrudo = usuarioAutenticado?.id ?? usuarioAutenticado?.sub;
     const usuarioId = Number(idCrudo);
 

@@ -247,16 +247,24 @@ describe('Endurecimiento del esquema multitenant (MariaDB real)', () => {
     const servicioA = servicios.find((s) => s.negocioId === 1)!.id;
     const servicioB = servicios.find((s) => s.negocioId === 2)!.id;
 
-    const insertarReserva = (barbero: number, servicio: number, cliente: number) =>
+    const insertarReserva = (
+      barbero: number,
+      servicio: number,
+      cliente: number,
+    ) =>
       prisma.$executeRawUnsafe(
         `INSERT INTO \`reservations\` (\`barberoId\`, \`servicioId\`, \`clienteId\`, \`date\`, \`dayOfWeek\`, \`startTime\`, \`endTime\`, \`status\`, \`negocioId\`, \`createdAt\`, \`updatedAt\`) VALUES (${barbero}, ${servicio}, ${cliente}, '2026-11-02', 'MONDAY', '10:00', '11:00', 'CONFIRMED', 1, NOW(3), NOW(3))`,
       );
 
     // 3. Una reserva no puede vincular un cliente de A con un servicio de B.
-    await expect(insertarReserva(barberoA, servicioB, clienteA)).rejects.toThrow();
+    await expect(
+      insertarReserva(barberoA, servicioB, clienteA),
+    ).rejects.toThrow();
 
     // 4. Una reserva no puede referenciar un barbero de B.
-    await expect(insertarReserva(barberoB, servicioA, clienteB)).rejects.toThrow();
+    await expect(
+      insertarReserva(barberoB, servicioA, clienteB),
+    ).rejects.toThrow();
 
     // 5. Un barbero de A no puede asignarse a un servicio de B.
     await expect(
@@ -306,10 +314,8 @@ describe('Endurecimiento del esquema multitenant (MariaDB real)', () => {
     );
 
     // Las unicidades por negocio existen y las globales se conservan.
-    const indices = await prisma.$queryRawUnsafe<
-      Array<{ index_name: string }>
-    >(
-      "SELECT DISTINCT INDEX_NAME AS index_name FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND NON_UNIQUE = 0",
+    const indices = await prisma.$queryRawUnsafe<Array<{ index_name: string }>>(
+      'SELECT DISTINCT INDEX_NAME AS index_name FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND NON_UNIQUE = 0',
     );
     const nombresIndice = indices.map((i) => i.index_name.toLowerCase());
     expect(nombresIndice).toEqual(
@@ -327,7 +333,9 @@ describe('Endurecimiento del esquema multitenant (MariaDB real)', () => {
     await insertarReserva(barberoA, servicioA, clienteA);
 
     // Una segunda reserva activa en la MISMA franja se rechaza.
-    await expect(insertarReserva(barberoA, servicioA, clienteA)).rejects.toThrow();
+    await expect(
+      insertarReserva(barberoA, servicioA, clienteA),
+    ).rejects.toThrow();
 
     // CANCELLED libera la franja: se puede volver a reservar.
     const activas = await prisma.$queryRawUnsafe<Array<{ id: number }>>(
@@ -345,7 +353,9 @@ describe('Endurecimiento del esquema multitenant (MariaDB real)', () => {
     await prisma.$executeRawUnsafe(
       `UPDATE \`reservations\` SET \`status\` = 'NO_SHOW' WHERE \`id\` = ${noShows[0].id}`,
     );
-    await expect(insertarReserva(barberoA, servicioA, clienteA)).rejects.toThrow();
+    await expect(
+      insertarReserva(barberoA, servicioA, clienteA),
+    ).rejects.toThrow();
 
     await prisma.$disconnect();
   }, 300000);

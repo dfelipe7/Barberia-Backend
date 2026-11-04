@@ -8,8 +8,12 @@ import {
 } from '@nestjs/common';
 
 import { BarberosRepository } from '../repository/barberos.repository';
+import { AdministradoresRepository } from '../repository/administradores.repository';
 import { ActualizarUsuarioDto } from '../dto/dto-peticion/actualizar-usuario.dto';
-import { CambiarEstadoUsuarioDto } from '../dto/dto-peticion/cambiar-estado-usuario.dto';
+import {
+  CambiarEstadoUsuarioGestionDto,
+  TipoMembresiaEstado,
+} from '../dto/dto-peticion/cambiar-estado-usuario-gestion.dto';
 import { UsuarioPerfilDto } from '../dto/dto-respuesta/usuario-perfil.dto';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
 import { UsuariosRepository } from '../repository/usuarios.repository';
@@ -20,7 +24,45 @@ import {
   ActorSesion,
   construirActorSesion,
 } from '../../../auth/sesion/sesion-personal';
-import { ROL_BARBERO } from '../../negocios/negocios.constants';
+import {
+  ROL_ADMINISTRADOR,
+  ROL_BARBERO,
+  ROL_SUPERADMIN,
+} from '../../negocios/negocios.constants';
+
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
+import { Prisma } from '../../../../generated/prisma/client';
+
+export type UsuarioPerfilAdministrador = {
+  id: number;
+  negocioId: number;
+  estado: string;
+  superadmin: boolean;
+};
+
+export type UsuarioPerfilBarbero = {
+  id: number;
+  negocioId: number;
+  telefono: string;
+  porcentajeComision: Prisma.Decimal | number | string;
+  fotoUrl: string | null;
+  estado: string;
+};
+
+export type UsuarioConPerfiles = {
+  id: number;
+  email: string | null;
+  nombre: string;
+  apellido: string;
+  rol: string;
+  estado: string;
+  administrador?: UsuarioPerfilAdministrador | null;
+  barbero?: UsuarioPerfilBarbero | null;
+  administradores?: UsuarioPerfilAdministrador[];
+  barberos?: UsuarioPerfilBarbero[];
+};
+
+export type UsuarioNormalizado = UsuarioConPerfiles;
 
 @Injectable()
 export class UsuariosService {
@@ -29,6 +71,7 @@ export class UsuariosService {
   constructor(
     private readonly usuariosRepository: UsuariosRepository,
     private readonly barberosRepository: BarberosRepository,
+    private readonly administradoresRepository: AdministradoresRepository,
     private readonly authorizationService: UsuariosAuthorizationService,
     @Inject(forwardRef(() => AdministradoresService))
     private readonly administradoresService: AdministradoresService,
@@ -41,11 +84,15 @@ export class UsuariosService {
    * negocio). Es lo que se usa para autorizar; el registro de `Usuario` solo
    * se usa para saber que la identidad existe.
    */
-  private actorDe(usuarioAutenticado: any): ActorSesion {
+  private actorDe(
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
+  ): ActorSesion {
     return construirActorSesion(usuarioAutenticado);
   }
 
-  private async buscarUsuarioAutenticado(usuarioAutenticado: any) {
+  private async buscarUsuarioAutenticado(
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
+  ) {
     if (usuarioAutenticado?.email) {
       const u = await this.usuariosRepository.obtenerUsuarioPorEmail(
         usuarioAutenticado.email,
@@ -71,7 +118,9 @@ export class UsuariosService {
   /**
    * Obtiene el perfil del usuario autenticado en base a su token.
    */
-  async obtenerMiPerfil(usuarioAutenticado: any): Promise<UsuarioPerfilDto> {
+  async obtenerMiPerfil(
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
+  ): Promise<UsuarioPerfilDto> {
     const usuarioActual =
       await this.buscarUsuarioAutenticado(usuarioAutenticado);
 
@@ -81,7 +130,13 @@ export class UsuariosService {
       );
     }
 
-    return this.mapearUsuarioPerfil(usuarioActual);
+    const actor = this.actorDe(usuarioAutenticado);
+    const usuarioNormalizado = this.normalizarPerfilesNegocio(
+      usuarioActual,
+      actor.negocioId,
+    );
+
+    return this.mapearUsuarioPerfil(usuarioNormalizado);
   }
 
   /**
@@ -90,42 +145,8 @@ export class UsuariosService {
    */
   async obtenerUsuarioPorId(
     usuarioId: number,
-    usuarioAutenticado: any,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ): Promise<UsuarioPerfilDto> {
-    const usuario =
-      await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
-
-    if (!usuario) {
-      throw new ConflictException('El usuario no existe');
-    }
-
-    const usuarioActual =
-      await this.buscarUsuarioAutenticado(usuarioAutenticado);
-
-    if (!usuarioActual) {
-      throw new ConflictException(
-        'El usuario autenticado no existe en la base de datos',
-      );
-    }
-
-    this.authorizationService.verificarPermisosConsulta(
-      this.actorDe(usuarioAutenticado),
-      usuario,
-    );
-
-    return this.mapearUsuarioPerfil(usuario);
-  }
-
-  /**
-   * Actualiza el nombre, apellido y correo de un usuario.
-   * Refleja los cambios en la base de datos local.
-   * Si el usuario es un barbero y se envían datos extra, actualiza el perfil de barbero.
-   */
-  async actualizarUsuario(
-    usuarioId: number,
-    dto: ActualizarUsuarioDto,
-    usuarioAutenticado: any,
-  ) {
     const usuario =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
@@ -144,19 +165,82 @@ export class UsuariosService {
 
     const actor = this.actorDe(usuarioAutenticado);
 
-    this.authorizationService.verificarPermisosEdicion(actor, usuario);
+    // Multitenant: Normalizamos los perfiles (administrador y barbero) del usuario
+    // objetivo para el negocio activo del actor antes de validar permisos y mapear el DTO.
+    // Esto garantiza que usuario.administrador y usuario.barbero no sean undefined.
+    const usuarioNormalizado = this.normalizarPerfilesNegocio(
+      usuario,
+      actor.negocioId,
+    );
+
+    this.authorizationService.verificarPermisosConsulta(
+      actor,
+      usuarioNormalizado,
+    );
+
+    return this.mapearUsuarioPerfil(usuarioNormalizado);
+  }
+
+  /**
+   * Actualiza el nombre, apellido y correo de un usuario.
+   * Refleja los cambios en la base de datos local.
+   * Si el usuario es un barbero y se envían datos extra, actualiza el perfil de barbero.
+   */
+  async actualizarUsuario(
+    usuarioId: number,
+    dto: ActualizarUsuarioDto,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
+  ): Promise<UsuarioNormalizado> {
+    const usuario =
+      await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+
+    if (!usuario) {
+      throw new ConflictException('El usuario no existe');
+    }
+
+    const usuarioActual =
+      await this.buscarUsuarioAutenticado(usuarioAutenticado);
+
+    if (!usuarioActual) {
+      throw new ConflictException(
+        'El usuario autenticado no existe en la base de datos',
+      );
+    }
+
+    const actor = this.actorDe(usuarioAutenticado);
+
+    // Multitenant: Normalizamos los perfiles del usuario objetivo respecto al negocio
+    // activo del actor. De esta forma, verificarPermisosEdicion y los métodos
+    // de gestión de roles encontrarán usuario.administrador y usuario.barbero del negocio
+    // en vez de undefined, previniendo el error 403 Forbidden.
+    const usuarioNormalizado = this.normalizarPerfilesNegocio(
+      usuario,
+      actor.negocioId,
+    );
+
+    this.authorizationService.verificarPermisosEdicion(
+      actor,
+      usuarioNormalizado,
+    );
 
     await this.actualizarDatosPersonales(usuarioId, dto);
-    await this.gestionarRolAdministrador(usuarioId, dto, usuario, actor);
+    await this.gestionarRolAdministrador(
+      usuarioId,
+      dto,
+      usuarioNormalizado,
+      actor,
+    );
     await this.gestionarRolBarbero(
       usuarioId,
       dto,
-      usuario,
+      usuarioNormalizado,
       actor,
       usuarioAutenticado,
     );
 
-    return this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+    const usuarioGuardado =
+      await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+    return this.normalizarPerfilesNegocio(usuarioGuardado, actor.negocioId);
   }
 
   /**
@@ -166,9 +250,8 @@ export class UsuariosService {
     usuarioId: number,
     dto: ActualizarUsuarioDto,
   ): Promise<void> {
-    if (dto.email || dto.nombre || dto.apellido) {
+    if (dto.nombre || dto.apellido) {
       await this.usuariosRepository.actualizarUsuario(usuarioId, {
-        email: dto.email,
         nombre: dto.nombre,
         apellido: dto.apellido,
       });
@@ -182,7 +265,7 @@ export class UsuariosService {
   private async gestionarRolAdministrador(
     usuarioId: number,
     dto: ActualizarUsuarioDto,
-    usuario: any,
+    usuario: UsuarioNormalizado,
     actor: ActorSesion,
   ): Promise<void> {
     if (dto.esAdministrador === undefined) {
@@ -223,9 +306,9 @@ export class UsuariosService {
   private async gestionarRolBarbero(
     usuarioId: number,
     dto: ActualizarUsuarioDto,
-    usuario: any,
+    usuario: UsuarioNormalizado,
     actor: ActorSesion,
-    usuarioAutenticado: any,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ): Promise<void> {
     const estadoBarberoActual = this.esBarberoActivoEnNegocio(
       usuario,
@@ -251,11 +334,15 @@ export class UsuariosService {
   private async cambiarEstadoRolBarbero(
     usuarioId: number,
     dto: ActualizarUsuarioDto,
-    usuario: any,
+    usuario: UsuarioNormalizado,
     actor: ActorSesion,
-    usuarioAutenticado: any,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ): Promise<void> {
-    if (actor.roles.includes(ROL_BARBERO)) {
+    if (
+      actor.roles.includes(ROL_BARBERO) &&
+      !actor.roles.includes(ROL_ADMINISTRADOR) &&
+      !actor.roles.includes(ROL_SUPERADMIN)
+    ) {
       throw new ForbiddenException(
         'Un barbero no puede modificar ni revocar su propio rol de Barbero',
       );
@@ -287,7 +374,7 @@ export class UsuariosService {
   private async actualizarPerfilBarberoSiAplica(
     usuarioId: number,
     dto: ActualizarUsuarioDto,
-    usuario: any,
+    usuario: UsuarioNormalizado,
     actor: ActorSesion,
   ): Promise<void> {
     const enviaDatosPerfil =
@@ -310,44 +397,89 @@ export class UsuariosService {
     });
   }
 
-  /** El objetivo tiene un perfil de administrador ACTIVO en ese negocio. */
+  /**
+   * El objetivo tiene un perfil de administrador ACTIVO en ese negocio.
+   * Multitenant: Evalúa tanto el perfil normalizado en singular como el arreglo administradores[].
+   */
   private esAdminActivoEnNegocio(
-    usuario: any,
+    usuario: UsuarioNormalizado | null | undefined,
     negocioId: number | null,
   ): boolean {
-    return (
-      !!usuario.administrador &&
-      negocioId !== null &&
+    if (negocioId === null || !usuario) return false;
+
+    // 1. Perfil singular normalizado
+    if (
+      usuario.administrador &&
       usuario.administrador.negocioId === negocioId &&
       usuario.administrador.estado === 'ACTIVO'
-    );
-  }
+    ) {
+      return true;
+    }
 
-  /** El objetivo tiene un perfil de barbero ACTIVO en ese negocio. */
-  private esBarberoActivoEnNegocio(
-    usuario: any,
-    negocioId: number | null,
-  ): boolean {
-    return (
-      !!usuario.barbero &&
-      negocioId !== null &&
-      usuario.barbero.negocioId === negocioId &&
-      usuario.barbero.estado === 'ACTIVO'
-    );
+    // 2. Multitenant (1:N): Arreglo administradores[] de Prisma
+    if (Array.isArray(usuario.administradores)) {
+      return usuario.administradores.some(
+        (a) => a.negocioId === negocioId && a.estado === 'ACTIVO',
+      );
+    }
+
+    return false;
   }
 
   /**
-   * Cambia el estado de la cuenta global del usuario (ACTIVO/INACTIVO).
-   * Al inactivar, bloquea el acceso en la plataforma, impidiendo el inicio de sesión.
-   * NOTA: Esta acción solo afecta el acceso global. Los roles (admin/barbero)
-   * mantienen su propio estado independiente. Si el usuario queda sin roles
-   * activos al desbloquear, el administrador deberá restaurarlos manualmente.
+   * El objetivo tiene un perfil de barbero ACTIVO en ese negocio.
+   * Multitenant: Evalúa tanto el perfil normalizado en singular como el arreglo barberos[].
+   */
+  private esBarberoActivoEnNegocio(
+    usuario: UsuarioNormalizado | null | undefined,
+    negocioId: number | null,
+  ): boolean {
+    if (negocioId === null || !usuario) return false;
+
+    // 1. Perfil singular normalizado
+    if (
+      usuario.barbero &&
+      usuario.barbero.negocioId === negocioId &&
+      usuario.barbero.estado === 'ACTIVO'
+    ) {
+      return true;
+    }
+
+    // 2. Multitenant (1:N): Arreglo barberos[] de Prisma
+    if (Array.isArray(usuario.barberos)) {
+      return usuario.barberos.some(
+        (b) => b.negocioId === negocioId && b.estado === 'ACTIVO',
+      );
+    }
+
+    return false;
+  }
+
+  /**
+   * Modifica el estado operativo de una membresía contractual de un usuario en la sede activa.
+   *
+   * @remarks
+   * Regla de Negocio (Aislamiento de Membresías):
+   * Un administrador de sede solo tiene potestad sobre las membresías locales de su barbería.
+   * Modificar el rol a INACTIVO aquí suspende el perfil de Administrador o Barbero únicamente
+   * para esta sede, manteniendo inmutable el estado global de la cuenta (`Usuario.estado`).
+   * Esto previene que una sede pueda bloquear el acceso laboral de una persona a otras sedes del SaaS.
+   *
+   * @param usuarioId - Identificador único global del usuario cuya membresía se alterará
+   * @param dto - DTO con el nuevo estado deseado y el tipo de membresía objetivo
+   * @param usuarioAutenticado - Claims de la sesión del actor autenticado que ejecuta la acción
+   * @returns Perfil actualizado del usuario con sus membresías normalizadas para la sede
+   * @throws {ConflictException} Si el usuario no existe en la base de datos
+   * @throws {ConflictException} Si se intenta alterar un rol que el usuario no ostenta en esta barbería
+   * @throws {ForbiddenException} Si el actor carece de privilegios jerárquicos para suspender dicha membresía
+
+
    */
   async cambiarEstadoUsuario(
     usuarioId: number,
-    dto: CambiarEstadoUsuarioDto,
-    usuarioAutenticado: any,
-  ) {
+    dto: CambiarEstadoUsuarioGestionDto,
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
+  ): Promise<UsuarioPerfilDto> {
     const usuario =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
@@ -364,15 +496,55 @@ export class UsuariosService {
       );
     }
 
-    this.authorizationService.verificarPermisosCambioEstadoCuenta(
-      this.actorDe(usuarioAutenticado),
+    const actor = this.actorDe(usuarioAutenticado);
+
+    const usuarioNormalizado = this.normalizarPerfilesNegocio(
       usuario,
+      actor.negocioId,
+    ) as Parameters<
+      UsuariosAuthorizationService['verificarPermisosCambioEstadoCuenta']
+    >[1];
+
+    this.authorizationService.verificarPermisosCambioEstadoCuenta(
+      actor,
+      usuarioNormalizado,
     );
 
-    const nuevoEstado = dto.estado;
-    return this.usuariosRepository.actualizarEstadoUsuario(
-      usuarioId,
-      nuevoEstado,
+    const quiereAdministrador =
+      dto.tipo === TipoMembresiaEstado.ADMINISTRADOR ||
+      dto.tipo === TipoMembresiaEstado.AMBOS;
+    const quiereBarbero =
+      dto.tipo === TipoMembresiaEstado.BARBERO ||
+      dto.tipo === TipoMembresiaEstado.AMBOS;
+
+    if (quiereAdministrador && !usuarioNormalizado.administrador) {
+      throw new ConflictException(
+        'El usuario no es administrador de esta barbería',
+      );
+    }
+
+    if (quiereBarbero && !usuarioNormalizado.barbero) {
+      throw new ConflictException('El usuario no es barbero de esta barbería');
+    }
+
+    if (quiereAdministrador) {
+      await this.administradoresRepository.actualizarEstadoAdministrador(
+        usuarioId,
+        dto.estado,
+      );
+    }
+
+    if (quiereBarbero) {
+      await this.barberosRepository.actualizarEstadoBarbero(
+        usuarioId,
+        dto.estado,
+      );
+    }
+
+    const usuarioGuardado =
+      await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
+    return this.mapearUsuarioPerfil(
+      this.normalizarPerfilesNegocio(usuarioGuardado, actor.negocioId),
     );
   }
 
@@ -380,10 +552,52 @@ export class UsuariosService {
    * Transforma el objeto de usuario proveniente de Prisma al DTO UsuarioPerfilDto.
    * Garantiza la conversión del Decimal de porcentajeComision a number para TypeScript y Swagger.
    */
-  private mapearUsuarioPerfil(usuario: any): UsuarioPerfilDto {
+  /**
+   * Normaliza los perfiles de administrador y barbero de un usuario para que
+   * correspondan al negocio evaluado (por defecto, el del actor).
+   */
+  private normalizarPerfilesNegocio(
+    usuario: UsuarioConPerfiles | null | undefined,
+    negocioId: number | null,
+  ): UsuarioNormalizado {
+    if (!usuario) return {} as UsuarioNormalizado;
+    // comprobado arriba
+
+    let administrador = usuario.administrador;
+    if (
+      administrador === undefined &&
+      Array.isArray(usuario.administradores) &&
+      negocioId !== null
+    ) {
+      administrador =
+        usuario.administradores.find(
+          (a: UsuarioPerfilAdministrador) => a.negocioId === negocioId,
+        ) ?? null;
+    }
+
+    let barbero = usuario.barbero;
+    if (
+      barbero === undefined &&
+      Array.isArray(usuario.barberos) &&
+      negocioId !== null
+    ) {
+      barbero =
+        usuario.barberos.find(
+          (b: UsuarioPerfilBarbero) => b.negocioId === negocioId,
+        ) ?? null;
+    }
+
+    return {
+      ...usuario,
+      administrador,
+      barbero,
+    };
+  }
+
+  private mapearUsuarioPerfil(usuario: UsuarioNormalizado): UsuarioPerfilDto {
     return {
       id: usuario.id,
-      email: usuario.email,
+      email: usuario.email ?? '',
       nombre: usuario.nombre,
       apellido: usuario.apellido,
       rol: usuario.rol,
@@ -392,6 +606,7 @@ export class UsuariosService {
         ? {
             id: usuario.administrador.id,
             estado: usuario.administrador.estado,
+            superadmin: usuario.administrador.superadmin === true,
           }
         : null,
       barbero: usuario.barbero

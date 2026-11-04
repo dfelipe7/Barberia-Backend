@@ -81,10 +81,24 @@ describe('GoogleAuthService', () => {
     );
   });
 
+  it('debe lanzar UnauthorizedException si el correo de Google no está verificado', async () => {
+    googleTokenVerifier.verificar.mockResolvedValue({
+      email: 'no-verificado@gmail.com',
+      sub: '123',
+      email_verified: false,
+    });
+
+    await expect(service.loginConGoogle('token-no-verificado')).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(prisma.usuario.findUnique).not.toHaveBeenCalled();
+  });
+
   it('debe lanzar UnauthorizedException si el usuario no existe en la base de datos', async () => {
     googleTokenVerifier.verificar.mockResolvedValue({
       email: 'desconocido@gmail.com',
       sub: '123',
+      email_verified: true,
     });
 
     prisma.usuario.findUnique.mockResolvedValue(null);
@@ -98,16 +112,20 @@ describe('GoogleAuthService', () => {
     googleTokenVerifier.verificar.mockResolvedValue({
       email: 'inactivo@gmail.com',
       sub: '123',
+      email_verified: true,
     });
 
-    prisma.usuario.findUnique.mockResolvedValue({
-      id: 2,
-      email: 'inactivo@gmail.com',
-      estado: 'INACTIVO',
-      rol: 'PERSONAL',
-      nombre: 'Juan',
-      apellido: 'Perez',
-    } as any);
+    // 1ª llamada (por googleId): no encontrado. 2ª llamada (por email): encontrado.
+    prisma.usuario.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 2,
+        email: 'inactivo@gmail.com',
+        estado: 'INACTIVO',
+        rol: 'PERSONAL',
+        nombre: 'Juan',
+        apellido: 'Perez',
+      } as any);
 
     await expect(service.loginConGoogle('valid-token')).rejects.toThrow(
       ForbiddenException,
@@ -118,18 +136,22 @@ describe('GoogleAuthService', () => {
     googleTokenVerifier.verificar.mockResolvedValue({
       email: 'admin@gmail.com',
       sub: '12345',
+      email_verified: true,
       picture: 'https://photo.url',
     });
 
-    prisma.usuario.findUnique.mockResolvedValue({
-      id: 1,
-      email: 'admin@gmail.com',
-      estado: 'ACTIVO',
-      rol: 'SUPERADMIN',
-      nombre: 'Felipe',
-      apellido: 'Armero',
-      googleId: null,
-    } as any);
+    // googleId: null → primera búsqueda (por googleId) no lo encuentra
+    prisma.usuario.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 1,
+        email: 'admin@gmail.com',
+        estado: 'ACTIVO',
+        rol: 'SUPERADMIN',
+        nombre: 'Felipe',
+        apellido: 'Armero',
+        googleId: null,
+      } as any);
 
     // Sin contexto de negocio, `Usuario.rol` no abre la puerta: se rechaza.
     contextoService.obtenerContexto.mockReturnValue(undefined);
@@ -145,18 +167,22 @@ describe('GoogleAuthService', () => {
     googleTokenVerifier.verificar.mockResolvedValue({
       email: 'admin@gmail.com',
       sub: '12345',
+      email_verified: true,
       picture: 'https://photo.url',
     });
 
-    prisma.usuario.findUnique.mockResolvedValue({
-      id: 1,
-      email: 'admin@gmail.com',
-      estado: 'ACTIVO',
-      rol: 'SUPERADMIN',
-      nombre: 'Felipe',
-      apellido: 'Armero',
-      googleId: null,
-    } as any);
+    // googleId: null → primera búsqueda no lo encuentra, segunda sí
+    prisma.usuario.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 1,
+        email: 'admin@gmail.com',
+        estado: 'ACTIVO',
+        rol: 'SUPERADMIN',
+        nombre: 'Felipe',
+        apellido: 'Armero',
+        googleId: null,
+      } as any);
 
     rolesService.perfilOperativo.mockResolvedValue({
       roles: ['SUPERADMIN'],
@@ -188,8 +214,10 @@ describe('GoogleAuthService', () => {
     googleTokenVerifier.verificar.mockResolvedValue({
       email: 'barbero@gmail.com',
       sub: '123',
+      email_verified: true,
     });
 
+    // googleId coincide → primera búsqueda lo encuentra directamente
     prisma.usuario.findUnique.mockResolvedValue({
       id: 3,
       email: 'barbero@gmail.com',
@@ -212,8 +240,10 @@ describe('GoogleAuthService', () => {
     googleTokenVerifier.verificar.mockResolvedValue({
       email: 'barbero@gmail.com',
       sub: '123',
+      email_verified: true,
     });
 
+    // googleId coincide → primera búsqueda lo encuentra directamente
     prisma.usuario.findUnique.mockResolvedValue({
       id: 3,
       email: 'barbero@gmail.com',
@@ -224,7 +254,10 @@ describe('GoogleAuthService', () => {
       googleId: '123',
     } as any);
 
-    rolesService.perfilOperativo.mockResolvedValue({ roles: [], fotoUrl: null });
+    rolesService.perfilOperativo.mockResolvedValue({
+      roles: [],
+      fotoUrl: null,
+    });
 
     await expect(service.loginConGoogle('valid-token')).rejects.toThrow(
       ForbiddenException,
@@ -236,8 +269,10 @@ describe('GoogleAuthService', () => {
     googleTokenVerifier.verificar.mockResolvedValue({
       email: 'adminbarbero@gmail.com',
       sub: '99999',
+      email_verified: true,
     });
 
+    // googleId coincide → primera búsqueda lo encuentra directamente
     prisma.usuario.findUnique.mockResolvedValue({
       id: 10,
       email: 'adminbarbero@gmail.com',
@@ -269,5 +304,71 @@ describe('GoogleAuthService', () => {
       '/foto.jpg',
     );
     expect(result.negocio).toEqual({ id: 10, slug: 'kyrios-studio' });
+  });
+
+  // --- A4: Tests de anti-takeover ---
+
+  it('rechaza el login si el googleId del token no coincide con el registrado', async () => {
+    googleTokenVerifier.verificar.mockResolvedValue({
+      email: 'victima@gmail.com',
+      sub: 'google-nuevo',
+      email_verified: true,
+    });
+
+    // 1ª búsqueda (por googleId 'google-nuevo'): no encontrado
+    // 2ª búsqueda (por email): encuentra al usuario con googleId distinto
+    prisma.usuario.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 1,
+        email: 'victima@gmail.com',
+        estado: 'ACTIVO',
+        rol: 'PERSONAL',
+        googleId: 'google-original',
+      } as any);
+
+    await expect(service.loginConGoogle('valid-token')).rejects.toThrow(
+      UnauthorizedException,
+    );
+    // No se emite sesión
+    expect(sesionService.emitirParaNegocio).not.toHaveBeenCalled();
+  });
+
+  it('resuelve primero por googleId antes que por email', async () => {
+    googleTokenVerifier.verificar.mockResolvedValue({
+      email: 'nuevo@correo.com',
+      sub: 'google-sub-123',
+      email_verified: true,
+    });
+
+    // La primera llamada (por googleId) encuentra al usuario directamente.
+    prisma.usuario.findUnique.mockResolvedValueOnce({
+      id: 1,
+      email: 'viejo@correo.com',
+      estado: 'ACTIVO',
+      rol: 'PERSONAL',
+      nombre: 'Felipe',
+      apellido: 'Armero',
+      googleId: 'google-sub-123',
+    } as any);
+
+    rolesService.perfilOperativo.mockResolvedValue({
+      roles: ['ADMINISTRADOR'],
+      fotoUrl: null,
+    });
+
+    sesionService.emitirParaNegocio.mockReturnValue({
+      accessToken: 'x',
+      usuario: { id: 1, roles: ['ADMINISTRADOR'] },
+      negocio: { id: 10, slug: 'kyrios-studio' },
+    } as any);
+
+    await service.loginConGoogle('valid-token');
+
+    // La segunda búsqueda (por email) no debe haberse ejecutado.
+    expect(prisma.usuario.findUnique).toHaveBeenCalledTimes(1);
+    expect(prisma.usuario.findUnique).toHaveBeenCalledWith({
+      where: { googleId: 'google-sub-123' },
+    });
   });
 });

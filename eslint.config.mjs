@@ -13,7 +13,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs'],
+    ignores: ['eslint.config.mjs', 'test/**/*.js'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
@@ -42,9 +42,7 @@ export default tseslint.config(
     // `test/` conserva el análisis previo (sin cambios en su resultado).
     files: [
       'prisma/multitenant/**/*.ts',
-      'test/multitenant-*.e2e-spec.ts',
-      'test/seguridad-simulador.e2e-spec.ts',
-      'test/helpers/mariadb-test-container.ts',
+      'test/**/*.ts',
     ],
     languageOptions: {
       parserOptions: {
@@ -55,9 +53,7 @@ export default tseslint.config(
   {
     files: [
       'prisma/multitenant/**/*.ts',
-      'test/multitenant-*.e2e-spec.ts',
-      'test/seguridad-simulador.e2e-spec.ts',
-      'test/helpers/mariadb-test-container.ts',
+      'test/**/*.ts',
     ],
     languageOptions: {
       parserOptions: {
@@ -71,7 +67,27 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
       "prettier/prettier": ["error", { endOfLine: "auto" }],
+    },
+  },
+  {
+    // Archivos de pruebas: en Jest, las aserciones (expect(mock).toHaveBeenCalled())
+    // y los mocks dinámicos entran en conflicto con reglas de tipado estricto
+    // pensadas para código de producción (DEBT-001 Fase 1).
+    files: ['**/*.spec.ts', '**/*.e2e-spec.ts', 'test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
 );

@@ -12,6 +12,13 @@ export class AdminPerfilDto {
     description: 'Estado del rol de administrador',
   })
   estado: string;
+
+  @ApiProperty({
+    example: true,
+    description: 'Indica si es superadministrador del negocio',
+    required: false,
+  })
+  superadmin?: boolean;
 }
 
 /**

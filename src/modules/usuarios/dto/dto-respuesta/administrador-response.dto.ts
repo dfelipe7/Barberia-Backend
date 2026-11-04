@@ -47,4 +47,12 @@ export class AdministradorResponseDto {
     required: false,
   })
   estadoBarbero?: string;
+
+  @ApiProperty({
+    example: true,
+    description:
+      'Indica si el administrador es Superadministrador de la barbería',
+    required: false,
+  })
+  esSuperAdmin?: boolean;
 }

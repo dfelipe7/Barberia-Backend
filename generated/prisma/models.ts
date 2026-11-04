@@ -10,6 +10,7 @@
  */
 export type * from './models/Negocio.js'
 export type * from './models/PerfilNegocio.js'
+export type * from './models/RedSocialNegocio.js'
 export type * from './models/Usuario.js'
 export type * from './models/Administrador.js'
 export type * from './models/Barbero.js'

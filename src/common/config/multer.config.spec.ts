@@ -26,22 +26,14 @@ describe('MulterConfig', () => {
   it('should accept valid images (jpeg)', () => {
     const config = crearMulterOptions('test');
     const mockCallback = jest.fn();
-    config.fileFilter(
-      null as any,
-      { mimetype: 'image/jpeg' } as any,
-      mockCallback,
-    );
+    config.fileFilter(null, { mimetype: 'image/jpeg' } as any, mockCallback);
     expect(mockCallback).toHaveBeenCalledWith(null, true);
   });
 
   it('should accept valid images (png)', () => {
     const config = crearMulterOptions('test');
     const mockCallback = jest.fn();
-    config.fileFilter(
-      null as any,
-      { mimetype: 'image/png' } as any,
-      mockCallback,
-    );
+    config.fileFilter(null, { mimetype: 'image/png' } as any, mockCallback);
     expect(mockCallback).toHaveBeenCalledWith(null, true);
   });
 
@@ -49,7 +41,7 @@ describe('MulterConfig', () => {
     const config = crearMulterOptions('test');
     const mockCallback = jest.fn();
     config.fileFilter(
-      null as any,
+      null,
       { mimetype: 'application/pdf' } as any,
       mockCallback,
     );

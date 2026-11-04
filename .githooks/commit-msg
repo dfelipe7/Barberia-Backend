@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Rechaza commits asistidos por IA sin trailer AI-Assisted-By:.
+# Ver AGENTS.md §3.4.
+set -e
+
+MSG_FILE="$1"
+
+# Commit sin IA en el entorno: no aplica.
+[ -z "${AI_TOOL:-}" ] && exit 0
+
+if ! grep -q '^AI-Assisted-By:' "$MSG_FILE"; then
+  echo "" >&2
+  echo "ERROR: este commit fue asistido por IA (AI_TOOL=${AI_TOOL}) pero" >&2
+  echo "       falta el trailer 'AI-Assisted-By:' en el mensaje." >&2
+  echo "       Ver AGENTS.md §3.2." >&2
+  exit 1
+fi
+

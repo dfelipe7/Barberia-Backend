@@ -3,10 +3,12 @@ import { AuthModule } from '../../auth/auth.module';
 import { PerfilNegocioController } from './controller/perfil-negocio.controller';
 import { PerfilNegocioService } from './service/perfil-negocio.service';
 import { AlmacenamientoPerfilService } from './service/almacenamiento-perfil.service';
+import { RedesSocialesService } from './service/redes-sociales.service';
 import { PerfilNegocioRepository } from './repository/perfil-negocio.repository';
+import { RedesSocialesRepository } from './repository/redes-sociales.repository';
 
 /**
- * Módulo del perfil de marca y ubicación de un negocio (Fases 14 y 15).
+ * Módulo del perfil de marca y ubicación de un negocio (Fases 14, 15 y 18).
  *
  * El contexto de negocio (`NegocioContextoService`,
  * `NegocioAislamientoService`, `NegociosRepository`) viene de
@@ -22,6 +24,8 @@ import { PerfilNegocioRepository } from './repository/perfil-negocio.repository'
     PerfilNegocioService,
     PerfilNegocioRepository,
     AlmacenamientoPerfilService,
+    RedesSocialesService,
+    RedesSocialesRepository,
   ],
   exports: [PerfilNegocioService, AlmacenamientoPerfilService],
 })

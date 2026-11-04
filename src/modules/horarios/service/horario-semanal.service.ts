@@ -1,3 +1,4 @@
+import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
 import {
   Inject,
   Injectable,
@@ -57,7 +58,7 @@ export class HorarioSemanalService {
    * HU-01: Retorna el horario semanal vigente del barbero autenticado.
    */
   async obtenerMiHorarioSemanal(
-    usuarioAutenticado: any,
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
   ): Promise<HorarioSemanalResponseDto> {
     const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
     return this.ejecutarObtenerHorario(barbero.id);
@@ -78,7 +79,7 @@ export class HorarioSemanalService {
    * reservas afectadas.
    */
   async reemplazarMiHorarioSemanal(
-    usuarioAutenticado: any,
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
     dto: ReemplazarHorarioSemanalDto,
   ): Promise<HorarioSemanalResponseDto> {
     const barbero = await this.obtenerBarberoAutenticado(usuarioAutenticado);
@@ -155,7 +156,9 @@ export class HorarioSemanalService {
    * Resuelve el perfil de barbero del usuario autenticado.
    * Lanza 403 si el usuario no está relacionado con un barbero.
    */
-  private async obtenerBarberoAutenticado(usuarioAutenticado: any) {
+  private async obtenerBarberoAutenticado(
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
+  ) {
     const usuarioId = this.resolverUsuarioId(usuarioAutenticado);
     const barbero =
       await this.barberosRepository.obtenerBarberoPorUsuarioId(usuarioId);
@@ -173,7 +176,9 @@ export class HorarioSemanalService {
    * Extrae el `Usuario.id` del payload JWT. El guard publica `id` (numérico) y
    * `sub` (string); ambos corresponden al ID del usuario, nunca al del barbero.
    */
-  private resolverUsuarioId(usuarioAutenticado: any): number {
+  private resolverUsuarioId(
+    usuarioAutenticado: Partial<ClaimsSesionPersonal> | undefined,
+  ): number {
     const idCrudo = usuarioAutenticado?.id ?? usuarioAutenticado?.sub;
     const usuarioId = Number(idCrudo);
 

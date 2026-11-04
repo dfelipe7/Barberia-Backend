@@ -19,15 +19,29 @@ interface PerfilesObjetivo {
   /**
    * Perfil de administrador de la persona: la MEMBRESÍA que concede los roles
    * administrativos EN UN NEGOCIO. `superadmin` indica que es SUPERADMIN de
-   * ese negocio.
+   * ese negocio. (Perfil normalizado para la barbería activa).
    */
   administrador?: {
     estado?: string;
     negocioId?: number | null;
     superadmin?: boolean;
   } | null;
-  /** Perfil de barbero de la persona (membresía en un negocio). */
+  /**
+   * Multitenant (1:N): Colección de administradores devueltos por Prisma.
+   * Permite evaluar permisos incluso si el objeto viene de base de datos sin normalizar.
+   */
+  administradores?: Array<{
+    estado?: string;
+    negocioId?: number | null;
+    superadmin?: boolean;
+  }>;
+  /** Perfil de barbero de la persona (membresía normalizada en un negocio). */
   barbero?: { id?: number; negocioId?: number | null } | null;
+  /**
+   * Multitenant (1:N): Colección de barberos devueltos por Prisma.
+   * Permite evaluar permisos incluso si el objeto viene de base de datos sin normalizar.
+   */
+  barberos?: Array<{ id?: number; negocioId?: number | null }>;
 }
 
 /**
@@ -179,6 +193,14 @@ export class UsuariosAuthorizationService {
       );
     }
 
+    // Regla de Inmunidad: NINGÚN usuario (ni Administrador ni otro Superadmin)
+    // puede bloquear o desactivar la cuenta de un Superadministrador del negocio.
+    if (this.esSuperAdmin(usuarioObjetivo, actor.negocioId)) {
+      throw new ForbiddenException(
+        'No se puede desactivar la cuenta de un Superadministrador',
+      );
+    }
+
     // El SUPERADMIN tiene autorización completa DENTRO de su barbería.
     if (this.esSuperAdminDelNegocio(actor, usuarioObjetivo)) {
       return;
@@ -229,6 +251,16 @@ export class UsuariosAuthorizationService {
     actor: ActorSesion,
     usuarioObjetivo: PerfilesObjetivo,
   ) {
+    // Inmunidad: El perfil de barbero de un Superadmin solo puede ser modificado por él mismo.
+    if (
+      this.esSuperAdmin(usuarioObjetivo, actor.negocioId) &&
+      actor.id !== usuarioObjetivo.id
+    ) {
+      throw new ForbiddenException(
+        'No se puede modificar el perfil de barbero de un Superadministrador',
+      );
+    }
+
     // El SUPERADMIN tiene autorización completa DENTRO de su barbería.
     if (this.esSuperAdminDelNegocio(actor, usuarioObjetivo)) {
       return;
@@ -330,45 +362,92 @@ export class UsuariosAuthorizationService {
    * MEMBRESÍA, de modo que "es superadmin" significa "es superadmin de esta
    * barbería".
    */
+  /**
+   * El objetivo es SUPERADMIN **del negocio indicado** (el del actor).
+   *
+   * Multitenant: Revisa tanto la propiedad singular normalizada (`administrador`)
+   * como el arreglo de Prisma (`administradores[]`).
+   */
   private esSuperAdmin(
     usuarioObjetivo: PerfilesObjetivo,
     negocioId: number | null,
   ): boolean {
-    const perfil = usuarioObjetivo?.administrador;
+    if (negocioId === null || !usuarioObjetivo) return false;
 
-    return (
-      !!perfil &&
-      negocioId !== null &&
+    // 1. Revisión en propiedad singular normalizada para este negocio
+    const perfil = usuarioObjetivo.administrador;
+    if (
+      perfil &&
       perfil.negocioId === negocioId &&
       perfil.superadmin === true
-    );
+    ) {
+      return true;
+    }
+
+    // 2. Multitenant (1:N): Respaldo sobre la colección de Prisma si viene sin normalizar
+    if (Array.isArray(usuarioObjetivo.administradores)) {
+      return usuarioObjetivo.administradores.some(
+        (a) => a.negocioId === negocioId && a.superadmin === true,
+      );
+    }
+
+    return false;
   }
 
   /**
    * El objetivo tiene un perfil de administrador ACTIVO en el negocio del
    * actor. Un perfil de otra barbería (o sin negocio asignado) no cuenta.
+   *
+   * Multitenant: Revisa tanto la propiedad singular normalizada como el arreglo `administradores[]`.
    */
   private esAdminDelNegocio(
     usuarioObjetivo: PerfilesObjetivo,
     negocioId: number | null,
   ): boolean {
-    const perfil = usuarioObjetivo?.administrador;
+    if (negocioId === null || !usuarioObjetivo) return false;
 
-    return (
-      !!perfil &&
-      negocioId !== null &&
+    // 1. Revisión en propiedad singular normalizada para este negocio
+    const perfil = usuarioObjetivo.administrador;
+    if (
+      perfil &&
       perfil.negocioId === negocioId &&
       perfil.estado === 'ACTIVO'
-    );
+    ) {
+      return true;
+    }
+
+    // 2. Multitenant (1:N): Respaldo sobre la colección de Prisma si viene sin normalizar
+    if (Array.isArray(usuarioObjetivo.administradores)) {
+      return usuarioObjetivo.administradores.some(
+        (a) => a.negocioId === negocioId && a.estado === 'ACTIVO',
+      );
+    }
+
+    return false;
   }
 
-  /** El objetivo tiene un perfil de barbero en el negocio del actor. */
+  /**
+   * El objetivo tiene un perfil de barbero en el negocio del actor.
+   *
+   * Multitenant: Revisa tanto la propiedad singular normalizada como el arreglo `barberos[]`.
+   */
   private esBarberoDelNegocio(
     usuarioObjetivo: PerfilesObjetivo,
     negocioId: number | null,
   ): boolean {
-    const perfil = usuarioObjetivo?.barbero;
+    if (negocioId === null || !usuarioObjetivo) return false;
 
-    return !!perfil && negocioId !== null && perfil.negocioId === negocioId;
+    // 1. Revisión en propiedad singular normalizada para este negocio
+    const perfil = usuarioObjetivo.barbero;
+    if (perfil && perfil.negocioId === negocioId) {
+      return true;
+    }
+
+    // 2. Multitenant (1:N): Respaldo sobre la colección de Prisma si viene sin normalizar
+    if (Array.isArray(usuarioObjetivo.barberos)) {
+      return usuarioObjetivo.barberos.some((b) => b.negocioId === negocioId);
+    }
+
+    return false;
   }
 }

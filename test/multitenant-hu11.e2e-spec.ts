@@ -532,8 +532,6 @@ describe('HU-11: plantillas, configuración y cron por negocio (MariaDB real)', 
       'Plantilla de B',
       'Plantilla global',
     ]);
-    expect(
-      restantes.find((p) => p.negocioId === negocioA.id),
-    ).toBeUndefined();
+    expect(restantes.find((p) => p.negocioId === negocioA.id)).toBeUndefined();
   });
 });

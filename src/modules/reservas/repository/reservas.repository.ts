@@ -58,6 +58,7 @@ const SELECCION_RESERVA_CON_RELACIONES = {
   barbero: {
     select: { id: true, usuario: { select: { nombre: true, apellido: true } } },
   },
+  gestionTokenCifrado: true,
 } as const;
 
 /**
@@ -109,6 +110,7 @@ export interface ReservaConRelaciones {
   updatedAt: Date;
   servicio: { id: number; nombre: string; precio: Prisma.Decimal };
   barbero: { id: number; usuario: { nombre: string; apellido: string } };
+  gestionTokenCifrado: string | null;
 }
 
 /**
@@ -706,6 +708,11 @@ export class ReservasRepository {
     | (ReservaConRelaciones & {
         gestionTokenHash: string | null;
         gestionTokenCifrado: string | null;
+        cliente?: {
+          nombre: string;
+          apellido: string | null;
+          telefono: string | null;
+        };
       })
     | null
   > {
@@ -713,6 +720,13 @@ export class ReservasRepository {
       where: this.aislamiento.filtroEscritura({ id: reservaId }),
       select: {
         ...SELECCION_RESERVA_CON_RELACIONES,
+        cliente: {
+          select: {
+            nombre: true,
+            apellido: true,
+            telefono: true,
+          },
+        },
         gestionTokenHash: true,
         gestionTokenCifrado: true,
       },

@@ -53,6 +53,13 @@ export class PerfilNegocioPublicoResponseDto {
   frasePrincipal?: string | null;
 
   @ApiPropertyOptional({
+    example: 'clasico-azul',
+    description: 'Identificador del tema visual / paleta de marca',
+    nullable: true,
+  })
+  temaKey?: string | null;
+
+  @ApiPropertyOptional({
     example: '/uploads/negocios/kyrios-studio/favicon.png',
     description:
       'Referencia al favicon (ruta o URL). No es un archivo binario.',

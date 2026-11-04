@@ -1,0 +1,10 @@
+# <tipo>(<scope>): <descripción imperativa, ≤72 chars>
+
+# [cuerpo opcional: qué y por qué, no cómo. Líneas ≤72 chars.]
+# [referencias: closes #, refs #, ver docs/...]
+
+# --- Trailers obligatorios si hubo IA (ver AGENTS.md §3.2) ---
+# AI-Assisted-By: <herramienta>
+# AI-Model: <modelo>
+# AI-Session: <id-o-fecha-iso-8601>
+

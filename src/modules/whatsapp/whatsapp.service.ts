@@ -3,7 +3,6 @@ import {
   Logger,
   OnModuleInit,
   OnModuleDestroy,
-  Optional,
 } from '@nestjs/common';
 import makeWASocket, {
   DisconnectReason,
@@ -94,6 +93,8 @@ export interface DatosConfirmacionWhatsApp {
   fecha: string;
   hora: string;
   precio?: number | string | null;
+  negocioId?: number;
+  enlaceGestion?: string | null;
 }
 
 /**
@@ -113,17 +114,23 @@ export function enmascararTelefono(identificador?: string | null): string {
   return `${inicio}****${fin}`;
 }
 
+export interface SesionWhatsAppNegocio {
+  negocioId: number;
+  sock: WASocket | null;
+  isConnected: boolean;
+  qrDataUrl: string | null;
+  sessionDir: string;
+  isIntentionalDisconnect: boolean;
+  isConnecting: boolean;
+  qrInactivityTimer: NodeJS.Timeout | null;
+  enReposo: boolean;
+}
+
 @Injectable()
 export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WhatsAppService.name);
-  private sock: WASocket | null = null;
-  private isConnected = false;
-  private qrDataUrl: string | null = null;
-  private readonly sessionDir: string;
-  private isIntentionalDisconnect = false;
-  private isConnecting = false;
-  private qrInactivityTimer: NodeJS.Timeout | null = null;
-  private enReposo = true;
+  private readonly sesiones = new Map<number, SesionWhatsAppNegocio>();
+  private readonly baseSessionDir: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -133,19 +140,93 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     private readonly negociosRepository: NegociosRepository,
     private readonly perfilNegocioService: PerfilNegocioService,
   ) {
-    this.sessionDir =
+    this.baseSessionDir =
       process.env.WHATSAPP_SESSION_PATH ||
-      path.join(os.homedir(), '.kyrios_whatsapp_session');
+      path.join(os.homedir(), '.barberia_whatsapp_sessions');
   }
 
   /**
-   * Determina si ya existe una sesión guardada y debidamente autenticada en el disco.
+   * Resuelve el negocioId objetivo:
+   * 1. Parámetro explícito negocioIdParam (si > 0).
+   * 2. Negocio del contexto de la petición actual (AsyncLocalStorage).
+   * 3. Fallback a 1 (Kyrios Studio / tenant principal).
+   */
+  resolverNegocioId(negocioIdParam?: number | null): number {
+    if (negocioIdParam && negocioIdParam > 0) {
+      return negocioIdParam;
+    }
+    const contexto = this.contextoService.obtenerContexto();
+    if (contexto?.id) {
+      return contexto.id;
+    }
+    return 1;
+  }
+
+  /**
+   * Obtiene la ruta en disco de la sesión de un negocio específico.
+   * Para negocio 1, si existe la carpeta histórica ~/.kyrios_whatsapp_session,
+   * se migra automáticamente a ~/.barberia_whatsapp_sessions/negocio_1
+   * para conservar la sesión activa sin necesidad de volver a escanear el QR.
+   */
+  obtenerDirectorioSesion(negocioId: number): string {
+    const dirNegocio = path.join(this.baseSessionDir, `negocio_${negocioId}`);
+
+    // Migración transparente de sesión histórica para Kyrios Studio (Negocio 1)
+    if (negocioId === 1 && !fs.existsSync(dirNegocio)) {
+      const dirHistorico = path.join(os.homedir(), '.kyrios_whatsapp_session');
+      if (fs.existsSync(dirHistorico)) {
+        try {
+          fs.mkdirSync(this.baseSessionDir, { recursive: true });
+          fs.cpSync(dirHistorico, dirNegocio, { recursive: true });
+          this.logger.log(
+            `Migrada sesión histórica de WhatsApp para Kyrios (negocio 1) a ${dirNegocio}`,
+          );
+        } catch (e) {
+          this.logger.warn(
+            `No se pudo migrar la sesión histórica de WhatsApp: ${e}`,
+          );
+          return dirHistorico;
+        }
+      }
+    }
+
+    return dirNegocio;
+  }
+
+  /**
+   * Obtiene o instancia el estado en memoria de la sesión del negocio.
+   */
+  private obtenerOCrearSesion(negocioId: number): SesionWhatsAppNegocio {
+    let sesion = this.sesiones.get(negocioId);
+    if (!sesion) {
+      const sessionDir = this.obtenerDirectorioSesion(negocioId);
+      sesion = {
+        negocioId,
+        sock: null,
+        isConnected: false,
+        qrDataUrl: null,
+        sessionDir,
+        isIntentionalDisconnect: false,
+        isConnecting: false,
+        qrInactivityTimer: null,
+        enReposo: true,
+      };
+      this.sesiones.set(negocioId, sesion);
+    }
+    return sesion;
+  }
+
+  /**
+   * Determina si ya existe una sesión guardada y debidamente autenticada en el disco
+   * para el negocio indicado (o el negocio del contexto).
    * Una sesión válida de Baileys contiene credenciales con la cuenta del usuario ('me' con un id/jid válido).
    * Un creds.json sin 'me' es solo un intento preliminar de escaneo de QR no vinculado aún.
    */
-  tieneSesionGuardada(): boolean {
+  tieneSesionGuardada(negocioIdParam?: number): boolean {
     try {
-      const credsPath = path.join(this.sessionDir, 'creds.json');
+      const negocioId = this.resolverNegocioId(negocioIdParam);
+      const sesion = this.obtenerOCrearSesion(negocioId);
+      const credsPath = path.join(sesion.sessionDir, 'creds.json');
       if (!fs.existsSync(credsPath)) return false;
       const raw = fs.readFileSync(credsPath, 'utf8');
       const creds = JSON.parse(raw);
@@ -155,25 +236,28 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private limpiarTimerInactividad() {
-    if (this.qrInactivityTimer) {
-      clearTimeout(this.qrInactivityTimer);
-      this.qrInactivityTimer = null;
+  private limpiarTimerInactividad(sesion: SesionWhatsAppNegocio) {
+    if (sesion.qrInactivityTimer) {
+      clearTimeout(sesion.qrInactivityTimer);
+      sesion.qrInactivityTimer = null;
     }
   }
 
-  private reiniciarTimerInactividad() {
-    this.limpiarTimerInactividad();
+  private reiniciarTimerInactividad(sesion: SesionWhatsAppNegocio) {
+    this.limpiarTimerInactividad(sesion);
     // Temporizador estricto de 60 segundos si estamos en proceso de escaneo de QR
-    if (!this.isConnected && !this.tieneSesionGuardada()) {
-      this.qrInactivityTimer = setTimeout(() => {
-        if (!this.isConnected && !this.tieneSesionGuardada()) {
+    if (!sesion.isConnected && !this.tieneSesionGuardada(sesion.negocioId)) {
+      sesion.qrInactivityTimer = setTimeout(() => {
+        if (
+          !sesion.isConnected &&
+          !this.tieneSesionGuardada(sesion.negocioId)
+        ) {
           this.logger.log(
-            'Límite de 60 segundos alcanzado en el backend sin escaneo. Cerrando conexión de WhatsApp y entrando en REPOSO inmediatamente.',
+            `[Negocio ${sesion.negocioId}] Límite de 60 segundos alcanzado en el backend sin escaneo. Cerrando conexión de WhatsApp y entrando en REPOSO inmediatamente.`,
           );
-          this.enReposo = true;
-          this.destruirSocket();
-          this.qrDataUrl = null;
+          sesion.enReposo = true;
+          this.destruirSocket(sesion);
+          sesion.qrDataUrl = null;
         }
       }, 60_000);
     }
@@ -181,31 +265,48 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     this.logger.log(
-      `Servicio de WhatsApp inicializado (Directorio: ${this.sessionDir})`,
+      `Servicio de WhatsApp Multi-Tenant inicializado (Directorio base: ${this.baseSessionDir})`,
     );
-    if (this.tieneSesionGuardada()) {
-      this.enReposo = false;
-      this.logger.log(
-        'Sesión previa encontrada en disco. Conectando automáticamente con WhatsApp Web...',
+
+    try {
+      const negocios = await this.negociosRepository.listar();
+      for (const negocio of negocios) {
+        if (this.tieneSesionGuardada(negocio.id)) {
+          const sesion = this.obtenerOCrearSesion(negocio.id);
+          sesion.enReposo = false;
+          this.logger.log(
+            `[Negocio ${negocio.id} - ${negocio.nombre}] Sesión previa encontrada en disco. Conectando automáticamente con WhatsApp Web...`,
+          );
+          await this.iniciarSocket(negocio.id);
+        } else {
+          this.logger.log(
+            `[Negocio ${negocio.id} - ${negocio.nombre}] Sin sesión vinculada. En modo REPOSO (se generará el código QR bajo demanda).`,
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.warn(
+        `No se pudieron listar los negocios para restaurar sesiones de WhatsApp: ${error}`,
       );
-      await this.iniciarSocket();
-    } else {
-      this.enReposo = true;
-      this.logger.log(
-        'No hay sesión previa vinculada. WhatsApp en modo REPOSO (se generará el código QR bajo demanda cuando un administrador abra /whatsapp).',
-      );
+      if (this.tieneSesionGuardada(1)) {
+        const sesion1 = this.obtenerOCrearSesion(1);
+        sesion1.enReposo = false;
+        await this.iniciarSocket(1);
+      }
     }
   }
 
   async onModuleDestroy() {
-    this.destruirSocket();
+    for (const [, sesion] of this.sesiones) {
+      this.destruirSocket(sesion);
+    }
   }
 
-  private destruirSocket() {
-    this.limpiarTimerInactividad();
-    if (this.sock) {
-      const sockRef = this.sock;
-      this.sock = null;
+  private destruirSocket(sesion: SesionWhatsAppNegocio) {
+    this.limpiarTimerInactividad(sesion);
+    if (sesion.sock) {
+      const sockRef = sesion.sock;
+      sesion.sock = null;
       try {
         sockRef.ev.removeAllListeners('connection.update');
         sockRef.ev.removeAllListeners('creds.update');
@@ -213,39 +314,64 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         (sockRef as any).ws?.terminate?.();
         void sockRef.end(undefined);
       } catch (err) {
-        this.logger.warn(`Error cerrando socket anterior: ${err}`);
+        this.logger.warn(
+          `[Negocio ${sesion.negocioId}] Error cerrando socket anterior: ${err}`,
+        );
       }
     }
-    this.isConnecting = false;
+    sesion.isConnecting = false;
   }
 
-  async iniciarSocket() {
-    if (this.isConnecting) return;
-    if (this.sock && this.isConnected) return;
-    this.isConnecting = true;
+  /**
+   * Inicializa el socket de Baileys para la sesión del negocio especificado.
+   *
+   * @remarks
+   * Ciclo de Vida y Resiliencia Multitenant:
+   * Cada sede mantiene sus credenciales criptográficas (`useMultiFileAuthState`) en una carpeta
+   * segregada. Si no existe sesión previa, emite un código QR efímero en Base64 con un timer
+   * de inactividad para liberar recursos ociosos. Si se pierde la red, reconecta automáticamente.
+   *
+   * @param negocioIdParam - ID de la sede a conectar (opcional, fallback al contexto).
+   * @returns Promesa resuelta tras iniciar la conexión o publicar el código QR.
+   */
+  async iniciarSocket(negocioIdParam?: number): Promise<void> {
+    const negocioId = this.resolverNegocioId(negocioIdParam);
+    const sesion = this.obtenerOCrearSesion(negocioId);
+
+    if (sesion.isConnecting) return;
+    if (sesion.sock && sesion.isConnected) return;
+    sesion.isConnecting = true;
 
     try {
-      this.destruirSocket();
-      this.isConnecting = true;
+      this.destruirSocket(sesion);
+      sesion.isConnecting = true;
 
-      if (!fs.existsSync(this.sessionDir)) {
-        fs.mkdirSync(this.sessionDir, { recursive: true });
+      if (!fs.existsSync(sesion.sessionDir)) {
+        fs.mkdirSync(sesion.sessionDir, { recursive: true });
       }
 
-      const { state, saveCreds } = await useMultiFileAuthState(this.sessionDir);
+      const { state, saveCreds } = await useMultiFileAuthState(
+        sesion.sessionDir,
+      );
 
-      if (this.enReposo) {
+      if (sesion.enReposo) {
         this.logger.log(
-          'Cancelando inicio de socket porque WhatsApp está en REPOSO.',
+          `[Negocio ${sesion.negocioId}] Cancelando inicio de socket porque WhatsApp está en REPOSO.`,
         );
         return;
       }
+
+      let nombreNegocio = `Barbería Negocio ${negocioId}`;
+      try {
+        const negocio = await this.negociosRepository.buscarPorId(negocioId);
+        if (negocio?.nombre) nombreNegocio = negocio.nombre;
+      } catch {}
 
       const socket = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
         printQRInTerminal: false,
-        browser: ['Kyrios Barber Studio', 'Chrome', '1.0.0'],
+        browser: [nombreNegocio, 'Chrome', '1.0.0'],
         connectTimeoutMs: 60_000,
         syncFullHistory: false,
         shouldSyncHistoryMessage: () => false,
@@ -260,13 +386,13 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         markOnlineOnConnect: false,
       });
 
-      this.sock = socket;
+      sesion.sock = socket;
 
       socket.ev.on('creds.update', saveCreds);
 
       socket.ev.on('connection.update', async (update) => {
         // GUARDA CRÍTICA: Si el servicio está en reposo o el socket fue reemplazado, descartar y cerrar inmediatamente
-        if (this.enReposo || this.sock !== socket) {
+        if (sesion.enReposo || sesion.sock !== socket) {
           try {
             socket.ev.removeAllListeners('connection.update');
             socket.ev.removeAllListeners('creds.update');
@@ -281,100 +407,104 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
 
         if (qr) {
           try {
-            this.qrDataUrl = await QRCode.toDataURL(qr, {
+            sesion.qrDataUrl = await QRCode.toDataURL(qr, {
               width: 320,
               margin: 2,
               color: { dark: '#0C0C0C', light: '#FFFFFF' },
             });
-            this.isConnected = false;
-            this.reiniciarTimerInactividad();
+            sesion.isConnected = false;
+            this.reiniciarTimerInactividad(sesion);
             this.logger.log(
-              'Nuevo código QR de WhatsApp generado bajo demanda.',
+              `[Negocio ${sesion.negocioId}] Nuevo código QR de WhatsApp generado bajo demanda.`,
             );
           } catch (err) {
-            this.logger.error('Error convirtiendo QR a imagen DataURL', err);
+            this.logger.error(
+              `[Negocio ${sesion.negocioId}] Error convirtiendo QR a imagen DataURL`,
+              err,
+            );
           }
         }
 
         if (connection === 'open') {
-          this.isConnected = true;
-          this.enReposo = false;
-          this.qrDataUrl = null;
-          this.isIntentionalDisconnect = false;
-          this.limpiarTimerInactividad();
-          this.logger.log('🟢 CONEXIÓN ESTABLECIDA CON WHATSAPP WEB.');
+          sesion.isConnected = true;
+          sesion.enReposo = false;
+          sesion.qrDataUrl = null;
+          sesion.isIntentionalDisconnect = false;
+          this.limpiarTimerInactividad(sesion);
+          this.logger.log(
+            `🟢 [Negocio ${sesion.negocioId}] CONEXIÓN ESTABLECIDA CON WHATSAPP WEB.`,
+          );
         }
 
         if (connection === 'close') {
-          this.isConnected = false;
-          this.limpiarTimerInactividad();
+          sesion.isConnected = false;
+          this.limpiarTimerInactividad(sesion);
           const statusCode = (lastDisconnect?.error as Boom)?.output
             ?.statusCode;
-          const hasSavedSession = this.tieneSesionGuardada();
+          const hasSavedSession = this.tieneSesionGuardada(sesion.negocioId);
 
           this.logger.warn(
-            `Conexión cerrada con WhatsApp. Código de salida: ${statusCode}. Tiene sesión autenticada: ${hasSavedSession}`,
+            `[Negocio ${sesion.negocioId}] Conexión cerrada con WhatsApp. Código de salida: ${statusCode}. Tiene sesión autenticada: ${hasSavedSession}`,
           );
 
           if (statusCode === DisconnectReason.connectionReplaced) {
             this.logger.warn(
-              'La sesión de WhatsApp fue abierta en otro lugar o navegador (440). No se reintentará automáticamente.',
+              `[Negocio ${sesion.negocioId}] La sesión de WhatsApp fue abierta en otro lugar o navegador (440). No se reintentará automáticamente.`,
             );
-            this.qrDataUrl = null;
-            this.destruirSocket();
+            sesion.qrDataUrl = null;
+            this.destruirSocket(sesion);
             return;
           }
 
           if (
             statusCode === DisconnectReason.loggedOut ||
-            this.isIntentionalDisconnect
+            sesion.isIntentionalDisconnect
           ) {
             this.logger.log(
-              'Sesión cerrada o desvinculada. Limpiando credenciales locales...',
+              `[Negocio ${sesion.negocioId}] Sesión cerrada o desvinculada. Limpiando credenciales locales...`,
             );
-            this.qrDataUrl = null;
-            this.destruirSocket();
-            this.limpiarCarpetaSesion();
-            this.isIntentionalDisconnect = false;
+            sesion.qrDataUrl = null;
+            this.destruirSocket(sesion);
+            this.limpiarCarpetaSesion(sesion);
+            sesion.isIntentionalDisconnect = false;
             return;
           }
 
           // IMPORTANTE: Destruir siempre la referencia al socket cerrado para liberar el puerto
-          this.destruirSocket();
+          this.destruirSocket(sesion);
 
           // Si ya teníamos una sesión autenticada guardada, reconectar automáticamente para seguir despachando citas
           if (hasSavedSession) {
-            this.qrDataUrl = null;
+            sesion.qrDataUrl = null;
             const delay =
               statusCode === DisconnectReason.restartRequired ? 1500 : 4000;
             this.logger.log(
-              `Reconectando sesión guardada de WhatsApp en ${delay / 1000}s...`,
+              `[Negocio ${sesion.negocioId}] Reconectando sesión guardada de WhatsApp en ${delay / 1000}s...`,
             );
             setTimeout(() => {
-              if (this.tieneSesionGuardada()) {
-                void this.iniciarSocket();
+              if (this.tieneSesionGuardada(sesion.negocioId)) {
+                void this.iniciarSocket(sesion.negocioId);
               }
             }, delay);
             return;
           }
 
-          // Si NO tenía sesión autenticada (estaba esperando escaneo de QR):
-          // El código 515 (restartRequired) es una solicitud normal de WhatsApp para reiniciar el stream
+          // Si WhatsApp solicitó reinicio del socket (515) durante la generación de QR
           if (
-            !this.enReposo &&
+            !sesion.enReposo &&
             (statusCode === DisconnectReason.restartRequired ||
               statusCode === 515)
           ) {
             this.logger.log(
-              'WhatsApp solicitó reinicio del socket (515) durante la generación de QR. Regenerando socket y QR en 1s...',
+              `[Negocio ${sesion.negocioId}] WhatsApp solicitó reinicio del socket (515) durante la generación de QR. Regenerando socket y QR en 1s...`,
             );
             setTimeout(() => {
               if (
-                !this.enReposo &&
-                !this.isConnected &&
-                !this.tieneSesionGuardada()
+                !sesion.enReposo &&
+                !sesion.isConnected &&
+                !this.tieneSesionGuardada(sesion.negocioId)
               ) {
-                void this.iniciarSocket();
+                void this.iniciarSocket(sesion.negocioId);
               }
             }, 1000);
             return;
@@ -382,110 +512,147 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
 
           // Si WhatsApp cerró por timeout o expiró el tiempo de escaneo:
           this.logger.log(
-            'Tiempo de escaneo de QR expirado sin interacción. Entrando en REPOSO hasta nueva solicitud del frontend.',
+            `[Negocio ${sesion.negocioId}] Tiempo de escaneo de QR expirado sin interacción. Entrando en REPOSO hasta nueva solicitud del frontend.`,
           );
-          this.enReposo = true;
-          this.qrDataUrl = null;
-          this.limpiarCarpetaSesionIncompleta();
+          sesion.enReposo = true;
+          sesion.qrDataUrl = null;
+          this.limpiarCarpetaSesionIncompleta(sesion);
         }
       });
     } catch (error) {
       this.logger.error(
-        'Error fatal inicializando Baileys WhatsApp Socket:',
+        `[Negocio ${sesion.negocioId}] Error fatal inicializando Baileys WhatsApp Socket:`,
         error,
       );
     } finally {
-      this.isConnecting = false;
+      sesion.isConnecting = false;
     }
   }
 
-  private limpiarCarpetaSesion() {
+  private limpiarCarpetaSesion(sesion: SesionWhatsAppNegocio) {
     try {
-      if (fs.existsSync(this.sessionDir)) {
-        fs.rmSync(this.sessionDir, { recursive: true, force: true });
+      if (fs.existsSync(sesion.sessionDir)) {
+        fs.rmSync(sesion.sessionDir, { recursive: true, force: true });
         this.logger.log(
-          `Carpeta de sesión eliminada con éxito: ${this.sessionDir}`,
+          `[Negocio ${sesion.negocioId}] Carpeta de sesión eliminada con éxito: ${sesion.sessionDir}`,
         );
       }
     } catch (err) {
-      this.logger.error('Error eliminando carpeta de sesión de WhatsApp:', err);
+      this.logger.error(
+        `[Negocio ${sesion.negocioId}] Error eliminando carpeta de sesión de WhatsApp:`,
+        err,
+      );
     }
   }
 
-  private limpiarCarpetaSesionIncompleta() {
+  private limpiarCarpetaSesionIncompleta(sesion: SesionWhatsAppNegocio) {
     try {
-      if (!this.tieneSesionGuardada() && fs.existsSync(this.sessionDir)) {
-        fs.rmSync(this.sessionDir, { recursive: true, force: true });
+      if (
+        !this.tieneSesionGuardada(sesion.negocioId) &&
+        fs.existsSync(sesion.sessionDir)
+      ) {
+        fs.rmSync(sesion.sessionDir, { recursive: true, force: true });
         this.logger.log(
-          'Archivos de sesión preliminar no autenticada limpiados de disco.',
+          `[Negocio ${sesion.negocioId}] Archivos de sesión preliminar no autenticada limpiados de disco.`,
         );
       }
     } catch (err) {
-      this.logger.warn(`Error limpiando sesión incompleta: ${err}`);
+      this.logger.warn(
+        `[Negocio ${sesion.negocioId}] Error limpiando sesión incompleta: ${err}`,
+      );
     }
   }
 
-  getStatus(): { conectado: boolean; qr: string | null } {
+  getStatus(negocioIdParam?: number): {
+    conectado: boolean;
+    qr: string | null;
+  } {
+    const negocioId = this.resolverNegocioId(negocioIdParam);
+    const sesion = this.obtenerOCrearSesion(negocioId);
     return {
-      conectado: this.isConnected,
-      qr: this.isConnected ? null : this.qrDataUrl,
+      conectado: sesion.isConnected,
+      qr: sesion.isConnected ? null : sesion.qrDataUrl,
     };
   }
 
   /**
    * Reactiva el socket bajo demanda para vincular WhatsApp generando un código QR nuevo.
    */
-  iniciar(): { mensaje: string } {
-    this.enReposo = false;
-    if (this.isConnected) {
+  iniciar(negocioIdParam?: number): { mensaje: string } {
+    const negocioId = this.resolverNegocioId(negocioIdParam);
+    const sesion = this.obtenerOCrearSesion(negocioId);
+
+    sesion.enReposo = false;
+    if (sesion.isConnected) {
       return { mensaje: 'WhatsApp ya se encuentra conectado.' };
     }
-    if (this.isConnecting) {
+    if (sesion.isConnecting) {
       return { mensaje: 'WhatsApp ya está iniciando.' };
     }
     // Si ya había un socket viejo o inactivo, lo destruimos para iniciar uno nuevo limpio
-    if (this.sock) {
-      this.destruirSocket();
+    if (sesion.sock) {
+      this.destruirSocket(sesion);
     }
-    this.logger.log('Iniciando socket de WhatsApp bajo demanda...');
-    void this.iniciarSocket();
+    this.logger.log(
+      `[Negocio ${negocioId}] Iniciando socket de WhatsApp bajo demanda...`,
+    );
+    void this.iniciarSocket(negocioId);
     return { mensaje: 'Iniciando WhatsApp...' };
   }
 
   /**
    * Pone a WhatsApp en reposo inmediato cerrando el socket activo y cancelando temporizadores.
    */
-  pausar(): { mensaje: string } {
-    if (!this.isConnected && !this.tieneSesionGuardada()) {
-      this.enReposo = true;
-      this.destruirSocket();
-      this.qrDataUrl = null;
-      this.limpiarCarpetaSesionIncompleta();
+  pausar(negocioIdParam?: number): { mensaje: string } {
+    const negocioId = this.resolverNegocioId(negocioIdParam);
+    const sesion = this.obtenerOCrearSesion(negocioId);
+
+    if (!sesion.isConnected && !this.tieneSesionGuardada(negocioId)) {
+      sesion.enReposo = true;
+      this.destruirSocket(sesion);
+      sesion.qrDataUrl = null;
+      this.limpiarCarpetaSesionIncompleta(sesion);
       this.logger.log(
-        'WhatsApp puesto en modo REPOSO (socket cerrado y timer cancelado).',
+        `[Negocio ${negocioId}] WhatsApp puesto en modo REPOSO (socket cerrado y timer cancelado).`,
       );
       return { mensaje: 'WhatsApp en modo reposo.' };
     }
     return { mensaje: 'WhatsApp activo con sesión guardada.' };
   }
 
-  async desconectar(): Promise<{ mensaje: string }> {
-    this.isIntentionalDisconnect = true;
-    this.isConnected = false;
-    this.qrDataUrl = null;
-    this.enReposo = true;
+  /**
+   * Cierra la sesión activa de WhatsApp de forma controlada y desvincula el dispositivo.
+   *
+   * @remarks
+   * Privacidad y Seguridad Criptográfica:
+   * Emite un `sock.logout()` hacia WhatsApp y elimina completamente los archivos de autenticación
+   * en disco (`creds.json`), previniendo claves huérfanas en el almacenamiento del backend.
+   *
+   * @param negocioIdParam - ID de la sede a desconectar (opcional, fallback al contexto).
+   * @returns Objeto con mensaje de confirmación de desvinculación.
+   */
+  async desconectar(negocioIdParam?: number): Promise<{ mensaje: string }> {
+    const negocioId = this.resolverNegocioId(negocioIdParam);
+    const sesion = this.obtenerOCrearSesion(negocioId);
 
-    if (this.sock) {
+    sesion.isIntentionalDisconnect = true;
+    sesion.isConnected = false;
+    sesion.qrDataUrl = null;
+    sesion.enReposo = true;
+
+    if (sesion.sock) {
       try {
-        await this.sock.logout();
+        await sesion.sock.logout();
       } catch (err) {
-        this.logger.warn(`Error enviando logout a WhatsApp: ${err}`);
+        this.logger.warn(
+          `[Negocio ${negocioId}] Error enviando logout a WhatsApp: ${err}`,
+        );
       }
     }
 
-    this.destruirSocket();
-    this.limpiarCarpetaSesion();
-    this.isIntentionalDisconnect = false;
+    this.destruirSocket(sesion);
+    this.limpiarCarpetaSesion(sesion);
+    sesion.isIntentionalDisconnect = false;
 
     return { mensaje: 'Dispositivo WhatsApp desvinculado con éxito.' };
   }
@@ -513,10 +680,17 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     return null;
   }
 
-  async enviarMensaje(telefono: string, texto: string): Promise<boolean> {
-    if (!this.isConnected || !this.sock) {
+  async enviarMensaje(
+    telefono: string,
+    texto: string,
+    negocioIdParam?: number,
+  ): Promise<boolean> {
+    const negocioId = this.resolverNegocioId(negocioIdParam);
+    const sesion = this.obtenerOCrearSesion(negocioId);
+
+    if (!sesion.isConnected || !sesion.sock) {
       this.logger.warn(
-        `No se envió el mensaje a ${enmascararTelefono(telefono)}: WhatsApp no está conectado.`,
+        `[Negocio ${negocioId}] No se envió el mensaje a ${enmascararTelefono(telefono)}: WhatsApp no está conectado.`,
       );
       return false;
     }
@@ -524,20 +698,20 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     const jid = this.formatearNumeroAJid(telefono);
     if (!jid) {
       this.logger.warn(
-        `Teléfono inválido para WhatsApp: ${enmascararTelefono(telefono)}`,
+        `[Negocio ${negocioId}] Teléfono inválido para WhatsApp: ${enmascararTelefono(telefono)}`,
       );
       return false;
     }
 
     try {
-      await this.sock.sendMessage(jid, { text: texto });
+      await sesion.sock.sendMessage(jid, { text: texto });
       this.logger.log(
-        `Mensaje de WhatsApp enviado exitosamente a ${enmascararTelefono(jid)}`,
+        `[Negocio ${negocioId}] Mensaje de WhatsApp enviado exitosamente a ${enmascararTelefono(jid)}`,
       );
       return true;
     } catch (error) {
       this.logger.error(
-        `Error enviando mensaje por WhatsApp a ${enmascararTelefono(jid)}:`,
+        `[Negocio ${negocioId}] Error enviando mensaje por WhatsApp a ${enmascararTelefono(jid)}:`,
         error,
       );
       return false;
@@ -570,7 +744,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         direccion ? `📍 *Ubicación:* ${direccion}\n` : '',
       );
 
-    return conComerciales
+    const textoBase = conComerciales
       .replace(/{cliente}/g, datos.clienteNombre)
       .replace(/{servicio}/g, datos.servicioNombre)
       .replace(/{barbero}/g, datos.barberoNombre)
@@ -578,6 +752,19 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       .replace(/{hora}/g, datos.hora)
       .replace(/{precio}/g, precioTexto)
       .replace(/{ubicacion}/g, direccion);
+
+    if (datos.enlaceGestion) {
+      return (
+        `${textoBase}\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `📲 *¿Deseas cambiar o cancelar tu cita?*\n` +
+        `Puedes gestionarla en este enlace:\n` +
+        `${datos.enlaceGestion}\n` +
+        `━━━━━━━━━━━━━━━━━━━━`
+      );
+    }
+
+    return textoBase;
   }
 
   /**
@@ -795,11 +982,16 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Actualiza o crea las plantillas de mensajes y configuración en la base de
-   * datos.
+   * Actualiza o crea las plantillas de mensajes y configuración en la base de datos.
    *
-   * HU-11: las plantillas se guardan PARA EL NEGOCIO DEL CONTEXTO. Sin
-   * contexto (operación de plataforma) se guardan como plantillas GLOBALES.
+   * @remarks
+   * Política Multitenant (HU-11):
+   * Las plantillas se persisten asociadas al ID del negocio activo del contexto.
+   * Si no existe contexto de negocio (operación global de plataforma), se guardan
+   * con `negocioId = null` como valores predeterminados globales de respaldo.
+   *
+   * @param dto - Textos de plantillas y minutos de anticipación configurados.
+   * @returns Plantillas efectivas consolidadas tras la actualización.
    */
   async guardarPlantillas(dto: ActualizarPlantillasDto): Promise<{
     confirmacion: string;
@@ -846,11 +1038,14 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Restablece las plantillas a los textos oficiales por defecto.
+   * Restablece las plantillas de la sede a los textos oficiales por defecto del sistema.
    *
-   * HU-11: se eliminan las plantillas DEL NEGOCIO DEL CONTEXTO (las globales
-   * se conservan: son el valor por defecto de la plataforma). Sin contexto se
-   * eliminan las globales.
+   * @remarks
+   * Política Multitenant (HU-11):
+   * Elimina las personalizaciones del negocio activo en base de datos para volver
+   * a heredar las plantillas globales. La anticipación en minutos se reinicia a 120.
+   *
+   * @returns Plantillas efectivas restablecidas.
    */
   async resetPlantillas(): Promise<{
     confirmacion: string;
@@ -896,12 +1091,22 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     const { confirmacion } = await this.obtenerPlantillas();
     const comercial = await this.datosComercialesDelNegocio();
     const mensaje = this.reemplazarVariables(confirmacion, datos, comercial);
+    if (datos.negocioId) {
+      return this.enviarMensaje(datos.telefono, mensaje, datos.negocioId);
+    }
     return this.enviarMensaje(datos.telefono, mensaje);
   }
 
   /**
-   * Envía el recordatorio automático antes de la cita usando la plantilla
-   * configurada.
+   * Envía el recordatorio automático previo a la cita utilizando la plantilla configurada.
+   *
+   * @remarks
+   * Automatización y Retención:
+   * Diseñado para ejecutarse desde el cron/worker de recordatorios según los minutos
+   * de anticipación configurados en la sede. Enmascara el número en logs para cumplimiento OWASP.
+   *
+   * @param datos - Parámetros de la cita (cliente, barbero, servicio, fecha, hora, teléfono, negocioId)
+   * @returns Promesa que resuelve `true` si el mensaje fue enviado con éxito, o `false` si falló
    */
   async enviarRecordatorioReserva(
     datos: DatosConfirmacionWhatsApp,
@@ -909,11 +1114,22 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     const { recordatorio } = await this.obtenerPlantillas();
     const comercial = await this.datosComercialesDelNegocio();
     const mensaje = this.reemplazarVariables(recordatorio, datos, comercial);
+    if (datos.negocioId) {
+      return this.enviarMensaje(datos.telefono, mensaje, datos.negocioId);
+    }
     return this.enviarMensaje(datos.telefono, mensaje);
   }
 
   /**
-   * Envía notificación cuando la cita es cancelada.
+   * Notifica al cliente la cancelación de su cita vía WhatsApp.
+   *
+   * @remarks
+   * Experiencia de Cliente y Reagendamiento:
+   * Informa oportunamente la liberación del turno e invita al cliente a agendar
+   * nuevamente preservando el canal de comunicación y la identidad de marca de la sede.
+   *
+   * @param datos - Datos del cliente y de la cita cancelada
+   * @returns Promesa que resuelve `true` si el mensaje fue emitido exitosamente
    */
   async enviarCancelacionReserva(
     datos: DatosConfirmacionWhatsApp,
@@ -929,11 +1145,21 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       `Si deseas volver a agendar, puedes hacerlo en cualquier momento desde nuestro sitio web o escribiéndonos aquí. ¡Esperamos verte pronto!` +
       ubicacion;
 
+    if (datos.negocioId) {
+      return this.enviarMensaje(datos.telefono, mensaje, datos.negocioId);
+    }
     return this.enviarMensaje(datos.telefono, mensaje);
   }
 
   /**
-   * Envía notificación cuando la cita es marcada como completada.
+   * Envía mensaje de agradecimiento y fidelización tras marcar la cita como completada.
+   *
+   * @remarks
+   * Fidelización Post-Servicio:
+   * Refuerza la relación comercial tras la atención exitosa del barbero en la sede.
+   *
+   * @param datos - Datos del cliente, servicio recibido y sede
+   * @returns Promesa que resuelve `true` si el mensaje fue transmitido
    */
   async enviarCompletadoReserva(
     datos: DatosConfirmacionWhatsApp,
@@ -945,11 +1171,21 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       `¡Hola ${datos.clienteNombre}! Tu cita de ${datos.servicioNombre} del día *${datos.fecha}* a las *${datos.hora}* ha sido marcada como completada.\n\n` +
       `¡Gracias por tu visita! Esperamos verte de nuevo pronto en ${comercial.nombre}.`;
 
+    if (datos.negocioId) {
+      return this.enviarMensaje(datos.telefono, mensaje, datos.negocioId);
+    }
     return this.enviarMensaje(datos.telefono, mensaje);
   }
 
   /**
-   * Envía notificación cuando la cita es reprogramada/modificada.
+   * Notifica al cliente cuando su cita ha sido modificada de fecha, hora o barbero.
+   *
+   * @remarks
+   * Consistencia Operativa:
+   * Proporciona de inmediato el nuevo itinerario para evitar confusiones o ausencias en la sede.
+   *
+   * @param datos - Parámetros actualizados de la cita (nueva fecha, nueva hora, profesional)
+   * @returns Promesa que resuelve `true` si la notificación fue enviada
    */
   async enviarReprogramacionReserva(
     datos: DatosConfirmacionWhatsApp,
@@ -969,6 +1205,9 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       ubicacion +
       `_¡Te esperamos!_`;
 
+    if (datos.negocioId) {
+      return this.enviarMensaje(datos.telefono, mensaje, datos.negocioId);
+    }
     return this.enviarMensaje(datos.telefono, mensaje);
   }
 }
