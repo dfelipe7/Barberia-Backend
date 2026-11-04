@@ -38,6 +38,21 @@ export class JwtAuthGuard implements CanActivate {
     private readonly contextoService: NegocioContextoService,
   ) {}
 
+  /**
+   * Valida la autenticidad del token Bearer JWT y verifica el aislamiento multitenant.
+   *
+   * @remarks
+   * Principio Zero-Trust Multitenant:
+   * No es suficiente con que el token esté válidamente firmado por la clave secreta.
+   * Se comprueba obligatoriamente que el `negocioId` contenido en los claims del token
+   * coincida exactamente con el `negocioId` resuelto en el contexto de la petición (`AsyncLocalStorage`).
+   * Un intento de usar un token de la barbería A en la barbería B es rechazado con 403 Forbidden.
+   *
+   * @param context - Contexto de ejecución de la petición entrante de NestJS.
+   * @returns Promesa que resuelve `true` si la sesión es válida y pertenece al negocio activo.
+   * @throws {UnauthorizedException} Si no se proporciona token, si está expirado o no tiene sede asignada.
+   * @throws {ForbiddenException} Si el token pertenece a otra sede o no hay contexto de sede autorizado.
+   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<{
       headers: { authorization?: string };

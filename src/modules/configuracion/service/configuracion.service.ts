@@ -100,10 +100,19 @@ export class ConfiguracionService {
   ) {}
 
   /**
-   * Valor efectivo del NEGOCIO activo como número.
+   * Obtiene el valor numérico efectivo de una configuración para el negocio activo del contexto.
    *
-   * @param limites Límites que debe respetar el valor. Un valor fuera de ellos
-   * se trata como inválido y se continua la resolución (global o defecto).
+   * @remarks
+   * Resolución Jerárquica y Fail-Safe:
+   * 1. Consulta la política específica del negocio en la tabla de configuraciones.
+   * 2. Si no existe o no supera la validación de límites, evalúa la política global de plataforma.
+   * 3. Si tampoco existe, recurre al valor por defecto del código.
+   * Nunca produce `NaN` ni aplica valores numéricos corruptos fuera del rango admitido.
+   *
+   * @param clave - Identificador canónico del parámetro (ej. `recordatorio_minutos_anticipacion`).
+   * @param porDefecto - Valor de respaldo en caso de ausencia o invalidez.
+   * @param limites - Restricciones de valor mínimo, máximo o requisito de número entero.
+   * @returns Promesa con el valor numérico validado.
    */
   async obtenerNumero(
     clave: string,
@@ -131,7 +140,18 @@ export class ConfiguracionService {
     );
   }
 
-  /** Valor efectivo del NEGOCIO activo como booleano. */
+  /**
+   * Obtiene el valor booleano efectivo de una configuración para la sede activa.
+   *
+   * @remarks
+   * Coerción Determinista:
+   * Interpreta cadenas como `'true'`, `'1'`, `'yes'` como `true` y `'false'`, `'0'`, `'no'` como `false`.
+   * Si el valor es ambiguo o nulo, recurre de forma segura al valor por defecto estipulado.
+   *
+   * @param clave - Clave de la configuración booleana.
+   * @param porDefecto - Estado booleano de contingencia.
+   * @returns Promesa con el resultado booleano resuelto.
+   */
   async obtenerBooleano(clave: string, porDefecto: boolean): Promise<boolean> {
     return this.obtenerTipado(
       clave,
@@ -326,12 +346,20 @@ export class ConfiguracionService {
   }
 
   /**
-   * Guarda un valor NUMERO de la configuración de un negocio.
+   * Persiste una configuración numérica para una sede e invalida su caché de forma atómica.
    *
-   * El tipo importa: un número guardado como texto NO sería válido al leerlo
-   * con `obtenerNumero` (la resolución descarta los valores de tipo
-   * incorrecto) y la política se perdería. Por eso el tipo se escribe de
-   * forma explícita y NO se degrada por una escritura posterior de texto.
+   * @remarks
+   * Integridad de Tipado e Invalidación Segmentada:
+   * El tipo `NUMERO` se almacena explícitamente en base de datos para prevenir inconsistencias de lectura.
+   * Tras la escritura en la transacción aislada de la sede, se purga la clave específica en la caché en memoria,
+   * garantizando que otras sedes concurrentes no vean afectadas sus respectivas entradas.
+   *
+   * @param negocioId - ID de la sede a la que pertenece la configuración.
+   * @param clave - Identificador del parámetro operativo.
+   * @param valor - Número a persistir.
+   * @param opciones - Opciones de forzado de corrección de tipo en caso de migración.
+   * @returns Promesa resuelta tras guardar e invalidar la caché.
+   * @throws {NotFoundException} Si el negocio indicado no existe en la base de datos.
    */
   async guardarNumero(
     negocioId: number,

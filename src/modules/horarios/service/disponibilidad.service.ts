@@ -67,7 +67,23 @@ export class DisponibilidadService {
   ) {}
 
   /**
-   * Calcula el estado efectivo de cada franja de la jornada para un barbero en
+   * Evalúa el estado de disponibilidad en tiempo real de cada franja horaria de la jornada para un profesional.
+   *
+   * @remarks
+   * Arquitectura de Dominio (Fuente Única de Verdad):
+   * Aplica un pipeline de reglas de negocio (`ReglaDisponibilidad[]`) ordenadas por precedencia:
+   * 1. Cierre general de sede (`CLOSURE`).
+   * 2. Bloqueo administrativo de agenda (`BLOCKED`).
+   * 3. Fuera de jornada laboral o descanso (`OUTSIDE_SCHEDULE`).
+   * 4. Reserva activa preexistente (`RESERVED`).
+   * Si ninguna regla intercepta la franja, se califica como disponible (`AVAILABLE`).
+   * Adopta política fail-closed: si el proveedor de reservas falla, rechaza con 503 para no anunciar turnos colisionados.
+   *
+   * @param consulta - Parámetros de consulta (barberoId, servicioId, fecha de atención)
+   * @returns Listado exhaustivo de franjas horarias con su estado calificado
+   * @throws {BadRequestException} Si la fecha es inválida o el servicio no está asignado al barbero
+   * @throws {NotFoundException} Si el barbero o servicio no existen o están suspendidos
+   * @throws {ServiceUnavailableException} Si el subsistema de reservas no responde (fail-closed)
    * una fecha. Es la fuente de verdad única que HE-04 debe consumir.
    *
    * @throws BadRequestException si la fecha es inválida o el servicio no está

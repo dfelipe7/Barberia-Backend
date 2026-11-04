@@ -47,8 +47,22 @@ export class GoogleAuthService {
   ) {}
 
   /**
-   * Valida el token emitido por Google OAuth 2.0 y genera la sesión.
-   * Si el usuario no existe en la base de datos, rechaza el acceso (Sistema cerrado).
+   * Autentica a un colaborador o administrador mediante Google Identity Services (OAuth 2.0 / OpenID Connect).
+   *
+   * @remarks
+   * Aplica un modelo de seguridad de "Sistema Cerrado": solo permite el acceso a correos
+   * previamente registrados por un administrador.
+   * Implementa defensa activa contra Account Takeover (Anti-Takeover): valida que el `googleId`
+   * del usuario coincida con el identificador federado `sub` del token, impidiendo que una cuenta
+   * Google ajena secuestre la sesión de un correo institucional o reasignado.
+   *
+   * @param idToken - Token criptográfico JWT emitido y firmado por los servidores de Google
+   * @returns Objeto de sesión con tokens JWT, datos del usuario y membresías activas en la sede
+   * @throws {UnauthorizedException} Si el token no es válido o carece de email verificado
+   * @throws {UnauthorizedException} Si el correo no está registrado en el personal de la barbería
+   * @throws {UnauthorizedException} Si el `googleId` del token no coincide con el registrado originalmente (Anti-Takeover)
+   * @throws {ForbiddenException} Si la cuenta del usuario se encuentra en estado INACTIVO
+
    */
   async loginConGoogle(idToken: string) {
     const payload = await this.googleTokenVerifier.verificar(idToken);

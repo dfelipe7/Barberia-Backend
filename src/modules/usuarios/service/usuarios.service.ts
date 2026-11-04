@@ -456,9 +456,24 @@ export class UsuariosService {
   }
 
   /**
-   * Cambia el estado de una membresía del usuario en la barbería actual.
-   * No modifica el estado global de la cuenta, de modo que la persona no
-   * pierde el acceso a sus demás barberías.
+   * Modifica el estado operativo de una membresía contractual de un usuario en la sede activa.
+   *
+   * @remarks
+   * Regla de Negocio (Aislamiento de Membresías):
+   * Un administrador de sede solo tiene potestad sobre las membresías locales de su barbería.
+   * Modificar el rol a INACTIVO aquí suspende el perfil de Administrador o Barbero únicamente
+   * para esta sede, manteniendo inmutable el estado global de la cuenta (`Usuario.estado`).
+   * Esto previene que una sede pueda bloquear el acceso laboral de una persona a otras sedes del SaaS.
+   *
+   * @param usuarioId - Identificador único global del usuario cuya membresía se alterará
+   * @param dto - DTO con el nuevo estado deseado y el tipo de membresía objetivo
+   * @param usuarioAutenticado - Claims de la sesión del actor autenticado que ejecuta la acción
+   * @returns Perfil actualizado del usuario con sus membresías normalizadas para la sede
+   * @throws {ConflictException} Si el usuario no existe en la base de datos
+   * @throws {ConflictException} Si se intenta alterar un rol que el usuario no ostenta en esta barbería
+   * @throws {ForbiddenException} Si el actor carece de privilegios jerárquicos para suspender dicha membresía
+
+
    */
   async cambiarEstadoUsuario(
     usuarioId: number,

@@ -322,6 +322,18 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     sesion.isConnecting = false;
   }
 
+  /**
+   * Inicializa el socket de Baileys para la sesión del negocio especificado.
+   *
+   * @remarks
+   * Ciclo de Vida y Resiliencia Multitenant:
+   * Cada sede mantiene sus credenciales criptográficas (`useMultiFileAuthState`) en una carpeta
+   * segregada. Si no existe sesión previa, emite un código QR efímero en Base64 con un timer
+   * de inactividad para liberar recursos ociosos. Si se pierde la red, reconecta automáticamente.
+   *
+   * @param negocioIdParam - ID de la sede a conectar (opcional, fallback al contexto).
+   * @returns Promesa resuelta tras iniciar la conexión o publicar el código QR.
+   */
   async iniciarSocket(negocioIdParam?: number): Promise<void> {
     const negocioId = this.resolverNegocioId(negocioIdParam);
     const sesion = this.obtenerOCrearSesion(negocioId);
@@ -608,6 +620,17 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     return { mensaje: 'WhatsApp activo con sesión guardada.' };
   }
 
+  /**
+   * Cierra la sesión activa de WhatsApp de forma controlada y desvincula el dispositivo.
+   *
+   * @remarks
+   * Privacidad y Seguridad Criptográfica:
+   * Emite un `sock.logout()` hacia WhatsApp y elimina completamente los archivos de autenticación
+   * en disco (`creds.json`), previniendo claves huérfanas en el almacenamiento del backend.
+   *
+   * @param negocioIdParam - ID de la sede a desconectar (opcional, fallback al contexto).
+   * @returns Objeto con mensaje de confirmación de desvinculación.
+   */
   async desconectar(negocioIdParam?: number): Promise<{ mensaje: string }> {
     const negocioId = this.resolverNegocioId(negocioIdParam);
     const sesion = this.obtenerOCrearSesion(negocioId);
@@ -959,11 +982,16 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Actualiza o crea las plantillas de mensajes y configuración en la base de
-   * datos.
+   * Actualiza o crea las plantillas de mensajes y configuración en la base de datos.
    *
-   * HU-11: las plantillas se guardan PARA EL NEGOCIO DEL CONTEXTO. Sin
-   * contexto (operación de plataforma) se guardan como plantillas GLOBALES.
+   * @remarks
+   * Política Multitenant (HU-11):
+   * Las plantillas se persisten asociadas al ID del negocio activo del contexto.
+   * Si no existe contexto de negocio (operación global de plataforma), se guardan
+   * con `negocioId = null` como valores predeterminados globales de respaldo.
+   *
+   * @param dto - Textos de plantillas y minutos de anticipación configurados.
+   * @returns Plantillas efectivas consolidadas tras la actualización.
    */
   async guardarPlantillas(dto: ActualizarPlantillasDto): Promise<{
     confirmacion: string;
@@ -1010,11 +1038,14 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Restablece las plantillas a los textos oficiales por defecto.
+   * Restablece las plantillas de la sede a los textos oficiales por defecto del sistema.
    *
-   * HU-11: se eliminan las plantillas DEL NEGOCIO DEL CONTEXTO (las globales
-   * se conservan: son el valor por defecto de la plataforma). Sin contexto se
-   * eliminan las globales.
+   * @remarks
+   * Política Multitenant (HU-11):
+   * Elimina las personalizaciones del negocio activo en base de datos para volver
+   * a heredar las plantillas globales. La anticipación en minutos se reinicia a 120.
+   *
+   * @returns Plantillas efectivas restablecidas.
    */
   async resetPlantillas(): Promise<{
     confirmacion: string;
@@ -1067,8 +1098,15 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Envía el recordatorio automático antes de la cita usando la plantilla
-   * configurada.
+   * Envía el recordatorio automático previo a la cita utilizando la plantilla configurada.
+   *
+   * @remarks
+   * Automatización y Retención:
+   * Diseñado para ejecutarse desde el cron/worker de recordatorios según los minutos
+   * de anticipación configurados en la sede. Enmascara el número en logs para cumplimiento OWASP.
+   *
+   * @param datos - Parámetros de la cita (cliente, barbero, servicio, fecha, hora, teléfono, negocioId)
+   * @returns Promesa que resuelve `true` si el mensaje fue enviado con éxito, o `false` si falló
    */
   async enviarRecordatorioReserva(
     datos: DatosConfirmacionWhatsApp,
@@ -1083,7 +1121,15 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Envía notificación cuando la cita es cancelada.
+   * Notifica al cliente la cancelación de su cita vía WhatsApp.
+   *
+   * @remarks
+   * Experiencia de Cliente y Reagendamiento:
+   * Informa oportunamente la liberación del turno e invita al cliente a agendar
+   * nuevamente preservando el canal de comunicación y la identidad de marca de la sede.
+   *
+   * @param datos - Datos del cliente y de la cita cancelada
+   * @returns Promesa que resuelve `true` si el mensaje fue emitido exitosamente
    */
   async enviarCancelacionReserva(
     datos: DatosConfirmacionWhatsApp,
@@ -1106,7 +1152,14 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Envía notificación cuando la cita es marcada como completada.
+   * Envía mensaje de agradecimiento y fidelización tras marcar la cita como completada.
+   *
+   * @remarks
+   * Fidelización Post-Servicio:
+   * Refuerza la relación comercial tras la atención exitosa del barbero en la sede.
+   *
+   * @param datos - Datos del cliente, servicio recibido y sede
+   * @returns Promesa que resuelve `true` si el mensaje fue transmitido
    */
   async enviarCompletadoReserva(
     datos: DatosConfirmacionWhatsApp,
@@ -1125,7 +1178,14 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Envía notificación cuando la cita es reprogramada/modificada.
+   * Notifica al cliente cuando su cita ha sido modificada de fecha, hora o barbero.
+   *
+   * @remarks
+   * Consistencia Operativa:
+   * Proporciona de inmediato el nuevo itinerario para evitar confusiones o ausencias en la sede.
+   *
+   * @param datos - Parámetros actualizados de la cita (nueva fecha, nueva hora, profesional)
+   * @returns Promesa que resuelve `true` si la notificación fue enviada
    */
   async enviarReprogramacionReserva(
     datos: DatosConfirmacionWhatsApp,

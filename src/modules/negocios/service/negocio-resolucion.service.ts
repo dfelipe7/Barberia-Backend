@@ -50,8 +50,18 @@ export class NegocioResolucionService {
   ) {}
 
   /**
-   * Resuelve el negocio a partir de los identificadores públicos de la
-   * petición (subdominio y/o cabecera `X-Negocio-Slug`).
+   * Resuelve el negocio activo a partir de los identificadores públicos de la petición entrante.
+   *
+   * @remarks
+   * Seguridad Multitenant y Anti-Tampering:
+   * Prioridad de resolución:
+   * 1. Subdominio validado contra `NEGOCIO_DOMINIO_BASE` (máxima confianza en producción).
+   * 2. Cabecera `X-Negocio-Slug` (controlada para aplicaciones SPA/móviles).
+   * Si el slug apunta a una sede inexistente o inactiva, retorna estado `RECHAZADO`,
+   * previniendo que peticiones maliciosas o desconfiguradas se ejecuten sin aislamiento de datos.
+   *
+   * @param peticion - Objeto con el hostname y cabeceras de la petición HTTP.
+   * @returns Promesa con el resultado de resolución (`SIN_NEGOCIO`, `RESUELTO` o `RECHAZADO`).
    */
   async resolverDesdePeticion(peticion: {
     hostname?: string;
@@ -79,10 +89,15 @@ export class NegocioResolucionService {
   }
 
   /**
-   * Extrae el slug candidato de la petición, sin consultar la base de datos.
+   * Extrae el slug candidato de la petición analizando la precedencia de orígenes sin consultar la base de datos.
    *
-   * Se expone por separado para poder probar la precedencia entre fuentes y
-   * el rechazo de formatos inválidos sin acoplarlo a la persistencia.
+   * @remarks
+   * Arquitectura y Desacoplamiento:
+   * Permite validar la sintaxis del slug con regex estricta (`REGEX_SLUG_NEGOCIO`) y probar
+   * la precedencia de fuentes de manera pura y aislada de la capa de persistencia.
+   *
+   * @param peticion - Objeto con el hostname y los headers recibidos.
+   * @returns Objeto con el slug normalizado y su origen (`SUBDOMINIO` o `CABECERA`), o `null` si no hay candidato.
    */
   extraerSlugCandidato(peticion: {
     hostname?: string;
@@ -198,21 +213,31 @@ export class NegocioResolucionService {
   }
 
   /**
-   * Traduce un resultado de resolución a una respuesta HTTP cuando el
-   * negocio no puede establecerse.
+   * Genera una respuesta uniforme de rechazo HTTP cuando el negocio no puede ser resuelto o no está disponible.
    *
-   * El mensaje es idéntico para "no existe" y "está inactivo": no se revela
-   * la existencia de negocios desactivados.
+   * @remarks
+   * Regla de Seguridad OWASP (Anti-Enumeration):
+   * Emite un código HTTP 404 con un mensaje indistinguible tanto si el slug no existe como si la sede
+   * se encuentra suspendida o inactiva, impidiendo que atacantes descubran la existencia de sedes desactivadas.
+   *
+   * @throws {NotFoundException} Siempre lanza 404 con el mensaje estándar.
    */
   lanzarRechazoPorNegocioInvalido(): never {
     throw new NotFoundException('El negocio solicitado no está disponible');
   }
 
   /**
-   * Establece el contexto de negocio para el resto de la cadena asíncrona.
+   * Encapsula la ejecución de la petición dentro del almacén asíncrono (`AsyncLocalStorage`) del tenant.
    *
-   * `operacion` debe invocar `next()` (o la continuación equivalente) para
-   * que el contexto abarque todo el procesamiento posterior.
+   * @remarks
+   * Aislamiento de Memoria por Hilo Asíncrono:
+   * Vincula `{ id: negocioId, slug }` al ciclo de vida de la petición actual, garantizando
+   * que repositorios, servicios y eventos conozcan la sede activa sin acoplamiento manual en controladores.
+   *
+   * @param negocioId - Identificador primario de la sede resuelta.
+   * @param slug - Slug canónico de la sede.
+   * @param operacion - Callback o siguiente eslabón en la cadena de middleware/guards.
+   * @returns El resultado retornado por la operación ejecutada.
    */
   ejecutarConContexto<T>(
     negocioId: number,

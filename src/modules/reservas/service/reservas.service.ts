@@ -148,7 +148,23 @@ export class ReservasService {
   ) {}
 
   /**
-   * Crea una reserva para servicio, barbero, fecha y hora.
+   * Crea y confirma una nueva cita de forma atómica en el sistema de reservas.
+   *
+   * @remarks
+   * Reglas de Negocio Críticas (Integridad Financiera y Concurrencia):
+   * 1. Precio Inmutable en Servidor: El precio (`precioReservado`) se resuelve del catálogo vigente.
+   *    Jamás se confía en valores monetarios enviados desde el cliente para prevenir fraude.
+   * 2. Token de Gestión para Invitados: Genera un token criptográfico cifrado (AES-256-GCM) y hasheado
+   *    (SHA-256), permitiendo que el invitado gestione su cita sin contraseñas.
+   * 3. Idempotencia Segura: Con cabecera `Idempotency-Key`, reintentos de red recuperan la reserva previa.
+   * 4. Notificación Asíncrona: Dispara la confirmación por WhatsApp en segundo plano sin bloquear el HTTP.
+   *
+   * @param dto - Datos validados de la cita (servicio, barbero, fecha y hora de inicio)
+   * @param identidad - Claims del cliente autenticado, o undefined si opera como invitado
+   * @param idempotencyKey - Identificador único de transacción para prevenir cobros duplicados
+   * @returns Comprobante de reserva creada con código, franja horaria y token de gestión
+   * @throws {BadRequestException} Si la fecha es inválida o no cumple con el formato
+   * @throws {DomainConflictException} Si la franja horaria ya fue tomada o está duplicada
    *
    * @param dto datos obligatorios + contacto del invitado (si aplica).
    * @param identidad cliente autenticado (Modalidad B) o `undefined` (invitado).
@@ -457,7 +473,18 @@ export class ReservasService {
   }
 
   /**
-   * HU-09 (Invitados): Cancelar una reserva de invitado mediante token de gestión.
+   * Cancela una reserva efectuada por un cliente invitado utilizando su token criptográfico de gestión.
+   *
+   * @remarks
+   * Seguridad Defensiva (Timing Attacks):
+   * Valida la autenticidad del token mediante `crypto.timingSafeEqual` sobre buffers constantes,
+   * impidiendo que atacantes deduzcan tokens válidos mediante análisis de latencia de red.
+   * La cancelación es atómica e idempotente: actualiza el estado a CANCELLED y libera la franja horaria.
+   *
+   * @param reservaId - Identificador numérico de la reserva a cancelar
+   * @param tokenGestion - Token secreto de gestión emitido al momento de agendar
+   * @returns Comprobante de confirmación de cancelación con fecha de liberación de la franja
+   * @throws {NotFoundException} Si la reserva no existe, el token es inválido o la cita ya fue completada
    * Valida el token con comparación segura timingSafeEqual y ejecuta la cancelación idempotente.
    */
   async cancelarReservaInvitado(

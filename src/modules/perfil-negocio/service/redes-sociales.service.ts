@@ -41,7 +41,16 @@ export class RedesSocialesService {
   ) {}
 
   /**
-   * Lista las redes sociales ACTIVAS del negocio del contexto.
+   * Obtiene la lista de perfiles y canales sociales del negocio activo.
+   *
+   * @remarks
+   * Por defecto aplica filtrado de visibilidad pública (`activo = true`) para renderizar en portada.
+   * Si se invoca desde el panel administrativo (`incluirInactivas = true`), expone también
+   * los canales pausados para permitir su reactivación sin reescribir la URL.
+   *
+   * @param incluirInactivas - Si es true, retorna tanto redes activas como pausadas
+   * @returns Promesa con el arreglo de redes sociales mapeadas al DTO de respuesta
+   * @throws {ForbiddenException} Si la petición carece de contexto multitenant válido
    */
   async listar(incluirInactivas = false): Promise<RedSocialResponseDto[]> {
     const contexto = this.contextoRequerido();
@@ -53,7 +62,17 @@ export class RedesSocialesService {
   }
 
   /**
-   * Reemplaza el conjunto de redes sociales del negocio del contexto.
+   * Reemplaza atómicamente el catálogo de redes sociales de la sede.
+   *
+   * @remarks
+   * Aplica estrategia diferencial: las redes ausentes en el payload pasan a soft-delete
+   * para conservar analítica de enlaces. Las plataformas canónicas (Instagram, WhatsApp,
+   * Facebook, TikTok) fuerzan su nombre oficial en servidor.
+   *
+   * @param dtos - Catálogo completo de redes que quedarán vinculadas a la sede
+   * @returns Lista de redes resultantes mapeadas al DTO de respuesta
+   * @throws {BadRequestException} Si un tipo OTRO carece de nombre o hay duplicados del mismo tipo predefinido
+   * @throws {ForbiddenException} Si la petición carece de contexto multitenant
    *
    * Las redes que no aparezcan en la lista se desactivan (soft-delete).
    * Las que aparecen se crean o actualizan.
@@ -102,7 +121,20 @@ export class RedesSocialesService {
   }
 
   /**
-   * Actualiza parcialmente UNA red social (url, nombre u orden).
+   * Actualiza los datos de un canal social existente de la sede.
+   *
+   * @remarks
+   * Solo los canales de tipo OTRO permiten modificar su nombre visible.
+   * Las plataformas oficiales (Instagram, Facebook, etc.) mantienen su nombre inmutable
+   * para coherencia de marca. Al renombrar un tipo OTRO, se valida que no colisione
+   * con otro canal activo del mismo nombre en esta sede.
+   *
+   * @param id - Identificador numérico único de la red social
+   * @param dto - Campos parciales a actualizar (url, nombre, orden)
+   * @returns Red social actualizada
+   * @throws {NotFoundException} Si la red no existe o pertenece a otro negocio (aislamiento)
+   * @throws {BadRequestException} Si se intenta renombrar una plataforma canónica o si el payload está vacío
+   * @throws {ConflictException} Si el nuevo nombre colisiona con otra red activa de tipo OTRO
    *
    * - Solo las redes de tipo OTRO pueden cambiar de nombre.
    * - Al renombrar una OTRO se verifica que no colisione con otra activa.
@@ -164,7 +196,16 @@ export class RedesSocialesService {
    * Idempotente: si ya está desactivada, se devuelve tal cual.
    */
   /**
-   * Eliminación definitiva de la red social.
+   * Elimina de forma definitiva e irrecuperable una red social de la base de datos (Hard-Delete).
+   *
+   * @remarks
+   * Esta acción destruye físicamente el registro en MySQL. Se invoca únicamente cuando el
+   * administrador confirma la acción en el modal de confirmación `ConfirmDialog`.
+   *
+   * @param id - Identificador de la red a eliminar
+   * @returns Datos de la red social antes de su destrucción
+   * @throws {NotFoundException} Si la red no existe o pertenece a otro negocio
+   * @throws {ForbiddenException} Si la petición carece de contexto multitenant
    */
   async eliminarFisico(id: number): Promise<RedSocialResponseDto> {
     const contexto = this.contextoRequerido();
@@ -198,7 +239,17 @@ export class RedesSocialesService {
   }
 
   /**
-   * Reactiva una red social: `activo = true`.
+   * Reactiva un canal social previamente pausado (`activo = true`).
+   *
+   * @remarks
+   * Valida preventivamente contra colisiones de clave única compuesta: si mientras estaba pausada
+   * se creó otra red con el mismo tipo y nombre, la reactivación se bloquea para evitar violaciones
+   * de unicidad a nivel de motor de base de datos.
+   *
+   * @param id - Identificador de la red social a reanudar
+   * @returns Red social reactivada con visibilidad pública
+   * @throws {NotFoundException} Si la red no existe en el contexto activo
+   * @throws {ConflictException} Si existe otra red activa con la misma clave compuesta (tipo, nombre)
    * Idempotente: si ya está activa, se devuelve tal cual.
    */
   async activar(id: number): Promise<RedSocialResponseDto> {
