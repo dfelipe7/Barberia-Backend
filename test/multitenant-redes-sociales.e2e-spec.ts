@@ -197,7 +197,7 @@ describe('Redes sociales por negocio (Fase 18 - E2E)', () => {
     slug: string,
   ): Promise<{ token: string }> => {
     const res = await request(app.getHttpServer())
-      .post('/auth/google/personal')
+      .post('/auth/google')
       .set('X-Negocio-Slug', slug)
       .send({ idToken: email });
 

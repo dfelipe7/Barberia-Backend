@@ -22,6 +22,7 @@ import { NegociosModule } from '../src/modules/negocios/negocios.module';
 import { PerfilNegocioModule } from '../src/modules/perfil-negocio/perfil-negocio.module';
 import { PrismaModule } from '../src/prisma/prisma.module';
 import { RedSocialResponseDto } from '../src/modules/perfil-negocio/dto/dto-respuesta/red-social.response.dto';
+import { RedesSocialesRepository } from '../src/modules/perfil-negocio/repository/redes-sociales.repository';
 
 const OMITIR_SIN_DOCKER = process.env.MARIADB_TEST_SKIP === '1';
 const SECRETO_PERSONAL = 'secreto-personal-redes-crud-e2e';
@@ -199,7 +200,7 @@ describe('Redes sociales CRUD y Reactivación (Fase 18 - E2E)', () => {
     slug: string,
   ): Promise<{ token: string }> => {
     const res = await request(app.getHttpServer())
-      .post('/auth/google/personal')
+      .post('/auth/google')
       .set('X-Negocio-Slug', slug)
       .send({ idToken: email });
 
@@ -437,11 +438,10 @@ describe('Redes sociales CRUD y Reactivación (Fase 18 - E2E)', () => {
       },
     });
 
-    // Cambiamos el nombre de la inactiva en BD directamente para simular colisión potencial
-    await prisma.redSocialNegocio.update({
-      where: { id: redInactiva.id },
-      data: { nombre: 'Canal Único' },
-    });
+    const repo = app.get(RedesSocialesRepository);
+    jest
+      .spyOn(repo, 'existeOtraActivaConMismaClave')
+      .mockResolvedValueOnce(true);
 
     const res = await request(app.getHttpServer())
       .patch(`/perfil-negocio/redes-sociales/${redInactiva.id}/activar`)

@@ -144,15 +144,23 @@ export const NEGOCIOS_LOCALES: readonly NegocioLocalSpec[] = [
         nombre: 'Santiago',
         apellido: 'Balcazar',
       },
+    ],
+    barberos: [
       {
-        email: 'armeroduvan8@gmail.com',
-        nombre: 'Duvan',
-        apellido: 'Armero',
+        clave: 'barbero1',
+        nombre: 'Barbero',
+        apellido: 'Desarrollo KYRIOS 1',
+        telefono: '+0000000001',
+        porcentajeComision: 40,
+      },
+      {
+        clave: 'barbero2',
+        nombre: 'Barbero',
+        apellido: 'Desarrollo KYRIOS 2',
+        telefono: '+0000000002',
+        porcentajeComision: 40,
       },
     ],
-    // Los barberos se crean en `seed-dev-completo` con correos derivados del
-    // superadmin del negocio (2 por negocio, comisiones distintas).
-    barberos: [],
   },
   {
     nombre: 'BARBERÍA DEMO 2',
@@ -169,8 +177,22 @@ export const NEGOCIOS_LOCALES: readonly NegocioLocalSpec[] = [
         apellido: 'Anacona',
       },
     ],
-    // Los barberos se crean en `seed-dev-completo`.
-    barberos: [],
+    barberos: [
+      {
+        clave: 'barbero1',
+        nombre: 'Barbero',
+        apellido: 'Desarrollo DEMO 2 1',
+        telefono: '+0000000003',
+        porcentajeComision: 40,
+      },
+      {
+        clave: 'barbero2',
+        nombre: 'Barbero',
+        apellido: 'Desarrollo DEMO 2 2',
+        telefono: '+0000000004',
+        porcentajeComision: 40,
+      },
+    ],
   },
 ];
 
