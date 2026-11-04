@@ -87,11 +87,9 @@ export class GoogleAuthService {
       where: { googleId: payload.sub },
     });
 
-    if (!usuario) {
-      usuario = await this.prisma.usuario.findUnique({
-        where: { email },
-      });
-    }
+    usuario ??= await this.prisma.usuario.findUnique({
+      where: { email },
+    });
 
     if (!usuario) {
       this.logger.warn(

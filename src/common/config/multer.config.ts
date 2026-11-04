@@ -50,7 +50,7 @@ export const crearMulterOptions = (
       callback: (error: Error | null, acceptFile: boolean) => void,
     ) => {
       // OWASP A08: Validación estricta de extensiones y tipos MIME para mitigar cargas maliciosas (.php, .exe, .sh)
-      if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
+      if (!/\/(jpg|jpeg|png|webp)$/.test(file.mimetype)) {
         callback(
           new BadRequestException(
             'Formato de archivo no permitido. Solo se aceptan imágenes JPG, JPEG, PNG o WEBP',

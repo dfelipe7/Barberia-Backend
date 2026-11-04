@@ -190,7 +190,8 @@ export class NegocioResolucionService {
     return valor
       .trim()
       .toLowerCase()
-      .replace(/^\.+|\.+$/g, '');
+      .replace(/^\.+/, '')
+      .replace(/\.+$/, '');
   }
 
   /**

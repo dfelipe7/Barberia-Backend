@@ -275,18 +275,16 @@ function forzarNegocioEnEscritura(
       } else {
         resultado.data = { ...data, negocioId };
       }
-    } else {
+    } else if (
       // Actualización (UPDATE): el aislamiento vive en el WHERE. Si data traía negocioId plano,
       // lo removemos para evitar colisiones con el esquema de Prisma (Unknown argument negocioId).
-      if (
-        typeof data === 'object' &&
-        !Array.isArray(data) &&
-        'negocioId' in data
-      ) {
-        const dataLimpio = { ...(data as Record<string, unknown>) };
-        delete dataLimpio.negocioId;
-        resultado.data = dataLimpio;
-      }
+      typeof data === 'object' &&
+      !Array.isArray(data) &&
+      'negocioId' in data
+    ) {
+      const dataLimpio = { ...(data as Record<string, unknown>) };
+      delete dataLimpio.negocioId;
+      resultado.data = dataLimpio;
     }
   }
 

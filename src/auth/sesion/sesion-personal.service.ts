@@ -8,7 +8,6 @@ import { PersonalJwtService } from './personal-jwt.service';
 import {
   ClaimsSesionPersonal,
   SesionPersonal,
-  TIPO_TOKEN_PERSONAL,
 } from './sesion-personal';
 
 /**
@@ -107,7 +106,7 @@ export class SesionPersonalService {
       sesion.negocioSlug ?? '',
     );
 
-    if (!negocio || negocio.id !== sesion.negocioId) {
+    if (negocio?.id !== sesion.negocioId) {
       throw new ForbiddenException(
         'El negocio de la sesión ya no está disponible',
       );
@@ -155,7 +154,7 @@ export class SesionPersonalService {
 
     const usuario = await this.cargarUsuario(sesion.id);
 
-    if (!usuario || usuario.estado !== 'ACTIVO') {
+    if (usuario?.estado !== 'ACTIVO') {
       throw new ForbiddenException('La sesión ya no es válida');
     }
 
@@ -272,4 +271,4 @@ export interface RespuestaSesion {
   negocio: { id: number; slug: string } | null;
 }
 
-export { TIPO_TOKEN_PERSONAL };
+export { TIPO_TOKEN_PERSONAL } from './sesion-personal';

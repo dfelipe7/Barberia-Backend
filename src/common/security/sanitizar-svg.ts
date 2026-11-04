@@ -174,7 +174,7 @@ const EXPRESION_PELIGROSA =
  * almacena.
  */
 const CONSTRUCCION_PELIGROSA =
-  /<\s*script|<\s*foreignobject|<\s*iframe|<\s*embed|<\s*object|<\s*animate|<\s*set\b|javascript\s*:|\son[a-z]+\s*=|data\s*:\s*text\/html|<!DOCTYPE|<!ENTITY/i;
+  /<\s*(?:script|foreignobject|iframe|embed|object|animate|set\b)|javascript\s*:|\son[a-z]+\s*=|data\s*:\s*text\/html|<!(?:DOCTYPE|ENTITY)/i;
 
 /**
  * Sanea un SVG y devuelve su contenido seguro.
@@ -208,10 +208,10 @@ export function sanitizarSvg(contenido: string): string {
   // Elementos peligrosos: se elimina la etiqueta Y su contenido.
   for (const elemento of ELEMENTOS_BLOQUE_COMPLETO) {
     const conCierre = new RegExp(
-      `<${elemento}\\b[\\s\\S]*?<\\/${elemento}\\s*>`,
+      String.raw`<${elemento}\b[\s\S]*?<\/${elemento}\s*>`,
       'gi',
     );
-    const sinCierre = new RegExp(`<${elemento}\\b[^>]*\\/?>`, 'gi');
+    const sinCierre = new RegExp(String.raw`<${elemento}\b[^>]*\/?>`, 'gi');
 
     resultado = resultado.replace(conCierre, '').replace(sinCierre, '');
   }
@@ -222,7 +222,7 @@ export function sanitizarSvg(contenido: string): string {
   // (`viewBox` NO es `viewbox`). Se comprueba contra la lista en minúsculas,
   // pero se REESCRIBE el nombre original.
   resultado = resultado.replace(
-    /<\s*(\/?)\s*([a-zA-Z_][\w:.-]*)\b([^>]*)>/g,
+    /<\s*(\/?)\s*([a-zA-Z_][\w:.-]*)([^>]*)>/g,
     (
       etiquetaCompleta: string,
       cierre: string,
@@ -270,14 +270,19 @@ function sanearAtributos(atributos: string): string {
   const permitidos: string[] = [];
 
   const patron =
-    /([a-zA-Z_:][\w:.-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
+    /([a-zA-Z_:][\w:.-]*)\s*=\s*("[^"]*"|'[^']*'|[^\s"'>]+)/g;
 
   let coincidencia = patron.exec(atributos);
 
   while (coincidencia !== null) {
     const nombreOriginal = coincidencia[1];
     const nombre = nombreOriginal.toLowerCase();
-    const valor = coincidencia[2] ?? coincidencia[3] ?? coincidencia[4] ?? '';
+    const crudo = coincidencia[2] ?? '';
+    const valor =
+      (crudo.startsWith('"') && crudo.endsWith('"')) ||
+      (crudo.startsWith("'") && crudo.endsWith("'"))
+        ? crudo.slice(1, -1)
+        : crudo;
 
     if (esAtributoSeguro(nombre, valor)) {
       // Se reescribe el nombre ORIGINAL: en SVG `viewBox` no es `viewbox`.
@@ -323,7 +328,7 @@ function esAtributoSeguro(nombre: string, valor: string): boolean {
 /** Escapa el valor de un atributo para que no rompa el documento. */
 function escaparValor(valor: string): string {
   return valor
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('<', '&lt;');
 }

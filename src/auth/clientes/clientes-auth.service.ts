@@ -142,20 +142,20 @@ export class ClientesAuthService {
       throw new NotFoundException('Cliente no encontrado en esta barbería');
     }
 
+    let telefono: string | null | undefined;
+    if (dto.telefono !== undefined) {
+      telefono = dto.telefono ? dto.telefono.trim() : null;
+    }
+
+    let apellido: string | null | undefined;
+    if (dto.apellido !== undefined) {
+      apellido = dto.apellido ? dto.apellido.trim() : null;
+    }
+
     return this.clientesRepository.actualizarPerfil(clienteId, {
-      telefono:
-        dto.telefono !== undefined
-          ? dto.telefono
-            ? dto.telefono.trim()
-            : null
-          : undefined,
+      telefono,
       nombre: dto.nombre ? dto.nombre.trim() : undefined,
-      apellido:
-        dto.apellido !== undefined
-          ? dto.apellido
-            ? dto.apellido.trim()
-            : null
-          : undefined,
+      apellido,
     });
   }
 }

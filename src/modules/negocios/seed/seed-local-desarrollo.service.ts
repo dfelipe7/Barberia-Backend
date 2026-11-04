@@ -487,10 +487,9 @@ async function provisionarNegocio(
     });
 
     if (otras.length > 0) {
+      const slugsOtras = otras.map((o) => `'${o.negocio.slug}'`).join(', ');
       avisos.push(
-        `"${persona.email}" ya tiene membresía en ` +
-          `${otras.map((o) => `'${o.negocio.slug}'`).join(', ')}: no se ha ` +
-          'modificado nada allí.',
+        `"${persona.email}" ya tiene membresía en ${slugsOtras}: no se ha modificado nada allí.`,
       );
     }
   }
@@ -645,10 +644,9 @@ export async function sembrarDesarrolloLocal(
   const ajenos = existentes.filter((n) => !slugsEsperados.has(n.slug));
 
   if (ajenos.length > 0) {
+    const descAjenos = ajenos.map((n) => `'${n.slug}' (${n.nombre})`).join(', ');
     throw new Error(
-      'La base ya contiene negocios ajenos al escenario de prueba local: ' +
-        `${ajenos.map((n) => `'${n.slug}' (${n.nombre})`).join(', ')}. ` +
-        'No se borra ni se modifica ningún negocio: revisa la base a mano.',
+      `La base ya contiene negocios ajenos al escenario de prueba local: ${descAjenos}. No se borra ni se modifica ningún negocio: revisa la base a mano.`,
     );
   }
 
