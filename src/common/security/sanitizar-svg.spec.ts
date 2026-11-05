@@ -107,6 +107,7 @@ describe('sanitizarSvg', () => {
     expect(resultado).toContain('<linearGradient');
     expect(resultado).toContain('<text');
   });
+
   it('conserva el auto-cierre /> en etiquetas como path o circle', () => {
     const conAutoCierre =
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' +
@@ -118,5 +119,16 @@ describe('sanitizarSvg', () => {
     expect(resultado).toContain('<path d="M4 4h16v16H4z" fill="#0C0C0C" />');
     expect(resultado).toContain('<circle cx="12" cy="12" r="5" />');
     expect(resultado).not.toContain('>>');
+  });
+
+  it('conserva atributos data-* y descarta namespaces no reconocidos', () => {
+    const svg =
+      '<svg xmlns="http://www.w3.org/2000/svg" data-id="123" custom:foo="bar">' +
+      '<rect x="0" y="0" width="10" height="10"/>' +
+      '</svg>';
+
+    const resultado = sanitizarSvg(svg);
+    expect(resultado).toContain('data-id="123"');
+    expect(resultado).not.toContain('custom:foo');
   });
 });

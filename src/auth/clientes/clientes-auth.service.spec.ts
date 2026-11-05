@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  UnauthorizedException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ClientesAuthService } from './clientes-auth.service';
 import { ClienteJwtService } from './cliente-jwt.service';
 import { GoogleTokenVerifier } from '../google/google-token-verifier.service';
@@ -10,7 +14,11 @@ describe('ClientesAuthService', () => {
   let service: ClientesAuthService;
 
   const googleTokenVerifier = { verificar: jest.fn() };
-  const clientesRepository = { buscarOcrearPorGoogle: jest.fn() };
+  const clientesRepository = {
+    buscarOcrearPorGoogle: jest.fn(),
+    obtenerPorId: jest.fn(),
+    actualizarPerfil: jest.fn(),
+  };
   const clienteJwtService = { firmar: jest.fn() };
   const contextoService = {
     obtenerContexto: jest.fn().mockReturnValue({ id: 10, slug: 'kyrios' }),
@@ -125,5 +133,83 @@ describe('ClientesAuthService', () => {
     await expect(service.loginConGoogle('id-token')).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
+  });
+
+  describe('obtenerPerfil', () => {
+    it('devuelve el perfil del cliente si existe', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue({
+        id: 7,
+        nombre: 'Ana',
+        apellido: 'Pérez',
+        email: 'ana@gmail.com',
+        telefono: '3001234567',
+      });
+
+      const perfil = await service.obtenerPerfil(7);
+      expect(perfil).toEqual({
+        id: 7,
+        nombre: 'Ana',
+        apellido: 'Pérez',
+        email: 'ana@gmail.com',
+        telefono: '3001234567',
+      });
+    });
+
+    it('lanza NotFoundException si el cliente no existe', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue(null);
+
+      await expect(service.obtenerPerfil(999)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('actualizarPerfil', () => {
+    it('lanza NotFoundException si el cliente no existe al actualizar', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue(null);
+
+      await expect(
+        service.actualizarPerfil(999, { nombre: 'Nuevo' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('actualiza perfil limpiando espacios y manejando valores nulos/vacíos', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue({ id: 7 });
+      clientesRepository.actualizarPerfil.mockResolvedValue({
+        id: 7,
+        nombre: 'Ana María',
+        apellido: 'Gómez',
+        telefono: '3119876543',
+      });
+
+      const resultado = await service.actualizarPerfil(7, {
+        nombre: '  Ana María  ',
+        apellido: '  Gómez  ',
+        telefono: '  3119876543  ',
+      });
+
+      expect(clientesRepository.actualizarPerfil).toHaveBeenCalledWith(7, {
+        nombre: 'Ana María',
+        apellido: 'Gómez',
+        telefono: '3119876543',
+      });
+      expect(resultado).toBeDefined();
+    });
+
+    it('asigna null a telefono y apellido si vienen vacíos', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue({ id: 7 });
+      clientesRepository.actualizarPerfil.mockResolvedValue({ id: 7 });
+
+      await service.actualizarPerfil(7, {
+        telefono: '',
+        apellido: '',
+      });
+
+      expect(clientesRepository.actualizarPerfil).toHaveBeenCalledWith(7, {
+        telefono: null,
+        apellido: null,
+        nombre: undefined,
+      });
+    });
   });
 });

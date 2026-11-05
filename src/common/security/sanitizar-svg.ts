@@ -227,7 +227,7 @@ export function sanitizarSvg(contenido: string): string {
   // (`viewBox` NO es `viewbox`). Se comprueba contra la lista en minúsculas,
   // pero se REESCRIBE el nombre original.
   resultado = resultado.replace(
-    /<\s*(\/?)\s*([a-zA-Z_][\w:.-]*)([^>]*)>/g,
+    /<(\/?)\s*([a-zA-Z_][\w:.-]*)([^>]*)>/g,
     (
       etiquetaCompleta: string,
       cierre: string,
@@ -275,7 +275,7 @@ function sanearAtributos(atributos: string): string {
   const permitidos: string[] = [];
 
   const patron =
-    /([a-zA-Z_:][\w:.-]*)\s*=\s*("[^"]*"|'[^']*'|[^\s"'>]+)/g;
+    /([a-zA-Z_:][\w:.-]*)\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>&`]+)/g;
 
   let coincidencia = patron.exec(atributos);
 

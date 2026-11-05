@@ -522,4 +522,41 @@ describe('WhatsAppService', () => {
       expect(enviado2).toBe(false);
     });
   });
+
+  describe('obtenerMinutosAnticipacion y ciclo de vida', () => {
+    it('devuelve el valor parseado cuando la plantilla global contiene un número válido', async () => {
+      jest.spyOn(service as any, 'obtenerPlantillaGlobal').mockResolvedValue({
+        tipo: 'CONFIG_RECORDATORIO_MINUTOS',
+        mensaje: '45',
+      });
+
+      const minutos = await service.obtenerMinutosAnticipacion();
+      expect(minutos).toBe(45);
+    });
+
+    it('devuelve el default cuando la plantilla global contiene texto inválido o número <= 0', async () => {
+      jest.spyOn(service as any, 'obtenerPlantillaGlobal').mockResolvedValue({
+        tipo: 'CONFIG_RECORDATORIO_MINUTOS',
+        mensaje: 'invalido',
+      });
+      expect(await service.obtenerMinutosAnticipacion()).toBe(120);
+
+      jest.spyOn(service as any, 'obtenerPlantillaGlobal').mockResolvedValue({
+        tipo: 'CONFIG_RECORDATORIO_MINUTOS',
+        mensaje: '-10',
+      });
+      expect(await service.obtenerMinutosAnticipacion()).toBe(120);
+
+      jest.spyOn(service as any, 'obtenerPlantillaGlobal').mockResolvedValue(null);
+      expect(await service.obtenerMinutosAnticipacion()).toBe(120);
+    });
+
+    it('onModuleDestroy destruye las sesiones activas', () => {
+      const destruirSpy = jest.spyOn(service as any, 'destruirSocket').mockImplementation(() => {});
+      (service as any).sesiones.set(99, { id: 99 });
+
+      service.onModuleDestroy();
+      expect(destruirSpy).toHaveBeenCalled();
+    });
+  });
 });

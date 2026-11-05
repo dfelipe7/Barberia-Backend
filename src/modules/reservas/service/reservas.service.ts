@@ -548,7 +548,7 @@ export class ReservasService {
     let tokenGestion: string | undefined = undefined;
     let gestionTokenHash: string | null = null;
     let gestionTokenCifrado: string | null = null;
-    let clienteNombreNotif: string;
+    let clienteNombreNotif = 'Cliente';
     let clienteTelefonoNotif: string | null = null;
 
     if (dto.clienteId !== undefined && dto.clienteId !== null) {
