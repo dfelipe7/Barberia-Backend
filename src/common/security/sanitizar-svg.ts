@@ -173,8 +173,13 @@ const EXPRESION_PELIGROSA =
  * el ataque, así que el archivo se rechaza con un error claro y NO se
  * almacena.
  */
-const CONSTRUCCION_PELIGROSA =
-  /<\s*(?:script|foreignobject|iframe|embed|object|animate|set\b)|javascript\s*:|\son[a-z]+\s*=|data\s*:\s*text\/html|<!(?:DOCTYPE|ENTITY)/i;
+const CONSTRUCCIONES_PELIGROSAS: readonly RegExp[] = [
+  /<\s*(?:script|foreignobject|iframe|embed|object|animate|set\b)/i,
+  /javascript\s*:/i,
+  /\son[a-z]+\s*=/i,
+  /data\s*:\s*text\/html/i,
+  /<!(?:DOCTYPE|ENTITY)/i,
+];
 
 /**
  * Sanea un SVG y devuelve su contenido seguro.
@@ -191,7 +196,7 @@ export function sanitizarSvg(contenido: string): string {
 
   // Un SVG con script, manejadores de evento o marcos NO es un logo: se
   // RECHAZA. No se "limpia" en silencio: se avisa al operador.
-  if (CONSTRUCCION_PELIGROSA.test(contenido)) {
+  if (CONSTRUCCIONES_PELIGROSAS.some((r) => r.test(contenido))) {
     throw new BadRequestException(
       'El SVG contiene construcciones no permitidas (script, manejadores de ' +
         'evento, marcos o referencias ejecutables). No se almacena.',

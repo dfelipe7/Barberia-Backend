@@ -132,6 +132,8 @@
       "!**/main.(t|j)s",
       "!**/dto/**",
       "!**/generated/**",
+      "!**/seed/**",
+      "!**/*.test-helpers.ts",
       "!**/node_modules/**"
     ],
     "coverageDirectory": "../coverage",
