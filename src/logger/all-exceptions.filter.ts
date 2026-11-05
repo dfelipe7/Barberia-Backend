@@ -40,11 +40,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
   constructor(private readonly alertsService: AlertsService) {}
 
-  catch(exception: unknown, host: ArgumentsHost) {
-    const ctx = host.switchToHttp();
-    const response = ctx.getResponse<RespuestaDelFiltro>();
-    const request = ctx.getRequest<PeticionSeguro>();
-
+  private extraerInfoError(exception: unknown) {
     const status =
       exception instanceof HttpException
         ? exception.getStatus()
@@ -67,6 +63,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const code = responseObject?.code;
     const details = responseObject?.details;
+
+    return { status, message, code, details };
+  }
+
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<RespuestaDelFiltro>();
+    const request = ctx.getRequest<PeticionSeguro>();
+
+    const { status, message, code, details } = this.extraerInfoError(exception);
 
     // Identificador de la petición: permite correlacionar el log, el correo de
     // alerta y la respuesta que ve el cliente.

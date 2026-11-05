@@ -7,8 +7,8 @@ import {
 } from '@nestjs/common';
 import { ClienteJwtService, ClienteAutenticado } from '../cliente-jwt.service';
 import { extraerBearer } from './extraer-bearer';
-import { NegocioContextoService } from '../../../modules/negocios/negocio-contexto.service';
-import { ContextoNegocio } from '../../../modules/negocios/negocio-contexto.service';
+import { NegocioContextoService, ContextoNegocio } from '../../../modules/negocios/negocio-contexto.service';
+
 
 /**
  * Guard de autenticación OBLIGATORIA de cliente (HE-04-HU-06/HU-07).

@@ -296,7 +296,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async onModuleDestroy() {
+  onModuleDestroy() {
     for (const [, sesion] of this.sesiones) {
       this.destruirSocket(sesion);
     }
@@ -382,7 +382,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
             ? isJidNewsletter(jid)
             : false) ||
           jid.includes('broadcast'),
-        getMessage: async () => undefined,
+        getMessage: () => Promise.resolve(undefined),
         markOnlineOnConnect: false,
       });
 
@@ -738,20 +738,20 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     const direccion = comercial?.direccion?.trim() ?? '';
 
     const conComerciales = plantilla
-      .replace(/{negocio}/g, nombreNegocio)
+      .replaceAll('{negocio}', nombreNegocio)
       .replace(
         /📍 \*Ubicación:\* \{ubicacion\}\n?/g,
         direccion ? `📍 *Ubicación:* ${direccion}\n` : '',
       );
 
     const textoBase = conComerciales
-      .replace(/{cliente}/g, datos.clienteNombre)
-      .replace(/{servicio}/g, datos.servicioNombre)
-      .replace(/{barbero}/g, datos.barberoNombre)
-      .replace(/{fecha}/g, datos.fecha)
-      .replace(/{hora}/g, datos.hora)
-      .replace(/{precio}/g, precioTexto)
-      .replace(/{ubicacion}/g, direccion);
+      .replaceAll('{cliente}', datos.clienteNombre)
+      .replaceAll('{servicio}', datos.servicioNombre)
+      .replaceAll('{barbero}', datos.barberoNombre)
+      .replaceAll('{fecha}', datos.fecha)
+      .replaceAll('{hora}', datos.hora)
+      .replaceAll('{precio}', precioTexto)
+      .replaceAll('{ubicacion}', direccion);
 
     if (datos.enlaceGestion) {
       return (
@@ -910,8 +910,8 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     );
 
     if (plantilla?.mensaje) {
-      const parsed = parseInt(plantilla.mensaje, 10);
-      if (!isNaN(parsed) && parsed > 0) return parsed;
+      const parsed = Number.parseInt(plantilla.mensaje, 10);
+      if (!Number.isNaN(parsed) && parsed > 0) return parsed;
     }
 
     return MINUTOS_ANTICIPACION_DEFAULT;

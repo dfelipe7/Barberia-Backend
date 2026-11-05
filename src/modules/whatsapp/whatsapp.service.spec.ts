@@ -95,19 +95,12 @@ describe('WhatsAppService', () => {
   });
 
   describe('formatearNumeroAJid', () => {
-    it('debe normalizar números colombianos de 10 dígitos (3001234567) con prefijo 57', () => {
-      const jid = service.formatearNumeroAJid('3001234567');
-      expect(jid).toBe('573001234567@s.whatsapp.net');
-    });
-
-    it('debe conservar números con prefijo 57 ya incluido', () => {
-      const jid = service.formatearNumeroAJid('573001234567');
-      expect(jid).toBe('573001234567@s.whatsapp.net');
-    });
-
-    it('debe limpiar caracteres especiales como guiones, espacios y paréntesis', () => {
-      const jid = service.formatearNumeroAJid('+57 (300) 123-4567');
-      expect(jid).toBe('573001234567@s.whatsapp.net');
+    it.each([
+      ['números colombianos de 10 dígitos (3001234567) con prefijo 57', '3001234567', '573001234567@s.whatsapp.net'],
+      ['números con prefijo 57 ya incluido', '573001234567', '573001234567@s.whatsapp.net'],
+      ['caracteres especiales como guiones, espacios y paréntesis', '+57 (300) 123-4567', '573001234567@s.whatsapp.net'],
+    ])('debe formatear a JID para %s', (_, entrada, esperado) => {
+      expect(service.formatearNumeroAJid(entrada)).toBe(esperado);
     });
 
     it('debe retornar null para números vacíos o demasiado cortos', () => {
@@ -527,6 +520,43 @@ describe('WhatsAppService', () => {
         'Mensaje de Demo 2',
       );
       expect(enviado2).toBe(false);
+    });
+  });
+
+  describe('obtenerMinutosAnticipacion y ciclo de vida', () => {
+    it('devuelve el valor parseado cuando la plantilla global contiene un número válido', async () => {
+      jest.spyOn(service as any, 'obtenerPlantillaGlobal').mockResolvedValue({
+        tipo: 'CONFIG_RECORDATORIO_MINUTOS',
+        mensaje: '45',
+      });
+
+      const minutos = await service.obtenerMinutosAnticipacion();
+      expect(minutos).toBe(45);
+    });
+
+    it('devuelve el default cuando la plantilla global contiene texto inválido o número <= 0', async () => {
+      jest.spyOn(service as any, 'obtenerPlantillaGlobal').mockResolvedValue({
+        tipo: 'CONFIG_RECORDATORIO_MINUTOS',
+        mensaje: 'invalido',
+      });
+      expect(await service.obtenerMinutosAnticipacion()).toBe(120);
+
+      jest.spyOn(service as any, 'obtenerPlantillaGlobal').mockResolvedValue({
+        tipo: 'CONFIG_RECORDATORIO_MINUTOS',
+        mensaje: '-10',
+      });
+      expect(await service.obtenerMinutosAnticipacion()).toBe(120);
+
+      jest.spyOn(service as any, 'obtenerPlantillaGlobal').mockResolvedValue(null);
+      expect(await service.obtenerMinutosAnticipacion()).toBe(120);
+    });
+
+    it('onModuleDestroy destruye las sesiones activas', () => {
+      const destruirSpy = jest.spyOn(service as any, 'destruirSocket').mockImplementation(() => {});
+      (service as any).sesiones.set(99, { id: 99 });
+
+      service.onModuleDestroy();
+      expect(destruirSpy).toHaveBeenCalled();
     });
   });
 });

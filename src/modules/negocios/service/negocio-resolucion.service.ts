@@ -187,10 +187,14 @@ export class NegocioResolucionService {
       return null;
     }
 
-    return valor
-      .trim()
-      .toLowerCase()
-      .replace(/^\.+|\.+$/g, '');
+    let limpio = valor.trim().toLowerCase();
+    while (limpio.startsWith('.')) {
+      limpio = limpio.slice(1);
+    }
+    while (limpio.endsWith('.')) {
+      limpio = limpio.slice(0, -1);
+    }
+    return limpio;
   }
 
   /**

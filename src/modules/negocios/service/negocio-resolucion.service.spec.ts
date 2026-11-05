@@ -62,34 +62,16 @@ describe('NegocioResolucionService', () => {
       ).toBeNull();
     });
 
-    it('no resuelve nada si el host no pertenece al dominio base', () => {
+    it.each([
+      ['host no pertenece al dominio base', 'acme.otrodominio.com'],
+      ['subdominios con varios niveles', 'a.b.barberia.com'],
+      ['subdominios con formato inválido', 'ACME!.barberia.com'],
+    ])('descarta hostname inválido o ajeno: %s', (_, hostname) => {
       const { service } = crearServicio({
         NEGOCIO_DOMINIO_BASE: 'barberia.com',
       });
 
-      expect(
-        service.extraerSlugCandidato({ hostname: 'acme.otrodominio.com' }),
-      ).toBeNull();
-    });
-
-    it('descarta subdominios con varios niveles', () => {
-      const { service } = crearServicio({
-        NEGOCIO_DOMINIO_BASE: 'barberia.com',
-      });
-
-      expect(
-        service.extraerSlugCandidato({ hostname: 'a.b.barberia.com' }),
-      ).toBeNull();
-    });
-
-    it('descarta subdominios con formato inválido', () => {
-      const { service } = crearServicio({
-        NEGOCIO_DOMINIO_BASE: 'barberia.com',
-      });
-
-      expect(
-        service.extraerSlugCandidato({ hostname: 'ACME!.barberia.com' }),
-      ).toBeNull();
+      expect(service.extraerSlugCandidato({ hostname })).toBeNull();
     });
 
     it('normaliza a minúsculas el slug del subdominio', () => {

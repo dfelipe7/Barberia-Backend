@@ -171,6 +171,13 @@ export class RecordatoriosCron {
             `[CRON RECORDATORIOS] [${negocio.slug}] Enviando recordatorio para la cita #${reserva.id} a ${clienteNombre} (${enmascararTelefono(telefono)})`,
           );
 
+          let precioNotif: number | null = null;
+          if (reserva.precioReservado) {
+            precioNotif = Number(reserva.precioReservado);
+          } else if (reserva.servicio?.precio) {
+            precioNotif = Number(reserva.servicio.precio);
+          }
+
           await this.whatsappService.enviarRecordatorioReserva({
             telefono,
             clienteNombre,
@@ -178,11 +185,7 @@ export class RecordatoriosCron {
             barberoNombre,
             fecha: fechaBogotaStr,
             hora: reserva.startTime,
-            precio: reserva.precioReservado
-              ? Number(reserva.precioReservado)
-              : reserva.servicio?.precio
-                ? Number(reserva.servicio.precio)
-                : null,
+            precio: precioNotif,
           });
         }
 

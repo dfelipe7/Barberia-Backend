@@ -243,6 +243,37 @@ describe('RecordatoriosCron (multitenant)', () => {
     });
   });
 
+  it('usa servicio.precio si precioReservado es nulo, y null si ninguno tiene precio', async () => {
+    citasPorNegocio[NEGOCIO_A.id] = [
+      {
+        id: 301,
+        startTime: '09:30',
+        precioReservado: null,
+        cliente: { nombre: 'Mario', apellido: 'Ruiz', telefono: '3009998877' },
+        barbero: { usuario: { nombre: 'Duvan', apellido: 'Reyes' } },
+        servicio: { nombre: 'Barba', precio: 15000 },
+      },
+      {
+        id: 302,
+        startTime: '09:35',
+        precioReservado: null,
+        cliente: { nombre: 'Luigi', apellido: 'Ruiz', telefono: '3009998878' },
+        barbero: { usuario: { nombre: 'Duvan', apellido: 'Reyes' } },
+        servicio: { nombre: 'Corte' } as any,
+      },
+    ];
+    citasPorNegocio[NEGOCIO_B.id] = [];
+
+    await cron.procesarRecordatorios();
+
+    expect(enviarRecordatorioReserva).toHaveBeenCalledWith(
+      expect.objectContaining({ clienteNombre: 'Mario Ruiz', precio: 15000 }),
+    );
+    expect(enviarRecordatorioReserva).toHaveBeenCalledWith(
+      expect.objectContaining({ clienteNombre: 'Luigi Ruiz', precio: null }),
+    );
+  });
+
   it('no propaga un error inesperado del estado de la conexión', async () => {
     getStatus.mockImplementation(() => {
       throw new Error('Fallo de conexión');

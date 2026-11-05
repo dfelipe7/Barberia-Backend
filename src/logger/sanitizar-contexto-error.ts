@@ -23,7 +23,7 @@ export const VALOR_REDACTADO = '[redactado]';
  * inocuos que lo contengan (`sortKey`).
  */
 const PARAMETRO_SENSIBLE =
-  /(token|clave|password|contrase|secret|session|sesion|auth|cookie|codigo|code|access|refresh|api[-_]?key|(^|[_-])key([_-]|$))/i;
+  /(?:token|clave|pass|contrase|secret|ses|auth|cookie|cod|access|refresh|(?:^|[_-]|api)key)/i;
 
 /**
  * Valor que parece una credencial: fragmento largo en base64/hex.
