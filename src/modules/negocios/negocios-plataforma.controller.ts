@@ -142,17 +142,15 @@ export class NegociosPlataformaController {
         where: { email: emailNormalizado },
       });
 
-      if (!usuario) {
-        usuario = await this.prisma.usuario.create({
-          data: {
-            email: emailNormalizado,
-            nombre: dto.adminNombre ? dto.adminNombre.trim() : 'Administrador',
-            apellido: dto.adminApellido ? dto.adminApellido.trim() : '',
-            rol: RolUsuario.PERSONAL,
-            estado: EstadoUsuario.ACTIVO,
-          },
-        });
-      }
+      usuario ??= await this.prisma.usuario.create({
+        data: {
+          email: emailNormalizado,
+          nombre: dto.adminNombre ? dto.adminNombre.trim() : 'Administrador',
+          apellido: dto.adminApellido ? dto.adminApellido.trim() : '',
+          rol: RolUsuario.PERSONAL,
+          estado: EstadoUsuario.ACTIVO,
+        },
+      });
       usuarioDueno = usuario;
     }
 

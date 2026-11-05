@@ -23,14 +23,13 @@ import { BarberosService } from './barberos.service';
 import {
   ActorSesion,
   construirActorSesion,
+  ClaimsSesionPersonal,
 } from '../../../auth/sesion/sesion-personal';
 import {
   ROL_ADMINISTRADOR,
   ROL_BARBERO,
   ROL_SUPERADMIN,
 } from '../../negocios/negocios.constants';
-
-import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
 import { Prisma } from '../../../../generated/prisma/client';
 
 export type UsuarioPerfilAdministrador = {

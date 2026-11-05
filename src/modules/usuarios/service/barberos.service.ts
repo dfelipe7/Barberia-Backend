@@ -13,10 +13,11 @@ import { BarberoCatalogoDto } from '../dto/dto-respuesta/barbero-catalogo.dto';
 import { BarberoGestionDto } from '../dto/dto-respuesta/barbero-gestion.dto';
 import { EstadoUsuario } from '../../../../generated/prisma/enums';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { construirActorSesion } from '../../../auth/sesion/sesion-personal';
+import {
+  construirActorSesion,
+  ClaimsSesionPersonal,
+} from '../../../auth/sesion/sesion-personal';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
-
-import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
 
 /** Tipo del usuario con relaciones de barberos y administradores cargadas */
 type UsuarioConRelaciones = {
@@ -403,9 +404,7 @@ export class BarberosService {
         porcentajeComision: Number(barbero.porcentajeComision),
         estado: barbero.estado,
         fotoUrl: barbero.fotoUrl,
-        esAdministrador: Boolean(
-          perfilAdmin && perfilAdmin.estado === 'ACTIVO',
-        ),
+        esAdministrador: perfilAdmin?.estado === 'ACTIVO',
         esSuperAdmin: perfilAdmin?.superadmin === true,
         estadoAdmin: perfilAdmin?.estado,
         // El rol global ya no distingue administrador de barbero: los roles

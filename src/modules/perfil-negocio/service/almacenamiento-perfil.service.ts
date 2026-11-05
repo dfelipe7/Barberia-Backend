@@ -106,7 +106,7 @@ export class AlmacenamientoPerfilService {
    * barrera contra el borrado de recursos ajenos.
    */
   async eliminar(negocioId: number, referencia: string | null): Promise<void> {
-    if (!referencia || !referencia.startsWith(`${PREFIJO_PUBLICO_UPLOADS}/`)) {
+    if (!referencia?.startsWith(`${PREFIJO_PUBLICO_UPLOADS}/`)) {
       return;
     }
 

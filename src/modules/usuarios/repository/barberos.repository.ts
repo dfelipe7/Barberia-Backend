@@ -166,7 +166,7 @@ export class BarberosRepository {
     }
 
     if (filtro?.nombre) {
-      if (!whereCondicion.usuario) whereCondicion.usuario = {};
+      whereCondicion.usuario ??= {};
       whereCondicion.usuario['OR'] = [
         { nombre: { contains: filtro.nombre } },
         { apellido: { contains: filtro.nombre } },
