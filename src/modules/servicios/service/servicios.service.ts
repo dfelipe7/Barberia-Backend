@@ -52,7 +52,7 @@ export class ServiciosService {
       return match ? match.id : null;
     });
 
-    if (barberoIdsResueltos.some((id) => id === null)) {
+    if (barberoIdsResueltos.includes(null)) {
       throw new BadRequestException(
         'Uno o más barberos seleccionados no existen o no se encuentran en estado ACTIVO',
       );

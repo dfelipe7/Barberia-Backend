@@ -226,27 +226,7 @@ export function sanitizarSvg(contenido: string): string {
   // SVG es XML: los nombres de elemento y de atributo distinguen mayúsculas
   // (`viewBox` NO es `viewbox`). Se comprueba contra la lista en minúsculas,
   // pero se REESCRIBE el nombre original.
-  resultado = resultado.replace(
-    /<(\/?)\s*([a-zA-Z_][\w:.-]*)([^>]*)>/g,
-    (
-      etiquetaCompleta: string,
-      cierre: string,
-      nombreOriginal: string,
-      atributos: string,
-    ) => {
-      const elemento = nombreOriginal.toLowerCase();
-
-      if (!ELEMENTOS_PERMITIDOS.has(elemento)) {
-        return '';
-      }
-
-      const saneados = sanearAtributos(atributos);
-
-      const esAutoCierre = !cierre && /\/\s*$/.test(atributos);
-
-      return `<${cierre}${nombreOriginal}${saneados}${esAutoCierre ? ' />' : '>'}`;
-    },
-  );
+  resultado = procesarEtiquetasSvg(resultado);
 
   const svg = resultado.trim();
 
@@ -266,35 +246,97 @@ export function sanitizarSvg(contenido: string): string {
 }
 
 /**
- * Filtra los atributos de una etiqueta y reconstruye el fragmento.
- *
- * Se eliminan los atributos de evento, las referencias que no sean locales y
- * cualquier atributo que no esté en la lista blanca.
+ * Procesa las etiquetas XML del documento de forma lineal sin backtracking ReDoS.
+ */
+function procesarEtiquetasSvg(contenido: string): string {
+  let salida = '';
+  let i = 0;
+  while (i < contenido.length) {
+    const inicio = contenido.indexOf('<', i);
+    if (inicio === -1) {
+      salida += contenido.slice(i);
+      break;
+    }
+    salida += contenido.slice(i, inicio);
+    const fin = contenido.indexOf('>', inicio);
+    if (fin === -1) {
+      salida += contenido.slice(inicio);
+      break;
+    }
+
+    const cuerpo = contenido.slice(inicio + 1, fin);
+    i = fin + 1;
+
+    let pos = 0;
+    while (pos < cuerpo.length && /\s/.test(cuerpo[pos])) pos++;
+    const esCierre = cuerpo[pos] === '/';
+    if (esCierre) pos++;
+    while (pos < cuerpo.length && /\s/.test(cuerpo[pos])) pos++;
+
+    const inicioNombre = pos;
+    while (pos < cuerpo.length && !/[\s/>]/.test(cuerpo[pos])) pos++;
+    const nombreOriginal = cuerpo.slice(inicioNombre, pos);
+    const elemento = nombreOriginal.toLowerCase();
+
+    if (!nombreOriginal || !ELEMENTOS_PERMITIDOS.has(elemento)) {
+      continue;
+    }
+
+    const resto = cuerpo.slice(pos);
+    const saneados = sanearAtributos(resto);
+    const esAutoCierre = !esCierre && resto.trimEnd().endsWith('/');
+
+    salida += `<${esCierre ? '/' : ''}${nombreOriginal}${saneados}${esAutoCierre ? ' />' : '>'}`;
+  }
+  return salida;
+}
+
+/**
+ * Filtra los atributos de una etiqueta y reconstruye el fragmento con análisis lineal.
  */
 function sanearAtributos(atributos: string): string {
   const permitidos: string[] = [];
+  const trimmed = atributos.trim();
+  if (!trimmed) return '';
 
-  const patron =
-    /([a-zA-Z_:][\w:.-]*)\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>&`]+)/g;
+  let i = 0;
+  while (i < trimmed.length) {
+    while (i < trimmed.length && /\s/.test(trimmed[i])) i++;
+    if (i >= trimmed.length || trimmed[i] === '/') break;
 
-  let coincidencia = patron.exec(atributos);
-
-  while (coincidencia !== null) {
-    const nombreOriginal = coincidencia[1];
-    const nombre = nombreOriginal.toLowerCase();
-    const crudo = coincidencia[2] ?? '';
-    const valor =
-      (crudo.startsWith('"') && crudo.endsWith('"')) ||
-      (crudo.startsWith("'") && crudo.endsWith("'"))
-        ? crudo.slice(1, -1)
-        : crudo;
-
-    if (esAtributoSeguro(nombre, valor)) {
-      // Se reescribe el nombre ORIGINAL: en SVG `viewBox` no es `viewbox`.
-      permitidos.push(`${nombreOriginal}="${escaparValor(valor)}"`);
+    const inicioNombre = i;
+    while (i < trimmed.length && !/[\s=>/]/.test(trimmed[i])) i++;
+    const nombreOriginal = trimmed.slice(inicioNombre, i);
+    if (!nombreOriginal) {
+      i++;
+      continue;
     }
 
-    coincidencia = patron.exec(atributos);
+    while (i < trimmed.length && /\s/.test(trimmed[i])) i++;
+    if (i >= trimmed.length || trimmed[i] !== '=') {
+      continue;
+    }
+    i++;
+    while (i < trimmed.length && /\s/.test(trimmed[i])) i++;
+
+    let valor = '';
+    if (i < trimmed.length && (trimmed[i] === '"' || trimmed[i] === "'")) {
+      const quote = trimmed[i];
+      i++;
+      const inicioValor = i;
+      while (i < trimmed.length && trimmed[i] !== quote) i++;
+      valor = trimmed.slice(inicioValor, i);
+      if (i < trimmed.length) i++;
+    } else {
+      const inicioValor = i;
+      while (i < trimmed.length && !/[\s>]/.test(trimmed[i])) i++;
+      valor = trimmed.slice(inicioValor, i);
+    }
+
+    const nombre = nombreOriginal.toLowerCase();
+    if (esAtributoSeguro(nombre, valor)) {
+      permitidos.push(`${nombreOriginal}="${escaparValor(valor)}"`);
+    }
   }
 
   return permitidos.length > 0 ? ` ${permitidos.join(' ')}` : '';

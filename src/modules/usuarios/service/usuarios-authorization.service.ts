@@ -376,11 +376,7 @@ export class UsuariosAuthorizationService {
 
     // 1. Revisión en propiedad singular normalizada para este negocio
     const perfil = usuarioObjetivo.administrador;
-    if (
-      perfil &&
-      perfil.negocioId === negocioId &&
-      perfil.superadmin === true
-    ) {
+    if (perfil?.negocioId === negocioId && perfil.superadmin === true) {
       return true;
     }
 
@@ -408,11 +404,7 @@ export class UsuariosAuthorizationService {
 
     // 1. Revisión en propiedad singular normalizada para este negocio
     const perfil = usuarioObjetivo.administrador;
-    if (
-      perfil &&
-      perfil.negocioId === negocioId &&
-      perfil.estado === 'ACTIVO'
-    ) {
+    if (perfil?.negocioId === negocioId && perfil.estado === 'ACTIVO') {
       return true;
     }
 
@@ -439,7 +431,7 @@ export class UsuariosAuthorizationService {
 
     // 1. Revisión en propiedad singular normalizada para este negocio
     const perfil = usuarioObjetivo.barbero;
-    if (perfil && perfil.negocioId === negocioId) {
+    if (perfil?.negocioId === negocioId) {
       return true;
     }
 

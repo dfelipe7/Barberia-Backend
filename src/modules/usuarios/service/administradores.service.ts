@@ -282,7 +282,7 @@ export class AdministradoresService {
   private async promoverAdministrador(usuario: UsuarioConRelaciones) {
     const perfilAdmin = this.perfilAdministradorEnNegocio(usuario);
 
-    if (perfilAdmin && perfilAdmin.estado === 'ACTIVO') {
+    if (perfilAdmin?.estado === 'ACTIVO') {
       throw new ConflictException(
         'Este usuario ya tiene privilegios de Administrador',
       );
