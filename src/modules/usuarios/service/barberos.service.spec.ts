@@ -838,5 +838,51 @@ describe('BarberosService', () => {
         EstadoUsuario.INACTIVO,
       );
     });
+
+    it('no debe bloquear la cuenta global al desactivar barbero si tiene membresía activa en otra sede', async () => {
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barberos: [
+          { estado: 'ACTIVO', negocioId: 1 },
+          { estado: 'ACTIVO', negocioId: 2 },
+        ],
+        administradores: [],
+        rol: 'PERSONAL',
+      });
+      usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 2 });
+      barberosRepository.actualizarEstadoBarbero.mockResolvedValue({});
+
+      await service.cambiarEstadoBarbero(
+        1,
+        { estado: EstadoUsuario.INACTIVO },
+        { email: 'auth@b.com' },
+      );
+      expect(usuariosRepository.actualizarEstadoUsuario).not.toHaveBeenCalled();
+      expect(barberosRepository.actualizarEstadoBarbero).toHaveBeenCalledWith(
+        1,
+        EstadoUsuario.INACTIVO,
+      );
+    });
+
+    it('debe bloquear la cuenta global si se inactiva barbero y no tiene más membresías activas', async () => {
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
+        id: 1,
+        barberos: [{ estado: 'ACTIVO', negocioId: 1 }],
+        administradores: [],
+        rol: 'PERSONAL',
+      });
+      usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue({ id: 2 });
+      barberosRepository.actualizarEstadoBarbero.mockResolvedValue({});
+
+      await service.cambiarEstadoBarbero(
+        1,
+        { estado: EstadoUsuario.INACTIVO },
+        { email: 'auth@b.com' },
+      );
+      expect(usuariosRepository.actualizarEstadoUsuario).toHaveBeenCalledWith(
+        1,
+        EstadoUsuario.INACTIVO,
+      );
+    });
   });
 });

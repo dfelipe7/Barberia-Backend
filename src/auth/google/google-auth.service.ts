@@ -113,10 +113,25 @@ export class GoogleAuthService {
     }
 
     if (usuario.estado === 'INACTIVO') {
-      this.logger.warn(`Acceso denegado: ${email} tiene su cuenta suspendida.`);
-      throw new ForbiddenException(
-        'Tu cuenta ha sido desactivada por un administrador.',
-      );
+      const contexto = this.contextoService.obtenerContexto();
+      const perfil = contexto
+        ? await this.rolesService.perfilOperativo(usuario.id, contexto)
+        : null;
+
+      if (perfil && perfil.roles.length > 0) {
+        // Auto-reparar estado legado: si el usuario ostenta membresías activas en esta barbería,
+        // su cuenta se reactiva para permitir el acceso operativo en esta sede.
+        await this.prisma.usuario.update({
+          where: { id: usuario.id },
+          data: { estado: 'ACTIVO' },
+        });
+        usuario.estado = 'ACTIVO';
+      } else {
+        this.logger.warn(`Acceso denegado: ${email} tiene su cuenta suspendida.`);
+        throw new ForbiddenException(
+          'Tu cuenta ha sido desactivada por un administrador.',
+        );
+      }
     }
 
     // Vincular googleId si es la primera vez que inicia sesión con Google

@@ -132,6 +132,49 @@ describe('GoogleAuthService', () => {
     );
   });
 
+  it('debe reactivar el estado del usuario (auto-sanación) si está INACTIVO pero tiene roles activos en la sede', async () => {
+    googleTokenVerifier.verificar.mockResolvedValue({
+      email: 'recuperable@gmail.com',
+      sub: 'google-sub-recuperable',
+      email_verified: true,
+      picture: 'https://photo.url',
+    });
+
+    prisma.usuario.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 2,
+        email: 'recuperable@gmail.com',
+        googleId: 'google-sub-recuperable',
+        estado: 'INACTIVO',
+        rol: 'PERSONAL',
+        nombre: 'Juan',
+        apellido: 'Perez',
+      } as any);
+
+    contextoService.obtenerContexto.mockReturnValue({ negocioId: 1 } as any);
+    rolesService.perfilOperativo.mockResolvedValue({
+      roles: ['BARBERO'],
+      permisos: [],
+      negocioId: 1,
+      negocioNombre: 'Kyrios',
+      negocioSlug: 'kyrios',
+    } as any);
+
+    sesionService.emitirParaNegocio.mockReturnValue({
+      accessToken: 'jwt-token',
+      usuario: { id: 2, roles: ['BARBERO'] },
+    } as any);
+
+    const res = await service.loginConGoogle('valid-token');
+
+    expect(prisma.usuario.update).toHaveBeenCalledWith({
+      where: { id: 2 },
+      data: { estado: 'ACTIVO' },
+    });
+    expect(res.accessToken).toBe('jwt-token');
+  });
+
   it('NO emite sesión de plataforma: un Usuario.rol SUPERADMIN sin membresía es rechazado', async () => {
     googleTokenVerifier.verificar.mockResolvedValue({
       email: 'admin@gmail.com',

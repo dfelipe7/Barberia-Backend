@@ -254,6 +254,29 @@ describe('AdministradoresService', () => {
       );
     });
 
+    it('no debe bloquear la cuenta global al desactivar admin si tiene membresía activa en otra sede', async () => {
+      const mockUser = {
+        id: 1,
+        rol: 'PERSONAL',
+        administradores: [
+          { estado: 'ACTIVO', negocioId: 1 },
+          { estado: 'ACTIVO', negocioId: 2 },
+        ],
+        barberos: [],
+      };
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue(mockUser as any);
+      administradoresRepository.actualizarEstadoAdministrador.mockResolvedValue(
+        {} as any,
+      );
+
+      await service.cambiarEstadoAdministrador(1, 'INACTIVO');
+
+      expect(
+        administradoresRepository.actualizarEstadoAdministrador,
+      ).toHaveBeenCalledWith(1, 'INACTIVO');
+      expect(usuariosRepository.actualizarEstadoUsuario).not.toHaveBeenCalled();
+    });
+
     it('debe lanzar error si la inactivación falla en el repository', async () => {
       usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({
         id: 1,
