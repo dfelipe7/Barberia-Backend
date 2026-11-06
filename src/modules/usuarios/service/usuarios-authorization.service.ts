@@ -136,6 +136,16 @@ export class UsuariosAuthorizationService {
       return;
     }
 
+    // Inmunidad entre pares: el perfil de un SUPERADMIN es de solo lectura
+    // para cualquier otra persona (incluido otro SUPERADMIN). Sus datos
+    // personales viven en la identidad GLOBAL (`Usuario`), compartida entre
+    // barberías, por lo que solo él mismo puede modificarlos.
+    if (this.esSuperAdmin(usuarioObjetivo, actor.negocioId)) {
+      throw new ForbiddenException(
+        'El perfil de un Superadministrador solo puede ser editado por él mismo',
+      );
+    }
+
     // El SUPERADMIN tiene autorización completa DENTRO de su barbería.
     if (this.esSuperAdminDelNegocio(actor, usuarioObjetivo)) {
       return;
@@ -320,6 +330,18 @@ export class UsuariosAuthorizationService {
     ) {
       throw new ForbiddenException(
         'Un administrador no puede modificar la comisión de un superadmin',
+      );
+    }
+
+    // Inmunidad entre pares: un SUPERADMIN no modifica la comisión de OTRO
+    // SUPERADMIN. La suya propia sí puede gestionarla.
+    if (
+      esSuperAdmin &&
+      actor.id !== usuarioObjetivo.id &&
+      this.esSuperAdmin(usuarioObjetivo, actor.negocioId)
+    ) {
+      throw new ForbiddenException(
+        'Un Superadministrador no puede modificar la comisión de otro Superadministrador',
       );
     }
 

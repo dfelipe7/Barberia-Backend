@@ -348,9 +348,18 @@ export class AdministradoresService {
         'INACTIVO',
       );
 
+      const negocioId = this.aislamiento.negocioIdRequerido();
       const esBarberoActivo =
         this.perfilBarberoEnNegocio(usuario)?.estado === 'ACTIVO';
-      if (!esBarberoActivo) {
+      const tieneOtraMembresiaActiva =
+        (usuario.administradores ?? []).some(
+          (a) => a.negocioId !== negocioId && a.estado === 'ACTIVO',
+        ) ||
+        (usuario.barberos ?? []).some(
+          (b) => b.negocioId !== negocioId && b.estado === 'ACTIVO',
+        );
+
+      if (!esBarberoActivo && !tieneOtraMembresiaActiva) {
         await this.usuariosRepository.actualizarEstadoUsuario(
           usuario.id,
           'INACTIVO',

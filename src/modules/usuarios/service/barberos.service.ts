@@ -581,13 +581,23 @@ export class BarberosService {
     if (!activo) {
       // El carácter SUPERADMIN es de la MEMBRESÍA de este negocio, no del
       // `Usuario.rol` global.
+      const negocioId = this.aislamiento.negocioIdRequerido();
       const perfilAdmin = this.perfilAdministradorEnNegocio(usuario) as {
         estado?: string;
         superadmin?: boolean;
       } | null;
       const esAdminActivo = perfilAdmin?.estado === EstadoUsuario.ACTIVO;
       const esSuperAdmin = perfilAdmin?.superadmin === true;
-      if (!esSuperAdmin && !esAdminActivo) {
+
+      const tieneOtraMembresiaActiva =
+        (usuario.administradores ?? []).some(
+          (a) => a.negocioId !== negocioId && a.estado === EstadoUsuario.ACTIVO,
+        ) ||
+        (usuario.barberos ?? []).some(
+          (b) => b.negocioId !== negocioId && b.estado === EstadoUsuario.ACTIVO,
+        );
+
+      if (!esSuperAdmin && !esAdminActivo && !tieneOtraMembresiaActiva) {
         await this.usuariosRepository.actualizarEstadoUsuario(
           usuarioId,
           EstadoUsuario.INACTIVO,
