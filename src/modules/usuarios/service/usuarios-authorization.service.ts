@@ -152,12 +152,6 @@ export class UsuariosAuthorizationService {
     }
 
     if (actor.roles.includes(ROL_ADMINISTRADOR)) {
-      if (this.esSuperAdmin(usuarioObjetivo, actor.negocioId)) {
-        throw new ForbiddenException(
-          'Un administrador no puede editar a un superadmin',
-        );
-      }
-
       // Un administrador nunca puede editar a otro administrador de su barbería
       if (this.esAdminDelNegocio(usuarioObjetivo, actor.negocioId)) {
         throw new ForbiddenException(
@@ -323,25 +317,16 @@ export class UsuariosAuthorizationService {
       );
     }
 
+    // Inmunidad: Nadie (ni un Administrador ni otro Superadministrador) puede
+    // modificar la comisión de un Superadministrador salvo él mismo.
     if (
-      esAdmin &&
-      !esSuperAdmin &&
-      this.esSuperAdmin(usuarioObjetivo, actor.negocioId)
+      this.esSuperAdmin(usuarioObjetivo, actor.negocioId) &&
+      actor.id !== usuarioObjetivo.id
     ) {
       throw new ForbiddenException(
-        'Un administrador no puede modificar la comisión de un superadmin',
-      );
-    }
-
-    // Inmunidad entre pares: un SUPERADMIN no modifica la comisión de OTRO
-    // SUPERADMIN. La suya propia sí puede gestionarla.
-    if (
-      esSuperAdmin &&
-      actor.id !== usuarioObjetivo.id &&
-      this.esSuperAdmin(usuarioObjetivo, actor.negocioId)
-    ) {
-      throw new ForbiddenException(
-        'Un Superadministrador no puede modificar la comisión de otro Superadministrador',
+        esSuperAdmin
+          ? 'Un Superadministrador no puede modificar la comisión de otro Superadministrador'
+          : 'Un administrador no puede modificar la comisión de un superadmin',
       );
     }
 

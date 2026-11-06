@@ -11,6 +11,7 @@ import { FiltroAdministradoresDto } from '../dto/dto-peticion/filtro-administrad
 import { AdministradorResponseDto } from '../dto/dto-respuesta/administrador-response.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
+import { tieneMembresiasActivasEnOtrasSedes } from './usuario-membresias.helper';
 
 /** Tipo del usuario con relaciones de administradores y barberos cargadas */
 type UsuarioConRelaciones = {
@@ -351,13 +352,10 @@ export class AdministradoresService {
       const negocioId = this.aislamiento.negocioIdRequerido();
       const esBarberoActivo =
         this.perfilBarberoEnNegocio(usuario)?.estado === 'ACTIVO';
-      const tieneOtraMembresiaActiva =
-        (usuario.administradores ?? []).some(
-          (a) => a.negocioId !== negocioId && a.estado === 'ACTIVO',
-        ) ||
-        (usuario.barberos ?? []).some(
-          (b) => b.negocioId !== negocioId && b.estado === 'ACTIVO',
-        );
+      const tieneOtraMembresiaActiva = tieneMembresiasActivasEnOtrasSedes(
+        usuario,
+        negocioId,
+      );
 
       if (!esBarberoActivo && !tieneOtraMembresiaActiva) {
         await this.usuariosRepository.actualizarEstadoUsuario(

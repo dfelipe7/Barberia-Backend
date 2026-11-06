@@ -625,6 +625,32 @@ describe('UsuariosService', () => {
       );
     });
 
+    it('reactiva la cuenta global si se activa un rol y el estado global del usuario estaba INACTIVO', async () => {
+      const target = {
+        id: 2,
+        estado: 'INACTIVO',
+        administradores: [{ negocioId: 10, estado: 'INACTIVO' }],
+      };
+      prepararLlamada(target);
+
+      await service.cambiarEstadoUsuario(
+        2,
+        {
+          estado: 'ACTIVO',
+          tipo: TipoMembresiaEstado.ADMINISTRADOR,
+        },
+        sesionSuperadmin,
+      );
+
+      expect(
+        administradoresRepository.actualizarEstadoAdministrador,
+      ).toHaveBeenCalledWith(2, 'ACTIVO');
+      expect(usuariosRepository.actualizarEstadoUsuario).toHaveBeenCalledWith(
+        2,
+        'ACTIVO',
+      );
+    });
+
     it('responde 409 si la membresía pedida no existe en el negocio', async () => {
       const target = { id: 2, administradores: [] };
       prepararLlamada(target);

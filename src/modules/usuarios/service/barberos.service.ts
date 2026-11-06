@@ -18,6 +18,7 @@ import {
   ClaimsSesionPersonal,
 } from '../../../auth/sesion/sesion-personal';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
+import { tieneMembresiasActivasEnOtrasSedes } from './usuario-membresias.helper';
 
 /** Tipo del usuario con relaciones de barberos y administradores cargadas */
 type UsuarioConRelaciones = {
@@ -589,13 +590,10 @@ export class BarberosService {
       const esAdminActivo = perfilAdmin?.estado === EstadoUsuario.ACTIVO;
       const esSuperAdmin = perfilAdmin?.superadmin === true;
 
-      const tieneOtraMembresiaActiva =
-        (usuario.administradores ?? []).some(
-          (a) => a.negocioId !== negocioId && a.estado === EstadoUsuario.ACTIVO,
-        ) ||
-        (usuario.barberos ?? []).some(
-          (b) => b.negocioId !== negocioId && b.estado === EstadoUsuario.ACTIVO,
-        );
+      const tieneOtraMembresiaActiva = tieneMembresiasActivasEnOtrasSedes(
+        usuario,
+        negocioId,
+      );
 
       if (!esSuperAdmin && !esAdminActivo && !tieneOtraMembresiaActiva) {
         await this.usuariosRepository.actualizarEstadoUsuario(
