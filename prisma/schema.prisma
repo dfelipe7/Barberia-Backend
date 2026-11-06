@@ -73,6 +73,7 @@ model Negocio {
   barberos           Barbero[]
   clientes           Cliente[]
   servicios          Servicio[]
+  productos          Producto[]
   barberoServicios   BarberoServicio[]
   reservas           Reservation[]
   franjasSemanales   BarberWeeklySlot[]
@@ -346,6 +347,40 @@ model Servicio {
   /// Destino de las claves foráneas compuestas.
   @@unique([negocioId, id])
   @@index([negocioId])
+}
+
+enum EstadoProducto {
+  ACTIVO
+  INACTIVO
+}
+
+/// Producto del catálogo comercial de un negocio (HE-03).
+///
+/// `nombre` es ÚNICO POR NEGOCIO (decisión de negocio aprobada): dos barberías
+/// pueden tener un producto con el mismo nombre, pero una misma barbería no.
+/// El 409 por duplicado es la señal de reintento; no hay idempotencia por
+/// `Idempotency-Key`.
+///
+/// `imagenUrl` guarda una RUTA o URL de referencia, nunca bytes ni base64.
+/// `precio` es Decimal(10,2) y el servidor no confía en el valor calculado por
+/// el cliente. `estado` nace ACTIVO y lo fija el servidor.
+model Producto {
+  id            Int            @id @default(autoincrement())
+  nombre        String         @db.VarChar(100)
+  descripcion   String?        @db.Text
+  precio        Decimal        @db.Decimal(10, 2)
+  imagenUrl     String?        @db.VarChar(500)
+  estado        EstadoProducto @default(ACTIVO)
+  /// Negocio dueño del producto. OBLIGATORIO.
+  negocioId     Int
+  creadoEn      DateTime       @default(now())
+  actualizadoEn DateTime       @updatedAt
+
+  negocio Negocio @relation(fields: [negocioId], references: [id], onDelete: Restrict)
+
+  @@unique([negocioId, nombre])
+  @@index([negocioId])
+  @@map("productos")
 }
 
 // Tabla intermedia explícita para la relación muchos a muchos

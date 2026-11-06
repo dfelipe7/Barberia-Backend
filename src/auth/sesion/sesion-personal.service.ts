@@ -5,10 +5,7 @@ import { ROL_SUPERADMIN } from '../../modules/negocios/negocios.constants';
 import { NegociosRepository } from '../../modules/negocios/repository/negocios.repository';
 import { NegocioContextoService } from '../../modules/negocios/negocio-contexto.service';
 import { PersonalJwtService } from './personal-jwt.service';
-import {
-  ClaimsSesionPersonal,
-  SesionPersonal,
-} from './sesion-personal';
+import { ClaimsSesionPersonal, SesionPersonal } from './sesion-personal';
 
 /**
  * Emisión de las sesiones de personal: la que nace al iniciar sesión, la que

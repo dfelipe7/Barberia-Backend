@@ -30,7 +30,9 @@ describe('WhatsAppPlantillasRepository', () => {
       ],
     }).compile();
 
-    repository = module.get<WhatsAppPlantillasRepository>(WhatsAppPlantillasRepository);
+    repository = module.get<WhatsAppPlantillasRepository>(
+      WhatsAppPlantillasRepository,
+    );
     prisma = module.get(PrismaService);
   });
 
@@ -69,7 +71,12 @@ describe('WhatsAppPlantillasRepository', () => {
       expect(prisma.whatsAppPlantilla.upsert).toHaveBeenCalledWith({
         where: { claveGlobal: 'RECORDATORIO' },
         update: { mensaje: 'Texto global', activo: true },
-        create: { tipo: 'RECORDATORIO', mensaje: 'Texto global', activo: true, negocioId: null },
+        create: {
+          tipo: 'RECORDATORIO',
+          mensaje: 'Texto global',
+          activo: true,
+          negocioId: null,
+        },
       });
     });
 
@@ -78,19 +85,29 @@ describe('WhatsAppPlantillasRepository', () => {
       expect(prisma.whatsAppPlantilla.upsert).toHaveBeenCalledWith({
         where: { negocioId_tipo: { negocioId: 3, tipo: 'RECORDATORIO' } },
         update: { mensaje: 'Texto negocio 3', activo: true },
-        create: { tipo: 'RECORDATORIO', mensaje: 'Texto negocio 3', activo: true, negocioId: 3 },
+        create: {
+          tipo: 'RECORDATORIO',
+          mensaje: 'Texto negocio 3',
+          activo: true,
+          negocioId: 3,
+        },
       });
     });
   });
 
   describe('eliminarPlantillas', () => {
     it('elimina por tipos y negocioId retornando el conteo', async () => {
-      const count = await repository.eliminarPlantillas(1, ['CONFIRMACION_RESERVA', 'CANCELACION']);
+      const count = await repository.eliminarPlantillas(1, [
+        'CONFIRMACION_RESERVA',
+        'CANCELACION',
+      ]);
       expect(prisma.whatsAppPlantilla.deleteMany).toHaveBeenCalledWith({
-        where: { negocioId: 1, tipo: { in: ['CONFIRMACION_RESERVA', 'CANCELACION'] } },
+        where: {
+          negocioId: 1,
+          tipo: { in: ['CONFIRMACION_RESERVA', 'CANCELACION'] },
+        },
       });
       expect(count).toBe(2);
     });
   });
 });
-

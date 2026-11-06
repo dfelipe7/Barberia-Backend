@@ -32,6 +32,9 @@ export const CARPETA_NEGOCIOS = 'negocios';
 /** Subcarpeta, dentro del negocio, que guarda los recursos de marca. */
 export const CARPETA_PERFIL = 'perfil';
 
+/** Subcarpeta, dentro del negocio, que guarda las imágenes de productos. */
+export const CARPETA_PRODUCTOS = 'productos';
+
 /**
  * Directorio raíz de los archivos subidos.
  *
@@ -73,27 +76,56 @@ export function directorioPerfilNegocio(
   return join(directorioNegocio(negocioId, entorno), CARPETA_PERFIL);
 }
 
-/**
- * Comprueba que una ruta ABSOLUTA de disco está dentro del directorio de
- * perfil del negocio indicado.
- *
- * Es la barrera contra el path traversal: un recurso solo se borra si el
- * fichero está realmente en el espacio del negocio. Se comparan las rutas
- * ya resueltas, no las cadenas.
- */
-export function estaDentroDelPerfil(
-  rutaAbsoluta: string,
+/** Directorio de las imágenes de productos de un negocio. */
+export function directorioProductosNegocio(
   negocioId: number,
   entorno?: Record<string, string | undefined>,
-): boolean {
-  const base = resolve(directorioPerfilNegocio(negocioId, entorno));
-  const relativa = relative(base, resolve(rutaAbsoluta));
+): string {
+  return join(directorioNegocio(negocioId, entorno), CARPETA_PRODUCTOS);
+}
+
+/**
+ * Comprueba que una ruta ABSOLUTA de disco está dentro de un directorio base.
+ *
+ * Es la barrera contra el path traversal: un recurso solo se borra si el
+ * fichero está realmente dentro del espacio esperado. Se comparan las rutas
+ * ya resueltas, no las cadenas.
+ */
+function estaDentroDe(rutaAbsoluta: string, base: string): boolean {
+  const relativa = relative(resolve(base), resolve(rutaAbsoluta));
 
   return (
     relativa !== '' &&
     !relativa.startsWith('..') &&
     !relativa.startsWith(`..${sep}`) &&
     !isAbsolute(relativa)
+  );
+}
+
+/**
+ * Comprueba que una ruta ABSOLUTA de disco está dentro del directorio de
+ * perfil del negocio indicado.
+ */
+export function estaDentroDelPerfil(
+  rutaAbsoluta: string,
+  negocioId: number,
+  entorno?: Record<string, string | undefined>,
+): boolean {
+  return estaDentroDe(
+    rutaAbsoluta,
+    directorioPerfilNegocio(negocioId, entorno),
+  );
+}
+
+/** Comprueba que una ruta ABSOLUTA está dentro de los productos del negocio. */
+export function estaDentroDeProductos(
+  rutaAbsoluta: string,
+  negocioId: number,
+  entorno?: Record<string, string | undefined>,
+): boolean {
+  return estaDentroDe(
+    rutaAbsoluta,
+    directorioProductosNegocio(negocioId, entorno),
   );
 }
 

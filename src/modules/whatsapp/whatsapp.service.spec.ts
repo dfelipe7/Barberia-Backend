@@ -96,9 +96,21 @@ describe('WhatsAppService', () => {
 
   describe('formatearNumeroAJid', () => {
     it.each([
-      ['números colombianos de 10 dígitos (3001234567) con prefijo 57', '3001234567', '573001234567@s.whatsapp.net'],
-      ['números con prefijo 57 ya incluido', '573001234567', '573001234567@s.whatsapp.net'],
-      ['caracteres especiales como guiones, espacios y paréntesis', '+57 (300) 123-4567', '573001234567@s.whatsapp.net'],
+      [
+        'números colombianos de 10 dígitos (3001234567) con prefijo 57',
+        '3001234567',
+        '573001234567@s.whatsapp.net',
+      ],
+      [
+        'números con prefijo 57 ya incluido',
+        '573001234567',
+        '573001234567@s.whatsapp.net',
+      ],
+      [
+        'caracteres especiales como guiones, espacios y paréntesis',
+        '+57 (300) 123-4567',
+        '573001234567@s.whatsapp.net',
+      ],
     ])('debe formatear a JID para %s', (_, entrada, esperado) => {
       expect(service.formatearNumeroAJid(entrada)).toBe(esperado);
     });
@@ -547,12 +559,16 @@ describe('WhatsAppService', () => {
       });
       expect(await service.obtenerMinutosAnticipacion()).toBe(120);
 
-      jest.spyOn(service as any, 'obtenerPlantillaGlobal').mockResolvedValue(null);
+      jest
+        .spyOn(service as any, 'obtenerPlantillaGlobal')
+        .mockResolvedValue(null);
       expect(await service.obtenerMinutosAnticipacion()).toBe(120);
     });
 
     it('onModuleDestroy destruye las sesiones activas', () => {
-      const destruirSpy = jest.spyOn(service as any, 'destruirSocket').mockImplementation(() => {});
+      const destruirSpy = jest
+        .spyOn(service as any, 'destruirSocket')
+        .mockImplementation(() => {});
       (service as any).sesiones.set(99, { id: 99 });
 
       service.onModuleDestroy();

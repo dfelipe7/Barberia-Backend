@@ -18,6 +18,7 @@ import { UsuariosModule } from './modules/usuarios/usuarios.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { BootstrapService } from './bootstrap/bootstrap.service';
 import { ServiciosModule } from './modules/servicios/servicios.module';
+import { ProductosModule } from './modules/productos/productos.module';
 import { HorariosModule } from './modules/horarios/horarios.module';
 import { ReservasModule } from './modules/reservas/reservas.module';
 import { ConfiguracionModule } from './modules/configuracion/configuracion.module';
@@ -67,6 +68,7 @@ import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
     ClientesAuthModule,
     UsuariosModule,
     ServiciosModule,
+    ProductosModule,
     HorariosModule,
     ReservasModule,
     WhatsAppModule,

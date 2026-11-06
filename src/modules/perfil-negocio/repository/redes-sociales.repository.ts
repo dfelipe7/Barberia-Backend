@@ -156,7 +156,10 @@ export class RedesSocialesRepository {
   /**
    * Eliminación física: borra definitivamente el registro de la BD.
    */
-  async eliminarFisico(negocioId: number, id: number): Promise<RedSocialRegistro> {
+  async eliminarFisico(
+    negocioId: number,
+    id: number,
+  ): Promise<RedSocialRegistro> {
     return this.prisma.redSocialNegocio.delete({
       where: { negocioId_id: { negocioId, id } },
       select: SELECCION_RED_SOCIAL,
