@@ -220,7 +220,9 @@ export class AdministradoresService {
       email: administrador.usuario.email ?? '',
       estado: administrador.usuario.estado, // Estado de la cuenta global
       estadoAdmin: administrador.estado, // Estado del rol de administrador
-      esBarbero: (administrador.usuario.barberos ?? []).length > 0,
+      esBarbero: (administrador.usuario.barberos ?? []).some(
+        (b) => b.estado === 'ACTIVO',
+      ),
       estadoBarbero: (administrador.usuario.barberos ?? [])[0]?.estado,
       esSuperAdmin: administrador.superadmin === true,
     }));
@@ -302,6 +304,13 @@ export class AdministradoresService {
         : await this.administradoresRepository.crearAdministrador({
             usuarioId: usuario.id,
           });
+
+      if (usuario.estado === 'INACTIVO') {
+        await this.usuariosRepository.actualizarEstadoUsuario(
+          usuario.id,
+          'ACTIVO',
+        );
+      }
 
       return {
         mensaje: 'Usuario promovido a Administrador exitosamente',

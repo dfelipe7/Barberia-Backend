@@ -593,6 +593,11 @@ export class BarberosService {
           EstadoUsuario.INACTIVO,
         );
       }
+    } else if (usuario.estado === EstadoUsuario.INACTIVO) {
+      await this.usuariosRepository.actualizarEstadoUsuario(
+        usuarioId,
+        EstadoUsuario.ACTIVO,
+      );
     }
 
     return this.barberosRepository.actualizarEstadoBarbero(

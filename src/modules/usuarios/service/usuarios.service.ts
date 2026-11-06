@@ -540,6 +540,16 @@ export class UsuariosService {
       );
     }
 
+    if (
+      dto.estado === EstadoUsuario.ACTIVO &&
+      usuario.estado === EstadoUsuario.INACTIVO
+    ) {
+      await this.usuariosRepository.actualizarEstadoUsuario(
+        usuarioId,
+        EstadoUsuario.ACTIVO,
+      );
+    }
+
     const usuarioGuardado =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
     return this.mapearUsuarioPerfil(
