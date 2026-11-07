@@ -5,6 +5,7 @@ import {
   directorioPerfilNegocio,
   directorioUploads,
   estaDentroDelPerfil,
+  resolverRutaPublicaUpload,
   UPLOADS_DIR_ENV,
 } from './uploads.config';
 
@@ -91,5 +92,27 @@ describe('configuración de uploads', () => {
 
   it('usa una raíz de ejemplo válida', () => {
     expect(path.isAbsolute(raiz)).toBe(true);
+  });
+
+  describe('resolverRutaPublicaUpload', () => {
+    it('resuelve la ruta relativa al negocio cuando destination apunta a una subcarpeta de negocio', () => {
+      const root = directorioUploads();
+      const mockArchivo = {
+        filename: 'barbero-123.jpg',
+        destination: path.join(root, 'negocios', '2', 'barberos'),
+      } as any;
+
+      const resultado = resolverRutaPublicaUpload(mockArchivo, 'barberos');
+      expect(resultado).toBe('/uploads/negocios/2/barberos/barbero-123.jpg');
+    });
+
+    it('usa la carpeta de fallback si destination no esta definida', () => {
+      const mockArchivo = {
+        filename: 'servicio-456.jpg',
+      } as any;
+
+      const resultado = resolverRutaPublicaUpload(mockArchivo, 'servicios');
+      expect(resultado).toBe('/uploads/servicios/servicio-456.jpg');
+    });
   });
 });

@@ -118,3 +118,22 @@ export function cabecerasSeguridadUploads(): Record<string, string> {
     'Cross-Origin-Resource-Policy': 'cross-origin',
   };
 }
+
+/**
+ * Resuelve la ruta pública relativa de un archivo subido a través de Multer.
+ * Si el archivo fue guardado dentro de una subcarpeta de negocio (ej. `/uploads/negocios/1/barberos/foto.jpg`),
+ * retorna esa ruta pública. Si fue guardado en la carpeta global histórica, retorna `/uploads/{carpeta}/{filename}`.
+ */
+export function resolverRutaPublicaUpload(
+  archivo: Express.Multer.File,
+  carpetaFallback: string,
+): string {
+  if (archivo.destination) {
+    const rootUploads = directorioUploads(process.env);
+    const rel = relative(rootUploads, archivo.destination).replace(/\\/g, '/');
+    if (rel && !rel.startsWith('..')) {
+      return `${PREFIJO_PUBLICO_UPLOADS}/${rel}/${archivo.filename}`;
+    }
+  }
+  return `${PREFIJO_PUBLICO_UPLOADS}/${carpetaFallback}/${archivo.filename}`;
+}

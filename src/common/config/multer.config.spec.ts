@@ -118,4 +118,18 @@ describe('MulterConfig', () => {
       expect.stringContaining('servicios'),
     );
   });
+
+  it('should isolate directory inside tenant folder when negocioId is present', () => {
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
+    const config = crearMulterOptions('barberos');
+    const mockCallback = jest.fn();
+
+    const mockReq = { negocioId: 5 };
+    (config.storage as any).getDestination(mockReq, null, mockCallback);
+
+    expect(mockCallback).toHaveBeenCalledWith(
+      null,
+      expect.stringMatching(/[\\/]negocios[\\/]5[\\/]barberos/),
+    );
+  });
 });
