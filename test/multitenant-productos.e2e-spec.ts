@@ -62,7 +62,14 @@ interface ProductoRegistrado {
     precio: number;
     imagenUrl: string | null;
     estado: string;
+    creadoEn?: string;
+    actualizadoEn?: string;
   };
+}
+
+interface ProductosListado {
+  mensaje?: string;
+  productos: ProductoRegistrado['producto'][];
 }
 
 function cuerpo<T>(respuesta: Response): T {
@@ -202,7 +209,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     return fs.existsSync(directorio) ? fs.readdirSync(directorio) : [];
   };
 
-  /** Crea los dos negocios, un administrador en cada uno y un barbero en A. */
+  /** Crea dos negocios, un administrador en cada uno, un SUPERADMIN en A y un barbero en A. */
   const sembrar = async () => {
     const negocioA = await prisma.negocio.upsert({
       where: { slug: SLUG_A },
@@ -229,6 +236,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
 
     const adminA = await crearUsuario('admin-a@test.local');
     const adminB = await crearUsuario('admin-b@test.local');
+    const superadminA = await crearUsuario('superadmin-a@test.local');
     const barberoA = await crearUsuario('barbero-a@test.local');
 
     for (const [negocio, usuario] of [
@@ -247,6 +255,21 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
         },
       });
     }
+
+    await prisma.administrador.upsert({
+      where: {
+        negocioId_usuarioId: {
+          negocioId: negocioA.id,
+          usuarioId: superadminA.id,
+        },
+      },
+      update: { superadmin: true },
+      create: {
+        usuarioId: superadminA.id,
+        negocioId: negocioA.id,
+        superadmin: true,
+      },
+    });
 
     await prisma.barbero.upsert({
       where: {
@@ -276,6 +299,27 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
 
     return { negocioA, negocioB };
   };
+
+  const crearProducto = (
+    negocioId: number,
+    datos: {
+      nombre: string;
+      descripcion?: string | null;
+      precio: number;
+      imagenUrl?: string | null;
+      estado?: 'ACTIVO' | 'INACTIVO';
+    },
+  ) =>
+    prisma.producto.create({
+      data: {
+        negocioId,
+        nombre: datos.nombre,
+        descripcion: datos.descripcion,
+        precio: datos.precio,
+        imagenUrl: datos.imagenUrl,
+        estado: datos.estado ?? 'ACTIVO',
+      },
+    });
 
   const login = async (
     email: string,
@@ -547,5 +591,250 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
       { contenido: PNG_VALIDO, nombre: 'producto.png', tipo: 'image/png' },
     );
     expect(sinToken.status).toBe(401);
+  });
+
+  it('[Visualización de productos] el listado devuelve nombre, descripción, precio, imagen y estado', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    await crearProducto(negocioA.id, {
+      nombre: 'Cera mate',
+      descripcion: 'Fijación fuerte',
+      precio: 35000.5,
+      imagenUrl: `/uploads/negocios/${negocioA.id}/productos/cera.png`,
+    });
+    const token = await login('admin-a@test.local', SLUG_A);
+
+    const respuesta = await request(app.getHttpServer())
+      .get('/productos')
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(respuesta.status).toBe(200);
+
+    const { productos } = cuerpo<ProductosListado>(respuesta);
+    expect(productos).toHaveLength(1);
+    expect(productos[0]).toMatchObject({
+      nombre: 'Cera mate',
+      descripcion: 'Fijación fuerte',
+      precio: 35000.5,
+      imagenUrl: `/uploads/negocios/${negocioA.id}/productos/cera.png`,
+      estado: 'ACTIVO',
+    });
+  });
+
+  it('[Identificación del estado] el listado distingue productos ACTIVO e INACTIVO', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    await crearProducto(negocioA.id, {
+      nombre: 'Activo',
+      precio: 10000,
+      estado: 'ACTIVO',
+    });
+    await crearProducto(negocioA.id, {
+      nombre: 'Inactivo',
+      precio: 12000,
+      estado: 'INACTIVO',
+    });
+    const token = await login('admin-a@test.local', SLUG_A);
+
+    const respuesta = await request(app.getHttpServer())
+      .get('/productos')
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(respuesta.status).toBe(200);
+
+    const { productos } = cuerpo<ProductosListado>(respuesta);
+    expect(productos.find((p) => p.nombre === 'Activo')?.estado).toBe('ACTIVO');
+    expect(productos.find((p) => p.nombre === 'Inactivo')?.estado).toBe(
+      'INACTIVO',
+    );
+  });
+
+  it('[Catálogo sin productos registrados] responde colección vacía y mensaje sin error de servidor', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    await sembrar();
+    const token = await login('admin-a@test.local', SLUG_A);
+
+    const respuesta = await request(app.getHttpServer())
+      .get('/productos')
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(respuesta.status).toBe(200);
+    expect(cuerpo<ProductosListado>(respuesta)).toEqual({
+      mensaje: 'No existen productos registrados',
+      productos: [],
+    });
+  });
+
+  it('[Consulta de información del producto] el detalle devuelve toda la información registrada', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera mate',
+      descripcion: 'Fijación fuerte',
+      precio: 35000.5,
+      imagenUrl: `/uploads/negocios/${negocioA.id}/productos/cera.png`,
+      estado: 'INACTIVO',
+    });
+    const token = await login('admin-a@test.local', SLUG_A);
+
+    const respuesta = await request(app.getHttpServer())
+      .get(`/productos/${producto.id}`)
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(respuesta.status).toBe(200);
+
+    const detalle = cuerpo<ProductoRegistrado['producto']>(respuesta);
+    expect(detalle).toMatchObject({
+      id: producto.id,
+      nombre: 'Cera mate',
+      descripcion: 'Fijación fuerte',
+      precio: 35000.5,
+      imagenUrl: `/uploads/negocios/${negocioA.id}/productos/cera.png`,
+      estado: 'INACTIVO',
+    });
+    expect(detalle.creadoEn).toBeDefined();
+    expect(detalle.actualizadoEn).toBeDefined();
+  });
+
+  it('[Aislamiento] ni el listado ni el detalle revelan productos de otro tenant', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA, negocioB } = await sembrar();
+    await crearProducto(negocioA.id, { nombre: 'Propio', precio: 10000 });
+    const ajeno = await crearProducto(negocioB.id, {
+      nombre: 'Ajeno',
+      precio: 20000,
+    });
+    const tokenA = await login('admin-a@test.local', SLUG_A);
+
+    const listado = await request(app.getHttpServer())
+      .get('/productos')
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(listado.status).toBe(200);
+    const { productos } = cuerpo<ProductosListado>(listado);
+    expect(productos.map((p) => p.nombre)).toEqual(['Propio']);
+
+    const detalleAjeno = await request(app.getHttpServer())
+      .get(`/productos/${ajeno.id}`)
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    const detalleInexistente = await request(app.getHttpServer())
+      .get('/productos/999999')
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(detalleAjeno.status).toBe(detalleInexistente.status);
+    expect(detalleAjeno.status).toBe(404);
+    expect(cuerpo<{ message: string }>(detalleAjeno).message).toBe(
+      cuerpo<{ message: string }>(detalleInexistente).message,
+    );
+  });
+
+  it('[Validación] el detalle rechaza identificadores no positivos o no numéricos', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    await sembrar();
+    const token = await login('admin-a@test.local', SLUG_A);
+
+    const cero = await request(app.getHttpServer())
+      .get('/productos/0')
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`);
+
+    const texto = await request(app.getHttpServer())
+      .get('/productos/abc')
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(cero.status).toBe(400);
+    expect(texto.status).toBe(400);
+  });
+
+  it('[SUPERADMIN] el superadministrador de la barbería consulta su catálogo y no accede a otro tenant', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA, negocioB } = await sembrar();
+    const propio = await crearProducto(negocioA.id, {
+      nombre: 'Propio',
+      precio: 10000,
+    });
+    const ajeno = await crearProducto(negocioB.id, {
+      nombre: 'Ajeno',
+      precio: 20000,
+    });
+    const token = await login('superadmin-a@test.local', SLUG_A);
+
+    const listadoA = await request(app.getHttpServer())
+      .get('/productos')
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`);
+
+    const detallePropio = await request(app.getHttpServer())
+      .get(`/productos/${propio.id}`)
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`);
+
+    const detalleAjeno = await request(app.getHttpServer())
+      .get(`/productos/${ajeno.id}`)
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`);
+
+    const listadoB = await request(app.getHttpServer())
+      .get('/productos')
+      .set('X-Negocio-Slug', SLUG_B)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(listadoA.status).toBe(200);
+    expect(
+      cuerpo<ProductosListado>(listadoA).productos.map((p) => p.nombre),
+    ).toEqual(['Propio']);
+    expect(detallePropio.status).toBe(200);
+    expect(detalleAjeno.status).toBe(404);
+    expect(listadoB.status).toBe(403);
+  });
+
+  it('[Permisos] el listado y el detalle exigen rol administrativo y token', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      precio: 10000,
+    });
+    const tokenBarbero = await login('barbero-a@test.local', SLUG_A);
+
+    const listadoBarbero = await request(app.getHttpServer())
+      .get('/productos')
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${tokenBarbero}`);
+
+    const detalleBarbero = await request(app.getHttpServer())
+      .get(`/productos/${producto.id}`)
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${tokenBarbero}`);
+
+    const listadoSinToken = await request(app.getHttpServer())
+      .get('/productos')
+      .set('X-Negocio-Slug', SLUG_A);
+
+    const detalleSinToken = await request(app.getHttpServer())
+      .get(`/productos/${producto.id}`)
+      .set('X-Negocio-Slug', SLUG_A);
+
+    expect(listadoBarbero.status).toBe(403);
+    expect(detalleBarbero.status).toBe(403);
+    expect(listadoSinToken.status).toBe(401);
+    expect(detalleSinToken.status).toBe(401);
   });
 });

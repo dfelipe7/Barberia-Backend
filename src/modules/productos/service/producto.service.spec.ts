@@ -1,4 +1,8 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ProductoService } from './producto.service';
 import { ProductoRepository } from '../repository/producto.repository';
 
@@ -26,6 +30,8 @@ function archivo(contenido: Buffer): Express.Multer.File {
 describe('ProductoService', () => {
   const repository = {
     buscarPorNombre: jest.fn(),
+    listar: jest.fn(),
+    obtenerPorId: jest.fn(),
   };
   const service = new ProductoService(
     repository as unknown as ProductoRepository,
@@ -136,6 +142,68 @@ describe('ProductoService', () => {
 
       expect(() => service.validarImagen(archivo(grande))).toThrow(
         BadRequestException,
+      );
+    });
+  });
+
+  describe('consultas administrativas', () => {
+    const activo = {
+      id: 1,
+      nombre: 'Cera',
+      descripcion: 'Mate',
+      precio: 35000.5,
+      imagenUrl: '/uploads/negocios/7/productos/cera.png',
+      estado: 'ACTIVO',
+      creadoEn: new Date('2026-11-04T12:00:00Z'),
+      actualizadoEn: new Date('2026-11-04T12:00:00Z'),
+    };
+    const inactivo = {
+      ...activo,
+      id: 2,
+      nombre: 'Aceite',
+      descripcion: null,
+      imagenUrl: null,
+      estado: 'INACTIVO',
+    };
+
+    it('lista activos e inactivos y los mapea', async () => {
+      repository.listar.mockResolvedValue([activo, inactivo]);
+
+      await expect(service.listar()).resolves.toEqual({
+        productos: [
+          expect.objectContaining({ id: 1, estado: 'ACTIVO' }),
+          expect.objectContaining({ id: 2, estado: 'INACTIVO' }),
+        ],
+      });
+    });
+
+    it('devuelve colección vacía y mensaje cuando no hay productos', async () => {
+      repository.listar.mockResolvedValue([]);
+
+      await expect(service.listar()).resolves.toEqual({
+        mensaje: 'No existen productos registrados',
+        productos: [],
+      });
+    });
+
+    it('devuelve el detalle completo del producto', async () => {
+      repository.obtenerPorId.mockResolvedValue(activo);
+
+      await expect(service.obtenerPorId(1)).resolves.toMatchObject({
+        id: 1,
+        nombre: 'Cera',
+        descripcion: 'Mate',
+        precio: 35000.5,
+        imagenUrl: '/uploads/negocios/7/productos/cera.png',
+        estado: 'ACTIVO',
+      });
+    });
+
+    it('oculta como 404 un producto inexistente o de otro negocio', async () => {
+      repository.obtenerPorId.mockResolvedValue(null);
+
+      await expect(service.obtenerPorId(99)).rejects.toBeInstanceOf(
+        NotFoundException,
       );
     });
   });

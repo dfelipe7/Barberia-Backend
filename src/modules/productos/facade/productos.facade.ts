@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import { CrearProductoDto } from '../dto/dto-peticion/crear-producto.dto';
-import { ProductoRegistradoResponseDto } from '../dto/dto-respuesta/producto-response.dto';
+import {
+  ProductoRegistradoResponseDto,
+  ProductoResponseDto,
+  ProductosListadoResponseDto,
+} from '../dto/dto-respuesta/producto-response.dto';
 import { ProductoRepository } from '../repository/producto.repository';
 import { AlmacenamientoProductosService } from '../service/almacenamiento-productos.service';
 import { ProductoService } from '../service/producto.service';
@@ -18,6 +22,16 @@ export class ProductosFacade {
     private readonly repository: ProductoRepository,
     private readonly aislamiento: NegocioAislamientoService,
   ) {}
+
+  async listar(): Promise<ProductosListadoResponseDto> {
+    this.aislamiento.negocioIdRequerido();
+    return this.productoService.listar();
+  }
+
+  async obtenerPorId(id: number): Promise<ProductoResponseDto> {
+    this.aislamiento.negocioIdRequerido();
+    return this.productoService.obtenerPorId(id);
+  }
 
   async registrar(
     dto: CrearProductoDto,

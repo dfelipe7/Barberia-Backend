@@ -1,8 +1,12 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseIntPipe,
   Post,
   UploadedFile,
   UseGuards,
@@ -13,7 +17,10 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiNotFoundResponse,
+  ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -23,7 +30,11 @@ import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { CrearProductoDto } from '../dto/dto-peticion/crear-producto.dto';
-import { ProductoRegistradoResponseDto } from '../dto/dto-respuesta/producto-response.dto';
+import {
+  ProductoRegistradoResponseDto,
+  ProductoResponseDto,
+  ProductosListadoResponseDto,
+} from '../dto/dto-respuesta/producto-response.dto';
 import { ProductosFacade } from '../facade/productos.facade';
 import {
   LIMITE_BYTES_IMAGEN_PRODUCTO,
@@ -37,6 +48,84 @@ import {
 @Controller('productos')
 export class ProductosController {
   constructor(private readonly facade: ProductosFacade) {}
+
+  /**
+   * GET /productos
+   * Listado administrativo del negocio activo. Incluye activos e inactivos y
+   * responde una colección vacía con mensaje cuando no hay productos.
+   */
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiNegocioHeader()
+  @ApiOperation({
+    summary: 'Consultar los productos registrados (SUPERADMIN / ADMINISTRADOR)',
+    description:
+      'Devuelve los productos del negocio del contexto, activos e inactivos, ordenados por fecha de creación descendente. Si no hay productos, responde 200 con `productos: []` y el mensaje "No existen productos registrados".',
+  })
+  @ApiOkResponse({
+    description: 'Listado de productos del negocio',
+    type: ProductosListadoResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
+  @ApiResponse({
+    status: 403,
+    description: 'No autorizado o negocio sin contexto válido',
+  })
+  listar(): Promise<ProductosListadoResponseDto> {
+    return this.facade.listar();
+  }
+
+  /**
+   * GET /productos/:productoId
+   * Detalle administrativo del producto. Un producto de otro negocio responde
+   * igual que uno inexistente para no revelar su existencia.
+   */
+  @Get(':productoId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiNegocioHeader()
+  @ApiOperation({
+    summary: 'Consultar el detalle de un producto (SUPERADMIN / ADMINISTRADOR)',
+    description:
+      'Devuelve la información completa del producto dentro del negocio del contexto. Un producto inexistente o de otro negocio responde 404 con el mismo mensaje.',
+  })
+  @ApiParam({
+    name: 'productoId',
+    example: 1,
+    description: 'ID del producto',
+  })
+  @ApiOkResponse({
+    description: 'Detalle del producto',
+    type: ProductoResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'El identificador del producto no es un entero positivo',
+  })
+  @ApiNotFoundResponse({
+    description: 'El producto no se encuentra disponible',
+  })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
+  @ApiResponse({
+    status: 403,
+    description: 'No autorizado o negocio sin contexto válido',
+  })
+  obtenerPorId(
+    @Param('productoId', ParseIntPipe) productoId: number,
+  ): Promise<ProductoResponseDto> {
+    if (productoId <= 0) {
+      throw new BadRequestException(
+        'El identificador del producto debe ser un entero positivo',
+      );
+    }
+
+    return this.facade.obtenerPorId(productoId);
+  }
 
   /**
    * POST /productos

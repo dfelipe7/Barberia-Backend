@@ -9,6 +9,8 @@ describe('ProductosFacade', () => {
     validarRegistro: jest.fn(),
     validarImagen: jest.fn(),
     mapear: jest.fn(),
+    listar: jest.fn(),
+    obtenerPorId: jest.fn(),
   };
   const almacenamiento = {
     guardar: jest.fn(),
@@ -43,6 +45,28 @@ describe('ProductosFacade', () => {
     );
     repository.crear.mockResolvedValue(producto);
     productoService.mapear.mockReturnValue({ id: 1, nombre: 'Cera' });
+  });
+
+  it('lista los productos del contexto a través del servicio', async () => {
+    productoService.listar.mockResolvedValue({
+      mensaje: 'No existen productos registrados',
+      productos: [],
+    });
+
+    await expect(facade.listar()).resolves.toEqual({
+      mensaje: 'No existen productos registrados',
+      productos: [],
+    });
+    expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
+    expect(productoService.listar).toHaveBeenCalled();
+  });
+
+  it('delega el detalle en el servicio con el id recibido', async () => {
+    productoService.obtenerPorId.mockResolvedValue({ id: 1 });
+
+    await expect(facade.obtenerPorId(1)).resolves.toEqual({ id: 1 });
+    expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
+    expect(productoService.obtenerPorId).toHaveBeenCalledWith(1);
   });
 
   it('camino 1: con archivo × persistencia exitosa (guarda imagen y no compensa)', async () => {

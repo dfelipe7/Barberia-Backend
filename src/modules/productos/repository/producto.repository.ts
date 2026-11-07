@@ -19,6 +19,19 @@ export class ProductoRepository {
     });
   }
 
+  listar() {
+    return this.prisma.producto.findMany({
+      where: this.aislamiento.filtroLectura(),
+      orderBy: [{ creadoEn: 'desc' }, { id: 'desc' }],
+    });
+  }
+
+  obtenerPorId(id: number) {
+    return this.prisma.producto.findFirst({
+      where: this.aislamiento.filtroLectura({ id }),
+    });
+  }
+
   async crear(data: DatosProducto & { imagenUrl: string | null }) {
     try {
       return await this.prisma.producto.create({

@@ -8,6 +8,7 @@ describe('ProductoRepository', () => {
   const prisma = {
     producto: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
     },
   };
@@ -32,6 +33,29 @@ describe('ProductoRepository', () => {
     expect(aislamiento.filtroLectura).toHaveBeenCalledWith({ nombre: 'Cera' });
     expect(prisma.producto.findFirst).toHaveBeenCalledWith({
       where: { negocioId: 7, nombre: 'Cera' },
+    });
+  });
+
+  it('lista solo el negocio del contexto con orden estable', async () => {
+    prisma.producto.findMany.mockResolvedValue([]);
+
+    await repository.listar();
+
+    expect(aislamiento.filtroLectura).toHaveBeenCalledWith();
+    expect(prisma.producto.findMany).toHaveBeenCalledWith({
+      where: { negocioId: 7 },
+      orderBy: [{ creadoEn: 'desc' }, { id: 'desc' }],
+    });
+  });
+
+  it('obtiene el detalle filtrando por id y negocio en la misma consulta', async () => {
+    prisma.producto.findFirst.mockResolvedValue(null);
+
+    await repository.obtenerPorId(3);
+
+    expect(aislamiento.filtroLectura).toHaveBeenCalledWith({ id: 3 });
+    expect(prisma.producto.findFirst).toHaveBeenCalledWith({
+      where: { negocioId: 7, id: 3 },
     });
   });
 

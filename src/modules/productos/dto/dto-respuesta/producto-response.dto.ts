@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /** Producto tal como lo consume el panel administrativo. */
 export class ProductoResponseDto {
@@ -42,4 +42,17 @@ export class ProductoRegistradoResponseDto {
 
   @ApiProperty({ type: ProductoResponseDto })
   producto: ProductoResponseDto;
+}
+
+/** Listado administrativo: incluye productos activos e inactivos. */
+export class ProductosListadoResponseDto {
+  @ApiPropertyOptional({
+    example: 'No existen productos registrados',
+    description:
+      'Presente únicamente cuando el negocio no tiene productos registrados.',
+  })
+  mensaje?: string;
+
+  @ApiProperty({ type: [ProductoResponseDto] })
+  productos: ProductoResponseDto[];
 }

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import type { Producto } from '../../../../generated/prisma/client';
 import {
@@ -9,12 +10,17 @@ import {
   TipoArchivo,
 } from '../../../common/security/detectar-tipo-archivo';
 import { CrearProductoDto } from '../dto/dto-peticion/crear-producto.dto';
-import { ProductoResponseDto } from '../dto/dto-respuesta/producto-response.dto';
+import {
+  ProductoResponseDto,
+  ProductosListadoResponseDto,
+} from '../dto/dto-respuesta/producto-response.dto';
 import {
   FORMATOS_IMAGEN_PRODUCTO,
   LIMITE_BYTES_IMAGEN_PRODUCTO,
   MENSAJE_IMAGEN_INVALIDA,
   MENSAJE_NOMBRE_DUPLICADO,
+  MENSAJE_PRODUCTO_NO_DISPONIBLE,
+  MENSAJE_SIN_PRODUCTOS,
   PRECIO_MAXIMO_PRODUCTO,
   PRECIO_MINIMO_PRODUCTO,
 } from '../productos.constants';
@@ -105,6 +111,28 @@ export class ProductoService {
       contenido: archivo.buffer,
       extension: tipo === 'jpeg' ? 'jpg' : tipo,
     };
+  }
+
+  /** Listado administrativo: activos e inactivos del negocio activo. */
+  async listar(): Promise<ProductosListadoResponseDto> {
+    const productos = await this.repository.listar();
+
+    if (productos.length === 0) {
+      return { mensaje: MENSAJE_SIN_PRODUCTOS, productos: [] };
+    }
+
+    return { productos: productos.map((producto) => this.mapear(producto)) };
+  }
+
+  /** Detalle administrativo; un producto ajeno se comporta como inexistente. */
+  async obtenerPorId(id: number): Promise<ProductoResponseDto> {
+    const producto = await this.repository.obtenerPorId(id);
+
+    if (!producto) {
+      throw new NotFoundException(MENSAJE_PRODUCTO_NO_DISPONIBLE);
+    }
+
+    return this.mapear(producto);
   }
 
   mapear(producto: Producto): ProductoResponseDto {
