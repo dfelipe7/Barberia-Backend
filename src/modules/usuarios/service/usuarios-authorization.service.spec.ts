@@ -178,7 +178,36 @@ describe('UsuariosAuthorizationService', () => {
             superadmin: true,
           },
         }),
-      ).toThrow('Un administrador no puede editar a un superadmin');
+      ).toThrow('El perfil de un Superadministrador solo puede ser editado por él mismo');
+    });
+
+    it('SUPERADMIN NO puede editar a OTRO SUPERADMIN de su barbería (inmunidad entre pares)', () => {
+      expect(() =>
+        service.verificarPermisosEdicion(actor(1, ['SUPERADMIN']), {
+          id: 2,
+          rol: 'PERSONAL',
+          administrador: {
+            estado: 'ACTIVO',
+            negocioId: NEGOCIO,
+            superadmin: true,
+          },
+          barbero: { id: 9, negocioId: NEGOCIO },
+        }),
+      ).toThrow('El perfil de un Superadministrador solo puede ser editado por él mismo');
+    });
+
+    it('SUPERADMIN SÍ puede editar su propio perfil', () => {
+      expect(() =>
+        service.verificarPermisosEdicion(actor(1, ['SUPERADMIN']), {
+          id: 1,
+          rol: 'PERSONAL',
+          administrador: {
+            estado: 'ACTIVO',
+            negocioId: NEGOCIO,
+            superadmin: true,
+          },
+        }),
+      ).not.toThrow();
     });
 
     it('ADMINISTRADOR puede editar su propio perfil', () => {
@@ -545,6 +574,38 @@ describe('UsuariosAuthorizationService', () => {
       ).toThrow(
         'Un administrador no puede modificar la comisión de un superadmin',
       );
+    });
+
+    it('SUPERADMIN NO puede modificar la comisión de OTRO SUPERADMIN', () => {
+      expect(() =>
+        service.verificarPermisosComision(actor(1, ['SUPERADMIN']), {
+          id: 2,
+          rol: 'PERSONAL',
+          administrador: {
+            estado: 'ACTIVO',
+            negocioId: NEGOCIO,
+            superadmin: true,
+          },
+          barbero: { id: 9, negocioId: NEGOCIO },
+        }),
+      ).toThrow(
+        'Un Superadministrador no puede modificar la comisión de otro Superadministrador',
+      );
+    });
+
+    it('SUPERADMIN SÍ puede modificar su propia comisión', () => {
+      expect(() =>
+        service.verificarPermisosComision(actor(1, ['SUPERADMIN']), {
+          id: 1,
+          rol: 'PERSONAL',
+          administrador: {
+            estado: 'ACTIVO',
+            negocioId: NEGOCIO,
+            superadmin: true,
+          },
+          barbero: { id: 9, negocioId: NEGOCIO },
+        }),
+      ).not.toThrow();
     });
 
     it('BARBERO no puede modificar ninguna comisión', () => {

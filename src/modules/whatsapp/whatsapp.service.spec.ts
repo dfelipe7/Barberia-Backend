@@ -126,6 +126,15 @@ describe('WhatsAppService', () => {
       const status = service.getStatus();
       expect(status.conectado).toBe(false);
     });
+
+    it('hayAlgunaSesionConectada debe devolver false si no hay sesiones conectadas', () => {
+      expect(service.hayAlgunaSesionConectada()).toBe(false);
+    });
+
+    it('hayAlgunaSesionConectada debe devolver true si al menos una sesion esta conectada', () => {
+      (service as any).sesiones.set(1, { isConnected: true });
+      expect(service.hayAlgunaSesionConectada()).toBe(true);
+    });
   });
 
   describe('pausar e iniciar', () => {

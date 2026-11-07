@@ -3,6 +3,8 @@ import { diskStorage, memoryStorage } from 'multer';
 import { extname, join } from 'node:path';
 import * as fs from 'node:fs';
 import * as crypto from 'node:crypto';
+import { CARPETA_NEGOCIOS, directorioUploads } from './uploads.config';
+import { obtenerContextoNegocio } from '../../modules/negocios/negocio-almacenamiento';
 
 /**
  * Fábrica de configuración reutilizable para Multer.
@@ -13,6 +15,10 @@ import * as crypto from 'node:crypto';
  * Permite que los controladores actúen como capas delgadas (Thin Controllers) dedicadas solo
  * a la orquestación HTTP.
  *
+ * Aislamiento Multitenant:
+ * Si la petición se ejecuta dentro del contexto de una sede (AsyncLocalStorage o req),
+ * los archivos se alojan en su carpeta aislada: `<uploads>/negocios/{negocioId}/{carpetaDestino}/`.
+ *
  * @param carpetaDestino Subcarpeta dentro de /uploads/ (ej. 'servicios', 'barberos', 'productos')
  * @param prefijoArchivo Prefijo opcional para el nombre del archivo (ej. 'servicio', 'barbero')
  */
@@ -20,7 +26,6 @@ export const crearMulterOptions = (
   carpetaDestino: string,
   prefijoArchivo?: string,
 ) => {
-  const uploadPath = join(process.cwd(), 'uploads', carpetaDestino);
   const prefijo =
     prefijoArchivo ||
     (carpetaDestino.endsWith('s')
@@ -29,7 +34,18 @@ export const crearMulterOptions = (
 
   return {
     storage: diskStorage({
-      destination: (_req, _file, callback) => {
+      destination: (req, _file, callback) => {
+        const rootUploads = directorioUploads(process.env);
+        const contexto = obtenerContextoNegocio();
+        const negocioId =
+          contexto?.id ||
+          (req as any)?.negocioId ||
+          (req as any)?.negocio?.id;
+
+        const uploadPath = negocioId
+          ? join(rootUploads, CARPETA_NEGOCIOS, String(negocioId), carpetaDestino)
+          : join(rootUploads, carpetaDestino);
+
         // Crea automáticamente el directorio en disco si no existe
         if (!fs.existsSync(uploadPath)) {
           fs.mkdirSync(uploadPath, { recursive: true });

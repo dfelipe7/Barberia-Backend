@@ -11,6 +11,7 @@ import { FiltroAdministradoresDto } from '../dto/dto-peticion/filtro-administrad
 import { AdministradorResponseDto } from '../dto/dto-respuesta/administrador-response.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
+import { tieneMembresiasActivasEnOtrasSedes } from './usuario-membresias.helper';
 
 /** Tipo del usuario con relaciones de administradores y barberos cargadas */
 type UsuarioConRelaciones = {
@@ -220,7 +221,9 @@ export class AdministradoresService {
       email: administrador.usuario.email ?? '',
       estado: administrador.usuario.estado, // Estado de la cuenta global
       estadoAdmin: administrador.estado, // Estado del rol de administrador
-      esBarbero: (administrador.usuario.barberos ?? []).length > 0,
+      esBarbero: (administrador.usuario.barberos ?? []).some(
+        (b) => b.estado === 'ACTIVO',
+      ),
       estadoBarbero: (administrador.usuario.barberos ?? [])[0]?.estado,
       esSuperAdmin: administrador.superadmin === true,
     }));
@@ -303,6 +306,13 @@ export class AdministradoresService {
             usuarioId: usuario.id,
           });
 
+      if (usuario.estado === 'INACTIVO') {
+        await this.usuariosRepository.actualizarEstadoUsuario(
+          usuario.id,
+          'ACTIVO',
+        );
+      }
+
       return {
         mensaje: 'Usuario promovido a Administrador exitosamente',
         administrador,
@@ -339,9 +349,15 @@ export class AdministradoresService {
         'INACTIVO',
       );
 
+      const negocioId = this.aislamiento.negocioIdRequerido();
       const esBarberoActivo =
         this.perfilBarberoEnNegocio(usuario)?.estado === 'ACTIVO';
-      if (!esBarberoActivo) {
+      const tieneOtraMembresiaActiva = tieneMembresiasActivasEnOtrasSedes(
+        usuario,
+        negocioId,
+      );
+
+      if (!esBarberoActivo && !tieneOtraMembresiaActiva) {
         await this.usuariosRepository.actualizarEstadoUsuario(
           usuario.id,
           'INACTIVO',

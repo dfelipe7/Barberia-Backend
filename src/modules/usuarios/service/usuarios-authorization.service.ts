@@ -136,18 +136,22 @@ export class UsuariosAuthorizationService {
       return;
     }
 
+    // Inmunidad entre pares: el perfil de un SUPERADMIN es de solo lectura
+    // para cualquier otra persona (incluido otro SUPERADMIN). Sus datos
+    // personales viven en la identidad GLOBAL (`Usuario`), compartida entre
+    // barberías, por lo que solo él mismo puede modificarlos.
+    if (this.esSuperAdmin(usuarioObjetivo, actor.negocioId)) {
+      throw new ForbiddenException(
+        'El perfil de un Superadministrador solo puede ser editado por él mismo',
+      );
+    }
+
     // El SUPERADMIN tiene autorización completa DENTRO de su barbería.
     if (this.esSuperAdminDelNegocio(actor, usuarioObjetivo)) {
       return;
     }
 
     if (actor.roles.includes(ROL_ADMINISTRADOR)) {
-      if (this.esSuperAdmin(usuarioObjetivo, actor.negocioId)) {
-        throw new ForbiddenException(
-          'Un administrador no puede editar a un superadmin',
-        );
-      }
-
       // Un administrador nunca puede editar a otro administrador de su barbería
       if (this.esAdminDelNegocio(usuarioObjetivo, actor.negocioId)) {
         throw new ForbiddenException(
@@ -313,13 +317,16 @@ export class UsuariosAuthorizationService {
       );
     }
 
+    // Inmunidad: Nadie (ni un Administrador ni otro Superadministrador) puede
+    // modificar la comisión de un Superadministrador salvo él mismo.
     if (
-      esAdmin &&
-      !esSuperAdmin &&
-      this.esSuperAdmin(usuarioObjetivo, actor.negocioId)
+      this.esSuperAdmin(usuarioObjetivo, actor.negocioId) &&
+      actor.id !== usuarioObjetivo.id
     ) {
       throw new ForbiddenException(
-        'Un administrador no puede modificar la comisión de un superadmin',
+        esSuperAdmin
+          ? 'Un Superadministrador no puede modificar la comisión de otro Superadministrador'
+          : 'Un administrador no puede modificar la comisión de un superadmin',
       );
     }
 

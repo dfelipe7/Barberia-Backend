@@ -18,6 +18,8 @@ import {
   ClaimsSesionPersonal,
 } from '../../../auth/sesion/sesion-personal';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
+import { tieneMembresiasActivasEnOtrasSedes } from './usuario-membresias.helper';
+import { resolverRutaPublicaUpload } from '../../../common/config/uploads.config';
 
 /** Tipo del usuario con relaciones de barberos y administradores cargadas */
 type UsuarioConRelaciones = {
@@ -451,7 +453,7 @@ export class BarberosService {
       this.eliminarFotoAnterior(barbero.fotoUrl);
     }
 
-    const nuevaFotoUrl = `/uploads/barberos/${archivo.filename}`;
+    const nuevaFotoUrl = resolverRutaPublicaUpload(archivo, 'barberos');
     await this.barberosRepository.actualizarPerfilBarbero(usuarioId, {
       fotoUrl: nuevaFotoUrl,
     });
@@ -581,18 +583,30 @@ export class BarberosService {
     if (!activo) {
       // El carácter SUPERADMIN es de la MEMBRESÍA de este negocio, no del
       // `Usuario.rol` global.
+      const negocioId = this.aislamiento.negocioIdRequerido();
       const perfilAdmin = this.perfilAdministradorEnNegocio(usuario) as {
         estado?: string;
         superadmin?: boolean;
       } | null;
       const esAdminActivo = perfilAdmin?.estado === EstadoUsuario.ACTIVO;
       const esSuperAdmin = perfilAdmin?.superadmin === true;
-      if (!esSuperAdmin && !esAdminActivo) {
+
+      const tieneOtraMembresiaActiva = tieneMembresiasActivasEnOtrasSedes(
+        usuario,
+        negocioId,
+      );
+
+      if (!esSuperAdmin && !esAdminActivo && !tieneOtraMembresiaActiva) {
         await this.usuariosRepository.actualizarEstadoUsuario(
           usuarioId,
           EstadoUsuario.INACTIVO,
         );
       }
+    } else if (usuario.estado === EstadoUsuario.INACTIVO) {
+      await this.usuariosRepository.actualizarEstadoUsuario(
+        usuarioId,
+        EstadoUsuario.ACTIVO,
+      );
     }
 
     return this.barberosRepository.actualizarEstadoBarbero(

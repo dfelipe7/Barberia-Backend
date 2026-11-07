@@ -13,6 +13,7 @@ import { FiltroServiciosDto } from '../dto/dto-peticion/filtro-servicios.dto';
 import { ServicioResponseDto } from '../dto/dto-respuesta/servicio-response.dto';
 import { BarberoPorServicioDto } from '../dto/dto-respuesta/barbero-por-servicio.dto';
 import { ServiciosRepository } from '../repository/servicios.repository';
+import { resolverRutaPublicaUpload } from '../../../common/config/uploads.config';
 
 @Injectable()
 export class ServiciosService {
@@ -295,7 +296,7 @@ export class ServiciosService {
   async subirFotoServicio(id: number, archivo: Express.Multer.File) {
     const servicio = await this.obtenerServicioPorId(id);
 
-    if (servicio.fotoUrl?.startsWith('/uploads/servicios/')) {
+    if (servicio.fotoUrl?.startsWith('/uploads/')) {
       const rutaAnterior = join(process.cwd(), servicio.fotoUrl);
       if (fs.existsSync(rutaAnterior)) {
         try {
@@ -306,7 +307,7 @@ export class ServiciosService {
       }
     }
 
-    const nuevaFotoUrl = `/uploads/servicios/${archivo.filename}`;
+    const nuevaFotoUrl = resolverRutaPublicaUpload(archivo, 'servicios');
     const servicioActualizado =
       await this.serviciosRepository.actualizarServicio(id, {
         fotoUrl: nuevaFotoUrl,
@@ -325,7 +326,7 @@ export class ServiciosService {
   async eliminarFotoServicio(id: number) {
     const servicio = await this.obtenerServicioPorId(id);
 
-    if (servicio.fotoUrl?.startsWith('/uploads/servicios/')) {
+    if (servicio.fotoUrl?.startsWith('/uploads/')) {
       const ruta = join(process.cwd(), servicio.fotoUrl);
       if (fs.existsSync(ruta)) {
         try {
