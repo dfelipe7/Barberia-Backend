@@ -7,7 +7,6 @@ import { TipoRedSocial } from '../../../../generated/prisma/enums';
 describe('RedesSocialesRepository', () => {
   let repository: RedesSocialesRepository;
   let prisma: jest.Mocked<PrismaService>;
-  let aislamiento: jest.Mocked<NegocioAislamientoService>;
 
   const mockRed = {
     id: 1,
@@ -47,7 +46,6 @@ describe('RedesSocialesRepository', () => {
 
     repository = module.get<RedesSocialesRepository>(RedesSocialesRepository);
     prisma = module.get(PrismaService);
-    aislamiento = module.get(NegocioAislamientoService);
   });
 
   it('debe estar definido', () => {
@@ -120,7 +118,9 @@ describe('RedesSocialesRepository', () => {
 
   describe('actualizar', () => {
     it('actualiza los campos indicados', async () => {
-      await repository.actualizar(1, 10, { url: 'https://instagram.com/actualizado' });
+      await repository.actualizar(1, 10, {
+        url: 'https://instagram.com/actualizado',
+      });
       expect(prisma.redSocialNegocio.update).toHaveBeenCalledWith({
         where: { negocioId_id: { negocioId: 1, id: 10 } },
         data: { url: 'https://instagram.com/actualizado' },
@@ -163,7 +163,9 @@ describe('RedesSocialesRepository', () => {
 
   describe('existeOtraActivaConMismaClave', () => {
     it('devuelve true si encuentra otra red activa con la misma clave', async () => {
-      (prisma.redSocialNegocio.findFirst as jest.Mock).mockResolvedValue({ id: 20 });
+      (prisma.redSocialNegocio.findFirst as jest.Mock).mockResolvedValue({
+        id: 20,
+      });
       const res = await repository.existeOtraActivaConMismaClave(
         1,
         10,
@@ -185,4 +187,3 @@ describe('RedesSocialesRepository', () => {
     });
   });
 });
-

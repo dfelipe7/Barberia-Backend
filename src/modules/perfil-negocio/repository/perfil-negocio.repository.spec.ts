@@ -50,7 +50,9 @@ describe('PerfilNegocioRepository', () => {
 
   describe('buscarPorNegocio', () => {
     it('devuelve el perfil mapeado cuando existe', async () => {
-      (prisma.perfilNegocio.findUnique as jest.Mock).mockResolvedValue(mockDbPerfil);
+      (prisma.perfilNegocio.findUnique as jest.Mock).mockResolvedValue(
+        mockDbPerfil,
+      );
 
       const res = await repository.buscarPorNegocio(1);
       expect(prisma.perfilNegocio.findUnique).toHaveBeenCalledWith({
@@ -78,7 +80,11 @@ describe('PerfilNegocioRepository', () => {
         faviconUrl: '/nuevo-fav.svg',
       });
 
-      const res = await repository.guardarReferencia(1, 'faviconUrl', '/nuevo-fav.svg');
+      const res = await repository.guardarReferencia(
+        1,
+        'faviconUrl',
+        '/nuevo-fav.svg',
+      );
       expect(prisma.perfilNegocio.upsert).toHaveBeenCalledWith({
         where: { negocioId: 1 },
         update: { faviconUrl: '/nuevo-fav.svg' },
@@ -113,4 +119,3 @@ describe('PerfilNegocioRepository', () => {
     });
   });
 });
-

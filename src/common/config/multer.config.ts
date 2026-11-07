@@ -38,12 +38,15 @@ export const crearMulterOptions = (
         const rootUploads = directorioUploads(process.env);
         const contexto = obtenerContextoNegocio();
         const negocioId =
-          contexto?.id ||
-          (req as any)?.negocioId ||
-          (req as any)?.negocio?.id;
+          contexto?.id || (req as any)?.negocioId || (req as any)?.negocio?.id;
 
         const uploadPath = negocioId
-          ? join(rootUploads, CARPETA_NEGOCIOS, String(negocioId), carpetaDestino)
+          ? join(
+              rootUploads,
+              CARPETA_NEGOCIOS,
+              String(negocioId),
+              carpetaDestino,
+            )
           : join(rootUploads, carpetaDestino);
 
         // Crea automáticamente el directorio en disco si no existe

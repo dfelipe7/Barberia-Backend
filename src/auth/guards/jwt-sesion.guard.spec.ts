@@ -54,7 +54,9 @@ describe('JwtSesionGuard', () => {
       new UnauthorizedException('Expirado expreso'),
     );
     const { context } = mockContext({ authorization: 'Bearer token-exp' });
-    await expect(guard.canActivate(context)).rejects.toThrow('Expirado expreso');
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      'Expirado expreso',
+    );
   });
 
   it('transforma otros errores de verificar() en UnauthorizedException genérica', async () => {
@@ -71,7 +73,9 @@ describe('JwtSesionGuard', () => {
     } as any);
     const { context } = mockContext({ authorization: 'Bearer cliente-token' });
     await expect(guard.canActivate(context)).rejects.toThrow(
-      new UnauthorizedException('El token no corresponde a una sesión de personal'),
+      new UnauthorizedException(
+        'El token no corresponde a una sesión de personal',
+      ),
     );
   });
 
@@ -84,11 +88,12 @@ describe('JwtSesionGuard', () => {
     } as any;
     personalJwt.verificar.mockResolvedValue(validClaims);
 
-    const { context, request } = mockContext({ authorization: 'Bearer valid-jwt' });
+    const { context, request } = mockContext({
+      authorization: 'Bearer valid-jwt',
+    });
     const result = await guard.canActivate(context);
 
     expect(result).toBe(true);
     expect(request.user).toEqual(validClaims);
   });
 });
-

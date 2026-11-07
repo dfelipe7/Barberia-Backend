@@ -219,7 +219,10 @@ export class RedesSocialesService {
       );
     }
 
-    const eliminada = await this.redesRepository.eliminarFisico(contexto.id, id);
+    const eliminada = await this.redesRepository.eliminarFisico(
+      contexto.id,
+      id,
+    );
     return this.mapear(eliminada);
   }
 
