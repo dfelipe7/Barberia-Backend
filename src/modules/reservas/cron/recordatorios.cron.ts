@@ -59,9 +59,14 @@ export class RecordatoriosCron {
   @Cron(CronExpression.EVERY_10_MINUTES)
   async procesarRecordatorios(): Promise<void> {
     try {
-      const { conectado } = this.whatsappService.getStatus();
-      if (!conectado) {
-        // Si WhatsApp no está enlazado, se omite el ciclo sin generar errores.
+      const statusGlobal = this.whatsappService.getStatus();
+      const haySesionActiva = this.whatsappService.hayAlgunaSesionConectada
+        ? this.whatsappService.hayAlgunaSesionConectada()
+        : statusGlobal.conectado;
+
+      if (!statusGlobal.conectado && !haySesionActiva) {
+        // Si no hay ninguna sesión de WhatsApp vinculada en la plataforma,
+        // se omite el ciclo sin realizar consultas innecesarias a la BD.
         return;
       }
 
@@ -92,6 +97,16 @@ export class RecordatoriosCron {
 
       for (const negocio of activos) {
         try {
+          // Aislamiento multitenant: cada sede tiene su propio estado de conexión en WhatsApp.
+          // Si una sede no ha vinculado su dispositivo o está desconectada, se omite solo esa sede.
+          const { conectado } = this.whatsappService.getStatus(negocio.id);
+          if (!conectado) {
+            this.logger.log(
+              `[CRON RECORDATORIOS] Negocio ${negocio.slug} (id=${negocio.id}) tiene WhatsApp desconectado: omitiendo.`,
+            );
+            continue;
+          }
+
           // El contexto se establece AQUÍ y se mantiene durante TODAS las
           // esperas de este negocio: ninguna consulta ni escritura sale de su
           // ámbito, y el contexto de un negocio no se reutiliza para otro.
