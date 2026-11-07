@@ -576,6 +576,16 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Comprueba si hay al menos una sesión de WhatsApp conectada en cualquier sede.
+   */
+  hayAlgunaSesionConectada(): boolean {
+    for (const sesion of this.sesiones.values()) {
+      if (sesion.isConnected) return true;
+    }
+    return false;
+  }
+
+  /**
    * Reactiva el socket bajo demanda para vincular WhatsApp generando un código QR nuevo.
    */
   iniciar(negocioIdParam?: number): { mensaje: string } {

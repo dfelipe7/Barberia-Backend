@@ -19,6 +19,7 @@ import {
 } from '../../../auth/sesion/sesion-personal';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import { tieneMembresiasActivasEnOtrasSedes } from './usuario-membresias.helper';
+import { resolverRutaPublicaUpload } from '../../../common/config/uploads.config';
 
 /** Tipo del usuario con relaciones de barberos y administradores cargadas */
 type UsuarioConRelaciones = {
@@ -452,7 +453,7 @@ export class BarberosService {
       this.eliminarFotoAnterior(barbero.fotoUrl);
     }
 
-    const nuevaFotoUrl = `/uploads/barberos/${archivo.filename}`;
+    const nuevaFotoUrl = resolverRutaPublicaUpload(archivo, 'barberos');
     await this.barberosRepository.actualizarPerfilBarbero(usuarioId, {
       fotoUrl: nuevaFotoUrl,
     });

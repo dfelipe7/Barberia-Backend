@@ -92,6 +92,7 @@ describe('RecordatoriosCron (multitenant)', () => {
     .mockResolvedValue(true);
 
   const getStatus = jest.fn(() => ({ conectado: true }));
+  const hayAlgunaSesionConectada = jest.fn(() => true);
 
   const obtenerMinutosAnticipacion = jest
     .fn<Promise<number>, []>()
@@ -119,9 +120,20 @@ describe('RecordatoriosCron (multitenant)', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    getStatus.mockReset();
     getStatus.mockReturnValue({ conectado: true });
+    hayAlgunaSesionConectada.mockReset();
+    hayAlgunaSesionConectada.mockReturnValue(true);
     contextoActual = undefined;
     anticipacionPorNegocio = {};
+    obtenerCitasPendientesRecordatorio.mockImplementation(() => {
+      if (!contextoActual) {
+        return Promise.reject(
+          new Error('Consulta sin contexto de negocio: no debe ocurrir.'),
+        );
+      }
+      return Promise.resolve(citasPorNegocio[contextoActual.id] ?? []);
+    });
     citasPorNegocio = {
       [NEGOCIO_A.id]: [cita(101, '09:30'), cita(102, '15:00')],
       [NEGOCIO_B.id]: [cita(201, '10:00')],
@@ -141,6 +153,7 @@ describe('RecordatoriosCron (multitenant)', () => {
           provide: WhatsAppService,
           useValue: {
             getStatus,
+            hayAlgunaSesionConectada,
             obtenerMinutosAnticipacion,
             enviarRecordatorioReserva,
           },
@@ -165,6 +178,7 @@ describe('RecordatoriosCron (multitenant)', () => {
 
   it('no consulta nada si WhatsApp no está conectado', async () => {
     getStatus.mockReturnValue({ conectado: false });
+    hayAlgunaSesionConectada.mockReturnValue(false);
 
     await cron.procesarRecordatorios();
 
@@ -303,5 +317,18 @@ describe('RecordatoriosCron (multitenant)', () => {
 
     expect(enviarRecordatorioReserva).not.toHaveBeenCalled();
     expect(marcarRecordatorioEnviado).not.toHaveBeenCalled();
+  });
+
+  it('omite un negocio con WhatsApp desconectado sin detener los demas negocios', async () => {
+    getStatus.mockImplementation((negocioId?: number) => ({
+      conectado: negocioId === NEGOCIO_B.id,
+    }));
+
+    await cron.procesarRecordatorios();
+
+    // Negocio A estaba desconectado: no se debió enviar su recordatorio
+    expect(marcarRecordatorioEnviado).not.toHaveBeenCalledWith(101);
+    // Negocio B estaba conectado: su recordatorio sí se debió enviar
+    expect(marcarRecordatorioEnviado).toHaveBeenCalledWith(201);
   });
 });
