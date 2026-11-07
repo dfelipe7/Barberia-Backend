@@ -7,7 +7,6 @@ import { TipoRedSocial } from '../../../../generated/prisma/enums';
 describe('RedesSocialesRepository', () => {
   let repository: RedesSocialesRepository;
   let prisma: jest.Mocked<PrismaService>;
-  let aislamiento: jest.Mocked<NegocioAislamientoService>;
 
   const mockRed = {
     id: 1,
@@ -47,7 +46,6 @@ describe('RedesSocialesRepository', () => {
 
     repository = module.get<RedesSocialesRepository>(RedesSocialesRepository);
     prisma = module.get(PrismaService);
-    aislamiento = module.get(NegocioAislamientoService);
   });
 
   it('debe estar definido', () => {

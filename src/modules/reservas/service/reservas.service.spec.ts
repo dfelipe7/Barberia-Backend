@@ -285,6 +285,89 @@ describe('ReservasService', () => {
       );
     });
 
+    it('reintenta el envío de confirmación si el primer intento falla pero la sede tiene sesión', async () => {
+      (service as any).esperasReintentoWhatsAppMs = [0, 5, 5];
+      const whatsapp = {
+        enviarConfirmacionReserva: jest
+          .fn()
+          .mockResolvedValueOnce(false)
+          .mockResolvedValueOnce(true),
+        tieneSesionGuardada: jest.fn().mockReturnValue(true),
+      };
+      (
+        service as unknown as { whatsappService: typeof whatsapp }
+      ).whatsappService = whatsapp;
+
+      await service.crearReserva({
+        ...dtoBase,
+        nombre: 'Ana',
+        apellido: 'Pérez',
+        telefono: '3001234567',
+      });
+
+      await new Promise((resolver) => setTimeout(resolver, 30));
+
+      expect(whatsapp.enviarConfirmacionReserva).toHaveBeenCalledTimes(2);
+    });
+
+    it('omite reintentos si la sede no tiene sesión de WhatsApp configurada pero encola el mensaje', async () => {
+      (service as any).esperasReintentoWhatsAppMs = [0, 5, 5];
+      const whatsapp = {
+        enviarConfirmacionReserva: jest.fn().mockResolvedValue(false),
+        tieneSesionGuardada: jest.fn().mockReturnValue(false),
+        encolarMensaje: jest.fn(),
+      };
+      (
+        service as unknown as { whatsappService: typeof whatsapp }
+      ).whatsappService = whatsapp;
+
+      await service.crearReserva({
+        ...dtoBase,
+        nombre: 'Ana',
+        apellido: 'Pérez',
+        telefono: '3001234567',
+      });
+
+      await new Promise((resolver) => setTimeout(resolver, 30));
+
+      expect(whatsapp.enviarConfirmacionReserva).toHaveBeenCalledTimes(1);
+      expect(whatsapp.encolarMensaje).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tipo: 'CONFIRMACION',
+          telefono: '3001234567',
+        }),
+      );
+    });
+
+    it('encola el mensaje tras agotar todos los reintentos si la sede tiene sesion guardada', async () => {
+      (service as any).esperasReintentoWhatsAppMs = [0, 5, 5];
+      const whatsapp = {
+        enviarConfirmacionReserva: jest.fn().mockResolvedValue(false),
+        tieneSesionGuardada: jest.fn().mockReturnValue(true),
+        encolarMensaje: jest.fn(),
+      };
+      (
+        service as unknown as { whatsappService: typeof whatsapp }
+      ).whatsappService = whatsapp;
+
+      await service.crearReserva({
+        ...dtoBase,
+        nombre: 'Carlos',
+        apellido: 'Ruiz',
+        telefono: '3007776655',
+      });
+
+      await new Promise((resolver) => setTimeout(resolver, 40));
+
+      expect(whatsapp.enviarConfirmacionReserva).toHaveBeenCalledTimes(3);
+      expect(whatsapp.encolarMensaje).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tipo: 'CONFIRMACION',
+          telefono: '3007776655',
+        }),
+      );
+    });
+
     it('rechaza al invitado sin nombre o sin teléfono (400) y no consulta disponibilidad', async () => {
       await expect(
         service.crearReserva({ ...dtoBase, nombre: 'Ana' }),
@@ -294,6 +377,42 @@ describe('ReservasService', () => {
         disponibilidadService.calcularDisponibilidad,
       ).not.toHaveBeenCalled();
       expect(reservasRepository.crearConBloqueo).not.toHaveBeenCalled();
+    });
+
+    it('marca recordatorioEnviado = true si la cita se agenda dentro de la ventana de recordatorio', async () => {
+      fechaBogotaService.obtenerFechaBogota.mockReturnValue(FECHA);
+      fechaBogotaService.obtenerHoraBogota.mockReturnValue('13:00');
+
+      await service.crearReserva({
+        ...dtoBase,
+        nombre: 'Pedro',
+        telefono: '3009998877',
+      });
+
+      expect(reservasRepository.crearConBloqueo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recordatorioEnviado: true,
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('deja recordatorioEnviado = false si la cita se agenda con antelacion superior a la ventana', async () => {
+      fechaBogotaService.obtenerFechaBogota.mockReturnValue(FECHA);
+      fechaBogotaService.obtenerHoraBogota.mockReturnValue('08:00');
+
+      await service.crearReserva({
+        ...dtoBase,
+        nombre: 'Pedro',
+        telefono: '3009998877',
+      });
+
+      expect(reservasRepository.crearConBloqueo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recordatorioEnviado: false,
+        }),
+        expect.anything(),
+      );
     });
   });
 
@@ -1094,6 +1213,52 @@ describe('ReservasService', () => {
       );
     });
 
+    it('purga la cola y encola nuevo mensaje de reprogramacion si WhatsApp esta desconectado', async () => {
+      clientesRepository.obtenerPorId.mockResolvedValue({ id: 77, telefono: '3001234567' });
+      const whatsapp = {
+        cancelarMensajesPendientesDeReserva: jest.fn(),
+        enviarReprogramacionReserva: jest.fn().mockResolvedValue(false),
+        encolarMensaje: jest.fn(),
+      };
+      (service as any).whatsappService = whatsapp;
+
+      const reservaOriginal = crearReservaRelacion({
+        id: 42,
+        barberoId: 3,
+        status: ReservationStatus.PENDING,
+        precioReservado: 50000,
+      });
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(reservaOriginal);
+
+      const reservaActualizada = crearReservaRelacion({
+        id: 42,
+        barberoId: 5,
+        date: new Date('2026-11-03T00:00:00.000Z'),
+        startTime: '15:00',
+        endTime: '16:00',
+        precioReservado: 50000,
+        barbero: { id: 5, usuario: { nombre: 'Pedro', apellido: 'López' } },
+      });
+      reservasRepository.modificarConBloqueo.mockResolvedValue(reservaActualizada);
+
+      await service.modificarReserva(identidad, 42, {
+        fecha: '2026-11-03',
+        hora: '15:00',
+        barberoId: 5,
+      });
+
+      await new Promise((r) => setTimeout(r, 20));
+
+      expect(whatsapp.cancelarMensajesPendientesDeReserva).toHaveBeenCalledWith(42);
+      expect(whatsapp.enviarReprogramacionReserva).toHaveBeenCalled();
+      expect(whatsapp.encolarMensaje).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reservaId: 42,
+          tipo: 'REPROGRAMACION',
+        }),
+      );
+    });
+
     it('rechaza con BadRequestException si el cuerpo está vacío', async () => {
       await expect(
         service.modificarReserva(identidad, 42, {}),
@@ -1341,6 +1506,28 @@ describe('ReservasService', () => {
       expect(respuesta.id).toBe(42);
       expect(respuesta.estado).toBe(ReservationStatus.CANCELLED);
       expect(reservasRepository.cancelar).toHaveBeenCalledWith(42);
+    });
+
+    it('cancela y purga los mensajes pendientes en cola de WhatsApp', async () => {
+      const whatsapp = {
+        cancelarMensajesPendientesDeReserva: jest.fn(),
+        enviarCancelacionReserva: jest.fn().mockResolvedValue(true),
+      };
+      (service as any).whatsappService = whatsapp;
+
+      const reserva = crearReservaRelacion({
+        id: 42,
+        status: ReservationStatus.CONFIRMED,
+      });
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(reserva);
+      reservasRepository.cancelar.mockResolvedValue({
+        id: 42,
+        status: ReservationStatus.CANCELLED,
+      });
+
+      await service.cancelarReserva(identidad, 42);
+
+      expect(whatsapp.cancelarMensajesPendientesDeReserva).toHaveBeenCalledWith(42);
     });
 
     it('rechaza con NotFoundException si la reserva no pertenece al cliente o no existe', async () => {

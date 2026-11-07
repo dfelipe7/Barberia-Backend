@@ -57,4 +57,3 @@ describe('tieneMembresiasActivasEnOtrasSedes', () => {
     expect(tieneMembresiasActivasEnOtrasSedes(usuario, 1)).toBe(false);
   });
 });
-

@@ -97,6 +97,17 @@ export interface DatosConfirmacionWhatsApp {
   enlaceGestion?: string | null;
 }
 
+export interface MensajeColaWhatsApp {
+  reservaId: number;
+  negocioId: number;
+  tipo: 'CONFIRMACION' | 'REPROGRAMACION';
+  telefono: string;
+  payload: DatosConfirmacionWhatsApp;
+  creadoEn: number;
+  caducaEn: number;
+  horaInicioCitaMs: number;
+}
+
 /**
  * Enmascara un número telefónico o JID para proteger la privacidad en logs (Auditoría / OWASP).
  * Ejemplo: "3187594854" -> "318****854", "573187594854@s.whatsapp.net" -> "57318****854@s.whatsapp.net"
@@ -130,6 +141,7 @@ export interface SesionWhatsAppNegocio {
 export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WhatsAppService.name);
   private readonly sesiones = new Map<number, SesionWhatsAppNegocio>();
+  private readonly colasPendientes = new Map<number, MensajeColaWhatsApp[]>();
   private readonly baseSessionDir: string;
 
   constructor(
@@ -434,6 +446,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
           this.logger.log(
             `🟢 [Negocio ${sesion.negocioId}] CONEXIÓN ESTABLECIDA CON WHATSAPP WEB.`,
           );
+          void this.despacharColaPendiente(sesion.negocioId);
         }
 
         if (connection === 'close') {
@@ -594,6 +607,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
 
     sesion.enReposo = false;
     if (sesion.isConnected) {
+      void this.despacharColaPendiente(negocioId);
       return { mensaje: 'WhatsApp ya se encuentra conectado.' };
     }
     if (sesion.isConnecting) {
@@ -1219,5 +1233,140 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       return this.enviarMensaje(datos.telefono, mensaje, datos.negocioId);
     }
     return this.enviarMensaje(datos.telefono, mensaje);
+  }
+
+  /**
+   * Encola un mensaje en memoria para ser despachado automáticamente cuando WhatsApp reconecte.
+   * Si ya existía un mensaje encolado para esa misma reserva, lo reemplaza con los datos más recientes.
+   */
+  encolarMensaje(mensaje: MensajeColaWhatsApp): void {
+    const cola = this.colasPendientes.get(mensaje.negocioId) ?? [];
+    const filtrada = cola.filter((m) => m.reservaId !== mensaje.reservaId);
+    filtrada.push(mensaje);
+    this.colasPendientes.set(mensaje.negocioId, filtrada);
+    this.logger.log(
+      `[Negocio ${mensaje.negocioId}] Mensaje de ${mensaje.tipo} para reserva #${mensaje.reservaId} guardado en cola de espera (Total en cola: ${filtrada.length}).`,
+    );
+  }
+
+  /**
+   * Elimina cualquier mensaje en cola asociado a una reserva.
+   * Invocado al cancelar o reprogramar una cita para prevenir envíos de datos obsoletos.
+   */
+  cancelarMensajesPendientesDeReserva(
+    reservaId: number,
+    negocioIdParam?: number,
+  ): void {
+    const negocioId = this.resolverNegocioId(negocioIdParam);
+    const cola = this.colasPendientes.get(negocioId);
+    if (!cola || cola.length === 0) return;
+
+    const filtrada = cola.filter((m) => m.reservaId !== reservaId);
+    if (filtrada.length !== cola.length) {
+      this.colasPendientes.set(negocioId, filtrada);
+      this.logger.log(
+        `[Negocio ${negocioId}] Purgados mensajes pendientes de reserva #${reservaId} en cola de espera.`,
+      );
+    }
+  }
+
+  /**
+   * Despacha los mensajes encolados de una sede tras reconectarse el socket de WhatsApp.
+   * Aplica verificación Just-in-Time en BD, caducidad TTL y cadencia humana (1.5s).
+   */
+  async despacharColaPendiente(negocioId: number): Promise<void> {
+    const cola = this.colasPendientes.get(negocioId);
+    if (!cola || cola.length === 0) return;
+
+    this.logger.log(
+      `[Negocio ${negocioId}] Procesando cola de ${cola.length} mensaje(s) pendiente(s) tras reconexión...`,
+    );
+
+    this.colasPendientes.set(negocioId, []);
+    const ahora = Date.now();
+
+    await this.procesarMensajesSecuenciales(cola, 0, ahora);
+  }
+
+  private async procesarMensajesSecuenciales(
+    cola: MensajeColaWhatsApp[],
+    indice: number,
+    ahora: number,
+  ): Promise<void> {
+    if (indice >= cola.length) return;
+
+    const mensaje = cola[indice];
+    const debeEnviar = await this.esMensajeValidoParaDespachar(
+      mensaje,
+      ahora,
+    );
+
+    if (debeEnviar) {
+      await this.ejecutarEnvioCola(mensaje);
+      if (indice + 1 < cola.length) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    }
+
+    return this.procesarMensajesSecuenciales(cola, indice + 1, ahora);
+  }
+
+  private async esMensajeValidoParaDespachar(
+    mensaje: MensajeColaWhatsApp,
+    ahora: number,
+  ): Promise<boolean> {
+    if (ahora > mensaje.caducaEn) {
+      this.logger.warn(
+        `[Negocio ${mensaje.negocioId}] Descartando ${mensaje.tipo} reserva #${mensaje.reservaId}: expiró TTL de 60 min.`,
+      );
+      return false;
+    }
+
+    if (ahora >= mensaje.horaInicioCitaMs) {
+      this.logger.warn(
+        `[Negocio ${mensaje.negocioId}] Descartando ${mensaje.tipo} reserva #${mensaje.reservaId}: la hora de la cita ya inició o pasó.`,
+      );
+      return false;
+    }
+
+    try {
+      const reservaDb = await this.prisma.reservation.findUnique({
+        where: { id: mensaje.reservaId },
+        select: { status: true },
+      });
+
+      if (
+        !reservaDb ||
+        (reservaDb.status !== 'PENDING' && reservaDb.status !== 'CONFIRMED')
+      ) {
+        this.logger.log(
+          `[Negocio ${mensaje.negocioId}] Descartando ${mensaje.tipo} reserva #${mensaje.reservaId}: estado es '${reservaDb?.status ?? 'ELIMINADA'}'.`,
+        );
+        return false;
+      }
+    } catch (err: unknown) {
+      this.logger.warn(
+        `[Negocio ${mensaje.negocioId}] Error verificando reserva #${mensaje.reservaId}: ${(err as Error)?.message ?? String(err)}`,
+      );
+    }
+
+    return true;
+  }
+
+  private async ejecutarEnvioCola(mensaje: MensajeColaWhatsApp): Promise<void> {
+    try {
+      if (mensaje.tipo === 'CONFIRMACION') {
+        await this.enviarConfirmacionReserva(mensaje.payload);
+      } else {
+        await this.enviarReprogramacionReserva(mensaje.payload);
+      }
+      this.logger.log(
+        `[Negocio ${mensaje.negocioId}] Mensaje de ${mensaje.tipo} para reserva #${mensaje.reservaId} despachado exitosamente tras reconexión.`,
+      );
+    } catch (err: unknown) {
+      this.logger.warn(
+        `[Negocio ${mensaje.negocioId}] Fallo al despachar ${mensaje.tipo} reserva #${mensaje.reservaId}: ${(err as Error)?.message ?? String(err)}`,
+      );
+    }
   }
 }

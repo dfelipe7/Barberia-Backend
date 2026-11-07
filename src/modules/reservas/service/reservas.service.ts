@@ -13,7 +13,10 @@ import {
   EstadoUsuario,
   ReservationStatus,
 } from '../../../../generated/prisma/enums';
-import { WhatsAppService } from '../../whatsapp/whatsapp.service';
+import {
+  WhatsAppService,
+  type DatosConfirmacionWhatsApp,
+} from '../../whatsapp/whatsapp.service';
 import { CrearReservaDto } from '../dto/dto-peticion/crear-reserva.dto';
 import { ModificarReservaDto } from '../dto/dto-peticion/modificar-reserva.dto';
 import { ConsultaAgendaBarberoDto } from '../dto/dto-peticion/consulta-agenda-barbero.dto';
@@ -135,6 +138,8 @@ export interface IdentidadClienteAutenticado {
 @Injectable()
 export class ReservasService {
   private readonly logger = new Logger(ReservasService.name);
+
+  private readonly esperasReintentoWhatsAppMs: number[] = [0, 4_000, 10_000];
 
   constructor(
     private readonly reservasRepository: ReservasRepository,
@@ -260,6 +265,11 @@ export class ReservasService {
       gestionTokenCifrado = this.cifrarTokenGestion(tokenGestion);
     }
 
+    const recordatorioYaCubierto = await this.debeMarcarRecordatorioComoEnviado(
+      dto.fecha,
+      franja.startTime,
+    );
+
     const datos = {
       barberoId: dto.barberoId,
       servicioId: dto.servicioId,
@@ -273,6 +283,7 @@ export class ReservasService {
       gestionTokenCifrado: gestionTokenCifrado ?? null,
       idempotencyKey: idempotencyKey ?? null,
       cliente: cliente.clienteDeReserva,
+      recordatorioEnviado: recordatorioYaCubierto,
     };
 
     const reserva = await this.crearConManejoDeConflicto(datos);
@@ -333,30 +344,92 @@ export class ReservasService {
 
       if (telefono && this.whatsappService) {
         let enlaceGestion: string | null = null;
+        const contexto = obtenerContextoNegocio();
         if (respuesta.tokenGestion) {
           const frontendUrl =
             process.env.FRONTEND_URL || 'http://localhost:5173';
-          const contexto = obtenerContextoNegocio();
           const slug = contexto?.slug || 'kyrios-studio';
           enlaceGestion = `${frontendUrl}/${slug}/c/${respuesta.id}/${respuesta.tokenGestion}`;
         }
 
-        await this.whatsappService.enviarConfirmacionReserva({
-          telefono,
-          clienteNombre: clienteNombre || 'Cliente',
-          servicioNombre,
-          barberoNombre:
-            `${respuesta.barbero.nombre} ${respuesta.barbero.apellido}`.trim(),
-          fecha: respuesta.fecha,
-          hora: respuesta.hora,
-          precio: respuesta.servicio.precio,
-          enlaceGestion,
-        });
+        await this.enviarConfirmacionConReintentos(
+          {
+            telefono,
+            clienteNombre: clienteNombre || 'Cliente',
+            servicioNombre,
+            barberoNombre:
+              `${respuesta.barbero.nombre} ${respuesta.barbero.apellido}`.trim(),
+            fecha: respuesta.fecha,
+            hora: respuesta.hora,
+            precio: respuesta.servicio.precio,
+            enlaceGestion,
+            negocioId: contexto?.id,
+          },
+          respuesta.id,
+        );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       this.logger.warn(
-        `No se pudo enviar confirmación por WhatsApp: ${err?.message ?? err}`,
+        `No se pudo enviar confirmación por WhatsApp: ${(err as Error)?.message ?? String(err)}`,
       );
+    }
+  }
+
+  /**
+   * Envía la confirmación con reintentos inteligentes en memoria.
+   * Si la sesión de WhatsApp sufre una reconexión temporal, espera y reintenta
+   * sin bloquear la respuesta HTTP del cliente ni sobrecargar la base de datos.
+   */
+  private async enviarConfirmacionConReintentos(
+    datos: DatosConfirmacionWhatsApp,
+    reservaId: number,
+  ): Promise<void> {
+    const esperas = this.esperasReintentoWhatsAppMs;
+    const maxIntentos = esperas.length;
+
+    for (let intento = 0; intento < maxIntentos; intento++) {
+      if (esperas[intento] > 0) {
+        await new Promise((resolve) => setTimeout(resolve, esperas[intento]));
+      }
+
+      const enviado =
+        await this.whatsappService!.enviarConfirmacionReserva(datos);
+      if (enviado) {
+        return;
+      }
+
+      const tieneSesion =
+        this.whatsappService?.tieneSesionGuardada?.(datos.negocioId) ?? true;
+      if (!tieneSesion) {
+        this.logger.log(
+          `[ReservasService] Negocio ${datos.negocioId ?? ''} no tiene sesión de WhatsApp vinculada. Omitiendo reintentos para reserva #${reservaId}.`,
+        );
+        break;
+      }
+
+      this.logger.warn(
+        `[ReservasService] Intento ${intento + 1}/${maxIntentos} no pudo despachar confirmación WhatsApp para reserva #${reservaId}. ${
+          intento < maxIntentos - 1 ? 'Reintentando...' : 'Reintentos agotados.'
+        }`,
+      );
+    }
+
+    if (this.whatsappService?.encolarMensaje) {
+      const ahora = Date.now();
+      const horaInicioCitaMs = this.aInstanteCalendarioMs(
+        datos.fecha,
+        datos.hora,
+      );
+      this.whatsappService.encolarMensaje({
+        reservaId,
+        negocioId: datos.negocioId ?? 1,
+        tipo: 'CONFIRMACION',
+        telefono: datos.telefono,
+        payload: datos,
+        creadoEn: ahora,
+        caducaEn: ahora + 60 * 60_000,
+        horaInicioCitaMs,
+      });
     }
   }
 
@@ -634,6 +707,9 @@ export class ReservasService {
       dto.hora,
     );
 
+    const recordatorioYaCubiertoAdmin =
+      await this.debeMarcarRecordatorioComoEnviado(dto.fecha, franja.startTime);
+
     const reserva = await this.crearConManejoDeConflicto({
       barberoId: dto.barberoId,
       servicioId: dto.servicioId,
@@ -646,6 +722,7 @@ export class ReservasService {
       gestionTokenHash,
       gestionTokenCifrado,
       cliente: clienteDeReserva,
+      recordatorioEnviado: recordatorioYaCubiertoAdmin,
     });
 
     this.logger.log(
@@ -669,8 +746,8 @@ export class ReservasService {
         enlaceGestionAdmin = `${frontendUrl}/${slug}/c/${respuesta.id}/${respuesta.tokenGestion}`;
       }
 
-      this.whatsappService
-        .enviarConfirmacionReserva({
+      void this.enviarConfirmacionConReintentos(
+        {
           telefono: clienteTelefonoNotif,
           clienteNombre: clienteNombreNotif,
           servicioNombre: servicio.nombre,
@@ -680,12 +757,10 @@ export class ReservasService {
           hora: respuesta.hora,
           precio: respuesta.servicio.precio,
           enlaceGestion: enlaceGestionAdmin,
-        })
-        .catch((err) =>
-          this.logger.warn(
-            `No se pudo enviar confirmación por WhatsApp en admin: ${err?.message ?? err}`,
-          ),
-        );
+          negocioId: obtenerContextoNegocio()?.id,
+        },
+        respuesta.id,
+      );
     }
 
     return respuesta;
@@ -953,14 +1028,44 @@ export class ReservasService {
   }
 
   /**
-   * Convierte una fecha de calendario (`YYYY-MM-DD`) y una hora (`HH:mm`) en
-   * milisegundos UTC. Es una escala neutra común para comparar horas de Bogotá.
+   * Determina si una nueva reserva debe nacer con el recordatorio marcado como enviado.
+   * Regla profesional antispam: si la cita se agenda dentro de la ventana de anticipación
+   * del recordatorio (ej. faltan menos de 120 min para el inicio), la confirmación inmediata
+   * ya cumple la función de aviso y no se satura al cliente con un segundo mensaje duplicado.
+   */
+  private async debeMarcarRecordatorioComoEnviado(
+    fecha: string,
+    startTime: string,
+  ): Promise<boolean> {
+    try {
+      const minutosFaltantes = this.minutosHastaInicioEnBogota({
+        date: this.aFechaDate(fecha),
+        startTime,
+      });
+
+      const ventanaRecordatorio =
+        (await this.whatsappService?.obtenerMinutosAnticipacion()) ?? 120;
+
+      return minutosFaltantes <= ventanaRecordatorio;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Convierte una fecha de calendario (`YYYY-MM-DD`) y una hora (`HH:mm`) de Bogotá
+   * en milisegundos UTC reales considerando el huso de Colombia (UTC-5).
    */
   private aInstanteCalendarioMs(fecha: string, hora: string): number {
+    const isoBogota = `${fecha}T${hora}:00-05:00`;
+    const ms = Date.parse(isoBogota);
+    if (!Number.isNaN(ms)) {
+      return ms;
+    }
     const [anio, mes, dia] = fecha.split('-').map(Number);
     const [horas, minutos] = hora.split(':').map(Number);
 
-    return Date.UTC(anio, mes - 1, dia, horas, minutos);
+    return Date.UTC(anio, mes - 1, dia, horas + 5, minutos);
   }
 
   /**
@@ -1167,6 +1272,12 @@ export class ReservasService {
         ? Number(reserva.precioReservado)
         : Number(servicio.precio);
 
+    const recordatorioYaCubiertoModif =
+      await this.debeMarcarRecordatorioComoEnviado(
+        fechaDestinoStr,
+        franja.startTime,
+      );
+
     const reservaActualizada = await this.modificarConManejoDeConflicto({
       id: reserva.id,
       barberoId: barberoDestinoId,
@@ -1175,11 +1286,14 @@ export class ReservasService {
       startTime: franja.startTime,
       endTime: franja.endTime,
       precioReservado: precioHistorico,
+      recordatorioEnviado: recordatorioYaCubiertoModif,
     });
 
     this.logger.log(
       `AUDIT: reserva modificada id=${reservaActualizada.id} barberoId=${reservaActualizada.barberoId} fecha=${fechaDestinoStr} hora=${reservaActualizada.startTime} clienteId=${reserva.clienteId} modalidad=${modalidad}`,
     );
+
+    this.whatsappService?.cancelarMensajesPendientesDeReserva?.(reserva.id);
 
     if (this.whatsappService) {
       void (async () => {
@@ -1199,7 +1313,7 @@ export class ReservasService {
               enlaceGestion = `${frontendUrl}/${slug}/c/${reservaActualizada.id}/${tokenDescifrado}`;
             }
 
-            await this.whatsappService?.enviarReprogramacionReserva({
+            const datosReprog: DatosConfirmacionWhatsApp = {
               telefono: cliente.telefono,
               clienteNombre:
                 `${cliente.nombre} ${cliente.apellido ?? ''}`.trim() ||
@@ -1211,11 +1325,35 @@ export class ReservasService {
               hora: reservaActualizada.startTime,
               precio: precioHistorico,
               enlaceGestion,
-            });
+              negocioId: obtenerContextoNegocio()?.id,
+            };
+
+            const enviado =
+              await this.whatsappService?.enviarReprogramacionReserva(
+                datosReprog,
+              );
+
+            if (!enviado && this.whatsappService?.encolarMensaje) {
+              const ahora = Date.now();
+              const horaInicioCitaMs = this.aInstanteCalendarioMs(
+                fechaDestinoStr,
+                reservaActualizada.startTime,
+              );
+              this.whatsappService.encolarMensaje({
+                reservaId: reservaActualizada.id,
+                negocioId: obtenerContextoNegocio()?.id ?? 1,
+                tipo: 'REPROGRAMACION',
+                telefono: cliente.telefono,
+                payload: datosReprog,
+                creadoEn: ahora,
+                caducaEn: ahora + 60 * 60_000,
+                horaInicioCitaMs,
+              });
+            }
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           this.logger.warn(
-            `No se pudo enviar WhatsApp de reprogramación: ${err?.message ?? err}`,
+            `No se pudo enviar WhatsApp de reprogramación: ${(err as Error)?.message ?? String(err)}`,
           );
         }
       })();
@@ -1285,6 +1423,8 @@ export class ReservasService {
       `AUDIT: reserva cancelada id=${reserva.id} clienteId=${reserva.clienteId} modalidad=${modalidad}`,
     );
 
+    this.whatsappService?.cancelarMensajesPendientesDeReserva?.(reserva.id);
+
     if (this.whatsappService) {
       void (async () => {
         try {
@@ -1304,9 +1444,9 @@ export class ReservasService {
               hora: reserva.startTime,
             });
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           this.logger.warn(
-            `No se pudo enviar WhatsApp de cancelación: ${err?.message ?? err}`,
+            `No se pudo enviar WhatsApp de cancelación: ${(err as Error)?.message ?? String(err)}`,
           );
         }
       })();
