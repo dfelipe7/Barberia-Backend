@@ -1,4 +1,7 @@
-import { ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import {
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PersonalJwtService } from './personal-jwt.service';
@@ -78,10 +81,12 @@ describe('PersonalJwtService', () => {
         id: 1,
         sub: 'user-1',
         tipo: 'CLIENTE',
-      } as any);
+      });
 
       await expect(service.verificar('token-cliente')).rejects.toThrow(
-        new UnauthorizedException('El token no corresponde a una sesión de personal'),
+        new UnauthorizedException(
+          'El token no corresponde a una sesión de personal',
+        ),
       );
     });
 
@@ -91,11 +96,10 @@ describe('PersonalJwtService', () => {
         sub: 'user-1',
         tipo: TIPO_TOKEN_PERSONAL,
       };
-      jwtService.verifyAsync.mockResolvedValue(payload as any);
+      jwtService.verifyAsync.mockResolvedValue(payload);
 
       const res = await service.verificar('token-valido');
       expect(res).toEqual(payload);
     });
   });
 });
-

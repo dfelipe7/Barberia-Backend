@@ -446,6 +446,7 @@ export interface CrearReservaDatos {
    * original en lugar de crear otra.
    */
   idempotencyKey?: string | null;
+  recordatorioEnviado?: boolean;
 }
 
 /**
@@ -539,6 +540,7 @@ export interface ModificarReservaDatos {
   startTime: string;
   endTime: string;
   precioReservado?: number | null;
+  recordatorioEnviado?: boolean;
 }
 
 /**
@@ -982,6 +984,7 @@ export class ReservasRepository {
             gestionTokenHash: datos.gestionTokenHash ?? null,
             gestionTokenCifrado: datos.gestionTokenCifrado ?? null,
             idempotencyKey: datos.idempotencyKey ?? null,
+            recordatorioEnviado: datos.recordatorioEnviado ?? false,
             negocioId,
           },
         });
@@ -1122,6 +1125,9 @@ export class ReservasRepository {
             endTime: datos.endTime,
             ...(datos.precioReservado !== undefined
               ? { precioReservado: datos.precioReservado }
+              : {}),
+            ...(datos.recordatorioEnviado !== undefined
+              ? { recordatorioEnviado: datos.recordatorioEnviado }
               : {}),
           },
           select: SELECCION_RESERVA_CON_RELACIONES,

@@ -14,9 +14,15 @@ describe('PerfilNegocioController', () => {
   beforeEach(async () => {
     const mockService = {
       obtenerPerfilPublico: jest.fn().mockResolvedValue({ configurado: true }),
-      obtenerPerfilGestion: jest.fn().mockResolvedValue({ id: 1, frasePrincipal: 'Frase' }),
-      actualizarPerfil: jest.fn().mockResolvedValue({ id: 1, frasePrincipal: 'Nueva Frase' }),
-      actualizarReferencias: jest.fn().mockResolvedValue({ id: 1, faviconUrl: '/fav.svg' }),
+      obtenerPerfilGestion: jest
+        .fn()
+        .mockResolvedValue({ id: 1, frasePrincipal: 'Frase' }),
+      actualizarPerfil: jest
+        .fn()
+        .mockResolvedValue({ id: 1, frasePrincipal: 'Nueva Frase' }),
+      actualizarReferencias: jest
+        .fn()
+        .mockResolvedValue({ id: 1, faviconUrl: '/fav.svg' }),
       subirRecurso: jest.fn().mockResolvedValue({ id: 1 }),
       eliminarRecurso: jest.fn().mockResolvedValue({ id: 1 }),
     };
@@ -71,7 +77,7 @@ describe('PerfilNegocioController', () => {
   describe('actualizarPerfil', () => {
     it('debe llamar a service.actualizarPerfil con el DTO', async () => {
       const dto = { frasePrincipal: 'Nueva' };
-      const res = await controller.actualizarPerfil(dto as any);
+      const res = await controller.actualizarPerfil(dto);
       expect(service.actualizarPerfil).toHaveBeenCalledWith(dto);
       expect(res).toEqual({ id: 1, frasePrincipal: 'Nueva Frase' });
     });
@@ -80,7 +86,7 @@ describe('PerfilNegocioController', () => {
   describe('actualizarReferencias', () => {
     it('debe llamar a service.actualizarReferencias con el DTO', async () => {
       const dto = { faviconUrl: '/fav.svg' };
-      const res = await controller.actualizarReferencias(dto as any);
+      const res = await controller.actualizarReferencias(dto);
       expect(service.actualizarReferencias).toHaveBeenCalledWith(dto);
       expect(res).toEqual({ id: 1, faviconUrl: '/fav.svg' });
     });
@@ -95,44 +101,64 @@ describe('PerfilNegocioController', () => {
 
     it('subirFavicon debe llamar a subirRecurso con FAVICON', async () => {
       await controller.subirFavicon(dummyFile);
-      expect(service.subirRecurso).toHaveBeenCalledWith(RECURSOS_PERFIL.FAVICON, dummyFile);
+      expect(service.subirRecurso).toHaveBeenCalledWith(
+        RECURSOS_PERFIL.FAVICON,
+        dummyFile,
+      );
     });
 
     it('subirBanner debe llamar a subirRecurso con BANNER', async () => {
       await controller.subirBanner(dummyFile);
-      expect(service.subirRecurso).toHaveBeenCalledWith(RECURSOS_PERFIL.BANNER, dummyFile);
+      expect(service.subirRecurso).toHaveBeenCalledWith(
+        RECURSOS_PERFIL.BANNER,
+        dummyFile,
+      );
     });
 
     it('subirLogoBlanco debe llamar a subirRecurso con LOGO_BLANCO', async () => {
       await controller.subirLogoBlanco(dummyFile);
-      expect(service.subirRecurso).toHaveBeenCalledWith(RECURSOS_PERFIL.LOGO_BLANCO, dummyFile);
+      expect(service.subirRecurso).toHaveBeenCalledWith(
+        RECURSOS_PERFIL.LOGO_BLANCO,
+        dummyFile,
+      );
     });
 
     it('subirLogoNegro debe llamar a subirRecurso con LOGO_NEGRO', async () => {
       await controller.subirLogoNegro(dummyFile);
-      expect(service.subirRecurso).toHaveBeenCalledWith(RECURSOS_PERFIL.LOGO_NEGRO, dummyFile);
+      expect(service.subirRecurso).toHaveBeenCalledWith(
+        RECURSOS_PERFIL.LOGO_NEGRO,
+        dummyFile,
+      );
     });
   });
 
   describe('eliminación de archivos', () => {
     it('eliminarFavicon debe llamar a eliminarRecurso con FAVICON', async () => {
       await controller.eliminarFavicon();
-      expect(service.eliminarRecurso).toHaveBeenCalledWith(RECURSOS_PERFIL.FAVICON);
+      expect(service.eliminarRecurso).toHaveBeenCalledWith(
+        RECURSOS_PERFIL.FAVICON,
+      );
     });
 
     it('eliminarBanner debe llamar a eliminarRecurso con BANNER', async () => {
       await controller.eliminarBanner();
-      expect(service.eliminarRecurso).toHaveBeenCalledWith(RECURSOS_PERFIL.BANNER);
+      expect(service.eliminarRecurso).toHaveBeenCalledWith(
+        RECURSOS_PERFIL.BANNER,
+      );
     });
 
     it('eliminarLogoBlanco debe llamar a eliminarRecurso con LOGO_BLANCO', async () => {
       await controller.eliminarLogoBlanco();
-      expect(service.eliminarRecurso).toHaveBeenCalledWith(RECURSOS_PERFIL.LOGO_BLANCO);
+      expect(service.eliminarRecurso).toHaveBeenCalledWith(
+        RECURSOS_PERFIL.LOGO_BLANCO,
+      );
     });
 
     it('eliminarLogoNegro debe llamar a eliminarRecurso con LOGO_NEGRO', async () => {
       await controller.eliminarLogoNegro();
-      expect(service.eliminarRecurso).toHaveBeenCalledWith(RECURSOS_PERFIL.LOGO_NEGRO);
+      expect(service.eliminarRecurso).toHaveBeenCalledWith(
+        RECURSOS_PERFIL.LOGO_NEGRO,
+      );
     });
   });
 
@@ -151,7 +177,10 @@ describe('PerfilNegocioController', () => {
     });
 
     it('reemplazarRedesSociales maneja array plano o wrapper object', async () => {
-      const red1 = { tipo: 'INSTAGRAM' as const, url: 'https://instagram.com/demo' };
+      const red1 = {
+        tipo: 'INSTAGRAM' as const,
+        url: 'https://instagram.com/demo',
+      };
       await controller.reemplazarRedesSociales([red1]);
       expect(redesSocialesService.reemplazar).toHaveBeenCalledWith([red1]);
 
@@ -164,7 +193,7 @@ describe('PerfilNegocioController', () => {
 
     it('actualizarRedSocial delega al servicio', async () => {
       const dto = { url: 'https://instagram.com/nuevo' };
-      await controller.actualizarRedSocial(5, dto as any);
+      await controller.actualizarRedSocial(5, dto);
       expect(redesSocialesService.actualizar).toHaveBeenCalledWith(5, dto);
     });
 

@@ -12,7 +12,9 @@ describe('AlmacenamientoPerfilService', () => {
       providers: [AlmacenamientoPerfilService],
     }).compile();
 
-    service = module.get<AlmacenamientoPerfilService>(AlmacenamientoPerfilService);
+    service = module.get<AlmacenamientoPerfilService>(
+      AlmacenamientoPerfilService,
+    );
     jest.clearAllMocks();
   });
 
@@ -22,7 +24,7 @@ describe('AlmacenamientoPerfilService', () => {
 
   describe('guardar', () => {
     it('guarda exitosamente el archivo y devuelve la ruta relativa publica', async () => {
-      jest.spyOn(fs.promises, 'mkdir').mockResolvedValue(undefined as any);
+      jest.spyOn(fs.promises, 'mkdir').mockResolvedValue(undefined);
       jest.spyOn(fs.promises, 'access').mockResolvedValue(undefined);
       jest.spyOn(fs.promises, 'writeFile').mockResolvedValue(undefined);
       jest.spyOn(fs.promises, 'rename').mockResolvedValue(undefined);
@@ -31,27 +33,33 @@ describe('AlmacenamientoPerfilService', () => {
       const definicion = RECURSOS[0]; // Favicon
       const ruta = await service.guardar(1, definicion, buffer);
 
-      expect(ruta).toMatch(/^\/uploads\/negocios\/1\/perfil\/favicon-\d+-[a-f0-9]+\.svg$/);
+      expect(ruta).toMatch(
+        /^\/uploads\/negocios\/1\/perfil\/favicon-\d+-[a-f0-9]+\.svg$/,
+      );
       expect(fs.promises.mkdir).toHaveBeenCalled();
       expect(fs.promises.writeFile).toHaveBeenCalled();
       expect(fs.promises.rename).toHaveBeenCalled();
     });
 
     it('lanza InternalServerErrorException si falla la escritura', async () => {
-      jest.spyOn(fs.promises, 'mkdir').mockResolvedValue(undefined as any);
+      jest.spyOn(fs.promises, 'mkdir').mockResolvedValue(undefined);
       jest.spyOn(fs.promises, 'access').mockResolvedValue(undefined);
-      jest.spyOn(fs.promises, 'writeFile').mockRejectedValue(new Error('Disk full'));
+      jest
+        .spyOn(fs.promises, 'writeFile')
+        .mockRejectedValue(new Error('Disk full'));
 
       const buffer = Buffer.from('test-content');
-      await expect(
-        service.guardar(1, RECURSOS[1], buffer),
-      ).rejects.toThrow(InternalServerErrorException);
+      await expect(service.guardar(1, RECURSOS[1], buffer)).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
   });
 
   describe('asegurarDirectorio', () => {
     it('lanza InternalServerErrorException si mkdir falla', async () => {
-      jest.spyOn(fs.promises, 'mkdir').mockRejectedValue(new Error('Permiso denegado'));
+      jest
+        .spyOn(fs.promises, 'mkdir')
+        .mockRejectedValue(new Error('Permiso denegado'));
 
       await expect(
         service.asegurarDirectorio('/invalid/path', 1),

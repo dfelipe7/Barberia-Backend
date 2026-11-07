@@ -178,7 +178,9 @@ describe('UsuariosAuthorizationService', () => {
             superadmin: true,
           },
         }),
-      ).toThrow('El perfil de un Superadministrador solo puede ser editado por él mismo');
+      ).toThrow(
+        'El perfil de un Superadministrador solo puede ser editado por él mismo',
+      );
     });
 
     it('SUPERADMIN NO puede editar a OTRO SUPERADMIN de su barbería (inmunidad entre pares)', () => {
@@ -193,7 +195,9 @@ describe('UsuariosAuthorizationService', () => {
           },
           barbero: { id: 9, negocioId: NEGOCIO },
         }),
-      ).toThrow('El perfil de un Superadministrador solo puede ser editado por él mismo');
+      ).toThrow(
+        'El perfil de un Superadministrador solo puede ser editado por él mismo',
+      );
     });
 
     it('SUPERADMIN SÍ puede editar su propio perfil', () => {

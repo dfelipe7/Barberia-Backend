@@ -127,7 +127,9 @@ export class GoogleAuthService {
         });
         usuario.estado = 'ACTIVO';
       } else {
-        this.logger.warn(`Acceso denegado: ${email} tiene su cuenta suspendida.`);
+        this.logger.warn(
+          `Acceso denegado: ${email} tiene su cuenta suspendida.`,
+        );
         throw new ForbiddenException(
           'Tu cuenta ha sido desactivada por un administrador.',
         );

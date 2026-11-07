@@ -644,7 +644,9 @@ export async function sembrarDesarrolloLocal(
   const ajenos = existentes.filter((n) => !slugsEsperados.has(n.slug));
 
   if (ajenos.length > 0) {
-    const descAjenos = ajenos.map((n) => `'${n.slug}' (${n.nombre})`).join(', ');
+    const descAjenos = ajenos
+      .map((n) => `'${n.slug}' (${n.nombre})`)
+      .join(', ');
     throw new Error(
       `La base ya contiene negocios ajenos al escenario de prueba local: ${descAjenos}. No se borra ni se modifica ningún negocio: revisa la base a mano.`,
     );

@@ -38,12 +38,20 @@ describe('WhatsAppService', () => {
     buscarPorId: jest.fn(),
   };
 
+  const prismaMock = {
+    whatsappPlantilla: {},
+    reservation: {
+      findUnique: jest.fn(),
+    },
+  };
+
   const NEGOCIO_A = { id: 7, slug: 'negocio-a' };
 
   beforeEach(async () => {
     jest.clearAllMocks();
 
     // Valores por defecto de los dobles: sin contexto de negocio.
+    prismaMock.reservation.findUnique.mockResolvedValue(null);
     plantillasRepositoryMock.obtenerPlantillas.mockResolvedValue([]);
     plantillasRepositoryMock.guardarPlantilla.mockResolvedValue(undefined);
     plantillasRepositoryMock.eliminarPlantillas.mockResolvedValue(0);
@@ -59,7 +67,7 @@ describe('WhatsAppService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WhatsAppService,
-        { provide: PrismaService, useValue: { whatsappPlantilla: {} } },
+        { provide: PrismaService, useValue: prismaMock },
         {
           provide: WhatsAppPlantillasRepository,
           useValue: plantillasRepositoryMock,
@@ -86,8 +94,8 @@ describe('WhatsAppService', () => {
     service = module.get<WhatsAppService>(WhatsAppService);
   });
 
-  afterEach(async () => {
-    await service.onModuleDestroy();
+  afterEach(() => {
+    service.onModuleDestroy();
   });
 
   it('debe estar definido', () => {
@@ -96,9 +104,21 @@ describe('WhatsAppService', () => {
 
   describe('formatearNumeroAJid', () => {
     it.each([
-      ['números colombianos de 10 dígitos (3001234567) con prefijo 57', '3001234567', '573001234567@s.whatsapp.net'],
-      ['números con prefijo 57 ya incluido', '573001234567', '573001234567@s.whatsapp.net'],
-      ['caracteres especiales como guiones, espacios y paréntesis', '+57 (300) 123-4567', '573001234567@s.whatsapp.net'],
+      [
+        'números colombianos de 10 dígitos (3001234567) con prefijo 57',
+        '3001234567',
+        '573001234567@s.whatsapp.net',
+      ],
+      [
+        'números con prefijo 57 ya incluido',
+        '573001234567',
+        '573001234567@s.whatsapp.net',
+      ],
+      [
+        'caracteres especiales como guiones, espacios y paréntesis',
+        '+57 (300) 123-4567',
+        '573001234567@s.whatsapp.net',
+      ],
     ])('debe formatear a JID para %s', (_, entrada, esperado) => {
       expect(service.formatearNumeroAJid(entrada)).toBe(esperado);
     });
@@ -556,16 +576,249 @@ describe('WhatsAppService', () => {
       });
       expect(await service.obtenerMinutosAnticipacion()).toBe(120);
 
-      jest.spyOn(service as any, 'obtenerPlantillaGlobal').mockResolvedValue(null);
+      jest
+        .spyOn(service as any, 'obtenerPlantillaGlobal')
+        .mockResolvedValue(null);
       expect(await service.obtenerMinutosAnticipacion()).toBe(120);
     });
 
     it('onModuleDestroy destruye las sesiones activas', () => {
-      const destruirSpy = jest.spyOn(service as any, 'destruirSocket').mockImplementation(() => {});
+      const destruirSpy = jest
+        .spyOn(service as any, 'destruirSocket')
+        .mockImplementation(() => {});
       (service as any).sesiones.set(99, { id: 99 });
 
       service.onModuleDestroy();
       expect(destruirSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('Cola en Memoria y Antisolapamiento de Notificaciones', () => {
+    const payloadPrueba = {
+      telefono: '3001234567',
+      clienteNombre: 'Pedro Gómez',
+      servicioNombre: 'Corte Clásico',
+      barberoNombre: 'Carlos Barbero',
+      fecha: '2026-11-20',
+      hora: '15:00',
+      negocioId: 7,
+    };
+
+    it('encola un mensaje y reemplaza mensaje previo de la misma reserva', () => {
+      const ahora = Date.now();
+      service.encolarMensaje({
+        reservaId: 101,
+        negocioId: 7,
+        tipo: 'CONFIRMACION',
+        telefono: '3001234567',
+        payload: payloadPrueba,
+        creadoEn: ahora,
+        caducaEn: ahora + 3600_000,
+        horaInicioCitaMs: ahora + 7200_000,
+      });
+
+      const colaAntes = (service as any).colasPendientes.get(7);
+      expect(colaAntes).toHaveLength(1);
+      expect(colaAntes[0].tipo).toBe('CONFIRMACION');
+
+      // Reemplazo por reprogramación
+      service.encolarMensaje({
+        reservaId: 101,
+        negocioId: 7,
+        tipo: 'REPROGRAMACION',
+        telefono: '3001234567',
+        payload: { ...payloadPrueba, hora: '17:00' },
+        creadoEn: ahora + 1000,
+        caducaEn: ahora + 3601_000,
+        horaInicioCitaMs: ahora + 10800_000,
+      });
+
+      const colaDespues = (service as any).colasPendientes.get(7);
+      expect(colaDespues).toHaveLength(1);
+      expect(colaDespues[0].tipo).toBe('REPROGRAMACION');
+      expect(colaDespues[0].payload.hora).toBe('17:00');
+    });
+
+    it('cancela y purga mensajes de una reserva al cancelar', () => {
+      const ahora = Date.now();
+      service.encolarMensaje({
+        reservaId: 102,
+        negocioId: 7,
+        tipo: 'CONFIRMACION',
+        telefono: '3001234567',
+        payload: payloadPrueba,
+        creadoEn: ahora,
+        caducaEn: ahora + 3600_000,
+        horaInicioCitaMs: ahora + 7200_000,
+      });
+
+      expect((service as any).colasPendientes.get(7)).toHaveLength(1);
+
+      service.cancelarMensajesPendientesDeReserva(102, 7);
+
+      expect((service as any).colasPendientes.get(7)).toHaveLength(0);
+    });
+
+    it('despacha cola descartando mensajes con TTL expirado o cita ya iniciada', async () => {
+      const ahora = Date.now();
+      // Mensaje 1: TTL expirado
+      service.encolarMensaje({
+        reservaId: 201,
+        negocioId: 7,
+        tipo: 'CONFIRMACION',
+        telefono: '3001234567',
+        payload: payloadPrueba,
+        creadoEn: ahora - 4000_000,
+        caducaEn: ahora - 1000,
+        horaInicioCitaMs: ahora + 7200_000,
+      });
+
+      // Mensaje 2: Cita ya iniciada
+      service.encolarMensaje({
+        reservaId: 202,
+        negocioId: 7,
+        tipo: 'CONFIRMACION',
+        telefono: '3001234567',
+        payload: payloadPrueba,
+        creadoEn: ahora,
+        caducaEn: ahora + 3600_000,
+        horaInicioCitaMs: ahora - 500,
+      });
+
+      const enviarSpy = jest
+        .spyOn(service, 'enviarConfirmacionReserva')
+        .mockResolvedValue(true);
+
+      await service.despacharColaPendiente(7);
+
+      expect(enviarSpy).not.toHaveBeenCalled();
+    });
+
+    it('descarta mensaje en cola si la reserva fue cancelada en BD', async () => {
+      const ahora = Date.now();
+      service.encolarMensaje({
+        reservaId: 203,
+        negocioId: 7,
+        tipo: 'CONFIRMACION',
+        telefono: '3001234567',
+        payload: payloadPrueba,
+        creadoEn: ahora,
+        caducaEn: ahora + 3600_000,
+        horaInicioCitaMs: ahora + 7200_000,
+      });
+
+      prismaMock.reservation.findUnique.mockResolvedValue({
+        status: 'CANCELLED',
+      });
+      const enviarSpy = jest
+        .spyOn(service, 'enviarConfirmacionReserva')
+        .mockResolvedValue(true);
+
+      await service.despacharColaPendiente(7);
+
+      expect(prismaMock.reservation.findUnique).toHaveBeenCalledWith({
+        where: { id: 203 },
+        select: { status: true },
+      });
+      expect(enviarSpy).not.toHaveBeenCalled();
+    });
+
+    it('despacha exitosamente mensaje válido en cola cuando la reserva sigue activa', async () => {
+      const ahora = Date.now();
+      service.encolarMensaje({
+        reservaId: 204,
+        negocioId: 7,
+        tipo: 'CONFIRMACION',
+        telefono: '3001234567',
+        payload: payloadPrueba,
+        creadoEn: ahora,
+        caducaEn: ahora + 3600_000,
+        horaInicioCitaMs: ahora + 7200_000,
+      });
+
+      prismaMock.reservation.findUnique.mockResolvedValue({
+        status: 'PENDING',
+      });
+      const enviarSpy = jest
+        .spyOn(service, 'enviarConfirmacionReserva')
+        .mockResolvedValue(true);
+
+      await service.despacharColaPendiente(7);
+
+      expect(enviarSpy).toHaveBeenCalledWith(payloadPrueba);
+    });
+
+    it('despacha exitosamente mensaje de tipo REPROGRAMACION en cola', async () => {
+      const ahora = Date.now();
+      service.encolarMensaje({
+        reservaId: 205,
+        negocioId: 7,
+        tipo: 'REPROGRAMACION',
+        telefono: '3001234567',
+        payload: payloadPrueba,
+        creadoEn: ahora,
+        caducaEn: ahora + 3600_000,
+        horaInicioCitaMs: ahora + 7200_000,
+      });
+
+      prismaMock.reservation.findUnique.mockResolvedValue({
+        status: 'CONFIRMED',
+      });
+      const reprogramarSpy = jest
+        .spyOn(service, 'enviarReprogramacionReserva')
+        .mockResolvedValue(true);
+
+      await service.despacharColaPendiente(7);
+
+      expect(reprogramarSpy).toHaveBeenCalledWith(payloadPrueba);
+    });
+
+    it('maneja errores en BD y fallos de envío durante el despacho sin interrumpir', async () => {
+      const ahora = Date.now();
+      service.encolarMensaje({
+        reservaId: 206,
+        negocioId: 7,
+        tipo: 'CONFIRMACION',
+        telefono: '3001234567',
+        payload: payloadPrueba,
+        creadoEn: ahora,
+        caducaEn: ahora + 3600_000,
+        horaInicioCitaMs: ahora + 7200_000,
+      });
+
+      prismaMock.reservation.findUnique.mockRejectedValue(new Error('DB connection lost'));
+      const enviarSpy = jest
+        .spyOn(service, 'enviarConfirmacionReserva')
+        .mockRejectedValue(new Error('Send socket error'));
+
+      await service.despacharColaPendiente(7);
+
+      expect(enviarSpy).toHaveBeenCalled();
+    });
+
+    it('enviarReprogramacionReserva envía mensaje formateado con datos del negocio', async () => {
+      jest.spyOn(service as any, 'datosComercialesDelNegocio').mockResolvedValue({
+        nombre: 'Barbería VIP',
+        direccion: 'Calle 10 # 20-30',
+        telefono: '3001112233',
+      });
+      const enviarMensajeSpy = jest
+        .spyOn(service, 'enviarMensaje')
+        .mockResolvedValue(true);
+
+      const resultado = await service.enviarReprogramacionReserva(payloadPrueba);
+
+      expect(resultado).toBe(true);
+      expect(enviarMensajeSpy).toHaveBeenCalledWith(
+        payloadPrueba.telefono,
+        expect.stringContaining('CITA REPROGRAMADA - Barbería VIP'),
+        payloadPrueba.negocioId,
+      );
+    });
+
+    it('no hace nada si la cola de la sede esta vacia o no existe', async () => {
+      await expect(service.despacharColaPendiente(99)).resolves.not.toThrow();
+      expect(() => service.cancelarMensajesPendientesDeReserva(123, 99)).not.toThrow();
     });
   });
 });

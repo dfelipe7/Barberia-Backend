@@ -19,4 +19,3 @@ export function tieneMembresiasActivasEnOtrasSedes(
     (b) => b.negocioId !== negocioIdActual && b.estado === 'ACTIVO',
   );
 }
-
