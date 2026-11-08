@@ -34,6 +34,10 @@ export const MENSAJE_NOMBRE_DUPLICADO =
 /** Mensaje del listado administrativo cuando el negocio no tiene productos. */
 export const MENSAJE_SIN_PRODUCTOS = 'No existen productos registrados';
 
+/** Mensaje del catálogo público cuando no hay productos activos. */
+export const MENSAJE_SIN_PRODUCTOS_DISPONIBLES =
+  'No hay productos disponibles en este momento';
+
 /** Mensaje uniforme para un producto inexistente o de otro negocio. */
 export const MENSAJE_PRODUCTO_NO_DISPONIBLE =
   'El producto no se encuentra disponible';

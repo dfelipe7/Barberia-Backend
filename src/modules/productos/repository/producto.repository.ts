@@ -33,6 +33,26 @@ export class ProductoRepository {
     });
   }
 
+  /** Catálogo público: solo productos ACTIVO del negocio del contexto. */
+  listarCatalogo() {
+    return this.prisma.producto.findMany({
+      where: this.aislamiento.filtroLectura({
+        estado: EstadoProducto.ACTIVO,
+      }),
+      orderBy: [{ nombre: 'asc' }, { id: 'asc' }],
+    });
+  }
+
+  /** Detalle público: solo si el producto es ACTIVO y del negocio actual. */
+  obtenerDisponiblePorId(id: number) {
+    return this.prisma.producto.findFirst({
+      where: this.aislamiento.filtroLectura({
+        id,
+        estado: EstadoProducto.ACTIVO,
+      }),
+    });
+  }
+
   obtenerPorId(id: number) {
     return this.prisma.producto.findFirst({
       where: this.aislamiento.filtroLectura({ id }),

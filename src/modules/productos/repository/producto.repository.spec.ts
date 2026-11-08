@@ -52,6 +52,34 @@ describe('ProductoRepository', () => {
     });
   });
 
+  it('lista el catálogo público solo con productos ACTIVO y orden estable', async () => {
+    prisma.producto.findMany.mockResolvedValue([]);
+
+    await repository.listarCatalogo();
+
+    expect(aislamiento.filtroLectura).toHaveBeenCalledWith({
+      estado: EstadoProducto.ACTIVO,
+    });
+    expect(prisma.producto.findMany).toHaveBeenCalledWith({
+      where: { negocioId: 7, estado: EstadoProducto.ACTIVO },
+      orderBy: [{ nombre: 'asc' }, { id: 'asc' }],
+    });
+  });
+
+  it('obtiene el detalle público solo si es ACTIVO y del negocio', async () => {
+    prisma.producto.findFirst.mockResolvedValue(null);
+
+    await repository.obtenerDisponiblePorId(3);
+
+    expect(aislamiento.filtroLectura).toHaveBeenCalledWith({
+      id: 3,
+      estado: EstadoProducto.ACTIVO,
+    });
+    expect(prisma.producto.findFirst).toHaveBeenCalledWith({
+      where: { negocioId: 7, id: 3, estado: EstadoProducto.ACTIVO },
+    });
+  });
+
   it('obtiene el detalle filtrando por id y negocio en la misma consulta', async () => {
     prisma.producto.findFirst.mockResolvedValue(null);
 

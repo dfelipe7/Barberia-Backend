@@ -31,6 +31,8 @@ describe('ProductoService', () => {
   const repository = {
     buscarPorNombre: jest.fn(),
     listar: jest.fn(),
+    listarCatalogo: jest.fn(),
+    obtenerDisponiblePorId: jest.fn(),
     obtenerPorId: jest.fn(),
     actualizarEstadoSiDifiere: jest.fn(),
   };
@@ -204,6 +206,66 @@ describe('ProductoService', () => {
       repository.obtenerPorId.mockResolvedValue(null);
 
       await expect(service.obtenerPorId(99)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('catálogo público', () => {
+    const activo = {
+      id: 1,
+      nombre: 'Cera',
+      descripcion: 'Mate',
+      precio: 35000.5,
+      imagenUrl: '/uploads/negocios/7/productos/cera.png',
+      estado: 'ACTIVO',
+      creadoEn: new Date('2026-11-04T12:00:00Z'),
+      actualizadoEn: new Date('2026-11-04T12:00:00Z'),
+    };
+
+    it('devuelve solo los datos comerciales del catálogo', async () => {
+      repository.listarCatalogo.mockResolvedValue([activo]);
+
+      const respuesta = await service.listarCatalogo();
+
+      expect(respuesta.productos).toEqual([
+        {
+          id: 1,
+          nombre: 'Cera',
+          descripcion: 'Mate',
+          precio: 35000.5,
+          imagenUrl: '/uploads/negocios/7/productos/cera.png',
+        },
+      ]);
+      expect(respuesta.productos[0]).not.toHaveProperty('estado');
+      expect(respuesta.productos[0]).not.toHaveProperty('creadoEn');
+    });
+
+    it('responde colección vacía con mensaje si no hay productos activos', async () => {
+      repository.listarCatalogo.mockResolvedValue([]);
+
+      await expect(service.listarCatalogo()).resolves.toEqual({
+        mensaje: 'No hay productos disponibles en este momento',
+        productos: [],
+      });
+    });
+
+    it('devuelve el detalle público de un producto activo', async () => {
+      repository.obtenerDisponiblePorId.mockResolvedValue(activo);
+
+      await expect(service.obtenerCatalogoPorId(1)).resolves.toEqual({
+        id: 1,
+        nombre: 'Cera',
+        descripcion: 'Mate',
+        precio: 35000.5,
+        imagenUrl: '/uploads/negocios/7/productos/cera.png',
+      });
+    });
+
+    it('oculta como 404 un producto inactivo, inexistente o ajeno', async () => {
+      repository.obtenerDisponiblePorId.mockResolvedValue(null);
+
+      await expect(service.obtenerCatalogoPorId(99)).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });

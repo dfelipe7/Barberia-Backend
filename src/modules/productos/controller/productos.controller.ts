@@ -35,9 +35,11 @@ import { CambiarEstadoProductoDto } from '../dto/dto-peticion/cambiar-estado-pro
 import { CrearProductoDto } from '../dto/dto-peticion/crear-producto.dto';
 import {
   ProductoActualizadoResponseDto,
+  ProductoCatalogoResponseDto,
   ProductoEstadoResponseDto,
   ProductoRegistradoResponseDto,
   ProductoResponseDto,
+  ProductosCatalogoResponseDto,
   ProductosListadoResponseDto,
 } from '../dto/dto-respuesta/producto-response.dto';
 import { ProductosFacade } from '../facade/productos.facade';
@@ -81,6 +83,81 @@ export class ProductosController {
   })
   listar(): Promise<ProductosListadoResponseDto> {
     return this.facade.listar();
+  }
+
+  /**
+   * GET /productos/catalogo
+   * Catálogo público del negocio activo. Solo devuelve productos ACTIVO.
+   * No requiere autenticación: el cliente o visitante consulta antes de
+   * decidir una compra.
+   */
+  @Get('catalogo')
+  @HttpCode(HttpStatus.OK)
+  @ApiNegocioHeader()
+  @ApiOperation({
+    summary: 'Consultar el catálogo público de productos activos',
+    description:
+      'Catálogo PÚBLICO de la barbería de la petición. Solo devuelve productos ACTIVO del negocio resuelto por el contexto (subdominio o cabecera X-Negocio-Slug), ordenados por nombre. Si no hay productos activos, responde 200 con `productos: []` y el mensaje "No hay productos disponibles en este momento".',
+  })
+  @ApiOkResponse({
+    description: 'Catálogo de productos activos disponibles',
+    type: ProductosCatalogoResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Negocio sin contexto válido',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'El negocio solicitado no está disponible',
+  })
+  listarCatalogo(): Promise<ProductosCatalogoResponseDto> {
+    return this.facade.listarCatalogo();
+  }
+
+  /**
+   * GET /productos/catalogo/:productoId
+   * Detalle público de un producto ACTIVO. Un producto inactivo, de otro
+   * negocio o inexistente responde 404 con el mismo mensaje.
+   */
+  @Get('catalogo/:productoId')
+  @HttpCode(HttpStatus.OK)
+  @ApiNegocioHeader()
+  @ApiOperation({
+    summary: 'Consultar el detalle público de un producto activo',
+    description:
+      'Devuelve los datos comerciales de un producto ACTIVO del negocio de la petición. Un producto inactivo, inexistente o de otro negocio responde 404 con el mismo mensaje para no revelar su existencia.',
+  })
+  @ApiParam({
+    name: 'productoId',
+    example: 1,
+    description: 'ID del producto',
+  })
+  @ApiOkResponse({
+    description: 'Detalle público del producto',
+    type: ProductoCatalogoResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'El identificador del producto no es un entero positivo',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Negocio sin contexto válido',
+  })
+  @ApiNotFoundResponse({
+    description: 'El producto no se encuentra disponible',
+  })
+  obtenerCatalogoPorId(
+    @Param('productoId', ParseIntPipe) productoId: number,
+  ): Promise<ProductoCatalogoResponseDto> {
+    if (productoId <= 0) {
+      throw new BadRequestException(
+        'El identificador del producto debe ser un entero positivo',
+      );
+    }
+
+    return this.facade.obtenerCatalogoPorId(productoId);
   }
 
   /**

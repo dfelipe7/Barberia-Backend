@@ -72,6 +72,19 @@ interface ProductosListado {
   productos: ProductoRegistrado['producto'][];
 }
 
+interface ProductoCatalogo {
+  id: number;
+  nombre: string;
+  descripcion?: string | null;
+  precio: number;
+  imagenUrl: string | null;
+}
+
+interface ProductosCatalogo {
+  mensaje?: string;
+  productos: ProductoCatalogo[];
+}
+
 function cuerpo<T>(respuesta: Response): T {
   return (respuesta.body ?? {}) as T;
 }
@@ -1696,5 +1709,200 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(superadmin.status).toBe(200);
     expect(barbero.status).toBe(403);
     expect(sinToken.status).toBe(401);
+  });
+
+  it('Visualización de productos disponibles: el catálogo público muestra solo productos ACTIVO con datos mínimos', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    await crearProducto(negocioA.id, {
+      nombre: 'Cera mate',
+      descripcion: 'Fijación fuerte',
+      precio: 35000.5,
+      imagenUrl: `/uploads/negocios/${negocioA.id}/productos/cera.png`,
+      estado: 'ACTIVO',
+    });
+    await crearProducto(negocioA.id, {
+      nombre: 'Aceite agotado',
+      precio: 12000,
+      estado: 'INACTIVO',
+    });
+
+    const respuesta = await request(app.getHttpServer())
+      .get('/productos/catalogo')
+      .set('X-Negocio-Slug', SLUG_A);
+
+    expect(respuesta.status).toBe(200);
+    expect(cuerpo<ProductosCatalogo>(respuesta)).toEqual({
+      productos: [
+        {
+          id: expect.any(Number),
+          nombre: 'Cera mate',
+          descripcion: 'Fijación fuerte',
+          precio: 35000.5,
+          imagenUrl: `/uploads/negocios/${negocioA.id}/productos/cera.png`,
+        },
+      ],
+    });
+  });
+
+  it('Visualización de productos disponibles: no acepta filtros manipulados ni negocioId ajeno', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA, negocioB } = await sembrar();
+    await crearProducto(negocioA.id, { nombre: 'Propio', precio: 10000 });
+    await crearProducto(negocioB.id, { nombre: 'Ajeno', precio: 20000 });
+
+    const respuesta = await request(app.getHttpServer())
+      .get('/productos/catalogo')
+      .query({ negocioId: negocioB.id, estado: 'INACTIVO' })
+      .set('X-Negocio-Slug', SLUG_A);
+
+    expect(respuesta.status).toBe(200);
+    expect(
+      cuerpo<ProductosCatalogo>(respuesta).productos.map((p) => p.nombre),
+    ).toEqual(['Propio']);
+  });
+
+  it('Información del producto: el detalle público devuelve nombre, descripción, precio e imagen', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera mate',
+      descripcion: 'Fijación fuerte',
+      precio: 35000.5,
+      imagenUrl: `/uploads/negocios/${negocioA.id}/productos/cera.png`,
+      estado: 'ACTIVO',
+    });
+
+    const respuesta = await request(app.getHttpServer())
+      .get(`/productos/catalogo/${producto.id}`)
+      .set('X-Negocio-Slug', SLUG_A);
+
+    expect(respuesta.status).toBe(200);
+    expect(cuerpo<ProductoCatalogo>(respuesta)).toEqual({
+      id: producto.id,
+      nombre: 'Cera mate',
+      descripcion: 'Fijación fuerte',
+      precio: 35000.5,
+      imagenUrl: `/uploads/negocios/${negocioA.id}/productos/cera.png`,
+    });
+  });
+
+  it('Producto no disponible: un producto INACTIVO responde 404 igual que uno inexistente', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const inactivo = await crearProducto(negocioA.id, {
+      nombre: 'Agotado',
+      precio: 10000,
+      estado: 'INACTIVO',
+    });
+
+    const detalleInactivo = await request(app.getHttpServer())
+      .get(`/productos/catalogo/${inactivo.id}`)
+      .set('X-Negocio-Slug', SLUG_A);
+
+    const detalleInexistente = await request(app.getHttpServer())
+      .get('/productos/catalogo/999999')
+      .set('X-Negocio-Slug', SLUG_A);
+
+    expect(detalleInactivo.status).toBe(404);
+    expect(detalleInactivo.status).toBe(detalleInexistente.status);
+    expect(cuerpo<{ message: string }>(detalleInactivo).message).toBe(
+      cuerpo<{ message: string }>(detalleInexistente).message,
+    );
+  });
+
+  it('Producto no disponible: un producto de otro negocio responde 404', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioB } = await sembrar();
+    const ajeno = await crearProducto(negocioB.id, {
+      nombre: 'Ajeno',
+      precio: 20000,
+      estado: 'ACTIVO',
+    });
+
+    const respuesta = await request(app.getHttpServer())
+      .get(`/productos/catalogo/${ajeno.id}`)
+      .set('X-Negocio-Slug', SLUG_A);
+
+    expect(respuesta.status).toBe(404);
+  });
+
+  it('Catálogo sin productos disponibles: responde colección vacía y mensaje', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    await crearProducto(negocioA.id, {
+      nombre: 'Agotado',
+      precio: 10000,
+      estado: 'INACTIVO',
+    });
+
+    const respuesta = await request(app.getHttpServer())
+      .get('/productos/catalogo')
+      .set('X-Negocio-Slug', SLUG_A);
+
+    expect(respuesta.status).toBe(200);
+    expect(cuerpo<ProductosCatalogo>(respuesta)).toEqual({
+      mensaje: 'No hay productos disponibles en este momento',
+      productos: [],
+    });
+  });
+
+  it('Visualización de productos disponibles: el catálogo y el detalle son públicos sin token', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      precio: 10000,
+    });
+
+    const listado = await request(app.getHttpServer())
+      .get('/productos/catalogo')
+      .set('X-Negocio-Slug', SLUG_A);
+
+    const detalle = await request(app.getHttpServer())
+      .get(`/productos/catalogo/${producto.id}`)
+      .set('X-Negocio-Slug', SLUG_A);
+
+    expect(listado.status).toBe(200);
+    expect(detalle.status).toBe(200);
+  });
+
+  it('Visualización de productos disponibles: exige contexto de negocio válido', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    await sembrar();
+
+    const sinContexto = await request(app.getHttpServer()).get(
+      '/productos/catalogo',
+    );
+    const negocioInvalido = await request(app.getHttpServer())
+      .get('/productos/catalogo')
+      .set('X-Negocio-Slug', 'negocio-inexistente');
+
+    expect(sinContexto.status).toBe(403);
+    expect(negocioInvalido.status).toBe(404);
+  });
+
+  it('Información del producto: rechaza identificadores no positivos en el detalle público', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    await sembrar();
+
+    const cero = await request(app.getHttpServer())
+      .get('/productos/catalogo/0')
+      .set('X-Negocio-Slug', SLUG_A);
+    const texto = await request(app.getHttpServer())
+      .get('/productos/catalogo/abc')
+      .set('X-Negocio-Slug', SLUG_A);
+
+    expect(cero.status).toBe(400);
+    expect(texto.status).toBe(400);
   });
 });

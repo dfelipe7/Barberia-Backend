@@ -11,6 +11,8 @@ describe('ProductosFacade', () => {
     validarImagen: jest.fn(),
     mapear: jest.fn(),
     listar: jest.fn(),
+    listarCatalogo: jest.fn(),
+    obtenerCatalogoPorId: jest.fn(),
     obtenerPorId: jest.fn(),
     cambiarEstadoProducto: jest.fn(),
   };
@@ -67,6 +69,22 @@ describe('ProductosFacade', () => {
     });
     expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
     expect(productoService.listar).toHaveBeenCalled();
+  });
+
+  it('lista el catálogo público del contexto a través del servicio', async () => {
+    productoService.listarCatalogo.mockResolvedValue({ productos: [] });
+
+    await expect(facade.listarCatalogo()).resolves.toEqual({ productos: [] });
+    expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
+    expect(productoService.listarCatalogo).toHaveBeenCalled();
+  });
+
+  it('delega el detalle público en el servicio con el id recibido', async () => {
+    productoService.obtenerCatalogoPorId.mockResolvedValue({ id: 1 });
+
+    await expect(facade.obtenerCatalogoPorId(1)).resolves.toEqual({ id: 1 });
+    expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
+    expect(productoService.obtenerCatalogoPorId).toHaveBeenCalledWith(1);
   });
 
   it('delega el detalle en el servicio con el id recibido', async () => {

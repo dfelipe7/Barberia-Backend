@@ -5,9 +5,11 @@ import { CambiarEstadoProductoDto } from '../dto/dto-peticion/cambiar-estado-pro
 import { CrearProductoDto } from '../dto/dto-peticion/crear-producto.dto';
 import {
   ProductoActualizadoResponseDto,
+  ProductoCatalogoResponseDto,
   ProductoEstadoResponseDto,
   ProductoRegistradoResponseDto,
   ProductoResponseDto,
+  ProductosCatalogoResponseDto,
   ProductosListadoResponseDto,
 } from '../dto/dto-respuesta/producto-response.dto';
 import { MENSAJE_PRODUCTO_ACTUALIZADO } from '../productos.constants';
@@ -33,6 +35,16 @@ export class ProductosFacade {
   async listar(): Promise<ProductosListadoResponseDto> {
     this.aislamiento.negocioIdRequerido();
     return this.productoService.listar();
+  }
+
+  async listarCatalogo(): Promise<ProductosCatalogoResponseDto> {
+    this.aislamiento.negocioIdRequerido();
+    return this.productoService.listarCatalogo();
+  }
+
+  async obtenerCatalogoPorId(id: number): Promise<ProductoCatalogoResponseDto> {
+    this.aislamiento.negocioIdRequerido();
+    return this.productoService.obtenerCatalogoPorId(id);
   }
 
   async obtenerPorId(id: number): Promise<ProductoResponseDto> {

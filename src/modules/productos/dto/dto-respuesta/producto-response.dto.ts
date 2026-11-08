@@ -74,3 +74,43 @@ export class ProductosListadoResponseDto {
   @ApiProperty({ type: [ProductoResponseDto] })
   productos: ProductoResponseDto[];
 }
+
+/** Producto visible en el catálogo público: solo datos comerciales. */
+export class ProductoCatalogoResponseDto {
+  @ApiProperty({ example: 1, description: 'ID único del producto' })
+  id: number;
+
+  @ApiProperty({ example: 'Cera para cabello' })
+  nombre: string;
+
+  @ApiProperty({
+    example: 'Cera de fijación fuerte con acabado mate',
+    required: false,
+    nullable: true,
+  })
+  descripcion?: string | null;
+
+  @ApiProperty({ example: 35000, description: 'Precio del producto' })
+  precio: number;
+
+  @ApiProperty({
+    example: '/uploads/negocios/1/productos/producto-1234-abcd.jpg',
+    description: 'Ruta pública de la imagen del producto',
+    nullable: true,
+    required: false,
+  })
+  imagenUrl: string | null;
+}
+
+/** Catálogo público: únicamente productos ACTIVO del negocio del contexto. */
+export class ProductosCatalogoResponseDto {
+  @ApiPropertyOptional({
+    example: 'No hay productos disponibles en este momento',
+    description:
+      'Presente únicamente cuando el negocio no tiene productos activos.',
+  })
+  mensaje?: string;
+
+  @ApiProperty({ type: [ProductoCatalogoResponseDto] })
+  productos: ProductoCatalogoResponseDto[];
+}

@@ -15,6 +15,7 @@
 - [DEBT-005 — .vscode/ sin excluir en el repo](#debt-005--vscode-sin-excluir-en-el-repo)
 - [DEBT-006 — Índice compuesto para listado de productos por negocio y fecha](#debt-006--índice-compuesto-para-listado-de-productos-por-negocio-y-fecha)
 - [DEBT-007 — Test de uploads con describe anidado rompe la suite completa](#debt-007--test-de-uploads-con-describe-anidado-rompe-la-suite-completa)
+- [DEBT-008 — Producto no está cubierto por el aislamiento automático de Prisma](#debt-008--producto-no-está-cubierto-por-el-aislamiento-automático-de-prisma)
 
 ---
 
@@ -129,9 +130,37 @@
 
 ---
 
+### DEBT-008 — Producto no está cubierto por el aislamiento automático de Prisma
+
+- **Severidad**: ALTA (seguridad)
+- **Área**: backend/productos | seguridad | datos
+- **Estado**: ABIERTA
+- **Detectada**: 2026-11-07
+- **Origen**: validación de HE-03-HU-05.
+- **Descripción**: El modelo Prisma `Producto` no aparece en
+  `MODELOS_TENANT_SCOPED` ni en `MODELOS_GLOBALES`. La extensión
+  `prisma-extension-aislamiento.ts` trata cualquier modelo no tenant-scoped
+  como global y ejecuta `query(args)` sin inyectar `negocioId`. Por tanto, la
+  extensión NO protege `Producto`; la única barrera efectiva es el
+  `filtroLectura` explícito de `ProductoRepository`.
+- **Impacto**: Una consulta futura que olvide `filtroLectura` podría leer o
+  escribir productos de otro negocio. En HU-05 las consultas actuales sí
+  filtran, pero la defensa en profundidad no cubre este modelo.
+- **Mitigación propuesta**:
+  1. Añadir `Producto` a `MODELOS_TENANT_SCOPED` con pruebas de la extensión.
+  2. Verificar que la extensión no rompa `create/update` existentes.
+  3. Alternativa: documentar `Producto` como excepción aprobada y reforzar
+     la revisión de repositorios.
+- **Criterio de cierre**: `Producto` incluido en `MODELOS_TENANT_SCOPED` y
+  pruebas que demuestren que una consulta sin filtro explícito no devuelve
+  filas de otro negocio; o excepción aprobada y documentada.
+- **Target**: revisión de aislamiento multitenant; sin fecha.
+
+---
+
 ## Cómo añadir una entrada nueva
 
-1. Tomar el siguiente ID disponible (`DEBT-006`, …).
+1. Tomar el siguiente ID disponible (`DEBT-009`, …).
 2. Copiar la plantilla de `AGENTS.md` §10.3.
 3. Rellenar todos los campos salvo los opcionales.
 4. Añadir la entrada al índice.

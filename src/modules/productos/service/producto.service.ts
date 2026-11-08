@@ -13,8 +13,10 @@ import { ActualizarProductoDto } from '../dto/dto-peticion/actualizar-producto.d
 import { CambiarEstadoProductoDto } from '../dto/dto-peticion/cambiar-estado-producto.dto';
 import { CrearProductoDto } from '../dto/dto-peticion/crear-producto.dto';
 import {
+  ProductoCatalogoResponseDto,
   ProductoEstadoResponseDto,
   ProductoResponseDto,
+  ProductosCatalogoResponseDto,
   ProductosListadoResponseDto,
 } from '../dto/dto-respuesta/producto-response.dto';
 import {
@@ -26,6 +28,7 @@ import {
   MENSAJE_PRODUCTO_NO_DISPONIBLE,
   MENSAJE_SIN_CAMPOS_ACTUALIZAR,
   MENSAJE_SIN_PRODUCTOS,
+  MENSAJE_SIN_PRODUCTOS_DISPONIBLES,
   PRECIO_MAXIMO_PRODUCTO,
   PRECIO_MINIMO_PRODUCTO,
 } from '../productos.constants';
@@ -206,6 +209,36 @@ export class ProductoService {
     return { productos: productos.map((producto) => this.mapear(producto)) };
   }
 
+  /** Catálogo público: solo productos ACTIVO, con mensaje si no hay ninguno. */
+  async listarCatalogo(): Promise<ProductosCatalogoResponseDto> {
+    const productos = await this.repository.listarCatalogo();
+
+    if (productos.length === 0) {
+      return {
+        mensaje: MENSAJE_SIN_PRODUCTOS_DISPONIBLES,
+        productos: [],
+      };
+    }
+
+    return {
+      productos: productos.map((producto) => this.mapearCatalogo(producto)),
+    };
+  }
+
+  /**
+   * Detalle público. Un producto inactivo, inexistente o de otro negocio
+   * responde igual para no revelar su existencia.
+   */
+  async obtenerCatalogoPorId(id: number): Promise<ProductoCatalogoResponseDto> {
+    const producto = await this.repository.obtenerDisponiblePorId(id);
+
+    if (!producto) {
+      throw new NotFoundException(MENSAJE_PRODUCTO_NO_DISPONIBLE);
+    }
+
+    return this.mapearCatalogo(producto);
+  }
+
   /** Detalle administrativo; un producto ajeno se comporta como inexistente. */
   async obtenerPorId(id: number): Promise<ProductoResponseDto> {
     const producto = await this.repository.obtenerPorId(id);
@@ -250,6 +283,16 @@ export class ProductoService {
       estado: producto.estado,
       creadoEn: producto.creadoEn,
       actualizadoEn: producto.actualizadoEn,
+    };
+  }
+
+  private mapearCatalogo(producto: Producto): ProductoCatalogoResponseDto {
+    return {
+      id: producto.id,
+      nombre: producto.nombre,
+      descripcion: producto.descripcion,
+      precio: Number(producto.precio),
+      imagenUrl: producto.imagenUrl,
     };
   }
 }

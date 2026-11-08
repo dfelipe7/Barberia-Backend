@@ -7,11 +7,17 @@ describe('ProductosController', () => {
     actualizar: jest.fn(),
     cambiarEstado: jest.fn(),
     listar: jest.fn(),
+    listarCatalogo: jest.fn(),
+    obtenerCatalogoPorId: jest.fn(),
     obtenerPorId: jest.fn(),
   };
   const controller = new ProductosController(
     facade as unknown as ProductosFacade,
   );
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
   it('delega el listado en la fachada sin reglas de negocio', async () => {
     const respuesta = { productos: [], mensaje: 'No existen productos' };
@@ -19,6 +25,29 @@ describe('ProductosController', () => {
 
     await expect(controller.listar()).resolves.toBe(respuesta);
     expect(facade.listar).toHaveBeenCalled();
+  });
+
+  it('delega el catálogo público en la fachada', async () => {
+    const respuesta = { productos: [] };
+    facade.listarCatalogo.mockResolvedValue(respuesta);
+
+    await expect(controller.listarCatalogo()).resolves.toBe(respuesta);
+    expect(facade.listarCatalogo).toHaveBeenCalled();
+  });
+
+  it('delega el detalle público en la fachada con el id recibido', async () => {
+    const respuesta = { id: 3 };
+    facade.obtenerCatalogoPorId.mockResolvedValue(respuesta);
+
+    await expect(controller.obtenerCatalogoPorId(3)).resolves.toBe(respuesta);
+    expect(facade.obtenerCatalogoPorId).toHaveBeenCalledWith(3);
+  });
+
+  it('rechaza un id no positivo en el detalle público', () => {
+    expect(() => controller.obtenerCatalogoPorId(0)).toThrow(
+      'El identificador del producto debe ser un entero positivo',
+    );
+    expect(facade.obtenerCatalogoPorId).not.toHaveBeenCalled();
   });
 
   it('delega el detalle en la fachada con el id recibido', async () => {

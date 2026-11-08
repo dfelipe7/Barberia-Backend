@@ -234,3 +234,33 @@ Resolved-By (opcional): commit <hash> | PR #N
 **Mantenedor**: alexisGuille20
 **Repositorio**: https://github.com/dfelipe7/Barberia-Backend
 
+## 12. Pruebas y documentación viva
+
+### 12.1 Toda prueba nueva se integra a la suite de pruebas
+
+- Un test nuevo **no queda suelto**: debe vivir en la suite que le
+  corresponde (`src/**/*.spec.ts` para unitarias, `test/*.e2e-spec.ts` para
+  E2E, `test/multitenant-*.e2e-spec.ts` para multitenant) y ejecutarse con el
+  comando de esa suite, no solo con un patrón ad-hoc.
+- El agente declara en el reporte el comando exacto con el que ejecutó la
+  suite y la salida literal (no resumida).
+- Si la suite requiere infraestructura (Docker, MySQL/MariaDB) y no está
+  disponible, el agente declara la limitación real y el número de tests
+  omitidos. **No se declara "passing" un test omitido.**
+- Los tests deben poder pasar en CI con el comando de la suite completa; un
+  test que solo pasa aislado no se acepta como cobertura de un criterio.
+
+### 12.2 Todo cambio de contrato o de comportamiento se refleja en `docs/`
+
+- Si el cambio altera contratos de API (rutas, DTOs, códigos HTTP,
+  cabeceras), debe actualizarse `docs/api/REFERENCIA_API.md` (o el documento
+  de contratos vigente).
+- Si el cambio altera criterios de aceptación o su cobertura, debe
+  actualizarse la matriz criterio → prueba → resultado en el documento
+  correspondiente de `docs/`.
+- La documentación es **viva**: crece con el proyecto y es la fuente que leen
+  otros desarrolladores. Un cambio que no se documenta **no se considera
+  terminado**.
+- El agente declara en el reporte qué documentos actualizó y cuáles no
+  aplican, con el motivo.
+
