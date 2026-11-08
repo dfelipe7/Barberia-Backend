@@ -7,6 +7,7 @@ import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.se
 describe('ProductosFacade', () => {
   const productoService = {
     validarRegistro: jest.fn(),
+    validarActualizacion: jest.fn(),
     validarImagen: jest.fn(),
     mapear: jest.fn(),
     listar: jest.fn(),
@@ -16,7 +17,11 @@ describe('ProductosFacade', () => {
     guardar: jest.fn(),
     eliminar: jest.fn(),
   };
-  const repository = { crear: jest.fn() };
+  const repository = {
+    crear: jest.fn(),
+    actualizar: jest.fn(),
+    tieneOtraReferenciaAImagen: jest.fn(),
+  };
   const aislamiento = { negocioIdRequerido: jest.fn() };
   const facade = new ProductosFacade(
     productoService as unknown as ProductoService,
@@ -44,6 +49,8 @@ describe('ProductosFacade', () => {
       '/uploads/negocios/7/productos/producto-1.png',
     );
     repository.crear.mockResolvedValue(producto);
+    repository.actualizar.mockResolvedValue(producto);
+    repository.tieneOtraReferenciaAImagen.mockResolvedValue(false);
     productoService.mapear.mockReturnValue({ id: 1, nombre: 'Cera' });
   });
 
@@ -142,5 +149,173 @@ describe('ProductosFacade', () => {
 
     await expect(facade.registrar(dto, archivo)).rejects.toThrow('duplicado');
     expect(almacenamiento.guardar).not.toHaveBeenCalled();
+  });
+
+  describe('actualizar', () => {
+    const actual = {
+      id: 1,
+      nombre: 'Cera',
+      imagenUrl: '/uploads/negocios/7/productos/old.png',
+    };
+
+    beforeEach(() => {
+      productoService.validarImagen.mockReturnValue(null);
+      productoService.validarActualizacion.mockResolvedValue({
+        actual,
+        cambios: { nombre: 'Cera mate' },
+      });
+    });
+
+    it('actualiza solo los campos enviados sin tocar el disco', async () => {
+      const respuesta = await facade.actualizar(1, { nombre: 'Cera mate' });
+
+      expect(productoService.validarActualizacion).toHaveBeenCalledWith(
+        1,
+        { nombre: 'Cera mate' },
+        false,
+      );
+      expect(repository.actualizar).toHaveBeenCalledWith(1, {
+        nombre: 'Cera mate',
+      });
+      expect(almacenamiento.guardar).not.toHaveBeenCalled();
+      expect(almacenamiento.eliminar).not.toHaveBeenCalled();
+      expect(respuesta).toEqual({
+        mensaje: 'Producto actualizado correctamente',
+        producto: { id: 1, nombre: 'Cera' },
+      });
+    });
+
+    it('no llama a repository.actualizar cuando cambios está vacío y no hay archivo', async () => {
+      productoService.validarActualizacion.mockResolvedValue({
+        actual,
+        cambios: {},
+      });
+
+      const respuesta = await facade.actualizar(1, {});
+
+      expect(repository.actualizar).not.toHaveBeenCalled();
+      expect(almacenamiento.guardar).not.toHaveBeenCalled();
+      expect(productoService.mapear).toHaveBeenCalledWith(actual);
+      expect(respuesta).toEqual({
+        mensaje: 'Producto actualizado correctamente',
+        producto: { id: 1, nombre: 'Cera' },
+      });
+    });
+
+    it('llama a repository.actualizar cuando cambios está vacío pero hay archivo nuevo', async () => {
+      productoService.validarActualizacion.mockResolvedValue({
+        actual,
+        cambios: {},
+      });
+      productoService.validarImagen.mockReturnValue({
+        contenido: Buffer.from('nueva'),
+        extension: 'png',
+      });
+      almacenamiento.guardar.mockResolvedValue(
+        '/uploads/negocios/7/productos/new.png',
+      );
+      repository.actualizar.mockResolvedValue({
+        ...actual,
+        imagenUrl: '/uploads/negocios/7/productos/new.png',
+      });
+
+      await facade.actualizar(1, {}, archivo);
+
+      expect(productoService.validarActualizacion).toHaveBeenCalledWith(
+        1,
+        {},
+        true,
+      );
+      expect(repository.actualizar).toHaveBeenCalledWith(1, {
+        imagenUrl: '/uploads/negocios/7/productos/new.png',
+      });
+      expect(repository.tieneOtraReferenciaAImagen).toHaveBeenCalledWith(
+        '/uploads/negocios/7/productos/old.png',
+        1,
+      );
+      expect(almacenamiento.eliminar).toHaveBeenCalledWith(
+        7,
+        '/uploads/negocios/7/productos/old.png',
+      );
+    });
+
+    it('reemplaza la imagen y elimina la anterior si no está compartida', async () => {
+      productoService.validarImagen.mockReturnValue({
+        contenido: Buffer.from('nueva'),
+        extension: 'png',
+      });
+      almacenamiento.guardar.mockResolvedValue(
+        '/uploads/negocios/7/productos/new.png',
+      );
+      repository.actualizar.mockResolvedValue({
+        ...actual,
+        imagenUrl: '/uploads/negocios/7/productos/new.png',
+      });
+
+      await facade.actualizar(1, {}, archivo);
+
+      expect(repository.actualizar).toHaveBeenCalledWith(1, {
+        nombre: 'Cera mate',
+        imagenUrl: '/uploads/negocios/7/productos/new.png',
+      });
+      expect(repository.tieneOtraReferenciaAImagen).toHaveBeenCalledWith(
+        '/uploads/negocios/7/productos/old.png',
+        1,
+      );
+      expect(almacenamiento.eliminar).toHaveBeenCalledWith(
+        7,
+        '/uploads/negocios/7/productos/old.png',
+      );
+    });
+
+    it('conserva la imagen anterior si otro producto la comparte', async () => {
+      productoService.validarImagen.mockReturnValue({
+        contenido: Buffer.from('nueva'),
+        extension: 'png',
+      });
+      almacenamiento.guardar.mockResolvedValue(
+        '/uploads/negocios/7/productos/new.png',
+      );
+      repository.tieneOtraReferenciaAImagen.mockResolvedValue(true);
+
+      await facade.actualizar(1, {}, archivo);
+
+      expect(almacenamiento.eliminar).not.toHaveBeenCalled();
+    });
+
+    it('elimina la imagen nueva si la base de datos falla', async () => {
+      productoService.validarImagen.mockReturnValue({
+        contenido: Buffer.from('nueva'),
+        extension: 'png',
+      });
+      almacenamiento.guardar.mockResolvedValue(
+        '/uploads/negocios/7/productos/new.png',
+      );
+      repository.actualizar.mockRejectedValue(new Error('BD caída'));
+
+      await expect(facade.actualizar(1, {}, archivo)).rejects.toThrow(
+        'BD caída',
+      );
+      expect(almacenamiento.eliminar).toHaveBeenCalledWith(
+        7,
+        '/uploads/negocios/7/productos/new.png',
+      );
+    });
+
+    it('no convierte en 500 un fallo al limpiar la imagen anterior', async () => {
+      productoService.validarImagen.mockReturnValue({
+        contenido: Buffer.from('nueva'),
+        extension: 'png',
+      });
+      almacenamiento.guardar.mockResolvedValue(
+        '/uploads/negocios/7/productos/new.png',
+      );
+      almacenamiento.eliminar.mockRejectedValue(new Error('sin permisos'));
+
+      await expect(facade.actualizar(1, {}, archivo)).resolves.toEqual({
+        mensaje: 'Producto actualizado correctamente',
+        producto: { id: 1, nombre: 'Cera' },
+      });
+    });
   });
 });

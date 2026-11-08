@@ -37,3 +37,11 @@ export const MENSAJE_SIN_PRODUCTOS = 'No existen productos registrados';
 /** Mensaje uniforme para un producto inexistente o de otro negocio. */
 export const MENSAJE_PRODUCTO_NO_DISPONIBLE =
   'El producto no se encuentra disponible';
+
+/** Confirmación de una edición aplicada correctamente. */
+export const MENSAJE_PRODUCTO_ACTUALIZADO =
+  'Producto actualizado correctamente';
+
+/** La petición de edición no contiene ningún campo ni imagen. */
+export const MENSAJE_SIN_CAMPOS_ACTUALIZAR =
+  'Debe indicar al menos un campo para actualizar';

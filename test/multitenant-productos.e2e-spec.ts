@@ -321,6 +321,12 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
       },
     });
 
+  const fijarActualizadoEn = (id: number, fecha: Date) =>
+    prisma.producto.update({
+      where: { id },
+      data: { actualizadoEn: fecha },
+    });
+
   const login = async (
     email: string,
     slug: string,
@@ -352,6 +358,40 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
 
     if (campos.descripcion !== undefined) {
       peticion = peticion.field('descripcion', campos.descripcion);
+    }
+
+    for (const [campo, valor] of Object.entries(extra ?? {})) {
+      peticion = peticion.field(campo, valor);
+    }
+
+    if (imagen) {
+      peticion = peticion.attach('imagen', imagen.contenido, {
+        filename: imagen.nombre,
+        contentType: imagen.tipo,
+      });
+    }
+
+    return peticion;
+  };
+
+  const actualizar = (
+    token: string | undefined,
+    slug: string,
+    id: number,
+    campos: Record<string, string | number>,
+    imagen?: { contenido: Buffer; nombre: string; tipo: string },
+    extra?: Record<string, string>,
+  ) => {
+    let peticion = request(app.getHttpServer())
+      .patch(`/productos/${id}`)
+      .set('X-Negocio-Slug', slug);
+
+    if (token) {
+      peticion = peticion.set('Authorization', `Bearer ${token}`);
+    }
+
+    for (const [campo, valor] of Object.entries(campos)) {
+      peticion = peticion.field(campo, String(valor));
     }
 
     for (const [campo, valor] of Object.entries(extra ?? {})) {
@@ -836,5 +876,427 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(detalleBarbero.status).toBe(403);
     expect(listadoSinToken.status).toBe(401);
     expect(detalleSinToken.status).toBe(401);
+  });
+
+  it('Actualización de datos: actualiza solo los campos enviados y conserva la imagen', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    await sembrar();
+    const token = await login('admin-a@test.local', SLUG_A);
+    const creado = await registrar(
+      token,
+      SLUG_A,
+      { nombre: 'Cera', descripcion: 'Mate', precio: 10000 },
+      { contenido: PNG_VALIDO, nombre: 'producto.png', tipo: 'image/png' },
+    );
+    expect(creado.status).toBe(201);
+    const original = cuerpo<ProductoRegistrado>(creado).producto;
+
+    const respuesta = await actualizar(token, SLUG_A, original.id, {
+      nombre: '  Cera premium  ',
+      precio: '25000.50',
+    });
+
+    expect(respuesta.status).toBe(200);
+    const datos = cuerpo<ProductoRegistrado>(respuesta);
+    expect(datos.mensaje).toBe('Producto actualizado correctamente');
+    expect(datos.producto).toMatchObject({
+      id: original.id,
+      nombre: 'Cera premium',
+      descripcion: 'Mate',
+      precio: 25000.5,
+      imagenUrl: original.imagenUrl,
+      estado: 'ACTIVO',
+    });
+
+    const enBase = await prisma.producto.findUnique({
+      where: { id: original.id },
+    });
+    expect(enBase?.nombre).toBe('Cera premium');
+    expect(Number(enBase?.precio)).toBe(25000.5);
+    expect(enBase?.descripcion).toBe('Mate');
+
+    const limpiar = await actualizar(token, SLUG_A, original.id, {
+      descripcion: '',
+    });
+    expect(limpiar.status).toBe(200);
+    expect(cuerpo<ProductoRegistrado>(limpiar).producto.descripcion).toBeNull();
+
+    await actualizar(token, SLUG_A, original.id, { descripcion: 'Temporal' });
+    const anulada = await request(app.getHttpServer())
+      .patch(`/productos/${original.id}`)
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ descripcion: null });
+
+    expect(anulada.status).toBe(200);
+    expect(cuerpo<ProductoRegistrado>(anulada).producto.descripcion).toBeNull();
+  });
+
+  it('Actualización de datos: reemplaza la imagen y elimina la anterior', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    await sembrar();
+    const token = await login('admin-a@test.local', SLUG_A);
+    const creado = await registrar(
+      token,
+      SLUG_A,
+      { nombre: 'Cera con imagen', precio: 10000 },
+      { contenido: PNG_VALIDO, nombre: 'vieja.png', tipo: 'image/png' },
+    );
+    expect(creado.status).toBe(201);
+    const original = cuerpo<ProductoRegistrado>(creado).producto;
+    const rutaVieja = path.resolve(
+      directorioUploads(),
+      original.imagenUrl!.replace('/uploads/', ''),
+    );
+    expect(fs.existsSync(rutaVieja)).toBe(true);
+
+    const respuesta = await actualizar(
+      token,
+      SLUG_A,
+      original.id,
+      {},
+      { contenido: PNG_VALIDO, nombre: 'nueva.png', tipo: 'image/png' },
+    );
+
+    expect(respuesta.status).toBe(200);
+    const actualizado = cuerpo<ProductoRegistrado>(respuesta).producto;
+    expect(actualizado.imagenUrl).not.toBe(original.imagenUrl);
+
+    const rutaNueva = path.resolve(
+      directorioUploads(),
+      actualizado.imagenUrl!.replace('/uploads/', ''),
+    );
+    expect(fs.existsSync(rutaNueva)).toBe(true);
+    expect(fs.existsSync(rutaVieja)).toBe(false);
+  });
+
+  it('Actualización de datos: reenviar los mismos valores no cambia actualizadoEn', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const token = await login('admin-a@test.local', SLUG_A);
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      descripcion: 'Mate',
+      precio: 10000,
+    });
+    const fecha = new Date('2020-01-01T00:00:00.000Z');
+    await fijarActualizadoEn(producto.id, fecha);
+
+    const respuesta = await actualizar(token, SLUG_A, producto.id, {
+      nombre: '  Cera  ',
+      descripcion: '  Mate  ',
+      precio: '10000',
+    });
+
+    expect(respuesta.status).toBe(200);
+    expect(cuerpo<ProductoRegistrado>(respuesta).producto.actualizadoEn).toBe(
+      fecha.toISOString(),
+    );
+
+    const enBase = await prisma.producto.findUnique({
+      where: { id: producto.id },
+    });
+    expect(enBase?.actualizadoEn.toISOString()).toBe(fecha.toISOString());
+  });
+
+  it('Actualización de datos: reenviar la misma descripción no cambia actualizadoEn', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const token = await login('admin-a@test.local', SLUG_A);
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      descripcion: 'Mate',
+      precio: 10000,
+    });
+    const fecha = new Date('2020-01-01T00:00:00.000Z');
+    await fijarActualizadoEn(producto.id, fecha);
+
+    const respuesta = await actualizar(token, SLUG_A, producto.id, {
+      descripcion: '  Mate  ',
+    });
+
+    expect(respuesta.status).toBe(200);
+    expect(cuerpo<ProductoRegistrado>(respuesta).producto.actualizadoEn).toBe(
+      fecha.toISOString(),
+    );
+  });
+
+  it('Actualización de datos: reenviar el mismo precio no cambia actualizadoEn', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const token = await login('admin-a@test.local', SLUG_A);
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      descripcion: 'Mate',
+      precio: 10000,
+    });
+    const fecha = new Date('2020-01-01T00:00:00.000Z');
+    await fijarActualizadoEn(producto.id, fecha);
+
+    const respuesta = await actualizar(token, SLUG_A, producto.id, {
+      precio: '10000',
+    });
+
+    expect(respuesta.status).toBe(200);
+    expect(cuerpo<ProductoRegistrado>(respuesta).producto.actualizadoEn).toBe(
+      fecha.toISOString(),
+    );
+  });
+
+  it('Actualización de datos: una imagen nueva cambia actualizadoEn aunque los datos sean iguales', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const token = await login('admin-a@test.local', SLUG_A);
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      descripcion: 'Mate',
+      precio: 10000,
+    });
+    const fecha = new Date('2020-01-01T00:00:00.000Z');
+    await fijarActualizadoEn(producto.id, fecha);
+
+    const respuesta = await actualizar(
+      token,
+      SLUG_A,
+      producto.id,
+      {},
+      { contenido: PNG_VALIDO, nombre: 'nueva.png', tipo: 'image/png' },
+    );
+
+    expect(respuesta.status).toBe(200);
+    const actualizado = cuerpo<ProductoRegistrado>(respuesta).producto;
+    expect(actualizado.imagenUrl).not.toBeNull();
+    expect(new Date(actualizado.actualizadoEn!).getTime()).toBeGreaterThan(
+      fecha.getTime(),
+    );
+  });
+
+  it('Validación de información modificada: rechaza datos inválidos, duplicados y campos internos', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const token = await login('admin-a@test.local', SLUG_A);
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      precio: 10000,
+    });
+    await crearProducto(negocioA.id, {
+      nombre: 'Aceite',
+      precio: 12000,
+    });
+
+    const vacio = await actualizar(token, SLUG_A, producto.id, {});
+    expect(vacio.status).toBe(400);
+
+    const precio = await actualizar(token, SLUG_A, producto.id, {
+      precio: '0',
+    });
+    expect(precio.status).toBe(400);
+
+    const nombreNulo = await request(app.getHttpServer())
+      .patch(`/productos/${producto.id}`)
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ nombre: null });
+    expect(nombreNulo.status).toBe(400);
+
+    const precioNulo = await request(app.getHttpServer())
+      .patch(`/productos/${producto.id}`)
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ precio: null });
+    expect(precioNulo.status).toBe(400);
+
+    const duplicado = await actualizar(token, SLUG_A, producto.id, {
+      nombre: 'Aceite',
+    });
+    expect(duplicado.status).toBe(409);
+
+    for (const campo of [
+      'negocioId',
+      'estado',
+      'id',
+      'creadoEn',
+      'actualizadoEn',
+      'imagenUrl',
+    ]) {
+      const interno = await actualizar(
+        token,
+        SLUG_A,
+        producto.id,
+        {},
+        undefined,
+        { [campo]: campo === 'estado' ? 'INACTIVO' : '999' },
+      );
+      expect(interno.status).toBe(400);
+    }
+
+    const internoConNombre = await actualizar(
+      token,
+      SLUG_A,
+      producto.id,
+      { nombre: 'Intruso' },
+      undefined,
+      { negocioId: '999' },
+    );
+    expect(internoConNombre.status).toBe(400);
+
+    const nombreVacio = await actualizar(token, SLUG_A, producto.id, {
+      nombre: '   ',
+    });
+    expect(nombreVacio.status).toBe(400);
+
+    const descripcionLarga = await actualizar(token, SLUG_A, producto.id, {
+      descripcion: 'x'.repeat(501),
+    });
+    expect(descripcionLarga.status).toBe(400);
+
+    const precioDecimales = await actualizar(token, SLUG_A, producto.id, {
+      precio: '10.999',
+    });
+    expect(precioDecimales.status).toBe(400);
+
+    const inexistente = await actualizar(token, SLUG_A, 999999, {
+      nombre: 'Fantasma',
+    });
+    expect(inexistente.status).toBe(404);
+
+    const enBase = await prisma.producto.findUnique({
+      where: { id: producto.id },
+    });
+    expect(enBase?.nombre).toBe('Cera');
+    expect(Number(enBase?.precio)).toBe(10000);
+    expect(enBase?.descripcion).toBeNull();
+  });
+
+  it('Confirmación de actualización: responde 200 con mensaje y producto actualizado', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const token = await login('admin-a@test.local', SLUG_A);
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      precio: 10000,
+    });
+
+    const respuesta = await actualizar(token, SLUG_A, producto.id, {
+      nombre: 'Cera nueva',
+    });
+
+    expect(respuesta.status).toBe(200);
+    expect(cuerpo<ProductoRegistrado>(respuesta)).toMatchObject({
+      mensaje: 'Producto actualizado correctamente',
+      producto: {
+        id: producto.id,
+        nombre: 'Cera nueva',
+        precio: 10000,
+      },
+    });
+  });
+
+  it('Acceso a la edición: aísla tenants y exige rol administrativo', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA, negocioB } = await sembrar();
+    const productoA = await crearProducto(negocioA.id, {
+      nombre: 'Propio',
+      precio: 10000,
+    });
+    const productoB = await crearProducto(negocioB.id, {
+      nombre: 'Ajeno',
+      precio: 20000,
+    });
+    const tokenA = await login('admin-a@test.local', SLUG_A);
+    const tokenBarbero = await login('barbero-a@test.local', SLUG_A);
+    const tokenSuper = await login('superadmin-a@test.local', SLUG_A);
+    const tokenB = await login('admin-b@test.local', SLUG_B);
+
+    const ajeno = await actualizar(tokenA, SLUG_A, productoB.id, {
+      nombre: 'Intruso',
+    });
+    expect(ajeno.status).toBe(404);
+    const enBase = await prisma.producto.findUnique({
+      where: { id: productoB.id },
+    });
+    expect(enBase?.nombre).toBe('Ajeno');
+
+    const inexistente = await actualizar(tokenA, SLUG_A, 999999, {
+      nombre: 'Intruso',
+    });
+    expect(ajeno.status).toBe(inexistente.status);
+    expect(cuerpo<{ message: string }>(ajeno).message).toBe(
+      cuerpo<{ message: string }>(inexistente).message,
+    );
+
+    const barbero = await actualizar(tokenBarbero, SLUG_A, productoA.id, {
+      nombre: 'Intruso',
+    });
+    expect(barbero.status).toBe(403);
+
+    const sinToken = await actualizar(undefined, SLUG_A, productoA.id, {
+      nombre: 'Intruso',
+    });
+    expect(sinToken.status).toBe(401);
+
+    const adminOtroContexto = await actualizar(tokenB, SLUG_A, productoA.id, {
+      nombre: 'Intruso',
+    });
+    expect(adminOtroContexto.status).toBe(403);
+
+    const superAjeno = await actualizar(tokenSuper, SLUG_A, productoB.id, {
+      nombre: 'Intruso',
+    });
+    expect(superAjeno.status).toBe(404);
+
+    const superOtroContexto = await actualizar(
+      tokenSuper,
+      SLUG_B,
+      productoB.id,
+      { nombre: 'Intruso' },
+    );
+    expect(superOtroContexto.status).toBe(403);
+
+    const propioEnBase = await prisma.producto.findUnique({
+      where: { id: productoA.id },
+    });
+    expect(propioEnBase?.nombre).toBe('Propio');
+  });
+
+  it('Acceso a la edición: ADMINISTRADOR y SUPERADMIN del negocio editan su producto', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const productoAdmin = await crearProducto(negocioA.id, {
+      nombre: 'Admin',
+      precio: 10000,
+    });
+    const productoSuper = await crearProducto(negocioA.id, {
+      nombre: 'Super',
+      precio: 12000,
+    });
+    const tokenAdmin = await login('admin-a@test.local', SLUG_A);
+    const tokenSuper = await login('superadmin-a@test.local', SLUG_A);
+
+    const admin = await actualizar(tokenAdmin, SLUG_A, productoAdmin.id, {
+      nombre: 'Admin editado',
+    });
+    const superadmin = await actualizar(tokenSuper, SLUG_A, productoSuper.id, {
+      nombre: 'Super editado',
+    });
+
+    expect(admin.status).toBe(200);
+    expect(superadmin.status).toBe(200);
+    expect(cuerpo<ProductoRegistrado>(admin).producto.nombre).toBe(
+      'Admin editado',
+    );
+    expect(cuerpo<ProductoRegistrado>(superadmin).producto.nombre).toBe(
+      'Super editado',
+    );
   });
 });

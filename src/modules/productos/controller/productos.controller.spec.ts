@@ -4,6 +4,7 @@ import { ProductosFacade } from '../facade/productos.facade';
 describe('ProductosController', () => {
   const facade = {
     registrar: jest.fn(),
+    actualizar: jest.fn(),
     listar: jest.fn(),
     obtenerPorId: jest.fn(),
   };
@@ -36,5 +37,16 @@ describe('ProductosController', () => {
       mensaje: 'ok',
     });
     expect(facade.registrar).toHaveBeenCalledWith(dto, archivo);
+  });
+
+  it('delega la actualización en la fachada con id, dto y archivo', async () => {
+    const dto = { nombre: 'Cera mate' };
+    const archivo = { buffer: Buffer.from('imagen') } as Express.Multer.File;
+    facade.actualizar.mockResolvedValue({ mensaje: 'ok' });
+
+    await expect(controller.actualizar(3, dto, archivo)).resolves.toEqual({
+      mensaje: 'ok',
+    });
+    expect(facade.actualizar).toHaveBeenCalledWith(3, dto, archivo);
   });
 });

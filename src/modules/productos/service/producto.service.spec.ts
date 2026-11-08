@@ -227,4 +227,167 @@ describe('ProductoService', () => {
       estado: 'ACTIVO',
     });
   });
+
+  describe('validarActualizacion', () => {
+    const actual = {
+      id: 1,
+      nombre: 'Cera',
+      descripcion: 'Mate',
+      precio: 35000,
+      imagenUrl: '/uploads/negocios/7/productos/cera.png',
+    };
+
+    beforeEach(() => {
+      repository.obtenerPorId.mockResolvedValue(actual);
+    });
+
+    it('rechaza una edición sin campos ni imagen', async () => {
+      await expect(
+        service.validarActualizacion(1, {}, false),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('oculta como 404 un producto inexistente o de otro negocio', async () => {
+      repository.obtenerPorId.mockResolvedValue(null);
+
+      await expect(
+        service.validarActualizacion(99, { nombre: 'Otra' }, false),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('devuelve solo los campos enviados y limpia la descripción vacía', async () => {
+      const resultado = await service.validarActualizacion(
+        1,
+        { descripcion: '   ', precio: 10.5 },
+        false,
+      );
+
+      expect(resultado.actual).toBe(actual);
+      expect(resultado.cambios).toEqual({
+        descripcion: null,
+        precio: 10.5,
+      });
+    });
+
+    it('acepta null para limpiar la descripción', async () => {
+      const resultado = await service.validarActualizacion(
+        1,
+        { descripcion: null },
+        false,
+      );
+
+      expect(resultado.cambios).toEqual({ descripcion: null });
+    });
+
+    it('no incluye el nombre si no cambió', async () => {
+      const resultado = await service.validarActualizacion(
+        1,
+        { nombre: '  Cera  ' },
+        false,
+      );
+
+      expect(resultado.cambios).toEqual({});
+    });
+
+    it('no agrega cambios cuando nombre, descripción y precio son iguales al producto actual', async () => {
+      const resultado = await service.validarActualizacion(
+        1,
+        { nombre: '  Cera  ', descripcion: '  Mate  ', precio: 35000 },
+        false,
+      );
+
+      expect(resultado.cambios).toEqual({});
+    });
+
+    it('no agrega descripción cuando solo difiere en whitespace', async () => {
+      const resultado = await service.validarActualizacion(
+        1,
+        { descripcion: '  Mate  ' },
+        false,
+      );
+
+      expect(resultado.cambios).toEqual({});
+    });
+
+    it('no agrega precio cuando el valor numérico es igual, aunque llegue como string', async () => {
+      const resultado = await service.validarActualizacion(
+        1,
+        { precio: '35000' as unknown as number },
+        false,
+      );
+
+      expect(resultado.cambios).toEqual({});
+    });
+
+    it('no agrega descripción cuando null se compara con null', async () => {
+      repository.obtenerPorId.mockResolvedValue({
+        ...actual,
+        descripcion: null,
+      });
+
+      const resultado = await service.validarActualizacion(
+        1,
+        { descripcion: null },
+        false,
+      );
+
+      expect(resultado.cambios).toEqual({});
+    });
+
+    it.each(['', '   '])(
+      'no agrega descripción cuando %p se compara con null',
+      async (descripcion) => {
+        repository.obtenerPorId.mockResolvedValue({
+          ...actual,
+          descripcion: null,
+        });
+
+        const resultado = await service.validarActualizacion(
+          1,
+          { descripcion },
+          false,
+        );
+
+        expect(resultado.cambios).toEqual({});
+      },
+    );
+
+    it('sí agrega descripción cuando el valor normalizado difiere', async () => {
+      const resultado = await service.validarActualizacion(
+        1,
+        { descripcion: '  Brillante  ' },
+        false,
+      );
+
+      expect(resultado.cambios).toEqual({ descripcion: 'Brillante' });
+    });
+
+    it('sí agrega precio cuando el valor numérico difiere', async () => {
+      const resultado = await service.validarActualizacion(
+        1,
+        { precio: 35000.5 },
+        false,
+      );
+
+      expect(resultado.cambios).toEqual({ precio: 35000.5 });
+    });
+
+    it('rechaza un nombre duplicado de otro producto del negocio', async () => {
+      repository.buscarPorNombre.mockResolvedValue({ id: 2 });
+
+      await expect(
+        service.validarActualizacion(1, { nombre: 'Aceite' }, false),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('rechaza nombre vacío y precio inválido', async () => {
+      await expect(
+        service.validarActualizacion(1, { nombre: '   ' }, false),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      await expect(
+        service.validarActualizacion(1, { precio: 0 }, false),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
 });

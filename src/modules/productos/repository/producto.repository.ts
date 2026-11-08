@@ -1,9 +1,16 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EstadoProducto } from '../../../../generated/prisma/enums';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
-import { DatosProducto } from '../service/producto.service';
-import { MENSAJE_NOMBRE_DUPLICADO } from '../productos.constants';
+import { CambiosProducto, DatosProducto } from '../service/producto.service';
+import {
+  MENSAJE_NOMBRE_DUPLICADO,
+  MENSAJE_PRODUCTO_NO_DISPONIBLE,
+} from '../productos.constants';
 
 /** Acceso a datos de productos, siempre acotado al negocio del contexto. */
 @Injectable()
@@ -52,5 +59,41 @@ export class ProductoRepository {
 
       throw error;
     }
+  }
+
+  async actualizar(id: number, data: CambiosProducto) {
+    try {
+      return await this.prisma.producto.update({
+        where: this.aislamiento.filtroEscritura({ id }),
+        data,
+      });
+    } catch (error) {
+      const codigo = (error as { code?: string })?.code;
+
+      if (codigo === 'P2002') {
+        throw new ConflictException(MENSAJE_NOMBRE_DUPLICADO);
+      }
+
+      if (codigo === 'P2025') {
+        throw new NotFoundException(MENSAJE_PRODUCTO_NO_DISPONIBLE);
+      }
+
+      throw error;
+    }
+  }
+
+  /** Evita borrar una imagen que otro producto del mismo negocio comparte. */
+  async tieneOtraReferenciaAImagen(
+    imagenUrl: string,
+    exceptoId: number,
+  ): Promise<boolean> {
+    const total = await this.prisma.producto.count({
+      where: this.aislamiento.filtroLectura({
+        imagenUrl,
+        id: { not: exceptoId },
+      }),
+    });
+
+    return total > 0;
   }
 }

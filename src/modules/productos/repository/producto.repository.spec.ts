@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ProductoRepository } from './producto.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
@@ -10,10 +10,13 @@ describe('ProductoRepository', () => {
       findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
+      count: jest.fn(),
     },
   };
   const aislamiento = {
     filtroLectura: jest.fn((where: object) => ({ negocioId: 7, ...where })),
+    filtroEscritura: jest.fn((where: object) => ({ negocioId: 7, ...where })),
     negocioIdRequerido: jest.fn(() => 7),
   };
   const repository = new ProductoRepository(
@@ -91,5 +94,47 @@ describe('ProductoRepository', () => {
         imagenUrl: '/uploads/negocios/7/productos/producto-1.png',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('actualiza con el filtro de escritura del negocio', async () => {
+    prisma.producto.update.mockResolvedValue({ id: 3 });
+
+    await repository.actualizar(3, { nombre: 'Cera mate', precio: 10 });
+
+    expect(aislamiento.filtroEscritura).toHaveBeenCalledWith({ id: 3 });
+    expect(prisma.producto.update).toHaveBeenCalledWith({
+      where: { negocioId: 7, id: 3 },
+      data: { nombre: 'Cera mate', precio: 10 },
+    });
+  });
+
+  it('traduce los errores de unicidad y de fila inexistente al actualizar', async () => {
+    prisma.producto.update.mockRejectedValueOnce({ code: 'P2002' });
+    await expect(
+      repository.actualizar(3, { nombre: 'Cera' }),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    prisma.producto.update.mockRejectedValueOnce({ code: 'P2025' });
+    await expect(
+      repository.actualizar(3, { nombre: 'Cera' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('detecta si otro producto del negocio comparte la imagen', async () => {
+    prisma.producto.count.mockResolvedValue(1);
+
+    await expect(
+      repository.tieneOtraReferenciaAImagen(
+        '/uploads/negocios/7/productos/cera.png',
+        3,
+      ),
+    ).resolves.toBe(true);
+    expect(prisma.producto.count).toHaveBeenCalledWith({
+      where: {
+        negocioId: 7,
+        imagenUrl: '/uploads/negocios/7/productos/cera.png',
+        id: { not: 3 },
+      },
+    });
   });
 });

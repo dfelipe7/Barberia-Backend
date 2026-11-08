@@ -44,6 +44,15 @@ export class ProductoRegistradoResponseDto {
   producto: ProductoResponseDto;
 }
 
+/** Respuesta de la edición de un producto. */
+export class ProductoActualizadoResponseDto {
+  @ApiProperty({ example: 'Producto actualizado correctamente' })
+  mensaje: string;
+
+  @ApiProperty({ type: ProductoResponseDto })
+  producto: ProductoResponseDto;
+}
+
 /** Listado administrativo: incluye productos activos e inactivos. */
 export class ProductosListadoResponseDto {
   @ApiPropertyOptional({

@@ -1,21 +1,26 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
+import { ActualizarProductoDto } from '../dto/dto-peticion/actualizar-producto.dto';
 import { CrearProductoDto } from '../dto/dto-peticion/crear-producto.dto';
 import {
+  ProductoActualizadoResponseDto,
   ProductoRegistradoResponseDto,
   ProductoResponseDto,
   ProductosListadoResponseDto,
 } from '../dto/dto-respuesta/producto-response.dto';
+import { MENSAJE_PRODUCTO_ACTUALIZADO } from '../productos.constants';
 import { ProductoRepository } from '../repository/producto.repository';
 import { AlmacenamientoProductosService } from '../service/almacenamiento-productos.service';
 import { ProductoService } from '../service/producto.service';
 
 /**
- * Punto único de entrada de la HU-01. Orquesta validación, almacenamiento y
+ * Punto único de entrada del catálogo. Orquesta validación, almacenamiento y
  * persistencia; el controlador no conoce ninguna de esas piezas.
  */
 @Injectable()
 export class ProductosFacade {
+  private readonly logger = new Logger(ProductosFacade.name);
+
   constructor(
     private readonly productoService: ProductoService,
     private readonly almacenamiento: AlmacenamientoProductosService,
@@ -67,6 +72,81 @@ export class ProductosFacade {
         await this.almacenamiento.eliminar(negocioId, imagenUrl);
       }
       throw error;
+    }
+  }
+
+  async actualizar(
+    id: number,
+    dto: ActualizarProductoDto,
+    archivo?: Express.Multer.File,
+  ): Promise<ProductoActualizadoResponseDto> {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+    const imagen = this.productoService.validarImagen(archivo);
+    const { actual, cambios } = await this.productoService.validarActualizacion(
+      id,
+      dto,
+      Boolean(imagen),
+    );
+
+    let nuevaImagenUrl: string | undefined;
+    if (imagen) {
+      nuevaImagenUrl = await this.almacenamiento.guardar(
+        negocioId,
+        imagen.contenido,
+        imagen.extension,
+      );
+    }
+
+    try {
+      const datos = nuevaImagenUrl
+        ? { ...cambios, imagenUrl: nuevaImagenUrl }
+        : cambios;
+      const producto =
+        Object.keys(datos).length === 0
+          ? actual
+          : await this.repository.actualizar(id, datos);
+
+      if (
+        nuevaImagenUrl &&
+        actual.imagenUrl &&
+        actual.imagenUrl !== nuevaImagenUrl
+      ) {
+        await this.eliminarImagenAnterior(negocioId, id, actual.imagenUrl);
+      }
+
+      return {
+        mensaje: MENSAJE_PRODUCTO_ACTUALIZADO,
+        producto: this.productoService.mapear(producto),
+      };
+    } catch (error) {
+      if (nuevaImagenUrl) {
+        await this.almacenamiento.eliminar(negocioId, nuevaImagenUrl);
+      }
+      throw error;
+    }
+  }
+
+  private async eliminarImagenAnterior(
+    negocioId: number,
+    productoId: number,
+    imagenAnterior: string,
+  ): Promise<void> {
+    try {
+      const compartida = await this.repository.tieneOtraReferenciaAImagen(
+        imagenAnterior,
+        productoId,
+      );
+
+      if (!compartida) {
+        await this.almacenamiento.eliminar(negocioId, imagenAnterior);
+      }
+    } catch (error) {
+      // La actualización ya está confirmada: no se convierte en un 500 por no
+      // poder limpiar un archivo antiguo. El almacenamiento registra el fallo.
+      this.logger.warn(
+        `No se pudo limpiar la imagen anterior del producto ${productoId}: ` +
+          `${(error as Error)?.message ?? 'error desconocido'}`,
+      );
     }
   }
 }
