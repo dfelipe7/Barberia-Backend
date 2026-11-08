@@ -10,14 +10,17 @@ import {
   TipoArchivo,
 } from '../../../common/security/detectar-tipo-archivo';
 import { ActualizarProductoDto } from '../dto/dto-peticion/actualizar-producto.dto';
+import { CambiarEstadoProductoDto } from '../dto/dto-peticion/cambiar-estado-producto.dto';
 import { CrearProductoDto } from '../dto/dto-peticion/crear-producto.dto';
 import {
+  ProductoEstadoResponseDto,
   ProductoResponseDto,
   ProductosListadoResponseDto,
 } from '../dto/dto-respuesta/producto-response.dto';
 import {
   FORMATOS_IMAGEN_PRODUCTO,
   LIMITE_BYTES_IMAGEN_PRODUCTO,
+  MENSAJE_ESTADO_PRODUCTO_ACTUALIZADO,
   MENSAJE_IMAGEN_INVALIDA,
   MENSAJE_NOMBRE_DUPLICADO,
   MENSAJE_PRODUCTO_NO_DISPONIBLE,
@@ -212,6 +215,29 @@ export class ProductoService {
     }
 
     return this.mapear(producto);
+  }
+
+  /**
+   * Cambia el estado del producto con una escritura condicional. Si ya estaba
+   * en el estado objetivo no se reescribe la fila ni cambia `actualizadoEn`.
+   */
+  async cambiarEstadoProducto(
+    id: number,
+    negocioId: number,
+    dto: CambiarEstadoProductoDto,
+  ): Promise<ProductoEstadoResponseDto> {
+    await this.repository.actualizarEstadoSiDifiere(id, negocioId, dto.estado);
+
+    const producto = await this.repository.obtenerPorId(id);
+
+    if (!producto) {
+      throw new NotFoundException(MENSAJE_PRODUCTO_NO_DISPONIBLE);
+    }
+
+    return {
+      mensaje: MENSAJE_ESTADO_PRODUCTO_ACTUALIZADO,
+      producto: this.mapear(producto),
+    };
   }
 
   mapear(producto: Producto): ProductoResponseDto {

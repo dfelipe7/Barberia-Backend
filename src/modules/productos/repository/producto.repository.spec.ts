@@ -11,6 +11,7 @@ describe('ProductoRepository', () => {
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
       count: jest.fn(),
     },
   };
@@ -118,6 +119,31 @@ describe('ProductoRepository', () => {
     await expect(
       repository.actualizar(3, { nombre: 'Cera' }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('actualiza el estado solo si difiere y acota al negocio', async () => {
+    prisma.producto.updateMany.mockResolvedValue({ count: 1 });
+
+    await expect(
+      repository.actualizarEstadoSiDifiere(3, 7, EstadoProducto.INACTIVO),
+    ).resolves.toEqual({ count: 1 });
+
+    expect(prisma.producto.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 3,
+        negocioId: 7,
+        estado: { not: EstadoProducto.INACTIVO },
+      },
+      data: { estado: EstadoProducto.INACTIVO },
+    });
+  });
+
+  it('devuelve count 0 cuando el estado ya coincide', async () => {
+    prisma.producto.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      repository.actualizarEstadoSiDifiere(3, 7, EstadoProducto.INACTIVO),
+    ).resolves.toEqual({ count: 0 });
   });
 
   it('detecta si otro producto del negocio comparte la imagen', async () => {

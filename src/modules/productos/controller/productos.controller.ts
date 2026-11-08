@@ -31,9 +31,11 @@ import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { ActualizarProductoDto } from '../dto/dto-peticion/actualizar-producto.dto';
+import { CambiarEstadoProductoDto } from '../dto/dto-peticion/cambiar-estado-producto.dto';
 import { CrearProductoDto } from '../dto/dto-peticion/crear-producto.dto';
 import {
   ProductoActualizadoResponseDto,
+  ProductoEstadoResponseDto,
   ProductoRegistradoResponseDto,
   ProductoResponseDto,
   ProductosListadoResponseDto,
@@ -128,6 +130,54 @@ export class ProductosController {
     }
 
     return this.facade.obtenerPorId(productoId);
+  }
+
+  /**
+   * PATCH /productos/:productoId/estado
+   * Activa o desactiva un producto del negocio activo. Repetir el estado
+   * actual responde 200 sin reescribir la fila.
+   */
+  @Patch(':productoId/estado')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
+  @ApiNegocioHeader()
+  @ApiOperation({
+    summary: 'Cambiar el estado de un producto (SUPERADMIN / ADMINISTRADOR)',
+    description:
+      'Activa o desactiva un producto del negocio del contexto. El estado se envía explícitamente como ACTIVO o INACTIVO; no es un toggle ciego. Repetir el estado actual responde 200 sin modificar `actualizadoEn`. Un producto inexistente o de otro negocio responde 404 con el mismo mensaje.',
+  })
+  @ApiParam({
+    name: 'productoId',
+    example: 1,
+    description: 'ID del producto',
+  })
+  @ApiBody({ type: CambiarEstadoProductoDto })
+  @ApiOkResponse({
+    description: 'Estado del producto actualizado correctamente',
+    type: ProductoEstadoResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Datos inválidos (debe ser ACTIVO o INACTIVO)',
+  })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
+  @ApiResponse({ status: 403, description: 'No autorizado' })
+  @ApiNotFoundResponse({
+    description: 'El producto no se encuentra disponible',
+  })
+  @HttpCode(HttpStatus.OK)
+  cambiarEstado(
+    @Param('productoId', ParseIntPipe) productoId: number,
+    @Body() dto: CambiarEstadoProductoDto,
+  ): Promise<ProductoEstadoResponseDto> {
+    if (productoId <= 0) {
+      throw new BadRequestException(
+        'El identificador del producto debe ser un entero positivo',
+      );
+    }
+
+    return this.facade.cambiarEstado(productoId, dto);
   }
 
   /**

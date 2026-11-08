@@ -12,6 +12,7 @@ describe('ProductosFacade', () => {
     mapear: jest.fn(),
     listar: jest.fn(),
     obtenerPorId: jest.fn(),
+    cambiarEstadoProducto: jest.fn(),
   };
   const almacenamiento = {
     guardar: jest.fn(),
@@ -74,6 +75,18 @@ describe('ProductosFacade', () => {
     await expect(facade.obtenerPorId(1)).resolves.toEqual({ id: 1 });
     expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
     expect(productoService.obtenerPorId).toHaveBeenCalledWith(1);
+  });
+
+  it('delega el cambio de estado en el servicio con el id y el dto', async () => {
+    productoService.cambiarEstadoProducto.mockResolvedValue({ mensaje: 'ok' });
+
+    await expect(
+      facade.cambiarEstado(1, { estado: 'INACTIVO' }),
+    ).resolves.toEqual({ mensaje: 'ok' });
+    expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
+    expect(productoService.cambiarEstadoProducto).toHaveBeenCalledWith(1, 7, {
+      estado: 'INACTIVO',
+    });
   });
 
   it('camino 1: con archivo × persistencia exitosa (guarda imagen y no compensa)', async () => {

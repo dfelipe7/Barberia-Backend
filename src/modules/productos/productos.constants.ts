@@ -45,3 +45,7 @@ export const MENSAJE_PRODUCTO_ACTUALIZADO =
 /** La petición de edición no contiene ningún campo ni imagen. */
 export const MENSAJE_SIN_CAMPOS_ACTUALIZAR =
   'Debe indicar al menos un campo para actualizar';
+
+/** Confirmación de un cambio de estado aplicado o idempotente. */
+export const MENSAJE_ESTADO_PRODUCTO_ACTUALIZADO =
+  'Estado del producto actualizado correctamente';

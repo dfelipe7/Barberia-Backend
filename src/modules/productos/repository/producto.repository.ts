@@ -82,6 +82,21 @@ export class ProductoRepository {
     }
   }
 
+  /**
+   * Actualiza el estado solo si difiere del actual. Devuelve el conteo de
+   * filas afectadas: 0 cuando ya estaba en el estado objetivo o no existe.
+   */
+  actualizarEstadoSiDifiere(
+    id: number,
+    negocioId: number,
+    estado: EstadoProducto,
+  ) {
+    return this.prisma.producto.updateMany({
+      where: { id, negocioId, estado: { not: estado } },
+      data: { estado },
+    });
+  }
+
   /** Evita borrar una imagen que otro producto del mismo negocio comparte. */
   async tieneOtraReferenciaAImagen(
     imagenUrl: string,

@@ -32,6 +32,7 @@ describe('ProductoService', () => {
     buscarPorNombre: jest.fn(),
     listar: jest.fn(),
     obtenerPorId: jest.fn(),
+    actualizarEstadoSiDifiere: jest.fn(),
   };
   const service = new ProductoService(
     repository as unknown as ProductoRepository,
@@ -205,6 +206,62 @@ describe('ProductoService', () => {
       await expect(service.obtenerPorId(99)).rejects.toBeInstanceOf(
         NotFoundException,
       );
+    });
+  });
+
+  describe('cambiarEstadoProducto', () => {
+    const actual = {
+      id: 1,
+      nombre: 'Cera',
+      descripcion: null,
+      precio: 10000,
+      imagenUrl: null,
+      estado: 'ACTIVO',
+      creadoEn: new Date('2026-11-04T12:00:00Z'),
+      actualizadoEn: new Date('2026-11-04T12:00:00Z'),
+    };
+
+    it('cambia el estado y responde con el producto actualizado', async () => {
+      const inactivo = { ...actual, estado: 'INACTIVO' };
+      repository.actualizarEstadoSiDifiere.mockResolvedValue({ count: 1 });
+      repository.obtenerPorId.mockResolvedValue(inactivo);
+
+      await expect(
+        service.cambiarEstadoProducto(1, 7, { estado: 'INACTIVO' }),
+      ).resolves.toMatchObject({
+        mensaje: 'Estado del producto actualizado correctamente',
+        producto: { id: 1, estado: 'INACTIVO' },
+      });
+      expect(repository.actualizarEstadoSiDifiere).toHaveBeenCalledWith(
+        1,
+        7,
+        'INACTIVO',
+      );
+    });
+
+    it('repetir el mismo estado no reescribe la fila', async () => {
+      repository.actualizarEstadoSiDifiere.mockResolvedValue({ count: 0 });
+      repository.obtenerPorId.mockResolvedValue(actual);
+
+      await expect(
+        service.cambiarEstadoProducto(1, 7, { estado: 'ACTIVO' }),
+      ).resolves.toMatchObject({
+        producto: { id: 1, estado: 'ACTIVO' },
+      });
+      expect(repository.actualizarEstadoSiDifiere).toHaveBeenCalledWith(
+        1,
+        7,
+        'ACTIVO',
+      );
+    });
+
+    it('oculta como 404 un producto inexistente o de otro negocio', async () => {
+      repository.actualizarEstadoSiDifiere.mockResolvedValue({ count: 0 });
+      repository.obtenerPorId.mockResolvedValue(null);
+
+      await expect(
+        service.cambiarEstadoProducto(99, 7, { estado: 'INACTIVO' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

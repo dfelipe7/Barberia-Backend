@@ -53,6 +53,15 @@ export class ProductoActualizadoResponseDto {
   producto: ProductoResponseDto;
 }
 
+/** Respuesta del cambio de estado de un producto. */
+export class ProductoEstadoResponseDto {
+  @ApiProperty({ example: 'Estado del producto actualizado correctamente' })
+  mensaje: string;
+
+  @ApiProperty({ type: ProductoResponseDto })
+  producto: ProductoResponseDto;
+}
+
 /** Listado administrativo: incluye productos activos e inactivos. */
 export class ProductosListadoResponseDto {
   @ApiPropertyOptional({

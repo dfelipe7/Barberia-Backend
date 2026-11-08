@@ -1,9 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import { ActualizarProductoDto } from '../dto/dto-peticion/actualizar-producto.dto';
+import { CambiarEstadoProductoDto } from '../dto/dto-peticion/cambiar-estado-producto.dto';
 import { CrearProductoDto } from '../dto/dto-peticion/crear-producto.dto';
 import {
   ProductoActualizadoResponseDto,
+  ProductoEstadoResponseDto,
   ProductoRegistradoResponseDto,
   ProductoResponseDto,
   ProductosListadoResponseDto,
@@ -36,6 +38,14 @@ export class ProductosFacade {
   async obtenerPorId(id: number): Promise<ProductoResponseDto> {
     this.aislamiento.negocioIdRequerido();
     return this.productoService.obtenerPorId(id);
+  }
+
+  async cambiarEstado(
+    id: number,
+    dto: CambiarEstadoProductoDto,
+  ): Promise<ProductoEstadoResponseDto> {
+    const negocioId = this.aislamiento.negocioIdRequerido();
+    return this.productoService.cambiarEstadoProducto(id, negocioId, dto);
   }
 
   async registrar(

@@ -408,6 +408,23 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     return peticion;
   };
 
+  const cambiarEstado = (
+    token: string | undefined,
+    slug: string,
+    id: number,
+    estado: 'ACTIVO' | 'INACTIVO',
+  ) => {
+    let peticion = request(app.getHttpServer())
+      .patch(`/productos/${id}/estado`)
+      .set('X-Negocio-Slug', slug);
+
+    if (token) {
+      peticion = peticion.set('Authorization', `Bearer ${token}`);
+    }
+
+    return peticion.send({ estado });
+  };
+
   it('1. registra el producto con su imagen en el negocio del contexto', async () => {
     if (OMITIR_SIN_DOCKER || !conexion) return;
 
@@ -1298,5 +1315,386 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(cuerpo<ProductoRegistrado>(superadmin).producto.nombre).toBe(
       'Super editado',
     );
+  });
+
+  it('Desactivación de un producto: deja de mostrarse entre los productos disponibles para los clientes', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      precio: 10000,
+      estado: 'ACTIVO',
+    });
+    const token = await login('admin-a@test.local', SLUG_A);
+
+    const respuesta = await cambiarEstado(
+      token,
+      SLUG_A,
+      producto.id,
+      'INACTIVO',
+    );
+
+    expect(respuesta.status).toBe(200);
+    expect(cuerpo<ProductoRegistrado>(respuesta)).toMatchObject({
+      mensaje: 'Estado del producto actualizado correctamente',
+      producto: { id: producto.id, estado: 'INACTIVO' },
+    });
+
+    const enBase = await prisma.producto.findUnique({
+      where: { id: producto.id },
+    });
+    expect(enBase?.estado).toBe('INACTIVO');
+
+    const listado = await request(app.getHttpServer())
+      .get('/productos')
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(listado.status).toBe(200);
+    expect(
+      cuerpo<ProductosListado>(listado).productos.find(
+        (p) => p.id === producto.id,
+      )?.estado,
+    ).toBe('INACTIVO');
+  });
+
+  it('Activación de un producto: vuelve a mostrarse entre los productos disponibles para los clientes', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      precio: 10000,
+      estado: 'INACTIVO',
+    });
+    const token = await login('admin-a@test.local', SLUG_A);
+
+    const respuesta = await cambiarEstado(token, SLUG_A, producto.id, 'ACTIVO');
+
+    expect(respuesta.status).toBe(200);
+    expect(cuerpo<ProductoRegistrado>(respuesta)).toMatchObject({
+      mensaje: 'Estado del producto actualizado correctamente',
+      producto: { id: producto.id, estado: 'ACTIVO' },
+    });
+
+    const enBase = await prisma.producto.findUnique({
+      where: { id: producto.id },
+    });
+    expect(enBase?.estado).toBe('ACTIVO');
+
+    const listado = await request(app.getHttpServer())
+      .get('/productos')
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(listado.status).toBe(200);
+    expect(
+      cuerpo<ProductosListado>(listado).productos.find(
+        (p) => p.id === producto.id,
+      )?.estado,
+    ).toBe('ACTIVO');
+  });
+
+  it('Conservación de información: el cambio de estado conserva los datos del producto', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      descripcion: 'Mate',
+      precio: 10000.5,
+      imagenUrl: `/uploads/negocios/${negocioA.id}/productos/cera.png`,
+      estado: 'ACTIVO',
+    });
+    const fecha = new Date('2020-01-01T00:00:00.000Z');
+    await fijarActualizadoEn(producto.id, fecha);
+    const token = await login('admin-a@test.local', SLUG_A);
+
+    const respuesta = await cambiarEstado(
+      token,
+      SLUG_A,
+      producto.id,
+      'INACTIVO',
+    );
+
+    expect(respuesta.status).toBe(200);
+
+    const enBase = await prisma.producto.findUnique({
+      where: { id: producto.id },
+    });
+
+    expect(enBase).toMatchObject({
+      id: producto.id,
+      negocioId: negocioA.id,
+      nombre: 'Cera',
+      descripcion: 'Mate',
+      imagenUrl: `/uploads/negocios/${negocioA.id}/productos/cera.png`,
+      estado: 'INACTIVO',
+    });
+    expect(Number(enBase?.precio)).toBe(10000.5);
+    expect(enBase?.creadoEn.toISOString()).toBe(
+      producto.creadoEn.toISOString(),
+    );
+    expect(enBase?.actualizadoEn.getTime()).toBeGreaterThan(fecha.getTime());
+  });
+
+  it('Confirmación del cambio de estado: responde 200 con mensaje y producto con el estado nuevo', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      precio: 10000,
+      estado: 'ACTIVO',
+    });
+    const token = await login('admin-a@test.local', SLUG_A);
+
+    const respuesta = await cambiarEstado(
+      token,
+      SLUG_A,
+      producto.id,
+      'INACTIVO',
+    );
+
+    expect(respuesta.status).toBe(200);
+    expect(cuerpo<ProductoRegistrado>(respuesta)).toMatchObject({
+      mensaje: 'Estado del producto actualizado correctamente',
+      producto: { id: producto.id, estado: 'INACTIVO' },
+    });
+  });
+
+  it('[Idempotencia] repetir el mismo estado responde 200 sin cambiar actualizadoEn', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      precio: 10000,
+      estado: 'INACTIVO',
+    });
+    const fecha = new Date('2020-01-01T00:00:00.000Z');
+    await fijarActualizadoEn(producto.id, fecha);
+    const token = await login('admin-a@test.local', SLUG_A);
+
+    const respuesta = await cambiarEstado(
+      token,
+      SLUG_A,
+      producto.id,
+      'INACTIVO',
+    );
+
+    expect(respuesta.status).toBe(200);
+    expect(cuerpo<ProductoRegistrado>(respuesta)).toMatchObject({
+      mensaje: 'Estado del producto actualizado correctamente',
+      producto: { id: producto.id, estado: 'INACTIVO' },
+    });
+    expect(cuerpo<ProductoRegistrado>(respuesta).producto.actualizadoEn).toBe(
+      fecha.toISOString(),
+    );
+
+    const enBase = await prisma.producto.findUnique({
+      where: { id: producto.id },
+    });
+    expect(enBase?.actualizadoEn.toISOString()).toBe(fecha.toISOString());
+  });
+
+  it('Idempotencia concurrente: dos PATCH simultáneos al mismo estado solo escriben una vez', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      precio: 10000,
+      estado: 'ACTIVO',
+    });
+    const fecha = new Date('2020-01-01T00:00:00.000Z');
+    await fijarActualizadoEn(producto.id, fecha);
+    const token = await login('admin-a@test.local', SLUG_A);
+
+    const [primero, segundo] = await Promise.all([
+      cambiarEstado(token, SLUG_A, producto.id, 'INACTIVO'),
+      cambiarEstado(token, SLUG_A, producto.id, 'INACTIVO'),
+    ]);
+
+    expect(primero.status).toBe(200);
+    expect(segundo.status).toBe(200);
+    const fechaPrimero =
+      cuerpo<ProductoRegistrado>(primero).producto.actualizadoEn;
+    const fechaSegundo =
+      cuerpo<ProductoRegistrado>(segundo).producto.actualizadoEn;
+    expect(fechaPrimero).toBe(fechaSegundo);
+    expect(new Date(fechaPrimero!).getTime()).toBeGreaterThan(fecha.getTime());
+
+    const enBase = await prisma.producto.findUnique({
+      where: { id: producto.id },
+    });
+    expect(enBase?.estado).toBe('INACTIVO');
+    expect(enBase?.actualizadoEn.toISOString()).toBe(fechaPrimero);
+
+    const fechaFija = new Date('2021-01-01T00:00:00.000Z');
+    await fijarActualizadoEn(producto.id, fechaFija);
+
+    const [tercero, cuarto] = await Promise.all([
+      cambiarEstado(token, SLUG_A, producto.id, 'INACTIVO'),
+      cambiarEstado(token, SLUG_A, producto.id, 'INACTIVO'),
+    ]);
+
+    expect(tercero.status).toBe(200);
+    expect(cuarto.status).toBe(200);
+
+    const enBaseFinal = await prisma.producto.findUnique({
+      where: { id: producto.id },
+    });
+    expect(enBaseFinal?.actualizadoEn.toISOString()).toBe(
+      fechaFija.toISOString(),
+    );
+  });
+
+  it('Concurrencia: dos PATCH simultáneos con estados distintos dejan un estado válido sin corromper la fila', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      descripcion: 'Mate',
+      precio: 10000.5,
+      imagenUrl: `/uploads/negocios/${negocioA.id}/productos/cera.png`,
+      estado: 'ACTIVO',
+    });
+    const token = await login('admin-a@test.local', SLUG_A);
+
+    const [inactivo, activo] = await Promise.all([
+      cambiarEstado(token, SLUG_A, producto.id, 'INACTIVO'),
+      cambiarEstado(token, SLUG_A, producto.id, 'ACTIVO'),
+    ]);
+
+    expect(inactivo.status).toBe(200);
+    expect(activo.status).toBe(200);
+
+    const enBase = await prisma.producto.findUnique({
+      where: { id: producto.id },
+    });
+
+    expect(['ACTIVO', 'INACTIVO']).toContain(enBase?.estado);
+    expect(enBase).toMatchObject({
+      id: producto.id,
+      negocioId: negocioA.id,
+      nombre: 'Cera',
+      descripcion: 'Mate',
+      imagenUrl: `/uploads/negocios/${negocioA.id}/productos/cera.png`,
+    });
+    expect(Number(enBase?.precio)).toBe(10000.5);
+    expect(enBase?.creadoEn.toISOString()).toBe(
+      producto.creadoEn.toISOString(),
+    );
+  });
+
+  it('[Aislamiento] el cambio de estado oculta productos de otro tenant como 404', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioB } = await sembrar();
+    const ajeno = await crearProducto(negocioB.id, {
+      nombre: 'Ajeno',
+      precio: 20000,
+      estado: 'ACTIVO',
+    });
+    const tokenA = await login('admin-a@test.local', SLUG_A);
+    const tokenSuperA = await login('superadmin-a@test.local', SLUG_A);
+
+    const adminAjeno = await cambiarEstado(
+      tokenA,
+      SLUG_A,
+      ajeno.id,
+      'INACTIVO',
+    );
+    const superAjeno = await cambiarEstado(
+      tokenSuperA,
+      SLUG_A,
+      ajeno.id,
+      'INACTIVO',
+    );
+    const inexistente = await cambiarEstado(tokenA, SLUG_A, 999999, 'INACTIVO');
+
+    expect(adminAjeno.status).toBe(404);
+    expect(superAjeno.status).toBe(404);
+    expect(adminAjeno.status).toBe(inexistente.status);
+    expect(cuerpo<{ message: string }>(adminAjeno).message).toBe(
+      cuerpo<{ message: string }>(inexistente).message,
+    );
+
+    const enBase = await prisma.producto.findUnique({
+      where: { id: ajeno.id },
+    });
+    expect(enBase?.estado).toBe('ACTIVO');
+  });
+
+  it('[Validación] el cambio de estado rechaza estados distintos de ACTIVO o INACTIVO', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      precio: 10000,
+    });
+    const token = await login('admin-a@test.local', SLUG_A);
+
+    const invalido = await request(app.getHttpServer())
+      .patch(`/productos/${producto.id}/estado`)
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ estado: 'ARCHIVADO' });
+
+    const ausente = await request(app.getHttpServer())
+      .patch(`/productos/${producto.id}/estado`)
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`)
+      .send({});
+
+    expect(invalido.status).toBe(400);
+    expect(ausente.status).toBe(400);
+  });
+
+  it('[Permisos] el cambio de estado exige rol administrativo y token', async () => {
+    if (OMITIR_SIN_DOCKER || !conexion) return;
+
+    const { negocioA } = await sembrar();
+    const producto = await crearProducto(negocioA.id, {
+      nombre: 'Cera',
+      precio: 10000,
+    });
+    const tokenAdmin = await login('admin-a@test.local', SLUG_A);
+    const tokenSuper = await login('superadmin-a@test.local', SLUG_A);
+    const tokenBarbero = await login('barbero-a@test.local', SLUG_A);
+
+    const admin = await cambiarEstado(
+      tokenAdmin,
+      SLUG_A,
+      producto.id,
+      'INACTIVO',
+    );
+    const superadmin = await cambiarEstado(
+      tokenSuper,
+      SLUG_A,
+      producto.id,
+      'ACTIVO',
+    );
+    const barbero = await cambiarEstado(
+      tokenBarbero,
+      SLUG_A,
+      producto.id,
+      'INACTIVO',
+    );
+    const sinToken = await cambiarEstado(
+      undefined,
+      SLUG_A,
+      producto.id,
+      'INACTIVO',
+    );
+
+    expect(admin.status).toBe(200);
+    expect(superadmin.status).toBe(200);
+    expect(barbero.status).toBe(403);
+    expect(sinToken.status).toBe(401);
   });
 });
