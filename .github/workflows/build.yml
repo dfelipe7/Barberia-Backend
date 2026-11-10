@@ -1,3 +1,20 @@
+# ==============================================================================
+# TÉCNICA DE TESTING / SEGURIDAD: SAST (Static Application Security Testing)
+# + Verificación de Calidad, Tipos y Cobertura (SonarCloud Quality Gate)
+# ==============================================================================
+# Propósito:
+#   Análisis estático de código fuente propio ("Caja Blanca" / White-box) sin ejecutar
+#   la aplicación en un entorno de producción o runtime.
+# Rol en la arquitectura:
+#   - Calidad y Tipos: Comprobación estricta de compilación y tipos (tsc / npm run typecheck).
+#   - SonarCloud / SonarQube: Análisis de seguridad (OWASP Top 10, CWEs), detección de
+#     Bugs, Vulnerabilidades y Security Hotspots, y verificación del Quality Gate con
+#     el reporte de cobertura de Jest (test:cov > 80%).
+# Momento de activación:
+#   - En cada push a ramas principales (master, main) y de características.
+#   - En cada Pull Request al abrirse o sincronizarse.
+# ==============================================================================
+
 name: Build
 on:
   push:
@@ -5,6 +22,7 @@ on:
       - master
       - main
       - feature/cambio-arquitectura
+      - feature/multitenant-core-fixes
   pull_request:
     types: [opened, synchronize, reopened]
 jobs:

@@ -94,6 +94,8 @@ HE-04_integracion_disponibilidad.md
 !/docs/solicitudes/**
 !/docs/api/
 !/docs/api/**
+!/docs/arc42/
+!/docs/arc42/**
 Libro1.xlsx
 opencode.json
 MULTITENANT.md

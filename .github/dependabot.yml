@@ -1,3 +1,19 @@
+# ==============================================================================
+# TÉCNICA DE TESTING / SEGURIDAD: SCA (Software Composition Analysis)
+# Subtipo: Parcheador y Remediador Automatizado (Auto-Remediation / Dependabot)
+# ==============================================================================
+# Propósito:
+#   Monitoreo proactivo y actualización automatizada de dependencias de terceros (npm).
+# Rol en la arquitectura:
+#   Actúa como un "Mecánico / Reparador de Dependencias". Compara las versiones
+#   declaradas en package-lock.json contra la base de datos de vulnerabilidades
+#   (GitHub Advisory Database / CVEs). Cuando encuentra librerías vulnerables o
+#   desactualizadas, crea automáticamente Pull Requests con la solución (bump de versión).
+# Momento de activación:
+#   - Análisis periódico semanal (weekly).
+#   - Alertas inmediatas reactivas cuando GitHub publica un nuevo aviso de seguridad.
+# ==============================================================================
+
 version: 2
 updates:
   - package-ecosystem: "npm"
