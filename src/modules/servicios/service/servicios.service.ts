@@ -14,6 +14,21 @@ import { ServicioResponseDto } from '../dto/dto-respuesta/servicio-response.dto'
 import { BarberoPorServicioDto } from '../dto/dto-respuesta/barbero-por-servicio.dto';
 import { ServiciosRepository } from '../repository/servicios.repository';
 import { resolverRutaPublicaUpload } from '../../../common/config/uploads.config';
+import { Prisma } from '../../../../generated/prisma/client';
+
+type ServicioConBarberos = Prisma.ServicioGetPayload<{
+  include: {
+    barberos: {
+      include: {
+        barbero: {
+          include: {
+            usuario: true;
+          };
+        };
+      };
+    };
+  };
+}>;
 
 interface ServicioPrismaConBarberos {
   id: number;
@@ -383,9 +398,7 @@ export class ServiciosService {
    * @param servicio - Objeto de servicio retornado por Prisma con sus relaciones anidadas.
    * @returns DTO formal `ServicioResponseDto` normalizado para el frontend.
    */
-  private mapearServicio(
-    servicio: ServicioPrismaConBarberos,
-  ): ServicioResponseDto {
+  private mapearServicio(servicio: ServicioConBarberos): ServicioResponseDto {
     return {
       id: servicio.id,
       nombre: servicio.nombre,

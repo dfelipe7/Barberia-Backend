@@ -316,6 +316,23 @@ export type EnumEstadoServicioWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedEnumEstadoServicioFilter<$PrismaModel>
 }
 
+export type EnumEstadoProductoFilter<$PrismaModel = never> = {
+  equals?: $Enums.EstadoProducto | Prisma.EnumEstadoProductoFieldRefInput<$PrismaModel>
+  in?: $Enums.EstadoProducto[]
+  notIn?: $Enums.EstadoProducto[]
+  not?: Prisma.NestedEnumEstadoProductoFilter<$PrismaModel> | $Enums.EstadoProducto
+}
+
+export type EnumEstadoProductoWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.EstadoProducto | Prisma.EnumEstadoProductoFieldRefInput<$PrismaModel>
+  in?: $Enums.EstadoProducto[]
+  notIn?: $Enums.EstadoProducto[]
+  not?: Prisma.NestedEnumEstadoProductoWithAggregatesFilter<$PrismaModel> | $Enums.EstadoProducto
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumEstadoProductoFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumEstadoProductoFilter<$PrismaModel>
+}
+
 export type EnumWeekDayFilter<$PrismaModel = never> = {
   equals?: $Enums.WeekDay | Prisma.EnumWeekDayFieldRefInput<$PrismaModel>
   in?: $Enums.WeekDay[]
@@ -743,6 +760,23 @@ export type NestedEnumEstadoServicioWithAggregatesFilter<$PrismaModel = never> =
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumEstadoServicioFilter<$PrismaModel>
   _max?: Prisma.NestedEnumEstadoServicioFilter<$PrismaModel>
+}
+
+export type NestedEnumEstadoProductoFilter<$PrismaModel = never> = {
+  equals?: $Enums.EstadoProducto | Prisma.EnumEstadoProductoFieldRefInput<$PrismaModel>
+  in?: $Enums.EstadoProducto[]
+  notIn?: $Enums.EstadoProducto[]
+  not?: Prisma.NestedEnumEstadoProductoFilter<$PrismaModel> | $Enums.EstadoProducto
+}
+
+export type NestedEnumEstadoProductoWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.EstadoProducto | Prisma.EnumEstadoProductoFieldRefInput<$PrismaModel>
+  in?: $Enums.EstadoProducto[]
+  notIn?: $Enums.EstadoProducto[]
+  not?: Prisma.NestedEnumEstadoProductoWithAggregatesFilter<$PrismaModel> | $Enums.EstadoProducto
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumEstadoProductoFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumEstadoProductoFilter<$PrismaModel>
 }
 
 export type NestedEnumWeekDayFilter<$PrismaModel = never> = {

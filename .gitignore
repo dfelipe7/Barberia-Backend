@@ -77,10 +77,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 .codex/
 .opencode/
 
-Contexto_tecnico_backend_barberia_HE08.md
-Contexto_tecnico_HE04_Reservas_integracion_HE08.md
-README_SKILLS.md
-HE-04_integracion_disponibilidad.md
 # Trazabilidad:
 # - REQ: REQ-008
 # - Modelo ejecutor: minimax-m3.1-flash-free
@@ -104,8 +100,6 @@ HE-04_integracion_disponibilidad.md
 !/docs/SEGURIDAD_Y_TESTING.md
 Libro1.xlsx
 opencode.json
-MULTITENANT.md
-FASE11_ENTORNO_MULTITENANT_DEV.md
 # Testing artifacts
 artifacts/
 .vscode/

@@ -59,6 +59,7 @@ export const ModelName = {
   Barbero: 'Barbero',
   Cliente: 'Cliente',
   Servicio: 'Servicio',
+  Producto: 'Producto',
   BarberoServicio: 'BarberoServicio',
   BarberWeeklySlot: 'BarberWeeklySlot',
   BarberScheduleBlock: 'BarberScheduleBlock',
@@ -200,6 +201,21 @@ export const ServicioScalarFieldEnum = {
 } as const
 
 export type ServicioScalarFieldEnum = (typeof ServicioScalarFieldEnum)[keyof typeof ServicioScalarFieldEnum]
+
+
+export const ProductoScalarFieldEnum = {
+  id: 'id',
+  nombre: 'nombre',
+  descripcion: 'descripcion',
+  precio: 'precio',
+  imagenUrl: 'imagenUrl',
+  estado: 'estado',
+  negocioId: 'negocioId',
+  creadoEn: 'creadoEn',
+  actualizadoEn: 'actualizadoEn'
+} as const
+
+export type ProductoScalarFieldEnum = (typeof ProductoScalarFieldEnum)[keyof typeof ProductoScalarFieldEnum]
 
 
 export const BarberoServicioScalarFieldEnum = {
@@ -414,6 +430,15 @@ export const ServicioOrderByRelevanceFieldEnum = {
 } as const
 
 export type ServicioOrderByRelevanceFieldEnum = (typeof ServicioOrderByRelevanceFieldEnum)[keyof typeof ServicioOrderByRelevanceFieldEnum]
+
+
+export const ProductoOrderByRelevanceFieldEnum = {
+  nombre: 'nombre',
+  descripcion: 'descripcion',
+  imagenUrl: 'imagenUrl'
+} as const
+
+export type ProductoOrderByRelevanceFieldEnum = (typeof ProductoOrderByRelevanceFieldEnum)[keyof typeof ProductoOrderByRelevanceFieldEnum]
 
 
 export const BarberWeeklySlotOrderByRelevanceFieldEnum = {

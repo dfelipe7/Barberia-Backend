@@ -288,9 +288,35 @@ Reglas:
 
 ---
 
-## 7. Horarios y disponibilidad
+## 7. Productos (`/productos`)
 
-### 7.1 Del barbero autenticado (`/usuarios/me/barbero`)
+| Método | Ruta | Auth | Rol | Cuerpo / Query | Respuesta |
+|--------|------|------|-----|----------------|-----------|
+| POST | `/productos` | `JwtAuthGuard` | `SUPERADMIN`, `ADMINISTRADOR` | `CrearProductoDto` + fichero `imagen` opcional | `201` producto creado |
+| GET | `/productos` | `JwtAuthGuard` | `SUPERADMIN`, `ADMINISTRADOR` | — | `200` listado administrativo (ACTIVO e INACTIVO) |
+| GET | `/productos/catalogo` | — | — | — | `200` catálogo público de productos ACTIVO |
+| GET | `/productos/catalogo/:productoId` | — | — | — | `200` `ProductoCatalogoResponseDto` |
+| GET | `/productos/:productoId` | `JwtAuthGuard` | `SUPERADMIN`, `ADMINISTRADOR` | — | `200` detalle administrativo |
+| PATCH | `/productos/:productoId` | `JwtAuthGuard` | `SUPERADMIN`, `ADMINISTRADOR` | `ActualizarProductoDto` + fichero `imagen` opcional | `200` |
+| PATCH | `/productos/:productoId/estado` | `JwtAuthGuard` | `SUPERADMIN`, `ADMINISTRADOR` | `CambiarEstadoProductoDto` | `200` |
+
+Reglas del catálogo público:
+
+- El negocio se resuelve por subdominio o `X-Negocio-Slug`; nunca por body ni query.
+- Solo se devuelven productos `ACTIVO` del negocio del contexto, ordenados por nombre.
+- Los campos públicos son `id`, `nombre`, `descripcion`, `precio` e `imagenUrl`; no se
+  exponen `estado` ni fechas de auditoría.
+- Un producto inactivo, inexistente o de otro negocio responde **404** con el mismo
+  mensaje, para no revelar su existencia.
+- Si no hay productos activos, responde `200` con
+  `{ "mensaje": "No hay productos disponibles en este momento", "productos": [] }`.
+- Sin contexto de negocio responde **403**; con un slug inexistente o inactivo, **404**.
+
+---
+
+## 8. Horarios y disponibilidad
+
+### 8.1 Del barbero autenticado (`/usuarios/me/barbero`)
 
 | Método | Ruta | Auth | Rol | Cuerpo / Query | Respuesta |
 |--------|------|------|-----|----------------|-----------|
@@ -305,7 +331,7 @@ Reglas:
 
 `PUT /horario-semanal` **reemplaza** el conjunto completo: `[{ dia: WeekDay, startTime, endTime }]`.
 
-### 7.2 Disponibilidad pública
+### 8.2 Disponibilidad pública
 
 | Método | Ruta | Auth | Rol | Query | Respuesta |
 |--------|------|------|-----|-------|-----------|
@@ -317,7 +343,7 @@ opcional).
 **Es informativa**: no reserva ni bloquea la franja. La reserva real se hace en
 `POST /reservas`, que revalida dentro de la transacción.
 
-### 7.3 Gestión de horarios de cualquier barbero (`/usuarios/barberos`)
+### 8.3 Gestión de horarios de cualquier barbero (`/usuarios/barberos`)
 
 | Método | Ruta | Auth | Rol | Respuesta |
 |--------|------|------|-----|-----------|
@@ -331,7 +357,7 @@ opcional).
 
 ---
 
-## 8. Perfil del negocio (`/perfil-negocio`)
+## 9. Perfil del negocio (`/perfil-negocio`)
 
 | Método | Ruta | Auth | Rol | Cuerpo | Respuesta |
 |--------|------|------|-----|--------|-----------|
@@ -361,7 +387,7 @@ Reglas de los recursos de marca:
 
 ---
 
-## 9. WhatsApp (`/whatsapp`)
+## 10. WhatsApp (`/whatsapp`)
 
 Todas las rutas exigen `JwtAuthGuard` + rol `SUPERADMIN` o `ADMINISTRADOR`
 (decoradores a nivel de controlador).
@@ -382,7 +408,7 @@ campo heredado `Negocio.direccion` y al valor `negocio_direccion` de la configur
 
 ---
 
-## 10. Configuración
+## 11. Configuración
 
 El módulo `src/modules/configuracion` **no expone ningún endpoint HTTP**: la
 configuración (del sistema y del negocio) se gestiona internamente y por base de datos.
@@ -390,7 +416,7 @@ Ver `docs/api/MATRIZ_AUDITORIA_ENDPOINTS.md` (gap G-04).
 
 ---
 
-## 11. Cómo se verificó este documento
+## 12. Cómo se verificó este documento
 
 - Rutas, guards y roles: extraídos de los 15 controladores del proyecto
   (`src/app.controller.ts`, `src/auth/**`, `src/modules/**`): **85 rutas** en el código.

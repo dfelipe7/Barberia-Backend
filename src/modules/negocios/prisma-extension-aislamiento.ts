@@ -279,7 +279,7 @@ function forzarNegocioEnEscritura(
     if (esCreacion) {
       // Creación (INSERT): forzamos negocioId para que el nuevo registro nazca con su dueño
       if (Array.isArray(data)) {
-        resultado.data = (data as DataPrisma[]).map((item) => ({ ...item, negocioId }));
+        resultado.data = data.map((item) => ({ ...item, negocioId }));
       } else {
         resultado.data = { ...data, negocioId };
       }

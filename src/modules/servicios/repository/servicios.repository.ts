@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import { Prisma } from '../../../../generated/prisma/client';
+import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import {
   EstadoServicio,
   EstadoUsuario,

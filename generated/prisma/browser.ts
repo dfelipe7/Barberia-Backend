@@ -140,6 +140,20 @@ export type Cliente = Prisma.ClienteModel
  */
 export type Servicio = Prisma.ServicioModel
 /**
+ * Model Producto
+ * Producto del catálogo comercial de un negocio (HE-03).
+ * 
+ * `nombre` es ÚNICO POR NEGOCIO (decisión de negocio aprobada): dos barberías
+ * pueden tener un producto con el mismo nombre, pero una misma barbería no.
+ * El 409 por duplicado es la señal de reintento; no hay idempotencia por
+ * `Idempotency-Key`.
+ * 
+ * `imagenUrl` guarda una RUTA o URL de referencia, nunca bytes ni base64.
+ * `precio` es Decimal(10,2) y el servidor no confía en el valor calculado por
+ * el cliente. `estado` nace ACTIVO y lo fija el servidor.
+ */
+export type Producto = Prisma.ProductoModel
+/**
  * Model BarberoServicio
  * 
  */

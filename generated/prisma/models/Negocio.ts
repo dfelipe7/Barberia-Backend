@@ -249,6 +249,7 @@ export type NegocioWhereInput = {
   barberos?: Prisma.BarberoListRelationFilter
   clientes?: Prisma.ClienteListRelationFilter
   servicios?: Prisma.ServicioListRelationFilter
+  productos?: Prisma.ProductoListRelationFilter
   barberoServicios?: Prisma.BarberoServicioListRelationFilter
   reservas?: Prisma.ReservationListRelationFilter
   franjasSemanales?: Prisma.BarberWeeklySlotListRelationFilter
@@ -272,6 +273,7 @@ export type NegocioOrderByWithRelationInput = {
   barberos?: Prisma.BarberoOrderByRelationAggregateInput
   clientes?: Prisma.ClienteOrderByRelationAggregateInput
   servicios?: Prisma.ServicioOrderByRelationAggregateInput
+  productos?: Prisma.ProductoOrderByRelationAggregateInput
   barberoServicios?: Prisma.BarberoServicioOrderByRelationAggregateInput
   reservas?: Prisma.ReservationOrderByRelationAggregateInput
   franjasSemanales?: Prisma.BarberWeeklySlotOrderByRelationAggregateInput
@@ -299,6 +301,7 @@ export type NegocioWhereUniqueInput = Prisma.AtLeast<{
   barberos?: Prisma.BarberoListRelationFilter
   clientes?: Prisma.ClienteListRelationFilter
   servicios?: Prisma.ServicioListRelationFilter
+  productos?: Prisma.ProductoListRelationFilter
   barberoServicios?: Prisma.BarberoServicioListRelationFilter
   reservas?: Prisma.ReservationListRelationFilter
   franjasSemanales?: Prisma.BarberWeeklySlotListRelationFilter
@@ -349,6 +352,7 @@ export type NegocioCreateInput = {
   barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
@@ -372,6 +376,7 @@ export type NegocioUncheckedCreateInput = {
   barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoUncheckedCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
@@ -394,6 +399,7 @@ export type NegocioUpdateInput = {
   barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
@@ -417,6 +423,7 @@ export type NegocioUncheckedUpdateInput = {
   barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUncheckedUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
@@ -615,6 +622,20 @@ export type NegocioUpdateOneRequiredWithoutServiciosNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.NegocioUpdateToOneWithWhereWithoutServiciosInput, Prisma.NegocioUpdateWithoutServiciosInput>, Prisma.NegocioUncheckedUpdateWithoutServiciosInput>
 }
 
+export type NegocioCreateNestedOneWithoutProductosInput = {
+  create?: Prisma.XOR<Prisma.NegocioCreateWithoutProductosInput, Prisma.NegocioUncheckedCreateWithoutProductosInput>
+  connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutProductosInput
+  connect?: Prisma.NegocioWhereUniqueInput
+}
+
+export type NegocioUpdateOneRequiredWithoutProductosNestedInput = {
+  create?: Prisma.XOR<Prisma.NegocioCreateWithoutProductosInput, Prisma.NegocioUncheckedCreateWithoutProductosInput>
+  connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutProductosInput
+  upsert?: Prisma.NegocioUpsertWithoutProductosInput
+  connect?: Prisma.NegocioWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.NegocioUpdateToOneWithWhereWithoutProductosInput, Prisma.NegocioUpdateWithoutProductosInput>, Prisma.NegocioUncheckedUpdateWithoutProductosInput>
+}
+
 export type NegocioCreateNestedOneWithoutBarberoServiciosInput = {
   create?: Prisma.XOR<Prisma.NegocioCreateWithoutBarberoServiciosInput, Prisma.NegocioUncheckedCreateWithoutBarberoServiciosInput>
   connectOrCreate?: Prisma.NegocioCreateOrConnectWithoutBarberoServiciosInput
@@ -726,6 +747,7 @@ export type NegocioCreateWithoutPerfilInput = {
   barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
@@ -748,6 +770,7 @@ export type NegocioUncheckedCreateWithoutPerfilInput = {
   barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoUncheckedCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
@@ -785,6 +808,7 @@ export type NegocioUpdateWithoutPerfilInput = {
   barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
@@ -807,6 +831,7 @@ export type NegocioUncheckedUpdateWithoutPerfilInput = {
   barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUncheckedUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
@@ -828,6 +853,7 @@ export type NegocioCreateWithoutRedesSocialesInput = {
   barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
@@ -850,6 +876,7 @@ export type NegocioUncheckedCreateWithoutRedesSocialesInput = {
   barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoUncheckedCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
@@ -887,6 +914,7 @@ export type NegocioUpdateWithoutRedesSocialesInput = {
   barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
@@ -909,6 +937,7 @@ export type NegocioUncheckedUpdateWithoutRedesSocialesInput = {
   barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUncheckedUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
@@ -929,6 +958,7 @@ export type NegocioCreateWithoutAdministradoresInput = {
   barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
@@ -951,6 +981,7 @@ export type NegocioUncheckedCreateWithoutAdministradoresInput = {
   barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoUncheckedCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
@@ -988,6 +1019,7 @@ export type NegocioUpdateWithoutAdministradoresInput = {
   barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
@@ -1010,6 +1042,7 @@ export type NegocioUncheckedUpdateWithoutAdministradoresInput = {
   barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUncheckedUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
@@ -1031,6 +1064,7 @@ export type NegocioCreateWithoutBarberosInput = {
   administradores?: Prisma.AdministradorCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
@@ -1053,6 +1087,7 @@ export type NegocioUncheckedCreateWithoutBarberosInput = {
   administradores?: Prisma.AdministradorUncheckedCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoUncheckedCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
@@ -1090,6 +1125,7 @@ export type NegocioUpdateWithoutBarberosInput = {
   administradores?: Prisma.AdministradorUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
@@ -1112,6 +1148,7 @@ export type NegocioUncheckedUpdateWithoutBarberosInput = {
   administradores?: Prisma.AdministradorUncheckedUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUncheckedUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
@@ -1133,6 +1170,7 @@ export type NegocioCreateWithoutClientesInput = {
   administradores?: Prisma.AdministradorCreateNestedManyWithoutNegocioInput
   barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
@@ -1155,6 +1193,7 @@ export type NegocioUncheckedCreateWithoutClientesInput = {
   administradores?: Prisma.AdministradorUncheckedCreateNestedManyWithoutNegocioInput
   barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoUncheckedCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
@@ -1192,6 +1231,7 @@ export type NegocioUpdateWithoutClientesInput = {
   administradores?: Prisma.AdministradorUpdateManyWithoutNegocioNestedInput
   barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
@@ -1214,6 +1254,7 @@ export type NegocioUncheckedUpdateWithoutClientesInput = {
   administradores?: Prisma.AdministradorUncheckedUpdateManyWithoutNegocioNestedInput
   barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUncheckedUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
@@ -1235,6 +1276,7 @@ export type NegocioCreateWithoutServiciosInput = {
   administradores?: Prisma.AdministradorCreateNestedManyWithoutNegocioInput
   barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
@@ -1257,6 +1299,7 @@ export type NegocioUncheckedCreateWithoutServiciosInput = {
   administradores?: Prisma.AdministradorUncheckedCreateNestedManyWithoutNegocioInput
   barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoUncheckedCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
@@ -1294,6 +1337,7 @@ export type NegocioUpdateWithoutServiciosInput = {
   administradores?: Prisma.AdministradorUpdateManyWithoutNegocioNestedInput
   barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
@@ -1316,6 +1360,113 @@ export type NegocioUncheckedUpdateWithoutServiciosInput = {
   administradores?: Prisma.AdministradorUncheckedUpdateManyWithoutNegocioNestedInput
   barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUncheckedUpdateManyWithoutNegocioNestedInput
+  barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
+  franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
+  bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
+  cierresGenerales?: Prisma.GeneralClosureUncheckedUpdateManyWithoutNegocioNestedInput
+  configuraciones?: Prisma.ConfiguracionNegocioUncheckedUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedUpdateManyWithoutNegocioNestedInput
+  perfil?: Prisma.PerfilNegocioUncheckedUpdateOneWithoutNegocioNestedInput
+  redesSociales?: Prisma.RedSocialNegocioUncheckedUpdateManyWithoutNegocioNestedInput
+}
+
+export type NegocioCreateWithoutProductosInput = {
+  slug: string
+  nombre: string
+  estado?: $Enums.EstadoNegocio
+  zonaHoraria?: string
+  creadoEn?: Date | string
+  actualizadoEn?: Date | string
+  administradores?: Prisma.AdministradorCreateNestedManyWithoutNegocioInput
+  barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
+  clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
+  servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
+  reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
+  franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
+  bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
+  cierresGenerales?: Prisma.GeneralClosureCreateNestedManyWithoutNegocioInput
+  configuraciones?: Prisma.ConfiguracionNegocioCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaCreateNestedManyWithoutNegocioInput
+  perfil?: Prisma.PerfilNegocioCreateNestedOneWithoutNegocioInput
+  redesSociales?: Prisma.RedSocialNegocioCreateNestedManyWithoutNegocioInput
+}
+
+export type NegocioUncheckedCreateWithoutProductosInput = {
+  id?: number
+  slug: string
+  nombre: string
+  estado?: $Enums.EstadoNegocio
+  zonaHoraria?: string
+  creadoEn?: Date | string
+  actualizadoEn?: Date | string
+  administradores?: Prisma.AdministradorUncheckedCreateNestedManyWithoutNegocioInput
+  barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
+  clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
+  servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
+  reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
+  franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
+  bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
+  cierresGenerales?: Prisma.GeneralClosureUncheckedCreateNestedManyWithoutNegocioInput
+  configuraciones?: Prisma.ConfiguracionNegocioUncheckedCreateNestedManyWithoutNegocioInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUncheckedCreateNestedManyWithoutNegocioInput
+  perfil?: Prisma.PerfilNegocioUncheckedCreateNestedOneWithoutNegocioInput
+  redesSociales?: Prisma.RedSocialNegocioUncheckedCreateNestedManyWithoutNegocioInput
+}
+
+export type NegocioCreateOrConnectWithoutProductosInput = {
+  where: Prisma.NegocioWhereUniqueInput
+  create: Prisma.XOR<Prisma.NegocioCreateWithoutProductosInput, Prisma.NegocioUncheckedCreateWithoutProductosInput>
+}
+
+export type NegocioUpsertWithoutProductosInput = {
+  update: Prisma.XOR<Prisma.NegocioUpdateWithoutProductosInput, Prisma.NegocioUncheckedUpdateWithoutProductosInput>
+  create: Prisma.XOR<Prisma.NegocioCreateWithoutProductosInput, Prisma.NegocioUncheckedCreateWithoutProductosInput>
+  where?: Prisma.NegocioWhereInput
+}
+
+export type NegocioUpdateToOneWithWhereWithoutProductosInput = {
+  where?: Prisma.NegocioWhereInput
+  data: Prisma.XOR<Prisma.NegocioUpdateWithoutProductosInput, Prisma.NegocioUncheckedUpdateWithoutProductosInput>
+}
+
+export type NegocioUpdateWithoutProductosInput = {
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  estado?: Prisma.EnumEstadoNegocioFieldUpdateOperationsInput | $Enums.EstadoNegocio
+  zonaHoraria?: Prisma.StringFieldUpdateOperationsInput | string
+  creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  actualizadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  administradores?: Prisma.AdministradorUpdateManyWithoutNegocioNestedInput
+  barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
+  clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
+  servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
+  reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
+  franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
+  bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
+  cierresGenerales?: Prisma.GeneralClosureUpdateManyWithoutNegocioNestedInput
+  configuraciones?: Prisma.ConfiguracionNegocioUpdateManyWithoutNegocioNestedInput
+  plantillasWhatsApp?: Prisma.WhatsAppPlantillaUpdateManyWithoutNegocioNestedInput
+  perfil?: Prisma.PerfilNegocioUpdateOneWithoutNegocioNestedInput
+  redesSociales?: Prisma.RedSocialNegocioUpdateManyWithoutNegocioNestedInput
+}
+
+export type NegocioUncheckedUpdateWithoutProductosInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  estado?: Prisma.EnumEstadoNegocioFieldUpdateOperationsInput | $Enums.EstadoNegocio
+  zonaHoraria?: Prisma.StringFieldUpdateOperationsInput | string
+  creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  actualizadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  administradores?: Prisma.AdministradorUncheckedUpdateManyWithoutNegocioNestedInput
+  barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
+  clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
+  servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
@@ -1338,6 +1489,7 @@ export type NegocioCreateWithoutBarberoServiciosInput = {
   barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
   bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
@@ -1360,6 +1512,7 @@ export type NegocioUncheckedCreateWithoutBarberoServiciosInput = {
   barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoUncheckedCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
@@ -1397,6 +1550,7 @@ export type NegocioUpdateWithoutBarberoServiciosInput = {
   barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
@@ -1419,6 +1573,7 @@ export type NegocioUncheckedUpdateWithoutBarberoServiciosInput = {
   barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUncheckedUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
@@ -1440,6 +1595,7 @@ export type NegocioCreateWithoutFranjasSemanalesInput = {
   barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
   bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
@@ -1462,6 +1618,7 @@ export type NegocioUncheckedCreateWithoutFranjasSemanalesInput = {
   barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoUncheckedCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
@@ -1499,6 +1656,7 @@ export type NegocioUpdateWithoutFranjasSemanalesInput = {
   barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
@@ -1521,6 +1679,7 @@ export type NegocioUncheckedUpdateWithoutFranjasSemanalesInput = {
   barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUncheckedUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
@@ -1542,6 +1701,7 @@ export type NegocioCreateWithoutBloqueosHorarioInput = {
   barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
@@ -1564,6 +1724,7 @@ export type NegocioUncheckedCreateWithoutBloqueosHorarioInput = {
   barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoUncheckedCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
@@ -1601,6 +1762,7 @@ export type NegocioUpdateWithoutBloqueosHorarioInput = {
   barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
@@ -1623,6 +1785,7 @@ export type NegocioUncheckedUpdateWithoutBloqueosHorarioInput = {
   barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUncheckedUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
@@ -1644,6 +1807,7 @@ export type NegocioCreateWithoutCierresGeneralesInput = {
   barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
@@ -1666,6 +1830,7 @@ export type NegocioUncheckedCreateWithoutCierresGeneralesInput = {
   barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoUncheckedCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
@@ -1703,6 +1868,7 @@ export type NegocioUpdateWithoutCierresGeneralesInput = {
   barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
@@ -1725,6 +1891,7 @@ export type NegocioUncheckedUpdateWithoutCierresGeneralesInput = {
   barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUncheckedUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
@@ -1746,6 +1913,7 @@ export type NegocioCreateWithoutReservasInput = {
   barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
   bloqueosHorario?: Prisma.BarberScheduleBlockCreateNestedManyWithoutNegocioInput
@@ -1768,6 +1936,7 @@ export type NegocioUncheckedCreateWithoutReservasInput = {
   barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoUncheckedCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedCreateNestedManyWithoutNegocioInput
@@ -1805,6 +1974,7 @@ export type NegocioUpdateWithoutReservasInput = {
   barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUpdateManyWithoutNegocioNestedInput
@@ -1827,6 +1997,7 @@ export type NegocioUncheckedUpdateWithoutReservasInput = {
   barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUncheckedUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
   bloqueosHorario?: Prisma.BarberScheduleBlockUncheckedUpdateManyWithoutNegocioNestedInput
@@ -1848,6 +2019,7 @@ export type NegocioCreateWithoutPlantillasWhatsAppInput = {
   barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
@@ -1870,6 +2042,7 @@ export type NegocioUncheckedCreateWithoutPlantillasWhatsAppInput = {
   barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoUncheckedCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
@@ -1907,6 +2080,7 @@ export type NegocioUpdateWithoutPlantillasWhatsAppInput = {
   barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
@@ -1929,6 +2103,7 @@ export type NegocioUncheckedUpdateWithoutPlantillasWhatsAppInput = {
   barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUncheckedUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
@@ -1950,6 +2125,7 @@ export type NegocioCreateWithoutConfiguracionesInput = {
   barberos?: Prisma.BarberoCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotCreateNestedManyWithoutNegocioInput
@@ -1972,6 +2148,7 @@ export type NegocioUncheckedCreateWithoutConfiguracionesInput = {
   barberos?: Prisma.BarberoUncheckedCreateNestedManyWithoutNegocioInput
   clientes?: Prisma.ClienteUncheckedCreateNestedManyWithoutNegocioInput
   servicios?: Prisma.ServicioUncheckedCreateNestedManyWithoutNegocioInput
+  productos?: Prisma.ProductoUncheckedCreateNestedManyWithoutNegocioInput
   barberoServicios?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutNegocioInput
   reservas?: Prisma.ReservationUncheckedCreateNestedManyWithoutNegocioInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedCreateNestedManyWithoutNegocioInput
@@ -2009,6 +2186,7 @@ export type NegocioUpdateWithoutConfiguracionesInput = {
   barberos?: Prisma.BarberoUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUpdateManyWithoutNegocioNestedInput
@@ -2031,6 +2209,7 @@ export type NegocioUncheckedUpdateWithoutConfiguracionesInput = {
   barberos?: Prisma.BarberoUncheckedUpdateManyWithoutNegocioNestedInput
   clientes?: Prisma.ClienteUncheckedUpdateManyWithoutNegocioNestedInput
   servicios?: Prisma.ServicioUncheckedUpdateManyWithoutNegocioNestedInput
+  productos?: Prisma.ProductoUncheckedUpdateManyWithoutNegocioNestedInput
   barberoServicios?: Prisma.BarberoServicioUncheckedUpdateManyWithoutNegocioNestedInput
   reservas?: Prisma.ReservationUncheckedUpdateManyWithoutNegocioNestedInput
   franjasSemanales?: Prisma.BarberWeeklySlotUncheckedUpdateManyWithoutNegocioNestedInput
@@ -2051,6 +2230,7 @@ export type NegocioCountOutputType = {
   barberos: number
   clientes: number
   servicios: number
+  productos: number
   barberoServicios: number
   reservas: number
   franjasSemanales: number
@@ -2066,6 +2246,7 @@ export type NegocioCountOutputTypeSelect<ExtArgs extends runtime.Types.Extension
   barberos?: boolean | NegocioCountOutputTypeCountBarberosArgs
   clientes?: boolean | NegocioCountOutputTypeCountClientesArgs
   servicios?: boolean | NegocioCountOutputTypeCountServiciosArgs
+  productos?: boolean | NegocioCountOutputTypeCountProductosArgs
   barberoServicios?: boolean | NegocioCountOutputTypeCountBarberoServiciosArgs
   reservas?: boolean | NegocioCountOutputTypeCountReservasArgs
   franjasSemanales?: boolean | NegocioCountOutputTypeCountFranjasSemanalesArgs
@@ -2112,6 +2293,13 @@ export type NegocioCountOutputTypeCountClientesArgs<ExtArgs extends runtime.Type
  */
 export type NegocioCountOutputTypeCountServiciosArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.ServicioWhereInput
+}
+
+/**
+ * NegocioCountOutputType without action
+ */
+export type NegocioCountOutputTypeCountProductosArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ProductoWhereInput
 }
 
 /**
@@ -2183,6 +2371,7 @@ export type NegocioSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   barberos?: boolean | Prisma.Negocio$barberosArgs<ExtArgs>
   clientes?: boolean | Prisma.Negocio$clientesArgs<ExtArgs>
   servicios?: boolean | Prisma.Negocio$serviciosArgs<ExtArgs>
+  productos?: boolean | Prisma.Negocio$productosArgs<ExtArgs>
   barberoServicios?: boolean | Prisma.Negocio$barberoServiciosArgs<ExtArgs>
   reservas?: boolean | Prisma.Negocio$reservasArgs<ExtArgs>
   franjasSemanales?: boolean | Prisma.Negocio$franjasSemanalesArgs<ExtArgs>
@@ -2213,6 +2402,7 @@ export type NegocioInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   barberos?: boolean | Prisma.Negocio$barberosArgs<ExtArgs>
   clientes?: boolean | Prisma.Negocio$clientesArgs<ExtArgs>
   servicios?: boolean | Prisma.Negocio$serviciosArgs<ExtArgs>
+  productos?: boolean | Prisma.Negocio$productosArgs<ExtArgs>
   barberoServicios?: boolean | Prisma.Negocio$barberoServiciosArgs<ExtArgs>
   reservas?: boolean | Prisma.Negocio$reservasArgs<ExtArgs>
   franjasSemanales?: boolean | Prisma.Negocio$franjasSemanalesArgs<ExtArgs>
@@ -2232,6 +2422,7 @@ export type $NegocioPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     barberos: Prisma.$BarberoPayload<ExtArgs>[]
     clientes: Prisma.$ClientePayload<ExtArgs>[]
     servicios: Prisma.$ServicioPayload<ExtArgs>[]
+    productos: Prisma.$ProductoPayload<ExtArgs>[]
     barberoServicios: Prisma.$BarberoServicioPayload<ExtArgs>[]
     reservas: Prisma.$ReservationPayload<ExtArgs>[]
     franjasSemanales: Prisma.$BarberWeeklySlotPayload<ExtArgs>[]
@@ -2597,6 +2788,7 @@ export interface Prisma__NegocioClient<T, Null = never, ExtArgs extends runtime.
   barberos<T extends Prisma.Negocio$barberosArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Negocio$barberosArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BarberoPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   clientes<T extends Prisma.Negocio$clientesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Negocio$clientesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ClientePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   servicios<T extends Prisma.Negocio$serviciosArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Negocio$serviciosArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ServicioPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  productos<T extends Prisma.Negocio$productosArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Negocio$productosArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProductoPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   barberoServicios<T extends Prisma.Negocio$barberoServiciosArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Negocio$barberoServiciosArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BarberoServicioPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   reservas<T extends Prisma.Negocio$reservasArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Negocio$reservasArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ReservationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   franjasSemanales<T extends Prisma.Negocio$franjasSemanalesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Negocio$franjasSemanalesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BarberWeeklySlotPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -3083,6 +3275,30 @@ export type Negocio$serviciosArgs<ExtArgs extends runtime.Types.Extensions.Inter
   take?: number
   skip?: number
   distinct?: Prisma.ServicioScalarFieldEnum | Prisma.ServicioScalarFieldEnum[]
+}
+
+/**
+ * Negocio.productos
+ */
+export type Negocio$productosArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Producto
+   */
+  select?: Prisma.ProductoSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Producto
+   */
+  omit?: Prisma.ProductoOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ProductoInclude<ExtArgs> | null
+  where?: Prisma.ProductoWhereInput
+  orderBy?: Prisma.ProductoOrderByWithRelationInput | Prisma.ProductoOrderByWithRelationInput[]
+  cursor?: Prisma.ProductoWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ProductoScalarFieldEnum | Prisma.ProductoScalarFieldEnum[]
 }
 
 /**

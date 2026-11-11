@@ -6,6 +6,11 @@ import * as crypto from 'node:crypto';
 import { CARPETA_NEGOCIOS, directorioUploads } from './uploads.config';
 import { obtenerContextoNegocio } from '../../modules/negocios/negocio-almacenamiento';
 
+interface PeticionConNegocio extends Express.Request {
+  negocioId?: number;
+  negocio?: { id?: number };
+}
+
 /**
  * Fábrica de configuración reutilizable para Multer.
  *
@@ -37,12 +42,9 @@ export const crearMulterOptions = (
       destination: (req, _file, callback) => {
         const rootUploads = directorioUploads(process.env);
         const contexto = obtenerContextoNegocio();
-        const reqConNegocio = req as unknown as {
-          negocioId?: number;
-          negocio?: { id?: number };
-        };
+        const peticion = req as PeticionConNegocio | null | undefined;
         const negocioId =
-          contexto?.id || reqConNegocio?.negocioId || reqConNegocio?.negocio?.id;
+          contexto?.id ?? peticion?.negocioId ?? peticion?.negocio?.id;
 
         const uploadPath = negocioId
           ? join(

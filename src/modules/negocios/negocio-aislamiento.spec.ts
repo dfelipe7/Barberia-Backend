@@ -567,6 +567,7 @@ describe('Aislamiento entre negocios A y B (capa de repositorio)', () => {
     it('el inventario de modelos tenant-scoped excluye los globales', () => {
       expect(MODELOS_TENANT_SCOPED).toContain('Reservation');
       expect(MODELOS_TENANT_SCOPED).toContain('Cliente');
+      expect(MODELOS_TENANT_SCOPED).toContain('Producto');
       expect(MODELOS_TENANT_SCOPED).not.toContain('Usuario');
       expect(MODELOS_TENANT_SCOPED).not.toContain('Negocio');
       expect(MODELOS_TENANT_SCOPED).not.toContain('ConfiguracionSistema');

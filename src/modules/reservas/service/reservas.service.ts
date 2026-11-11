@@ -77,6 +77,16 @@ import {
 } from '../../configuracion/configuracion.constants';
 import { obtenerContextoNegocio } from '../../negocios/negocio-almacenamiento';
 
+type ReservaGestionInvitado = ReservaConRelaciones & {
+  gestionTokenHash: string | null;
+  gestionTokenCifrado: string | null;
+  cliente?: {
+    nombre: string;
+    apellido: string | null;
+    telefono: string | null;
+  };
+};
+
 /** Mensajes de dominio exigidos por los criterios de aceptación (Excel HE-04). */
 export const MENSAJE_RESERVA_CREADA = 'Reserva creada exitosamente';
 export const MENSAJE_RESERVA_MODIFICADA = 'Reserva modificada correctamente';
@@ -593,15 +603,7 @@ export class ReservasService {
     );
 
     const dto = this.aReservaCliente(reserva);
-    const cliente = (
-      reserva as unknown as {
-        cliente?: {
-          nombre?: string;
-          apellido?: string | null;
-          telefono?: string | null;
-        };
-      }
-    ).cliente;
+    const cliente = reserva.cliente;
 
     return {
       ...dto,
@@ -1146,7 +1148,9 @@ export class ReservasService {
       })
       .catch((err: unknown) =>
         this.logger.warn(
-          `No se pudo enviar notificación de completado por WhatsApp: ${err instanceof Error ? err.message : String(err)}`,
+          `No se pudo enviar notificación de completado por WhatsApp: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
         ),
       );
   }
@@ -1492,7 +1496,7 @@ export class ReservasService {
   async validarReservaParaGestionInvitado(
     reservaId: number,
     tokenGestion?: string,
-  ): Promise<ReservaConRelaciones> {
+  ): Promise<ReservaGestionInvitado> {
     if (
       !tokenGestion ||
       typeof tokenGestion !== 'string' ||
@@ -2409,10 +2413,12 @@ export class ReservasService {
    * @returns Identificador numérico válido del usuario.
    * @throws {UnauthorizedException} Si el ID no se encuentra o es inválido.
    */
-  private resolverUsuarioId(
-    usuarioAutenticado?: { id?: unknown; sub?: unknown } | null,
-  ): number {
-    const idCrudo = usuarioAutenticado?.id ?? usuarioAutenticado?.sub;
+  private resolverUsuarioId(usuarioAutenticado: unknown): number {
+    const payload =
+      typeof usuarioAutenticado === 'object' && usuarioAutenticado !== null
+        ? (usuarioAutenticado as { id?: unknown; sub?: unknown })
+        : undefined;
+    const idCrudo = payload?.id ?? payload?.sub;
     const usuarioId = Number(idCrudo);
 
     if (

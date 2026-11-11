@@ -20,6 +20,7 @@ export const MODELOS_TENANT_SCOPED = [
   'ConfiguracionNegocio',
   'GeneralClosure',
   'PerfilNegocio',
+  'Producto',
   'Reservation',
   'Servicio',
 ] as const;
