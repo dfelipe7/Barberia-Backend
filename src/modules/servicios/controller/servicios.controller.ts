@@ -39,16 +39,32 @@ import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { ApiNegocioHeader } from '../../../common/decorators/api-negocio-header.decorator';
 
+/**
+ * Controlador del Catálogo de Servicios y Asignación de Barberos.
+ *
+ * @remarks
+ * Provee tanto las rutas públicas para el catálogo de clientes (consulta de servicios activos
+ * y barberos habilitados para citas) como las operaciones protegidas por RBAC para la administración
+ * de tarifas, duraciones, estado operativo (Soft Delete) y multimedia de servicios.
+ */
 @ApiTags('servicios')
 @Controller('servicios')
 export class ServiciosController {
   constructor(private readonly serviciosService: ServiciosService) {}
 
   /**
-   * POST /servicios
-   * Crea un nuevo servicio en el catálogo.
-   * Valida que los barberos indicados en barberoIds existan y estén ACTIVOS.
-   * Acceso restringido: SUPERADMIN y ADMINISTRADOR.
+   * Crea un nuevo servicio en el catálogo de la sede activa.
+   *
+   * @remarks
+   * Valida que los identificadores de barberos suministrados pertenezcan exclusivamente a la barbería actual
+   * y se encuentren en estado `ACTIVO`. Restringido a administradores de sede.
+   *
+   * @param dto - Datos del nuevo servicio y lista opcional de IDs de barberos asignados.
+   * @returns Datos del servicio creado con formato `ServicioResponseDto`.
+   * @throws {ConflictException} Si ya existe un servicio con el mismo nombre en la sede.
+   * @throws {BadRequestException} Si los barberos asociados no existen o están inactivos.
+   * @throws {UnauthorizedException} Si el token JWT de administrador es inválido o no pertenece a la sede.
+   * @throws {ForbiddenException} Si el usuario carece del rol SUPERADMIN o ADMINISTRADOR.
    */
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -80,9 +96,10 @@ export class ServiciosController {
   }
 
   /**
-   * GET /servicios/gestion
-   * Vista de gestión administrativa: Retorna TODOS los servicios (activos e inactivos) con soporte de filtros.
-   * Acceso restringido: SUPERADMIN y ADMINISTRADOR.
+   * Obtiene todos los servicios (activos e inactivos) para la vista administrativa con soporte de filtros.
+   *
+   * @param filtro - Criterios de búsqueda opcionales (nombre, estado).
+   * @returns Listado integral de servicios de la barbería.
    */
   @Get('gestion')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -105,13 +122,15 @@ export class ServiciosController {
   }
 
   /**
-   * GET /servicios/barbero/:barberoId
-   * Retorna los servicios activos que ofrece un barbero específico.
-   * Endpoint PÚBLICO: Utilizado cuando el cliente selecciona primero a su barbero favorito.
+   * Retorna los servicios activos que realiza un barbero específico.
    *
-   * `barberoId` es el `Barbero.id` (no el `Usuario.id`): es la misma clave que
-   * devuelve el catálogo y que consume la disponibilidad. Un barbero de otra
-   * barbería responde 404.
+   * @remarks
+   * Endpoint público utilizado cuando el cliente selecciona primero a su barbero de preferencia.
+   * Valida pertenencia a la sede; si no pertenece o no está activo, responde 404.
+   *
+   * @param barberoId - ID del perfil de barbero (`Barbero.id`).
+   * @returns Lista de servicios activos asociados a ese barbero.
+   * @throws {NotFoundException} Si el barbero no existe o no pertenece a la sede actual.
    */
   @Get('barbero/:barberoId')
   @ApiNegocioHeader()
@@ -146,10 +165,15 @@ export class ServiciosController {
   }
 
   /**
-   * GET /servicios/:servicioId/barberos
-   * Lista los barberos activos que tienen habilitado el servicio (HE-04-HU-02).
-   * Endpoint PÚBLICO: el cliente elige el servicio y luego ve quién puede
-   * prestarlo. Devuelve el `Barbero.id`, listo para consultar disponibilidad.
+   * Obtiene la lista de barberos activos asignados para realizar un servicio determinado.
+   *
+   * @remarks
+   * Endpoint público (HE-04-HU-02) consumido en el flujo de reserva cuando el cliente selecciona el servicio
+   * y procede a elegir al profesional. Devuelve una lista vacía `[]` si ningún barbero está asignado.
+   *
+   * @param servicioId - Identificador numérico del servicio.
+   * @returns Lista de barberos capacitados (`BarberoPorServicioDto`).
+   * @throws {NotFoundException} Si el servicio no existe o no se encuentra activo en la sede.
    */
   @Get(':servicioId/barberos')
   @ApiNegocioHeader()
@@ -183,10 +207,14 @@ export class ServiciosController {
   }
 
   /**
-   * GET /servicios
-   * Catálogo público: Retorna únicamente los servicios ACTIVOS con opción de filtro por nombre.
-   * Endpoint PÚBLICO: No requiere autenticación para que clientes y visitantes
-   * puedan consultar el catálogo e iniciar su reserva sin restricciones.
+   * Retorna el catálogo público de servicios activos para clientes y agendamiento de citas.
+   *
+   * @remarks
+   * Endpoint público sin requerimiento de autenticación. Filtra estrictamente por la sede resuelta
+   * en el contexto de la petición.
+   *
+   * @param filtro - Filtro opcional por coincidencia de texto.
+   * @returns Lista de servicios activos en formato `ServicioResponseDto`.
    */
   @Get()
   @ApiNegocioHeader()
@@ -207,9 +235,11 @@ export class ServiciosController {
   }
 
   /**
-   * GET /servicios/:id
-   * Obtiene el detalle de un servicio por su ID.
-   * Disponible para roles autenticados: SUPERADMIN, ADMINISTRADOR y BARBERO.
+   * Obtiene la ficha detallada de un servicio por su identificador.
+   *
+   * @param id - Identificador numérico del servicio en formato string.
+   * @returns Ficha completa del servicio y barberos asignados.
+   * @throws {NotFoundException} Si el servicio no existe en la sede actual.
    */
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -232,9 +262,12 @@ export class ServiciosController {
   }
 
   /**
-   * PATCH /servicios/:id/estado
-   * Cambia el estado (ACTIVO / INACTIVO) de un servicio (borrado lógico).
-   * Acceso restringido: SUPERADMIN y ADMINISTRADOR.
+   * Altera el estado operativo de un servicio (borrado lógico / Soft Delete).
+   *
+   * @param id - Identificador del servicio.
+   * @param dto - Nuevo estado deseado (`ACTIVO` o `INACTIVO`).
+   * @returns Servicio con el nuevo estado persistido.
+   * @throws {NotFoundException} Si el servicio no existe en la sede.
    */
   @Patch(':id/estado')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -262,10 +295,13 @@ export class ServiciosController {
   }
 
   /**
-   * PATCH /servicios/:id
-   * Actualiza los datos de un servicio (nombre, precio, duración, foto, barberos asignados).
-   * Valida que los nuevos barberos asignados existan y estén ACTIVOS.
-   * Acceso restringido: SUPERADMIN y ADMINISTRADOR.
+   * Modifica los datos descriptivos, económicos o las asignaciones de barberos de un servicio.
+   *
+   * @param id - Identificador del servicio.
+   * @param dto - Datos modificables del servicio (nombre, precio, duración, fotoUrl, barberoIds).
+   * @returns Servicio actualizado.
+   * @throws {NotFoundException} Si el servicio no existe en la sede.
+   * @throws {ConflictException} Si el nuevo nombre colisiona con otro servicio de la misma barbería.
    */
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -297,10 +333,13 @@ export class ServiciosController {
   }
 
   /**
-   * POST /servicios/:id/foto
-   * Sube o actualiza la foto de un servicio (almacenada en /uploads/servicios/).
-   * Utiliza la configuración centralizada crearMulterOptions() para mantener el controlador limpio.
-   * Acceso restringido: SUPERADMIN y ADMINISTRADOR.
+   * Sube o sustituye la imagen promocional de un servicio.
+   *
+   * @param id - Identificador del servicio.
+   * @param file - Archivo de imagen validado y almacenado temporalmente por Multer.
+   * @returns Objeto con mensaje y nueva URL pública del archivo.
+   * @throws {BadRequestException} Si no se adjuntó un archivo válido.
+   * @throws {NotFoundException} Si el servicio no existe en la sede.
    */
   @Post(':id/foto')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -345,9 +384,11 @@ export class ServiciosController {
   }
 
   /**
-   * DELETE /servicios/:id/foto
-   * Elimina la foto de un servicio y borra el archivo físico del disco.
-   * Acceso restringido: SUPERADMIN y ADMINISTRADOR.
+   * Elimina la foto asociada al servicio y borra físicamente el archivo del servidor de almacenamiento.
+   *
+   * @param id - Identificador del servicio.
+   * @returns Confirmación de eliminación.
+   * @throws {NotFoundException} Si el servicio no existe en la sede actual.
    */
   @Delete(':id/foto')
   @UseGuards(JwtAuthGuard, RolesGuard)

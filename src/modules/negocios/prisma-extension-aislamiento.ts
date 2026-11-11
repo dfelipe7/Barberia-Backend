@@ -76,7 +76,7 @@ type DataPrisma = Record<string, unknown>;
 /** Argumentos de una operación de delegate, en forma plana. */
 interface ArgsOperacion {
   where?: WherePrisma;
-  data?: DataPrisma;
+  data?: DataPrisma | DataPrisma[];
   create?: DataPrisma;
   [clave: string]: unknown;
 }
@@ -142,8 +142,16 @@ export function crearExtensionAislamientoNegocio() {
  * se considera un conflicto.
  */
 function negocioIdDeclarado(
-  objeto: WherePrisma | DataPrisma,
+  objeto: WherePrisma | DataPrisma | DataPrisma[],
 ): number | undefined {
+  if (Array.isArray(objeto)) {
+    const itemConNegocio = objeto.find(
+      (item) => typeof item.negocioId === 'number',
+    );
+    return typeof itemConNegocio?.negocioId === 'number'
+      ? itemConNegocio.negocioId
+      : undefined;
+  }
   const valor = objeto.negocioId;
 
   return typeof valor === 'number' ? valor : undefined;
@@ -271,7 +279,7 @@ function forzarNegocioEnEscritura(
     if (esCreacion) {
       // Creación (INSERT): forzamos negocioId para que el nuevo registro nazca con su dueño
       if (Array.isArray(data)) {
-        resultado.data = data.map((item) => ({ ...item, negocioId })) as any;
+        resultado.data = (data as DataPrisma[]).map((item) => ({ ...item, negocioId }));
       } else {
         resultado.data = { ...data, negocioId };
       }

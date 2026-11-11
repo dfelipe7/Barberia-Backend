@@ -26,6 +26,14 @@ export class NegocioContextoMiddleware implements NestMiddleware {
     private readonly negocioResolucionService: NegocioResolucionService,
   ) {}
 
+  /**
+   * Intercepta la petición HTTP y envuelve la cadena de ejecución en un contexto de `AsyncLocalStorage`.
+   *
+   * @param req - Objeto de petición Express con headers y hostname entrantes.
+   * @param res - Objeto de respuesta HTTP de Express.
+   * @param next - Función callback para continuar con el siguiente eslabón en el pipeline de NestJS.
+   * @throws {NotFoundException} Si se especificó un negocio mediante header o subdominio pero no existe o está inactivo.
+   */
   async use(
     req: Request,
     res: Response,

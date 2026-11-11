@@ -15,6 +15,28 @@ import { BarberoPorServicioDto } from '../dto/dto-respuesta/barbero-por-servicio
 import { ServiciosRepository } from '../repository/servicios.repository';
 import { resolverRutaPublicaUpload } from '../../../common/config/uploads.config';
 
+interface ServicioPrismaConBarberos {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  precio: number | string | { toString(): string };
+  duracionMinutos: number;
+  fotoUrl: string | null;
+  estado: string;
+  barberos?: Array<{
+    barbero: {
+      id: number;
+      fotoUrl: string | null;
+      usuario: {
+        id: number;
+        nombre: string;
+        apellido: string;
+        email: string;
+      };
+    };
+  }>;
+}
+
 @Injectable()
 export class ServiciosService {
   constructor(private readonly serviciosRepository: ServiciosRepository) {}
@@ -357,8 +379,13 @@ export class ServiciosService {
    * `id` es el `Barbero.id` (NO el `Usuario.id`): es la clave que consumen la
    * disponibilidad y la reserva, de modo que el cliente puede encadenar
    * catálogo → disponibilidad → reserva sin traducir identificadores.
+   *
+   * @param servicio - Objeto de servicio retornado por Prisma con sus relaciones anidadas.
+   * @returns DTO formal `ServicioResponseDto` normalizado para el frontend.
    */
-  private mapearServicio(servicio: any): ServicioResponseDto {
+  private mapearServicio(
+    servicio: ServicioPrismaConBarberos,
+  ): ServicioResponseDto {
     return {
       id: servicio.id,
       nombre: servicio.nombre,
@@ -367,7 +394,7 @@ export class ServiciosService {
       duracionMinutos: servicio.duracionMinutos,
       fotoUrl: servicio.fotoUrl,
       estado: servicio.estado,
-      barberos: (servicio.barberos || []).map((bs: any) => ({
+      barberos: (servicio.barberos || []).map((bs) => ({
         id: bs.barbero.id,
         nombre: bs.barbero.usuario.nombre,
         apellido: bs.barbero.usuario.apellido,

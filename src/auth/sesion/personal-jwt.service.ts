@@ -60,15 +60,16 @@ export class PersonalJwtService {
   }
 
   /**
-   * Firma una sesión de personal.
+   * Emite y firma un token JWT de sesión de personal con la marca `tipo: PERSONAL`.
    *
-   * La marca `tipo: PERSONAL` viaja DENTRO del token: es lo que permite
-   * rechazar de forma explícita un token de cliente en las rutas de personal
-   * (y viceversa) aunque las claves llegaran a coincidir por un error de
-   * configuración.
+   * @remarks
+   * La marca `tipo: PERSONAL` viaja en el payload del token y permite rechazar
+   * tokens de clientes en rutas de gestión interna o personal administrativo.
+   * La vigencia se toma de `JWT_EXPIRES_IN` (por defecto `7d`).
    *
-   * La vigencia se toma de `JWT_EXPIRES_IN` (por defecto `7d`), configurado en
-   * el módulo de autenticación.
+   * @param claims - Datos de identidad, sede y roles a incrustar en el token.
+   * @returns Token JWT serializado firmado con `JWT_SECRET`.
+   * @throws {ServiceUnavailableException} Si la variable `JWT_SECRET` no está configurada.
    */
   firmar(claims: Omit<ClaimsSesionPersonal, 'tipo'>): string {
     const secreto = this.obtenerSecreto();
@@ -80,10 +81,12 @@ export class PersonalJwtService {
   }
 
   /**
-   * Verifica la firma, la expiración y el tipo de un token de personal.
+   * Verifica la integridad de la firma HMAC, expiración y tipo del token de personal.
    *
-   * @throws UnauthorizedException si el token no es una sesión de personal
-   * válida (inválido, expirado, de cliente o de una versión anterior).
+   * @param token - Token recibido en la cabecera Authorization (Bearer).
+   * @returns Claims validados de la sesión de personal.
+   * @throws {UnauthorizedException} Si el token es inválido, expiró o no pertenece a la clase personal.
+   * @throws {ServiceUnavailableException} Si el secreto de personal no está configurado.
    */
   async verificar(token: string): Promise<ClaimsSesionPersonal> {
     const secreto = this.obtenerSecreto();

@@ -37,8 +37,12 @@ export const crearMulterOptions = (
       destination: (req, _file, callback) => {
         const rootUploads = directorioUploads(process.env);
         const contexto = obtenerContextoNegocio();
+        const reqConNegocio = req as unknown as {
+          negocioId?: number;
+          negocio?: { id?: number };
+        };
         const negocioId =
-          contexto?.id || (req as any)?.negocioId || (req as any)?.negocio?.id;
+          contexto?.id || reqConNegocio?.negocioId || reqConNegocio?.negocio?.id;
 
         const uploadPath = negocioId
           ? join(

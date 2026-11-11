@@ -38,10 +38,19 @@ import { UsuariosRepository } from '../repository/usuarios.repository';
 import { ApiNegocioHeader } from '../../../common/decorators/api-negocio-header.decorator';
 import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
 
-interface RequestConUsuario {
+/** Petición HTTP enriquecida con los claims de la sesión de personal autenticada. */
+export interface RequestConUsuario {
   user?: Partial<ClaimsSesionPersonal>;
 }
 
+/**
+ * Controlador de Gestión y Catálogo de Barberos.
+ *
+ * @remarks
+ * Gobierna el ciclo de vida del personal de barbería: alta operativa, catálogo público
+ * sin datos sensibles, configuración individual de porcentaje de comisión, estado de la membresía
+ * y gestión de fotografías de perfil tanto por el propio barbero como por los administradores.
+ */
 @ApiTags('Barberos')
 @ApiBearerAuth()
 @Controller('usuarios/barberos')
@@ -51,6 +60,14 @@ export class BarberosController {
     private readonly usuariosRepository: UsuariosRepository,
   ) {}
 
+  /**
+   * Da de alta a un barbero en la sede activa vinculando opcionalmente su porcentaje de comisión inicial.
+   *
+   * @param dto - Información personal y laboral del barbero.
+   * @returns Datos del barbero creado con su ficha inicializada.
+   * @throws {BadRequestException} Si los datos son inválidos o el correo ya se encuentra en uso.
+   * @throws {ForbiddenException} Si el usuario carece de permisos de administración.
+   */
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
@@ -63,6 +80,12 @@ export class BarberosController {
     return this.barberosService.crearBarbero(dto);
   }
 
+  /**
+   * Retorna la lista de barberos para el módulo de administración, incluyendo comisiones y estados.
+   *
+   * @param filtro - Filtros administrativos de búsqueda y estado.
+   * @returns Listado de barberos en formato `BarberoGestionDto`.
+   */
   @Get('gestion')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')
@@ -79,6 +102,16 @@ export class BarberosController {
     return this.barberosService.obtenerBarberosGestion(filtro);
   }
 
+  /**
+   * Catálogo público de barberos activos para el flujo de reservas y selección por clientes.
+   *
+   * @remarks
+   * El `id` devuelto es `Barbero.id` (el que consumen la disponibilidad y la reserva).
+   * Oculta datos sensibles como comisiones, teléfonos privados o direcciones de correo.
+   *
+   * @param filtro - Filtro opcional por nombre o especialidad.
+   * @returns Listado público en formato `BarberoCatalogoDto`.
+   */
   @Get()
   @ApiNegocioHeader()
   @ApiOperation({
@@ -97,12 +130,14 @@ export class BarberosController {
   }
 
   /**
-   * PATCH /usuarios/barberos/:usuarioId/comision
+   * Actualiza el porcentaje de comisión pactado para un barbero.
    *
-   * `usuarioId` es el `Usuario.id` (identidad global de la persona), NO el
-   * `Barbero.id`: esta ruta gestiona el perfil de barbero de una persona
-   * concreta. Para operar sobre el perfil como recurso de la barbería (asignar
-   * servicios, consultar disponibilidad) se usa `Barbero.id`.
+   * @param usuarioId - Identificador global del usuario (`Usuario.id`).
+   * @param dto - Objeto con el nuevo porcentaje de comisión decimal o entero (ej. 45 para 45%).
+   * @param request - Petición HTTP con datos del administrador que autoriza el cambio.
+   * @returns Confirmación y porcentaje actualizado.
+   * @throws {ForbiddenException} Si un administrador intenta alterar la comisión de un SUPERADMIN o no posee permisos.
+   * @throws {NotFoundException} Si el barbero no existe en la sede actual.
    */
   @Patch(':usuarioId/comision')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -135,9 +170,13 @@ export class BarberosController {
   }
 
   /**
-   * PATCH /usuarios/barberos/:usuarioId/estado
+   * Conmuta el estado operativo del perfil de barbero (ACTIVO / INACTIVO).
    *
-   * `usuarioId` es el `Usuario.id` (identidad global de la persona).
+   * @param usuarioId - Identificador del usuario evaluado.
+   * @param dto - Nuevo estado a asignar.
+   * @param request - Petición HTTP con claims de autorización.
+   * @returns Registro actualizado del barbero.
+   * @throws {ForbiddenException} Si no cuenta con permisos suficientes.
    */
   @Patch(':usuarioId/estado')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -166,6 +205,14 @@ export class BarberosController {
     );
   }
 
+  /**
+   * Sube o reemplaza la foto de perfil del barbero que ha iniciado sesión.
+   *
+   * @param file - Archivo de imagen procesado por Multer.
+   * @param request - Petición con la sesión del barbero.
+   * @returns Confirmación y nueva URL pública de la foto.
+   * @throws {BadRequestException} Si no se seleccionó archivo o el usuario no existe.
+   */
   @Post('foto')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
@@ -191,6 +238,13 @@ export class BarberosController {
     return this.barberosService.subirFotoBarbero(usuario.id, file);
   }
 
+  /**
+   * Elimina la foto de perfil del barbero autenticado y remueve el archivo físico del disco.
+   *
+   * @param request - Petición con la sesión del barbero.
+   * @returns Confirmación de eliminación.
+   * @throws {BadRequestException} Si el usuario no fue encontrado.
+   */
   @Delete('foto')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
@@ -212,9 +266,13 @@ export class BarberosController {
   }
 
   /**
-   * POST /usuarios/barberos/:usuarioId/foto
+   * Sube o reemplaza la foto de perfil de un barbero específico por parte de un administrador.
    *
-   * `usuarioId` es el `Usuario.id` (identidad global de la persona).
+   * @param usuarioId - Identificador del usuario barbero (`Usuario.id`).
+   * @param file - Archivo de imagen procesado.
+   * @param request - Petición con la sesión del administrador.
+   * @returns Confirmación y nueva URL pública de la foto.
+   * @throws {BadRequestException} Si no se envió archivo.
    */
   @Post(':usuarioId/foto')
   @UseGuards(JwtAuthGuard, RolesGuard)

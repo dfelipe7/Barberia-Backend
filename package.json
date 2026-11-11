@@ -8,6 +8,8 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "docs:html": "typedoc",
+    "openapi:export": "node scripts/export-openapi.js",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p test/tsconfig.e2e.json",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -95,6 +97,7 @@
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
+    "typedoc": "^0.28.20",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
   },

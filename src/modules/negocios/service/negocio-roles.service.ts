@@ -74,8 +74,9 @@ export class NegocioRolesService {
    * con `superadmin = true` otorga `SUPERADMIN` **de ese negocio**; con
    * `false`, otorga `ADMINISTRADOR`. `Usuario.rol` no interviene.
    *
-   * @param usuarioId Identificador global de la persona.
-   * @param negocio Negocio evaluado (id + slug).
+   * @param usuarioId - Identificador global de la persona.
+   * @param negocio - Negocio evaluado (id + slug).
+   * @returns Perfil operativo con los roles calculados y la URL de la foto de perfil.
    */
   async perfilOperativo(
     usuarioId: number,
@@ -115,6 +116,9 @@ export class NegocioRolesService {
   /**
    * Roles operativos efectivos de `usuarioId` dentro de `negocio`.
    *
+   * @param usuarioId - Identificador del usuario.
+   * @param negocio - Datos de la barbería evaluada.
+   * @returns Lista de roles efectivos ('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO').
    * @see perfilOperativo
    */
   async rolesEfectivos(
@@ -127,10 +131,15 @@ export class NegocioRolesService {
   }
 
   /**
-   * `true` si la persona tiene algún perfil operativo activo en el negocio.
+   * Comprueba si la persona tiene algún perfil operativo activo en el negocio.
    *
+   * @remarks
    * Es la comprobación de PERTENENCIA que exigen el inicio de sesión y el
    * cambio de negocio.
+   *
+   * @param usuarioId - Identificador único de usuario.
+   * @param negocio - Barbería objetivo.
+   * @returns `true` si la persona cuenta con al menos una membresía activa en la sede.
    */
   async perteneceActivo(
     usuarioId: number,

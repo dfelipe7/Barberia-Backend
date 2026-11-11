@@ -40,10 +40,18 @@ import {
 
 import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
 
-interface RequestConUsuario {
+/** Petición HTTP con sesión del barbero para gestión de bloqueos de agenda propia. */
+export interface RequestConUsuario {
   user?: Partial<ClaimsSesionPersonal>;
 }
 
+/**
+ * Controlador de Autogestión de Bloqueos de Horario del Barbero.
+ *
+ * @remarks
+ * Permite a los barberos autenticados consultar, crear, modificar y cancelar bloqueos en su propia agenda
+ * (citas médicas, permisos, descansos no programados) garantizando que no se superpongan con reservas activas.
+ */
 @ApiTags('Bloqueos de horario')
 @ApiBearerAuth()
 @Controller('usuarios/me/barbero')

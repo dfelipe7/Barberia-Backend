@@ -30,6 +30,14 @@ interface PeticionSesion {
   user?: ClaimsSesionPersonal;
 }
 
+/**
+ * Controlador de Autenticación de Personal y Cambio de Sede.
+ *
+ * @remarks
+ * Gobierna el flujo de inicio de sesión federado con Google OAuth 2.0 (Sistema Cerrado),
+ * la renovación de tokens JWT con recálculo dinámico de membresías activas,
+ * y la conmutación explícita de sede/tenant preservando el aislamiento Zero-Trust.
+ */
 @ApiTags('Autenticación')
 @Controller('auth')
 export class AuthController {
@@ -38,6 +46,20 @@ export class AuthController {
     private readonly sesionService: SesionPersonalService,
   ) {}
 
+  /**
+   * Inicia sesión para el personal administrativo o barberos mediante Google OAuth 2.0.
+   *
+   * @remarks
+   * Política de Sistema Cerrado (Zero-Trust):
+   * Verifica la firma del ID Token contra los servidores de Google. Solo permite el acceso
+   * si el correo electrónico ya fue registrado previamente por un administrador en la plataforma.
+   * Vincula permanentemente el `sub` de Google al usuario para prevenir Account Takeover.
+   *
+   * @param dto - Contenedor con el ID Token criptográfico emitido por Google.
+   * @returns JWT de sesión con los claims del personal y roles efectivos en la barbería activa.
+   * @throws {UnauthorizedException} Si el token de Google es inválido o el usuario no existe.
+   * @throws {ForbiddenException} Si la cuenta está suspendida o no tiene membresías activas en el negocio.
+   */
   @Post('google')
   @ApiOperation({
     summary: 'Iniciar sesión con Google OAuth 2.0',
@@ -75,6 +97,18 @@ export class AuthController {
     return this.googleAuthService.loginConGoogle(dto.idToken);
   }
 
+  /**
+   * Renueva el JWT de sesión del personal con los roles y perfiles vigentes en la base de datos.
+   *
+   * @remarks
+   * Revalida la sesión conservando su ámbito de barbería. Comprueba que la barbería siga
+   * activa y recalcula los roles efectivos, garantizando que revocar un perfil surta efecto inmediato.
+   *
+   * @param req - Petición HTTP con claims de sesión verificados por `JwtSesionGuard`.
+   * @returns Nuevo JWT de sesión con datos del usuario actualizados.
+   * @throws {UnauthorizedException} Si el token actual es inválido o el usuario ya no existe.
+   * @throws {ForbiddenException} Si el usuario fue suspendido o ya no tiene membresías activas.
+   */
   @Post('refresh')
   @UseGuards(JwtSesionGuard)
   @ApiBearerAuth()
@@ -104,6 +138,19 @@ export class AuthController {
     return this.sesionService.renovar(sesion, usuario);
   }
 
+  /**
+   * Conmuta explícitamente el negocio/sede de la sesión activa del personal.
+   *
+   * @remarks
+   * Emite una nueva sesión vinculada al negocio indicado por su slug. Exige una membresía activa
+   * en el negocio destino para todas las personas (el rol SUPERADMIN de una barbería no habilita
+   * el acceso no autorizado a otra).
+   *
+   * @param req - Petición HTTP con claims de sesión.
+   * @param slug - Slug identificador de la barbería de destino.
+   * @returns Nueva sesión autorizada para el negocio destino.
+   * @throws {ForbiddenException} Si la persona no tiene una membresía activa en el negocio destino.
+   */
   @Post('tenant/:slug')
   @UseGuards(JwtSesionGuard)
   @ApiBearerAuth()

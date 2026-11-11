@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
+import { Prisma } from '../../../../generated/prisma/client';
 import {
   EstadoServicio,
   EstadoUsuario,
@@ -158,9 +159,12 @@ export class ServiciosRepository {
   /**
    * Catálogo público: Lista únicamente los servicios que están ACTIVOS con opción de filtro por nombre.
    * Ordenados alfabéticamente para facilitar la selección al cliente en la reserva.
+   *
+   * @param filtro - Filtro opcional por coincidencia de nombre o descripción.
+   * @returns Lista de servicios activos con sus barberos asignados.
    */
   listarServiciosCatalogo(filtro?: { nombre?: string }) {
-    const whereCondition: any = {
+    const whereCondition: Prisma.ServicioWhereInput = {
       estado: EstadoServicio.ACTIVO,
       barberos: {
         some: {
@@ -198,12 +202,15 @@ export class ServiciosRepository {
   /**
    * Vista de gestión administrativa: Lista TODOS los servicios (activos e inactivos) con soporte de filtros.
    * Permite al Superadmin y Administrador ver el catálogo completo para editar o reactivar.
+   *
+   * @param filtro - Filtros administrativos por nombre o estado.
+   * @returns Lista completa de servicios ordenados por ID desc.
    */
   async listarServiciosGestion(filtro?: {
     nombre?: string;
     estado?: EstadoServicio;
   }) {
-    const whereCondition: any = {};
+    const whereCondition: Prisma.ServicioWhereInput = {};
 
     if (filtro?.estado) {
       whereCondition.estado = filtro.estado;

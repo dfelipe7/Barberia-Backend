@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RecordatoriosCron } from './recordatorios.cron';
 import { ReservasRepository } from '../repository/reservas.repository';
-import { WhatsAppService } from '../../whatsapp/whatsapp.service';
+import { WhatsAppService } from '../../whatsapp/service/whatsapp.service';
 import { FechaBogotaService } from '../../horarios/common/fecha-bogota.service';
 import { NegocioContextoService } from '../../negocios/negocio-contexto.service';
 import { NegociosRepository } from '../../negocios/repository/negocios.repository';

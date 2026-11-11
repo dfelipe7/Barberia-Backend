@@ -61,6 +61,14 @@ export class ClientesAuthController {
   ): Promise<ClienteSesionResponseDto> {
     return this.clientesAuthService.loginConGoogle(dto.idToken);
   }
+  /**
+   * Obtiene el perfil completo del cliente que ha iniciado sesión.
+   *
+   * @param req - Objeto de petición con los datos criptográficamente verificados del cliente.
+   * @returns Perfil del cliente (nombre, apellido, email, teléfono).
+   * @throws {NotFoundException} Si el cliente no existe o fue desvinculado.
+   * @throws {UnauthorizedException} Si el token de cliente es inválido o expiró.
+   */
   @Get('perfil')
   @UseGuards(ClienteJwtAuthGuard)
   @ApiBearerAuth()
@@ -69,6 +77,15 @@ export class ClientesAuthController {
     return this.clientesAuthService.obtenerPerfil(req.cliente.clienteId);
   }
 
+  /**
+   * Actualiza la información personal (nombre, apellido o teléfono de contacto) del cliente autenticado.
+   *
+   * @param req - Objeto de petición con la identidad del cliente autenticado.
+   * @param dto - Datos modificables del perfil.
+   * @returns Datos actualizados del cliente en la base de datos.
+   * @throws {NotFoundException} Si el cliente no existe.
+   * @throws {UnauthorizedException} Si el token de cliente es inválido o expiró.
+   */
   @Patch('perfil')
   @UseGuards(ClienteJwtAuthGuard)
   @ApiBearerAuth()

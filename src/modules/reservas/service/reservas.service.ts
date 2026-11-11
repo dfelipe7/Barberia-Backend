@@ -16,7 +16,7 @@ import {
 import {
   WhatsAppService,
   type DatosConfirmacionWhatsApp,
-} from '../../whatsapp/whatsapp.service';
+} from '../../whatsapp/service/whatsapp.service';
 import { CrearReservaDto } from '../dto/dto-peticion/crear-reserva.dto';
 import { ModificarReservaDto } from '../dto/dto-peticion/modificar-reserva.dto';
 import { ConsultaAgendaBarberoDto } from '../dto/dto-peticion/consulta-agenda-barbero.dto';
@@ -593,11 +593,19 @@ export class ReservasService {
     );
 
     const dto = this.aReservaCliente(reserva);
-    const cliente = (reserva as any).cliente;
+    const cliente = (
+      reserva as unknown as {
+        cliente?: {
+          nombre?: string;
+          apellido?: string | null;
+          telefono?: string | null;
+        };
+      }
+    ).cliente;
 
     return {
       ...dto,
-      cliente: cliente
+      cliente: cliente && cliente.nombre
         ? {
             nombre: cliente.nombre,
             apellido: cliente.apellido ?? null,
@@ -1136,9 +1144,9 @@ export class ReservasService {
             ? Number(reserva.precioReservado)
             : null,
       })
-      .catch((err) =>
+      .catch((err: unknown) =>
         this.logger.warn(
-          `No se pudo enviar notificación de completado por WhatsApp: ${err?.message ?? err}`,
+          `No se pudo enviar notificación de completado por WhatsApp: ${err instanceof Error ? err.message : String(err)}`,
         ),
       );
   }
@@ -2396,8 +2404,14 @@ export class ReservasService {
 
   /**
    * Extrae el `Usuario.id` del payload JWT de personal (`id` numérico o `sub`).
+   *
+   * @param usuarioAutenticado - Claims de la sesión personal decodificados.
+   * @returns Identificador numérico válido del usuario.
+   * @throws {UnauthorizedException} Si el ID no se encuentra o es inválido.
    */
-  private resolverUsuarioId(usuarioAutenticado: any): number {
+  private resolverUsuarioId(
+    usuarioAutenticado?: { id?: unknown; sub?: unknown } | null,
+  ): number {
     const idCrudo = usuarioAutenticado?.id ?? usuarioAutenticado?.sub;
     const usuarioId = Number(idCrudo);
 
