@@ -3,8 +3,10 @@ import {
   cabecerasSeguridadUploads,
   directorioNegocio,
   directorioPerfilNegocio,
+  directorioProductosNegocio,
   directorioUploads,
   estaDentroDelPerfil,
+  estaDentroDeProductos,
   resolverRutaPublicaUpload,
   UPLOADS_DIR_ENV,
 } from './uploads.config';
@@ -92,6 +94,26 @@ describe('configuración de uploads', () => {
 
   it('usa una raíz de ejemplo válida', () => {
     expect(path.isAbsolute(raiz)).toBe(true);
+  });
+
+  it('separa las imágenes de producto del resto del negocio', () => {
+    const entorno = { [UPLOADS_DIR_ENV]: '/datos/subidas' };
+    const dentro = path.join(
+      directorioProductosNegocio(1, entorno),
+      'producto-1-abc.png',
+    );
+
+    expect(directorioProductosNegocio(1, entorno)).toBe(
+      path.join(path.resolve('/datos/subidas'), 'negocios', '1', 'productos'),
+    );
+    expect(estaDentroDeProductos(dentro, 1, entorno)).toBe(true);
+    expect(
+      estaDentroDeProductos(
+        path.join(directorioProductosNegocio(2, entorno), 'producto-2-abc.png'),
+        1,
+        entorno,
+      ),
+    ).toBe(false);
   });
 
   describe('resolverRutaPublicaUpload', () => {

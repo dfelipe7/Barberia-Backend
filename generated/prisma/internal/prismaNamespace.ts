@@ -405,6 +405,7 @@ export const ModelName = {
   Barbero: 'Barbero',
   Cliente: 'Cliente',
   Servicio: 'Servicio',
+  Producto: 'Producto',
   BarberoServicio: 'BarberoServicio',
   BarberWeeklySlot: 'BarberWeeklySlot',
   BarberScheduleBlock: 'BarberScheduleBlock',
@@ -428,7 +429,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "negocio" | "perfilNegocio" | "redSocialNegocio" | "usuario" | "administrador" | "barbero" | "cliente" | "servicio" | "barberoServicio" | "barberWeeklySlot" | "barberScheduleBlock" | "generalClosure" | "reservation" | "whatsAppPlantilla" | "configuracionSistema" | "configuracionNegocio"
+    modelProps: "negocio" | "perfilNegocio" | "redSocialNegocio" | "usuario" | "administrador" | "barbero" | "cliente" | "servicio" | "producto" | "barberoServicio" | "barberWeeklySlot" | "barberScheduleBlock" | "generalClosure" | "reservation" | "whatsAppPlantilla" | "configuracionSistema" | "configuracionNegocio"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -957,6 +958,72 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.ServicioCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.ServicioCountAggregateOutputType> | number
+        }
+      }
+    }
+    Producto: {
+      payload: Prisma.$ProductoPayload<ExtArgs>
+      fields: Prisma.ProductoFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ProductoFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductoPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ProductoFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductoPayload>
+        }
+        findFirst: {
+          args: Prisma.ProductoFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductoPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ProductoFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductoPayload>
+        }
+        findMany: {
+          args: Prisma.ProductoFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductoPayload>[]
+        }
+        create: {
+          args: Prisma.ProductoCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductoPayload>
+        }
+        createMany: {
+          args: Prisma.ProductoCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        delete: {
+          args: Prisma.ProductoDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductoPayload>
+        }
+        update: {
+          args: Prisma.ProductoUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductoPayload>
+        }
+        deleteMany: {
+          args: Prisma.ProductoDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ProductoUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        upsert: {
+          args: Prisma.ProductoUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductoPayload>
+        }
+        aggregate: {
+          args: Prisma.ProductoAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateProducto>
+        }
+        groupBy: {
+          args: Prisma.ProductoGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProductoGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ProductoCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProductoCountAggregateOutputType> | number
         }
       }
     }
@@ -1644,6 +1711,21 @@ export const ServicioScalarFieldEnum = {
 export type ServicioScalarFieldEnum = (typeof ServicioScalarFieldEnum)[keyof typeof ServicioScalarFieldEnum]
 
 
+export const ProductoScalarFieldEnum = {
+  id: 'id',
+  nombre: 'nombre',
+  descripcion: 'descripcion',
+  precio: 'precio',
+  imagenUrl: 'imagenUrl',
+  estado: 'estado',
+  negocioId: 'negocioId',
+  creadoEn: 'creadoEn',
+  actualizadoEn: 'actualizadoEn'
+} as const
+
+export type ProductoScalarFieldEnum = (typeof ProductoScalarFieldEnum)[keyof typeof ProductoScalarFieldEnum]
+
+
 export const BarberoServicioScalarFieldEnum = {
   barberoId: 'barberoId',
   servicioId: 'servicioId',
@@ -1858,6 +1940,15 @@ export const ServicioOrderByRelevanceFieldEnum = {
 export type ServicioOrderByRelevanceFieldEnum = (typeof ServicioOrderByRelevanceFieldEnum)[keyof typeof ServicioOrderByRelevanceFieldEnum]
 
 
+export const ProductoOrderByRelevanceFieldEnum = {
+  nombre: 'nombre',
+  descripcion: 'descripcion',
+  imagenUrl: 'imagenUrl'
+} as const
+
+export type ProductoOrderByRelevanceFieldEnum = (typeof ProductoOrderByRelevanceFieldEnum)[keyof typeof ProductoOrderByRelevanceFieldEnum]
+
+
 export const BarberWeeklySlotOrderByRelevanceFieldEnum = {
   startTime: 'startTime',
   endTime: 'endTime'
@@ -1995,6 +2086,13 @@ export type EnumEstadoUsuarioFieldRefInput<$PrismaModel> = FieldRefInputType<$Pr
  * Reference to a field of type 'EstadoServicio'
  */
 export type EnumEstadoServicioFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'EstadoServicio'>
+    
+
+
+/**
+ * Reference to a field of type 'EstadoProducto'
+ */
+export type EnumEstadoProductoFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'EstadoProducto'>
     
 
 
@@ -2198,6 +2296,7 @@ export type GlobalOmitConfig = {
   barbero?: Prisma.BarberoOmit
   cliente?: Prisma.ClienteOmit
   servicio?: Prisma.ServicioOmit
+  producto?: Prisma.ProductoOmit
   barberoServicio?: Prisma.BarberoServicioOmit
   barberWeeklySlot?: Prisma.BarberWeeklySlotOmit
   barberScheduleBlock?: Prisma.BarberScheduleBlockOmit

@@ -77,6 +77,16 @@ import {
 } from '../../configuracion/configuracion.constants';
 import { obtenerContextoNegocio } from '../../negocios/negocio-almacenamiento';
 
+type ReservaGestionInvitado = ReservaConRelaciones & {
+  gestionTokenHash: string | null;
+  gestionTokenCifrado: string | null;
+  cliente?: {
+    nombre: string;
+    apellido: string | null;
+    telefono: string | null;
+  };
+};
+
 /** Mensajes de dominio exigidos por los criterios de aceptación (Excel HE-04). */
 export const MENSAJE_RESERVA_CREADA = 'Reserva creada exitosamente';
 export const MENSAJE_RESERVA_MODIFICADA = 'Reserva modificada correctamente';
@@ -593,7 +603,7 @@ export class ReservasService {
     );
 
     const dto = this.aReservaCliente(reserva);
-    const cliente = (reserva as any).cliente;
+    const cliente = reserva.cliente;
 
     return {
       ...dto,
@@ -1136,9 +1146,11 @@ export class ReservasService {
             ? Number(reserva.precioReservado)
             : null,
       })
-      .catch((err) =>
+      .catch((err: unknown) =>
         this.logger.warn(
-          `No se pudo enviar notificación de completado por WhatsApp: ${err?.message ?? err}`,
+          `No se pudo enviar notificación de completado por WhatsApp: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
         ),
       );
   }
@@ -1484,7 +1496,7 @@ export class ReservasService {
   async validarReservaParaGestionInvitado(
     reservaId: number,
     tokenGestion?: string,
-  ): Promise<ReservaConRelaciones> {
+  ): Promise<ReservaGestionInvitado> {
     if (
       !tokenGestion ||
       typeof tokenGestion !== 'string' ||
@@ -2397,8 +2409,12 @@ export class ReservasService {
   /**
    * Extrae el `Usuario.id` del payload JWT de personal (`id` numérico o `sub`).
    */
-  private resolverUsuarioId(usuarioAutenticado: any): number {
-    const idCrudo = usuarioAutenticado?.id ?? usuarioAutenticado?.sub;
+  private resolverUsuarioId(usuarioAutenticado: unknown): number {
+    const payload =
+      typeof usuarioAutenticado === 'object' && usuarioAutenticado !== null
+        ? (usuarioAutenticado as { id?: unknown; sub?: unknown })
+        : undefined;
+    const idCrudo = payload?.id ?? payload?.sub;
     const usuarioId = Number(idCrudo);
 
     if (

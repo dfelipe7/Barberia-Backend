@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { Prisma } from '../../../../generated/prisma/client';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import {
   EstadoServicio,
@@ -160,7 +161,7 @@ export class ServiciosRepository {
    * Ordenados alfabéticamente para facilitar la selección al cliente en la reserva.
    */
   listarServiciosCatalogo(filtro?: { nombre?: string }) {
-    const whereCondition: any = {
+    const whereCondition: Prisma.ServicioWhereInput = {
       estado: EstadoServicio.ACTIVO,
       barberos: {
         some: {
@@ -203,7 +204,7 @@ export class ServiciosRepository {
     nombre?: string;
     estado?: EstadoServicio;
   }) {
-    const whereCondition: any = {};
+    const whereCondition: Prisma.ServicioWhereInput = {};
 
     if (filtro?.estado) {
       whereCondition.estado = filtro.estado;

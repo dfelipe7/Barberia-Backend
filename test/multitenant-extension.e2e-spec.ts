@@ -108,6 +108,13 @@ describe('Extensión de Prisma: aislamiento por negocio (MariaDB real)', () => {
     await prismaBase.cliente.create({
       data: { id: 2, nombre: 'Cliente B', negocioId: NEGOCIO_B },
     });
+
+    await prismaBase.producto.create({
+      data: { nombre: 'Producto A', precio: 100, negocioId: NEGOCIO_A },
+    });
+    await prismaBase.producto.create({
+      data: { nombre: 'Producto B', precio: 200, negocioId: NEGOCIO_B },
+    });
   }, 300000);
 
   afterAll(async () => {
@@ -223,5 +230,37 @@ describe('Extensión de Prisma: aislamiento por negocio (MariaDB real)', () => {
     );
 
     expect(franja.negocioId).toBe(NEGOCIO_A);
+  });
+
+  it('filtra los productos por el negocio del contexto', async () => {
+    const productos = await conNegocioA(() =>
+      prismaExtendido.producto.findMany(),
+    );
+
+    expect(productos).toHaveLength(1);
+    expect(productos[0].nombre).toBe('Producto A');
+    expect(productos[0].negocioId).toBe(NEGOCIO_A);
+  });
+
+  it('un findUnique de un producto ajeno no devuelve la fila', async () => {
+    const productoB = await prismaBase.producto.findFirst({
+      where: { negocioId: NEGOCIO_B },
+    });
+
+    const producto = await conNegocioA(() =>
+      prismaExtendido.producto.findUnique({ where: { id: productoB!.id } }),
+    );
+
+    expect(producto).toBeNull();
+  });
+
+  it('fuerza el negocio del contexto al crear un producto', async () => {
+    const producto = await conNegocioA(() =>
+      prismaExtendido.producto.create({
+        data: { nombre: 'Producto C', precio: 300 },
+      }),
+    );
+
+    expect(producto.negocioId).toBe(NEGOCIO_A);
   });
 });

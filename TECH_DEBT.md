@@ -8,33 +8,33 @@
 
 ## Índice
 
-- [DEBT-001 — ~900 errores de ESLint preexistentes](#debt-001--900-errores-de-eslint-preexistentes)
+- [DEBT-001 — Errores de ESLint preexistentes (reducidos de ~900 a 31)](#debt-001--errores-de-eslint-preexistentes-reducidos-de-900-a-31)
 - [DEBT-002 — Reformateos de lint en commits previos de feature/multitenant-core-fixes](#debt-002--reformateos-de-lint-en-commits-previos-de-featuremultitenant-core-fixes)
 - [DEBT-003 — Verificación de email al vincular googleId por primera vez](#debt-003--verificación-de-email-al-vincular-googleid-por-primera-vez)
 - [DEBT-004 — Sesiones JWT emitidas con el modelo monotenant](#debt-004--sesiones-jwt-emitidas-con-el-modelo-monotenant)
 - [DEBT-005 — .vscode/ sin excluir en el repo](#debt-005--vscode-sin-excluir-en-el-repo)
+- [DEBT-006 — Índice compuesto para listado de productos por negocio y fecha](#debt-006--índice-compuesto-para-listado-de-productos-por-negocio-y-fecha)
+- [DEBT-007 — Test de uploads con describe anidado rompe la suite completa](#debt-007--test-de-uploads-con-describe-anidado-rompe-la-suite-completa)
+- [DEBT-008 — Producto no está cubierto por el aislamiento automático de Prisma](#debt-008--producto-no-está-cubierto-por-el-aislamiento-automático-de-prisma)
 
 ---
 
-### DEBT-001 — ~900 errores de ESLint preexistentes
+### DEBT-001 — Errores de ESLint preexistentes (reducidos de ~900 a 31)
 
 - **Severidad**: MEDIA
 - **Área**: backend/infra (transversal)
-- **Estado**: ABIERTA
+- **Estado**: EN_PROGRESO
 - **Detectada**: 2026-11-01
 - **Origen**: auditoría de cierre del PR `feature/multitenant-core-fixes`.
-- **Descripción**: el repositorio arrastra ~900 errores de ESLint acumulados. Predominan `@typescript-eslint/no-explicit-any` en mocks y tipos de test, y `@typescript-eslint/unbound-method` (métodos `mock` sin `this: void`). No bloquean `typecheck` ni tests, pero contaminan cualquier `eslint` global y hacen ruido en los PRs.
+- **Descripción**: inicialmente se reportaban ~900 errores acumulados. Tras la configuración de `eslint.config.mjs` (que desactiva reglas de tipado estricto innecesarias en archivos de test `.spec.ts` y `.e2e-spec.ts`), el número se redujo a **82 errores y 6 warnings** en `src/**/*.ts`. Los errores remanentes se concentran en lógica de negocio concreta (`whatsapp.service.ts`: 26, `servicios.service.ts`: 18, `reservas.service.ts`: 14, `servicios.repository.ts`: 5, `multer.config.ts`: 4) y algunos ajustes de formateo Prettier.
 - **Impacto**:
-  - Los errores nuevos se pierden entre los viejos.
-  - El gate de "sin errores nuevos" no es automatizable hasta limpiar.
-  - `--fix` global produce diffs inmanejables.
-- **Mitigación propuesta**:
-  1. Congelar el conteo actual con un snapshot (`npx eslint . --format json > .eslint-baseline.json`) y commitearlo.
-  2. Cambiar el criterio de PR a "sin errores nuevos" comparando contra el baseline.
-  3. Atacar por módulo, empezando por `src/auth/**` y `src/modules/usuarios/**`.
-  4. Separar `any` (fácil, masivo) de `unbound-method` (requiere refactor de mocks).
-- **Criterio de cierre**: `npx eslint .` devuelve 0 errores, o el baseline se reduce a 0 progresivamente y se elimina el snapshot.
-- **Target**: PR separado, sin fecha.
+  - Dificulta automatizar un lint estricto en CI sin baseline.
+- **Mitigación en curso**:
+  1. Fase 1 completada: relajación de reglas de tipado estricto en tests via `eslint.config.mjs`.
+  2. Fase 2 (2026-11-10): resueltos los errores de `multer.config.ts`, `prisma-extension-aislamiento.ts`, `reservas.service.ts`, `reservas.service.spec.ts`, `servicios.repository.ts` y `servicios.service.ts`. Quedan **31 errores y 6 warnings**, todos en `whatsapp.service.ts` y `whatsapp.service.spec.ts`; ese módulo queda fuera de alcance por decisión explícita.
+  3. Snapshot baseline (`.eslint-baseline.json`) o resolución progresiva por módulo sin tocar archivos críticos de golpe.
+- **Criterio de cierre**: `npx eslint "src/**/*.ts"` devuelve 0 errores.
+- **Target**: progresivo por PRs dedicados por módulo.
 
 ---
 
@@ -90,21 +90,83 @@
 
 - **Severidad**: BAJA
 - **Área**: infra
-- **Estado**: ABIERTA
+- **Estado**: RESUELTA
 - **Detectada**: 2026-11-01
 - **Origen**: `git status` de cierre del PR `feature/multitenant-core-fixes`.
-- **Descripción**: `.vscode/` aparece como *untracked* en `git status` y no está excluido ni en `.gitignore` ni en `.git/info/exclude`. Riesgo de que alguien lo commitee por accidente.
-- **Impacto**: ruido en `git status`. Riesgo bajo pero constante.
-- **Mitigación propuesta**:
-  - **A corto plazo**: añadir `.vscode/` a `.git/info/exclude` (local, no versionado).
-  - **A medio plazo**: decidir en el equipo si se versiona una configuración base de `.vscode/` (settings, extensions recomendadas) bajo `.vscode/` **controlado** con un `.gitignore` interno que excluya `*.local.json`, `history/`, etc.
-- **Criterio de cierre**: `.vscode/` deja de aparecer en `git status` **y** existe decisión documentada (excluido o versionado parcialmente).
+- **Descripción**: `.vscode/` aparecía como *untracked* en `git status`.
+- **Impacto**: ruido en `git status`.
+- **Mitigación aplicada**: `.gitignore` incluye `.vscode/*` ignorando archivos locales y preservando la configuración compartida (`settings.json`, `tasks.json`, `launch.json`, `extensions.json`).
+- **Criterio de cierre**: `.vscode/` ya no aparece en `git status`.
+- **Resolved-By**: configuración en `.gitignore`.
+
+---
+
+### DEBT-006 — Índice compuesto para listado de productos por negocio y fecha
+
+- **Severidad**: BAJA
+- **Área**: backend/productos
+- **Estado**: EN_PROGRESO
+- **Detectada**: 2026-11-06
+- **Origen**: sesión `.ai/sessions/2026-11-06/2217-productos-hu02.md`.
+- **Descripción**: `GET /productos` filtra por `negocioId` y ordena por `creadoEn DESC, id DESC`. El esquema solo declara `@@index([negocioId])`, que cubre el filtro pero no el orden. Con catálogos pequeños no hay impacto medible.
+- **Impacto**: al crecer el catálogo por negocio, MariaDB puede recurrir a filesort o a un escaneo mayor. No bloquea HU-02.
+- **Mitigación aplicada (2026-11-10)**: se reemplazó el índice simple por
+  `@@index([negocioId, creadoEn, id])` y `@@index([negocioId, estado, nombre, id])`
+  en `prisma/schema.prisma`, con migración idempotente
+  `20261110120000_agregar_indices_productos`. La suite multitenant de productos
+  pasa con la migración aplicada. Pendiente: `EXPLAIN` sobre catálogo grande y
+  commit dedicado para cerrar la entrada.
+- **Criterio de cierre**: `EXPLAIN` con catálogo grande muestra uso del índice y ausencia de filesort para el listado; migración aplicada y verificada.
+- **Target**: cuando el catálogo por negocio justifique la migración, sin fecha.
+
+---
+
+### DEBT-007 — Test de uploads con describe anidado rompe la suite completa
+
+- **Severidad**: MEDIA (tests)
+- **Área**: backend/tests
+- **Estado**: RESUELTA
+- **Detectada**: 2026-11-06
+- **Origen**: merge `b012289` (`Merge remote-tracking branch 'origin/master' into feature/gestion-productos`). La resolución del merge anidó el `describe('resolverRutaPublicaUpload', ...)` dentro del `it('separa las imágenes de producto...')`.
+- **Descripción**: `src/common/config/uploads.config.spec.ts:117` declaraba `describe` anidado en `it`, haciendo que Jest abortara con `Cannot nest a describe inside a test`.
+- **Impacto**: `npm test` abortaba esa suite.
+- **Mitigación aplicada**: se cerró el bloque `it` y se movió el `describe` al nivel superior de la suite.
+- **Criterio de cierre**: suite `uploads.config.spec.ts` pasa con 12 tests exitosos y 0 errores de ESLint.
+- **Resolved-By**: corrección en `src/common/config/uploads.config.spec.ts`.
+
+---
+
+### DEBT-008 — Producto no está cubierto por el aislamiento automático de Prisma
+
+- **Severidad**: ALTA (seguridad)
+- **Área**: backend/productos | seguridad | datos
+- **Estado**: EN_PROGRESO
+- **Detectada**: 2026-11-07
+- **Origen**: validación de HE-03-HU-05.
+- **Descripción**: El modelo Prisma `Producto` no aparece en
+  `MODELOS_TENANT_SCOPED` ni en `MODELOS_GLOBALES`. La extensión
+  `prisma-extension-aislamiento.ts` trata cualquier modelo no tenant-scoped
+  como global y ejecuta `query(args)` sin inyectar `negocioId`. Por tanto, la
+  extensión NO protege `Producto`; la única barrera efectiva es el
+  `filtroLectura` explícito de `ProductoRepository`.
+- **Impacto**: Una consulta futura que olvide `filtroLectura` podría leer o
+  escribir productos de otro negocio. En HU-05 las consultas actuales sí
+  filtran, pero la defensa en profundidad no cubre este modelo.
+- **Mitigación aplicada (2026-11-10)**: `Producto` añadido a
+  `MODELOS_TENANT_SCOPED`; pruebas unitarias de la constante y pruebas E2E
+  reales en `test/multitenant-extension.e2e-spec.ts` (lectura, `findUnique`
+  ajeno y creación forzada de `negocioId`). Pendiente commit dedicado para
+  cerrar la entrada.
+- **Criterio de cierre**: `Producto` incluido en `MODELOS_TENANT_SCOPED` y
+  pruebas que demuestren que una consulta sin filtro explícito no devuelve
+  filas de otro negocio; o excepción aprobada y documentada.
+- **Target**: revisión de aislamiento multitenant; sin fecha.
 
 ---
 
 ## Cómo añadir una entrada nueva
 
-1. Tomar el siguiente ID disponible (`DEBT-006`, …).
+1. Tomar el siguiente ID disponible (`DEBT-009`, …).
 2. Copiar la plantilla de `AGENTS.md` §10.3.
 3. Rellenar todos los campos salvo los opcionales.
 4. Añadir la entrada al índice.
