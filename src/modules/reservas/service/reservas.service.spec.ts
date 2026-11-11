@@ -1214,7 +1214,10 @@ describe('ReservasService', () => {
     });
 
     it('purga la cola y encola nuevo mensaje de reprogramacion si WhatsApp esta desconectado', async () => {
-      clientesRepository.obtenerPorId.mockResolvedValue({ id: 77, telefono: '3001234567' });
+      clientesRepository.obtenerPorId.mockResolvedValue({
+        id: 77,
+        telefono: '3001234567',
+      });
       const whatsapp = {
         cancelarMensajesPendientesDeReserva: jest.fn(),
         enviarReprogramacionReserva: jest.fn().mockResolvedValue(false),
@@ -1228,7 +1231,9 @@ describe('ReservasService', () => {
         status: ReservationStatus.PENDING,
         precioReservado: 50000,
       });
-      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(reservaOriginal);
+      reservasRepository.obtenerReservaDeCliente.mockResolvedValue(
+        reservaOriginal,
+      );
 
       const reservaActualizada = crearReservaRelacion({
         id: 42,
@@ -1239,7 +1244,9 @@ describe('ReservasService', () => {
         precioReservado: 50000,
         barbero: { id: 5, usuario: { nombre: 'Pedro', apellido: 'López' } },
       });
-      reservasRepository.modificarConBloqueo.mockResolvedValue(reservaActualizada);
+      reservasRepository.modificarConBloqueo.mockResolvedValue(
+        reservaActualizada,
+      );
 
       await service.modificarReserva(identidad, 42, {
         fecha: '2026-11-03',
@@ -1249,7 +1256,9 @@ describe('ReservasService', () => {
 
       await new Promise((r) => setTimeout(r, 20));
 
-      expect(whatsapp.cancelarMensajesPendientesDeReserva).toHaveBeenCalledWith(42);
+      expect(whatsapp.cancelarMensajesPendientesDeReserva).toHaveBeenCalledWith(
+        42,
+      );
       expect(whatsapp.enviarReprogramacionReserva).toHaveBeenCalled();
       expect(whatsapp.encolarMensaje).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1527,7 +1536,9 @@ describe('ReservasService', () => {
 
       await service.cancelarReserva(identidad, 42);
 
-      expect(whatsapp.cancelarMensajesPendientesDeReserva).toHaveBeenCalledWith(42);
+      expect(whatsapp.cancelarMensajesPendientesDeReserva).toHaveBeenCalledWith(
+        42,
+      );
     });
 
     it('rechaza con NotFoundException si la reserva no pertenece al cliente o no existe', async () => {

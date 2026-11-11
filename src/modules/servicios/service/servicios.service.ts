@@ -14,6 +14,21 @@ import { ServicioResponseDto } from '../dto/dto-respuesta/servicio-response.dto'
 import { BarberoPorServicioDto } from '../dto/dto-respuesta/barbero-por-servicio.dto';
 import { ServiciosRepository } from '../repository/servicios.repository';
 import { resolverRutaPublicaUpload } from '../../../common/config/uploads.config';
+import { Prisma } from '../../../../generated/prisma/client';
+
+type ServicioConBarberos = Prisma.ServicioGetPayload<{
+  include: {
+    barberos: {
+      include: {
+        barbero: {
+          include: {
+            usuario: true;
+          };
+        };
+      };
+    };
+  };
+}>;
 
 @Injectable()
 export class ServiciosService {
@@ -358,7 +373,7 @@ export class ServiciosService {
    * disponibilidad y la reserva, de modo que el cliente puede encadenar
    * catálogo → disponibilidad → reserva sin traducir identificadores.
    */
-  private mapearServicio(servicio: any): ServicioResponseDto {
+  private mapearServicio(servicio: ServicioConBarberos): ServicioResponseDto {
     return {
       id: servicio.id,
       nombre: servicio.nombre,
@@ -367,7 +382,7 @@ export class ServiciosService {
       duracionMinutos: servicio.duracionMinutos,
       fotoUrl: servicio.fotoUrl,
       estado: servicio.estado,
-      barberos: (servicio.barberos || []).map((bs: any) => ({
+      barberos: (servicio.barberos || []).map((bs) => ({
         id: bs.barbero.id,
         nombre: bs.barbero.usuario.nombre,
         apellido: bs.barbero.usuario.apellido,

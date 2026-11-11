@@ -8,7 +8,7 @@
 
 ## Índice
 
-- [DEBT-001 — Errores de ESLint preexistentes (reducidos de ~900 a 82)](#debt-001--errores-de-eslint-preexistentes-reducidos-de-900-a-82)
+- [DEBT-001 — Errores de ESLint preexistentes (reducidos de ~900 a 31)](#debt-001--errores-de-eslint-preexistentes-reducidos-de-900-a-31)
 - [DEBT-002 — Reformateos de lint en commits previos de feature/multitenant-core-fixes](#debt-002--reformateos-de-lint-en-commits-previos-de-featuremultitenant-core-fixes)
 - [DEBT-003 — Verificación de email al vincular googleId por primera vez](#debt-003--verificación-de-email-al-vincular-googleid-por-primera-vez)
 - [DEBT-004 — Sesiones JWT emitidas con el modelo monotenant](#debt-004--sesiones-jwt-emitidas-con-el-modelo-monotenant)
@@ -19,7 +19,7 @@
 
 ---
 
-### DEBT-001 — Errores de ESLint preexistentes (reducidos de ~900 a 82)
+### DEBT-001 — Errores de ESLint preexistentes (reducidos de ~900 a 31)
 
 - **Severidad**: MEDIA
 - **Área**: backend/infra (transversal)
