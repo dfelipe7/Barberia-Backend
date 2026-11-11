@@ -312,6 +312,31 @@ Reglas del catálogo público:
   `{ "mensaje": "No hay productos disponibles en este momento", "productos": [] }`.
 - Sin contexto de negocio responde **403**; con un slug inexistente o inactivo, **404**.
 
+### 7.1 Descuentos (`/descuentos`)
+
+| Método | Ruta | Auth | Rol | Cuerpo / Query | Respuesta |
+|--------|------|------|-----|----------------|-----------|
+| POST | `/descuentos` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `CrearDescuentoDto` | `201` `DescuentoCreadoResponseDto` |
+
+Reglas de creación (HE-10-HU-02):
+
+- El negocio sale del contexto autorizado; `negocioId` y `activo` en el cuerpo se rechazan
+  con **400** por el `ValidationPipe` global.
+- Los roles efectivos `SUPERADMIN` y `ADMINISTRADOR` del negocio crean. `BARBERO` recibe **403**.
+- El cuerpo identifica **un** elemento: `tipo` (`PRODUCTO` o `SERVICIO`) y `elementoId`.
+  El servidor mapea el tipo a `productoId` o `servicioId`; no admite ambos.
+- `porcentaje` es numérico, entre **1 y 99** inclusive, con **máximo dos decimales**. Un
+  tercer decimal se rechaza con **400**; no se redondea.
+- `diasSemana` exige al menos un `WeekDay` válido. Los duplicados se eliminan y la
+  respuesta los devuelve en orden canónico.
+- Un elemento admite **un único descuento**, esté activo o inactivo. El segundo intento
+  responde **409**; la unicidad la impone la base de datos, no solo la comprobación previa.
+- El descuento nace **inactivo** (`activo: false`). Crearlo no lo aplica.
+- Un producto o servicio inexistente o de otro negocio responde **404** con el mismo
+  mensaje, para no revelar su existencia.
+- La creación no evalúa precios ni acumula promociones; esa aplicación corresponde a la
+  consulta de catálogo/reserva. HU-02 no expone endpoint de cancelación.
+
 ---
 
 ## 8. Horarios y disponibilidad
@@ -418,15 +443,18 @@ Ver `docs/api/MATRIZ_AUDITORIA_ENDPOINTS.md` (gap G-04).
 
 ## 12. Cómo se verificó este documento
 
-- Rutas, guards y roles: extraídos de los 15 controladores del proyecto
-  (`src/app.controller.ts`, `src/auth/**`, `src/modules/**`): **85 rutas** en el código.
+- Rutas, guards y roles: extraídos de los 16 controladores del proyecto
+  (`src/app.controller.ts`, `src/auth/**`, `src/modules/**`): **86 rutas** en el código.
 - Contraste con el documento OpenAPI generado en ejecución (`GET /api/docs-json`): el
-  backend expone **85 operaciones**, una por ruta. Las 85 están presentes en
+  backend expone **86 operaciones**, una por ruta. Las 86 están presentes en
   `docs/api/REFERENCIA_API.md` (verificado en ambos sentidos por script).
 - Formato de error: `src/logger/all-exceptions.filter.ts`.
 - Resolución de tenant: `src/modules/negocios/service/negocio-resolucion.service.ts` y
   `src/modules/negocios/middleware/negocio-contexto.middleware.ts`.
 - Códigos de dominio: `src/common/exceptions/domain-conflict.exception.ts`.
+- Descuentos: `src/modules/descuentos/controller/descuentos.controller.ts`,
+  `src/modules/descuentos/service/descuento.service.ts`,
+  `src/modules/descuentos/repository/descuento.repository.ts`.
 - Idempotencia y cifrado del token: `src/modules/reservas/service/reservas.service.ts`,
   `src/modules/reservas/repository/reservas.repository.ts`,
   `prisma/schema.prisma`.

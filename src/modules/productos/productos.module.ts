@@ -15,6 +15,6 @@ import { ProductoService } from './service/producto.service';
     AlmacenamientoProductosService,
     ProductoRepository,
   ],
-  exports: [ProductosFacade],
+  exports: [ProductosFacade, ProductoRepository],
 })
 export class ProductosModule {}

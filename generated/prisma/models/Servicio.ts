@@ -273,6 +273,7 @@ export type ServicioWhereInput = {
   actualizadoEn?: Prisma.DateTimeFilter<"Servicio"> | Date | string
   barberos?: Prisma.BarberoServicioListRelationFilter
   reservations?: Prisma.ReservationListRelationFilter
+  descuentos?: Prisma.DescuentoListRelationFilter
   negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
 }
 
@@ -289,6 +290,7 @@ export type ServicioOrderByWithRelationInput = {
   actualizadoEn?: Prisma.SortOrder
   barberos?: Prisma.BarberoServicioOrderByRelationAggregateInput
   reservations?: Prisma.ReservationOrderByRelationAggregateInput
+  descuentos?: Prisma.DescuentoOrderByRelationAggregateInput
   negocio?: Prisma.NegocioOrderByWithRelationInput
   _relevance?: Prisma.ServicioOrderByRelevanceInput
 }
@@ -311,6 +313,7 @@ export type ServicioWhereUniqueInput = Prisma.AtLeast<{
   actualizadoEn?: Prisma.DateTimeFilter<"Servicio"> | Date | string
   barberos?: Prisma.BarberoServicioListRelationFilter
   reservations?: Prisma.ReservationListRelationFilter
+  descuentos?: Prisma.DescuentoListRelationFilter
   negocio?: Prisma.XOR<Prisma.NegocioScalarRelationFilter, Prisma.NegocioWhereInput>
 }, "id" | "negocioId_nombre" | "negocioId_id">
 
@@ -359,6 +362,7 @@ export type ServicioCreateInput = {
   actualizadoEn?: Date | string
   barberos?: Prisma.BarberoServicioCreateNestedManyWithoutServicioInput
   reservations?: Prisma.ReservationCreateNestedManyWithoutServicioInput
+  descuentos?: Prisma.DescuentoCreateNestedManyWithoutServicioInput
   negocio: Prisma.NegocioCreateNestedOneWithoutServiciosInput
 }
 
@@ -375,6 +379,7 @@ export type ServicioUncheckedCreateInput = {
   actualizadoEn?: Date | string
   barberos?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutServicioInput
   reservations?: Prisma.ReservationUncheckedCreateNestedManyWithoutServicioInput
+  descuentos?: Prisma.DescuentoUncheckedCreateNestedManyWithoutServicioInput
 }
 
 export type ServicioUpdateInput = {
@@ -388,6 +393,7 @@ export type ServicioUpdateInput = {
   actualizadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   barberos?: Prisma.BarberoServicioUpdateManyWithoutServicioNestedInput
   reservations?: Prisma.ReservationUpdateManyWithoutServicioNestedInput
+  descuentos?: Prisma.DescuentoUpdateManyWithoutServicioNestedInput
   negocio?: Prisma.NegocioUpdateOneRequiredWithoutServiciosNestedInput
 }
 
@@ -404,6 +410,7 @@ export type ServicioUncheckedUpdateInput = {
   actualizadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   barberos?: Prisma.BarberoServicioUncheckedUpdateManyWithoutServicioNestedInput
   reservations?: Prisma.ReservationUncheckedUpdateManyWithoutServicioNestedInput
+  descuentos?: Prisma.DescuentoUncheckedUpdateManyWithoutServicioNestedInput
 }
 
 export type ServicioCreateManyInput = {
@@ -522,6 +529,11 @@ export type ServicioSumOrderByAggregateInput = {
   negocioId?: Prisma.SortOrder
 }
 
+export type ServicioNullableScalarRelationFilter = {
+  is?: Prisma.ServicioWhereInput | null
+  isNot?: Prisma.ServicioWhereInput | null
+}
+
 export type ServicioScalarRelationFilter = {
   is?: Prisma.ServicioWhereInput
   isNot?: Prisma.ServicioWhereInput
@@ -573,6 +585,22 @@ export type EnumEstadoServicioFieldUpdateOperationsInput = {
   set?: $Enums.EstadoServicio
 }
 
+export type ServicioCreateNestedOneWithoutDescuentosInput = {
+  create?: Prisma.XOR<Prisma.ServicioCreateWithoutDescuentosInput, Prisma.ServicioUncheckedCreateWithoutDescuentosInput>
+  connectOrCreate?: Prisma.ServicioCreateOrConnectWithoutDescuentosInput
+  connect?: Prisma.ServicioWhereUniqueInput
+}
+
+export type ServicioUpdateOneWithoutDescuentosNestedInput = {
+  create?: Prisma.XOR<Prisma.ServicioCreateWithoutDescuentosInput, Prisma.ServicioUncheckedCreateWithoutDescuentosInput>
+  connectOrCreate?: Prisma.ServicioCreateOrConnectWithoutDescuentosInput
+  upsert?: Prisma.ServicioUpsertWithoutDescuentosInput
+  disconnect?: Prisma.ServicioWhereInput | boolean
+  delete?: Prisma.ServicioWhereInput | boolean
+  connect?: Prisma.ServicioWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ServicioUpdateToOneWithWhereWithoutDescuentosInput, Prisma.ServicioUpdateWithoutDescuentosInput>, Prisma.ServicioUncheckedUpdateWithoutDescuentosInput>
+}
+
 export type ServicioCreateNestedOneWithoutBarberosInput = {
   create?: Prisma.XOR<Prisma.ServicioCreateWithoutBarberosInput, Prisma.ServicioUncheckedCreateWithoutBarberosInput>
   connectOrCreate?: Prisma.ServicioCreateOrConnectWithoutBarberosInput
@@ -612,6 +640,7 @@ export type ServicioCreateWithoutNegocioInput = {
   actualizadoEn?: Date | string
   barberos?: Prisma.BarberoServicioCreateNestedManyWithoutServicioInput
   reservations?: Prisma.ReservationCreateNestedManyWithoutServicioInput
+  descuentos?: Prisma.DescuentoCreateNestedManyWithoutServicioInput
 }
 
 export type ServicioUncheckedCreateWithoutNegocioInput = {
@@ -626,6 +655,7 @@ export type ServicioUncheckedCreateWithoutNegocioInput = {
   actualizadoEn?: Date | string
   barberos?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutServicioInput
   reservations?: Prisma.ReservationUncheckedCreateNestedManyWithoutServicioInput
+  descuentos?: Prisma.DescuentoUncheckedCreateNestedManyWithoutServicioInput
 }
 
 export type ServicioCreateOrConnectWithoutNegocioInput = {
@@ -670,6 +700,80 @@ export type ServicioScalarWhereInput = {
   actualizadoEn?: Prisma.DateTimeFilter<"Servicio"> | Date | string
 }
 
+export type ServicioCreateWithoutDescuentosInput = {
+  nombre: string
+  descripcion?: string | null
+  precio: runtime.Decimal | runtime.DecimalJsLike | number | string
+  duracionMinutos: number
+  fotoUrl?: string | null
+  estado?: $Enums.EstadoServicio
+  creadoEn?: Date | string
+  actualizadoEn?: Date | string
+  barberos?: Prisma.BarberoServicioCreateNestedManyWithoutServicioInput
+  reservations?: Prisma.ReservationCreateNestedManyWithoutServicioInput
+  negocio: Prisma.NegocioCreateNestedOneWithoutServiciosInput
+}
+
+export type ServicioUncheckedCreateWithoutDescuentosInput = {
+  id?: number
+  nombre: string
+  descripcion?: string | null
+  precio: runtime.Decimal | runtime.DecimalJsLike | number | string
+  duracionMinutos: number
+  fotoUrl?: string | null
+  estado?: $Enums.EstadoServicio
+  negocioId: number
+  creadoEn?: Date | string
+  actualizadoEn?: Date | string
+  barberos?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutServicioInput
+  reservations?: Prisma.ReservationUncheckedCreateNestedManyWithoutServicioInput
+}
+
+export type ServicioCreateOrConnectWithoutDescuentosInput = {
+  where: Prisma.ServicioWhereUniqueInput
+  create: Prisma.XOR<Prisma.ServicioCreateWithoutDescuentosInput, Prisma.ServicioUncheckedCreateWithoutDescuentosInput>
+}
+
+export type ServicioUpsertWithoutDescuentosInput = {
+  update: Prisma.XOR<Prisma.ServicioUpdateWithoutDescuentosInput, Prisma.ServicioUncheckedUpdateWithoutDescuentosInput>
+  create: Prisma.XOR<Prisma.ServicioCreateWithoutDescuentosInput, Prisma.ServicioUncheckedCreateWithoutDescuentosInput>
+  where?: Prisma.ServicioWhereInput
+}
+
+export type ServicioUpdateToOneWithWhereWithoutDescuentosInput = {
+  where?: Prisma.ServicioWhereInput
+  data: Prisma.XOR<Prisma.ServicioUpdateWithoutDescuentosInput, Prisma.ServicioUncheckedUpdateWithoutDescuentosInput>
+}
+
+export type ServicioUpdateWithoutDescuentosInput = {
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  descripcion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  precio?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  duracionMinutos?: Prisma.IntFieldUpdateOperationsInput | number
+  fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  estado?: Prisma.EnumEstadoServicioFieldUpdateOperationsInput | $Enums.EstadoServicio
+  creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  actualizadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  barberos?: Prisma.BarberoServicioUpdateManyWithoutServicioNestedInput
+  reservations?: Prisma.ReservationUpdateManyWithoutServicioNestedInput
+  negocio?: Prisma.NegocioUpdateOneRequiredWithoutServiciosNestedInput
+}
+
+export type ServicioUncheckedUpdateWithoutDescuentosInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  nombre?: Prisma.StringFieldUpdateOperationsInput | string
+  descripcion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  precio?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  duracionMinutos?: Prisma.IntFieldUpdateOperationsInput | number
+  fotoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  estado?: Prisma.EnumEstadoServicioFieldUpdateOperationsInput | $Enums.EstadoServicio
+  negocioId?: Prisma.IntFieldUpdateOperationsInput | number
+  creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  actualizadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  barberos?: Prisma.BarberoServicioUncheckedUpdateManyWithoutServicioNestedInput
+  reservations?: Prisma.ReservationUncheckedUpdateManyWithoutServicioNestedInput
+}
+
 export type ServicioCreateWithoutBarberosInput = {
   nombre: string
   descripcion?: string | null
@@ -680,6 +784,7 @@ export type ServicioCreateWithoutBarberosInput = {
   creadoEn?: Date | string
   actualizadoEn?: Date | string
   reservations?: Prisma.ReservationCreateNestedManyWithoutServicioInput
+  descuentos?: Prisma.DescuentoCreateNestedManyWithoutServicioInput
   negocio: Prisma.NegocioCreateNestedOneWithoutServiciosInput
 }
 
@@ -695,6 +800,7 @@ export type ServicioUncheckedCreateWithoutBarberosInput = {
   creadoEn?: Date | string
   actualizadoEn?: Date | string
   reservations?: Prisma.ReservationUncheckedCreateNestedManyWithoutServicioInput
+  descuentos?: Prisma.DescuentoUncheckedCreateNestedManyWithoutServicioInput
 }
 
 export type ServicioCreateOrConnectWithoutBarberosInput = {
@@ -723,6 +829,7 @@ export type ServicioUpdateWithoutBarberosInput = {
   creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   actualizadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   reservations?: Prisma.ReservationUpdateManyWithoutServicioNestedInput
+  descuentos?: Prisma.DescuentoUpdateManyWithoutServicioNestedInput
   negocio?: Prisma.NegocioUpdateOneRequiredWithoutServiciosNestedInput
 }
 
@@ -738,6 +845,7 @@ export type ServicioUncheckedUpdateWithoutBarberosInput = {
   creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   actualizadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   reservations?: Prisma.ReservationUncheckedUpdateManyWithoutServicioNestedInput
+  descuentos?: Prisma.DescuentoUncheckedUpdateManyWithoutServicioNestedInput
 }
 
 export type ServicioCreateWithoutReservationsInput = {
@@ -750,6 +858,7 @@ export type ServicioCreateWithoutReservationsInput = {
   creadoEn?: Date | string
   actualizadoEn?: Date | string
   barberos?: Prisma.BarberoServicioCreateNestedManyWithoutServicioInput
+  descuentos?: Prisma.DescuentoCreateNestedManyWithoutServicioInput
   negocio: Prisma.NegocioCreateNestedOneWithoutServiciosInput
 }
 
@@ -765,6 +874,7 @@ export type ServicioUncheckedCreateWithoutReservationsInput = {
   creadoEn?: Date | string
   actualizadoEn?: Date | string
   barberos?: Prisma.BarberoServicioUncheckedCreateNestedManyWithoutServicioInput
+  descuentos?: Prisma.DescuentoUncheckedCreateNestedManyWithoutServicioInput
 }
 
 export type ServicioCreateOrConnectWithoutReservationsInput = {
@@ -793,6 +903,7 @@ export type ServicioUpdateWithoutReservationsInput = {
   creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   actualizadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   barberos?: Prisma.BarberoServicioUpdateManyWithoutServicioNestedInput
+  descuentos?: Prisma.DescuentoUpdateManyWithoutServicioNestedInput
   negocio?: Prisma.NegocioUpdateOneRequiredWithoutServiciosNestedInput
 }
 
@@ -808,6 +919,7 @@ export type ServicioUncheckedUpdateWithoutReservationsInput = {
   creadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   actualizadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   barberos?: Prisma.BarberoServicioUncheckedUpdateManyWithoutServicioNestedInput
+  descuentos?: Prisma.DescuentoUncheckedUpdateManyWithoutServicioNestedInput
 }
 
 export type ServicioCreateManyNegocioInput = {
@@ -833,6 +945,7 @@ export type ServicioUpdateWithoutNegocioInput = {
   actualizadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   barberos?: Prisma.BarberoServicioUpdateManyWithoutServicioNestedInput
   reservations?: Prisma.ReservationUpdateManyWithoutServicioNestedInput
+  descuentos?: Prisma.DescuentoUpdateManyWithoutServicioNestedInput
 }
 
 export type ServicioUncheckedUpdateWithoutNegocioInput = {
@@ -847,6 +960,7 @@ export type ServicioUncheckedUpdateWithoutNegocioInput = {
   actualizadoEn?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   barberos?: Prisma.BarberoServicioUncheckedUpdateManyWithoutServicioNestedInput
   reservations?: Prisma.ReservationUncheckedUpdateManyWithoutServicioNestedInput
+  descuentos?: Prisma.DescuentoUncheckedUpdateManyWithoutServicioNestedInput
 }
 
 export type ServicioUncheckedUpdateManyWithoutNegocioInput = {
@@ -869,11 +983,13 @@ export type ServicioUncheckedUpdateManyWithoutNegocioInput = {
 export type ServicioCountOutputType = {
   barberos: number
   reservations: number
+  descuentos: number
 }
 
 export type ServicioCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   barberos?: boolean | ServicioCountOutputTypeCountBarberosArgs
   reservations?: boolean | ServicioCountOutputTypeCountReservationsArgs
+  descuentos?: boolean | ServicioCountOutputTypeCountDescuentosArgs
 }
 
 /**
@@ -900,6 +1016,13 @@ export type ServicioCountOutputTypeCountReservationsArgs<ExtArgs extends runtime
   where?: Prisma.ReservationWhereInput
 }
 
+/**
+ * ServicioCountOutputType without action
+ */
+export type ServicioCountOutputTypeCountDescuentosArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.DescuentoWhereInput
+}
+
 
 export type ServicioSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -914,6 +1037,7 @@ export type ServicioSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   actualizadoEn?: boolean
   barberos?: boolean | Prisma.Servicio$barberosArgs<ExtArgs>
   reservations?: boolean | Prisma.Servicio$reservationsArgs<ExtArgs>
+  descuentos?: boolean | Prisma.Servicio$descuentosArgs<ExtArgs>
   negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
   _count?: boolean | Prisma.ServicioCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["servicio"]>
@@ -937,6 +1061,7 @@ export type ServicioOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs =
 export type ServicioInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   barberos?: boolean | Prisma.Servicio$barberosArgs<ExtArgs>
   reservations?: boolean | Prisma.Servicio$reservationsArgs<ExtArgs>
+  descuentos?: boolean | Prisma.Servicio$descuentosArgs<ExtArgs>
   negocio?: boolean | Prisma.NegocioDefaultArgs<ExtArgs>
   _count?: boolean | Prisma.ServicioCountOutputTypeDefaultArgs<ExtArgs>
 }
@@ -946,6 +1071,7 @@ export type $ServicioPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
   objects: {
     barberos: Prisma.$BarberoServicioPayload<ExtArgs>[]
     reservations: Prisma.$ReservationPayload<ExtArgs>[]
+    descuentos: Prisma.$DescuentoPayload<ExtArgs>[]
     negocio: Prisma.$NegocioPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -1304,6 +1430,7 @@ export interface Prisma__ServicioClient<T, Null = never, ExtArgs extends runtime
   readonly [Symbol.toStringTag]: "PrismaPromise"
   barberos<T extends Prisma.Servicio$barberosArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Servicio$barberosArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BarberoServicioPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   reservations<T extends Prisma.Servicio$reservationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Servicio$reservationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ReservationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  descuentos<T extends Prisma.Servicio$descuentosArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Servicio$descuentosArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DescuentoPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   negocio<T extends Prisma.NegocioDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NegocioDefaultArgs<ExtArgs>>): Prisma.Prisma__NegocioClient<runtime.Types.Result.GetResult<Prisma.$NegocioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1737,6 +1864,30 @@ export type Servicio$reservationsArgs<ExtArgs extends runtime.Types.Extensions.I
   take?: number
   skip?: number
   distinct?: Prisma.ReservationScalarFieldEnum | Prisma.ReservationScalarFieldEnum[]
+}
+
+/**
+ * Servicio.descuentos
+ */
+export type Servicio$descuentosArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Descuento
+   */
+  select?: Prisma.DescuentoSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Descuento
+   */
+  omit?: Prisma.DescuentoOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.DescuentoInclude<ExtArgs> | null
+  where?: Prisma.DescuentoWhereInput
+  orderBy?: Prisma.DescuentoOrderByWithRelationInput | Prisma.DescuentoOrderByWithRelationInput[]
+  cursor?: Prisma.DescuentoWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.DescuentoScalarFieldEnum | Prisma.DescuentoScalarFieldEnum[]
 }
 
 /**

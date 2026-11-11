@@ -60,6 +60,7 @@ export const ModelName = {
   Cliente: 'Cliente',
   Servicio: 'Servicio',
   Producto: 'Producto',
+  Descuento: 'Descuento',
   BarberoServicio: 'BarberoServicio',
   BarberWeeklySlot: 'BarberWeeklySlot',
   BarberScheduleBlock: 'BarberScheduleBlock',
@@ -218,6 +219,22 @@ export const ProductoScalarFieldEnum = {
 export type ProductoScalarFieldEnum = (typeof ProductoScalarFieldEnum)[keyof typeof ProductoScalarFieldEnum]
 
 
+export const DescuentoScalarFieldEnum = {
+  id: 'id',
+  negocioId: 'negocioId',
+  tipo: 'tipo',
+  productoId: 'productoId',
+  servicioId: 'servicioId',
+  porcentaje: 'porcentaje',
+  diasSemana: 'diasSemana',
+  activo: 'activo',
+  creadoEn: 'creadoEn',
+  actualizadoEn: 'actualizadoEn'
+} as const
+
+export type DescuentoScalarFieldEnum = (typeof DescuentoScalarFieldEnum)[keyof typeof DescuentoScalarFieldEnum]
+
+
 export const BarberoServicioScalarFieldEnum = {
   barberoId: 'barberoId',
   servicioId: 'servicioId',
@@ -353,6 +370,13 @@ export const SortOrder = {
 export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
 
 
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
 export const NegocioOrderByRelevanceFieldEnum = {
   slug: 'slug',
   nombre: 'nombre',
@@ -439,6 +463,23 @@ export const ProductoOrderByRelevanceFieldEnum = {
 } as const
 
 export type ProductoOrderByRelevanceFieldEnum = (typeof ProductoOrderByRelevanceFieldEnum)[keyof typeof ProductoOrderByRelevanceFieldEnum]
+
+
+export const JsonNullValueFilter = {
+  DbNull: DbNull,
+  JsonNull: JsonNull,
+  AnyNull: AnyNull
+} as const
+
+export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
+
+
+export const QueryMode = {
+  default: 'default',
+  insensitive: 'insensitive'
+} as const
+
+export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
 
 
 export const BarberWeeklySlotOrderByRelevanceFieldEnum = {

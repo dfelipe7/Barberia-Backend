@@ -18,6 +18,7 @@ export const MODELOS_TENANT_SCOPED = [
   'BarberWeeklySlot',
   'Cliente',
   'ConfiguracionNegocio',
+  'Descuento',
   'GeneralClosure',
   'PerfilNegocio',
   'Producto',

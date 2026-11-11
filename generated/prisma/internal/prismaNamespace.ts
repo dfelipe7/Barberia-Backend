@@ -406,6 +406,7 @@ export const ModelName = {
   Cliente: 'Cliente',
   Servicio: 'Servicio',
   Producto: 'Producto',
+  Descuento: 'Descuento',
   BarberoServicio: 'BarberoServicio',
   BarberWeeklySlot: 'BarberWeeklySlot',
   BarberScheduleBlock: 'BarberScheduleBlock',
@@ -429,7 +430,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "negocio" | "perfilNegocio" | "redSocialNegocio" | "usuario" | "administrador" | "barbero" | "cliente" | "servicio" | "producto" | "barberoServicio" | "barberWeeklySlot" | "barberScheduleBlock" | "generalClosure" | "reservation" | "whatsAppPlantilla" | "configuracionSistema" | "configuracionNegocio"
+    modelProps: "negocio" | "perfilNegocio" | "redSocialNegocio" | "usuario" | "administrador" | "barbero" | "cliente" | "servicio" | "producto" | "descuento" | "barberoServicio" | "barberWeeklySlot" | "barberScheduleBlock" | "generalClosure" | "reservation" | "whatsAppPlantilla" | "configuracionSistema" | "configuracionNegocio"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1024,6 +1025,72 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.ProductoCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.ProductoCountAggregateOutputType> | number
+        }
+      }
+    }
+    Descuento: {
+      payload: Prisma.$DescuentoPayload<ExtArgs>
+      fields: Prisma.DescuentoFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.DescuentoFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DescuentoPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.DescuentoFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DescuentoPayload>
+        }
+        findFirst: {
+          args: Prisma.DescuentoFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DescuentoPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.DescuentoFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DescuentoPayload>
+        }
+        findMany: {
+          args: Prisma.DescuentoFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DescuentoPayload>[]
+        }
+        create: {
+          args: Prisma.DescuentoCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DescuentoPayload>
+        }
+        createMany: {
+          args: Prisma.DescuentoCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        delete: {
+          args: Prisma.DescuentoDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DescuentoPayload>
+        }
+        update: {
+          args: Prisma.DescuentoUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DescuentoPayload>
+        }
+        deleteMany: {
+          args: Prisma.DescuentoDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.DescuentoUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        upsert: {
+          args: Prisma.DescuentoUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DescuentoPayload>
+        }
+        aggregate: {
+          args: Prisma.DescuentoAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateDescuento>
+        }
+        groupBy: {
+          args: Prisma.DescuentoGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DescuentoGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.DescuentoCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DescuentoCountAggregateOutputType> | number
         }
       }
     }
@@ -1726,6 +1793,22 @@ export const ProductoScalarFieldEnum = {
 export type ProductoScalarFieldEnum = (typeof ProductoScalarFieldEnum)[keyof typeof ProductoScalarFieldEnum]
 
 
+export const DescuentoScalarFieldEnum = {
+  id: 'id',
+  negocioId: 'negocioId',
+  tipo: 'tipo',
+  productoId: 'productoId',
+  servicioId: 'servicioId',
+  porcentaje: 'porcentaje',
+  diasSemana: 'diasSemana',
+  activo: 'activo',
+  creadoEn: 'creadoEn',
+  actualizadoEn: 'actualizadoEn'
+} as const
+
+export type DescuentoScalarFieldEnum = (typeof DescuentoScalarFieldEnum)[keyof typeof DescuentoScalarFieldEnum]
+
+
 export const BarberoServicioScalarFieldEnum = {
   barberoId: 'barberoId',
   servicioId: 'servicioId',
@@ -1861,6 +1944,13 @@ export const SortOrder = {
 export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
 
 
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
 export const NegocioOrderByRelevanceFieldEnum = {
   slug: 'slug',
   nombre: 'nombre',
@@ -1947,6 +2037,23 @@ export const ProductoOrderByRelevanceFieldEnum = {
 } as const
 
 export type ProductoOrderByRelevanceFieldEnum = (typeof ProductoOrderByRelevanceFieldEnum)[keyof typeof ProductoOrderByRelevanceFieldEnum]
+
+
+export const JsonNullValueFilter = {
+  DbNull: DbNull,
+  JsonNull: JsonNull,
+  AnyNull: AnyNull
+} as const
+
+export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
+
+
+export const QueryMode = {
+  default: 'default',
+  insensitive: 'insensitive'
+} as const
+
+export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
 
 
 export const BarberWeeklySlotOrderByRelevanceFieldEnum = {
@@ -2093,6 +2200,27 @@ export type EnumEstadoServicioFieldRefInput<$PrismaModel> = FieldRefInputType<$P
  * Reference to a field of type 'EstadoProducto'
  */
 export type EnumEstadoProductoFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'EstadoProducto'>
+    
+
+
+/**
+ * Reference to a field of type 'TipoDescuento'
+ */
+export type EnumTipoDescuentoFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TipoDescuento'>
+    
+
+
+/**
+ * Reference to a field of type 'Json'
+ */
+export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+    
+
+
+/**
+ * Reference to a field of type 'QueryMode'
+ */
+export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
     
 
 
@@ -2297,6 +2425,7 @@ export type GlobalOmitConfig = {
   cliente?: Prisma.ClienteOmit
   servicio?: Prisma.ServicioOmit
   producto?: Prisma.ProductoOmit
+  descuento?: Prisma.DescuentoOmit
   barberoServicio?: Prisma.BarberoServicioOmit
   barberWeeklySlot?: Prisma.BarberWeeklySlotOmit
   barberScheduleBlock?: Prisma.BarberScheduleBlockOmit

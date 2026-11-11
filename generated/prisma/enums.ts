@@ -60,6 +60,14 @@ export const EstadoProducto = {
 export type EstadoProducto = (typeof EstadoProducto)[keyof typeof EstadoProducto]
 
 
+export const TipoDescuento = {
+  PRODUCTO: 'PRODUCTO',
+  SERVICIO: 'SERVICIO'
+} as const
+
+export type TipoDescuento = (typeof TipoDescuento)[keyof typeof TipoDescuento]
+
+
 export const WeekDay = {
   MONDAY: 'MONDAY',
   TUESDAY: 'TUESDAY',
