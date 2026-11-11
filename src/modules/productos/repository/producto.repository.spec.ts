@@ -153,9 +153,13 @@ describe('ProductoRepository', () => {
     prisma.producto.updateMany.mockResolvedValue({ count: 1 });
 
     await expect(
-      repository.actualizarEstadoSiDifiere(3, 7, EstadoProducto.INACTIVO),
+      repository.actualizarEstadoSiDifiere(3, EstadoProducto.INACTIVO),
     ).resolves.toEqual({ count: 1 });
 
+    expect(aislamiento.filtroEscritura).toHaveBeenCalledWith({
+      id: 3,
+      estado: { not: EstadoProducto.INACTIVO },
+    });
     expect(prisma.producto.updateMany).toHaveBeenCalledWith({
       where: {
         id: 3,
@@ -170,7 +174,7 @@ describe('ProductoRepository', () => {
     prisma.producto.updateMany.mockResolvedValue({ count: 0 });
 
     await expect(
-      repository.actualizarEstadoSiDifiere(3, 7, EstadoProducto.INACTIVO),
+      repository.actualizarEstadoSiDifiere(3, EstadoProducto.INACTIVO),
     ).resolves.toEqual({ count: 0 });
   });
 

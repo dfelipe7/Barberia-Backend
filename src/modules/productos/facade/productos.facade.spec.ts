@@ -1,7 +1,6 @@
 import { ProductosFacade } from './productos.facade';
 import { ProductoService } from '../service/producto.service';
 import { AlmacenamientoProductosService } from '../service/almacenamiento-productos.service';
-import { ProductoRepository } from '../repository/producto.repository';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 
 describe('ProductosFacade', () => {
@@ -15,21 +14,18 @@ describe('ProductosFacade', () => {
     obtenerCatalogoPorId: jest.fn(),
     obtenerPorId: jest.fn(),
     cambiarEstadoProducto: jest.fn(),
+    crearProducto: jest.fn(),
+    actualizarProducto: jest.fn(),
+    tieneOtraReferenciaAImagen: jest.fn(),
   };
   const almacenamiento = {
     guardar: jest.fn(),
     eliminar: jest.fn(),
   };
-  const repository = {
-    crear: jest.fn(),
-    actualizar: jest.fn(),
-    tieneOtraReferenciaAImagen: jest.fn(),
-  };
   const aislamiento = { negocioIdRequerido: jest.fn() };
   const facade = new ProductosFacade(
     productoService as unknown as ProductoService,
     almacenamiento as unknown as AlmacenamientoProductosService,
-    repository as unknown as ProductoRepository,
     aislamiento as unknown as NegocioAislamientoService,
   );
 
@@ -51,9 +47,9 @@ describe('ProductosFacade', () => {
     almacenamiento.guardar.mockResolvedValue(
       '/uploads/negocios/7/productos/producto-1.png',
     );
-    repository.crear.mockResolvedValue(producto);
-    repository.actualizar.mockResolvedValue(producto);
-    repository.tieneOtraReferenciaAImagen.mockResolvedValue(false);
+    productoService.crearProducto.mockResolvedValue(producto);
+    productoService.actualizarProducto.mockResolvedValue(producto);
+    productoService.tieneOtraReferenciaAImagen.mockResolvedValue(false);
     productoService.mapear.mockReturnValue({ id: 1, nombre: 'Cera' });
   });
 
@@ -102,7 +98,7 @@ describe('ProductosFacade', () => {
       facade.cambiarEstado(1, { estado: 'INACTIVO' }),
     ).resolves.toEqual({ mensaje: 'ok' });
     expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
-    expect(productoService.cambiarEstadoProducto).toHaveBeenCalledWith(1, 7, {
+    expect(productoService.cambiarEstadoProducto).toHaveBeenCalledWith(1, {
       estado: 'INACTIVO',
     });
   });
@@ -117,7 +113,7 @@ describe('ProductosFacade', () => {
       expect.any(Buffer),
       'png',
     );
-    expect(repository.crear).toHaveBeenCalledWith({
+    expect(productoService.crearProducto).toHaveBeenCalledWith({
       nombre: 'Cera',
       precio: 35000,
       imagenUrl: '/uploads/negocios/7/productos/producto-1.png',
@@ -130,7 +126,7 @@ describe('ProductosFacade', () => {
   });
 
   it('camino 2: con archivo × persistencia fallida (compensa eliminando la imagen)', async () => {
-    repository.crear.mockRejectedValue(new Error('BD caída'));
+    productoService.crearProducto.mockRejectedValue(new Error('BD caída'));
 
     await expect(facade.registrar(dto, archivo)).rejects.toThrow('BD caída');
     expect(almacenamiento.guardar).toHaveBeenCalledWith(
@@ -152,7 +148,7 @@ describe('ProductosFacade', () => {
     expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
     expect(productoService.validarImagen).toHaveBeenCalledWith(undefined);
     expect(almacenamiento.guardar).not.toHaveBeenCalled();
-    expect(repository.crear).toHaveBeenCalledWith({
+    expect(productoService.crearProducto).toHaveBeenCalledWith({
       nombre: 'Cera',
       precio: 35000,
       imagenUrl: null,
@@ -166,7 +162,7 @@ describe('ProductosFacade', () => {
 
   it('camino 4: sin archivo × persistencia fallida (no compensa archivo inexistente)', async () => {
     productoService.validarImagen.mockReturnValue(null);
-    repository.crear.mockRejectedValue(new Error('Error de BD'));
+    productoService.crearProducto.mockRejectedValue(new Error('Error de BD'));
 
     await expect(facade.registrar(dto, undefined)).rejects.toThrow(
       'Error de BD',
@@ -205,7 +201,7 @@ describe('ProductosFacade', () => {
         { nombre: 'Cera mate' },
         false,
       );
-      expect(repository.actualizar).toHaveBeenCalledWith(1, {
+      expect(productoService.actualizarProducto).toHaveBeenCalledWith(1, {
         nombre: 'Cera mate',
       });
       expect(almacenamiento.guardar).not.toHaveBeenCalled();
@@ -216,7 +212,7 @@ describe('ProductosFacade', () => {
       });
     });
 
-    it('no llama a repository.actualizar cuando cambios está vacío y no hay archivo', async () => {
+    it('no llama a productoService.actualizarProducto cuando cambios está vacío y no hay archivo', async () => {
       productoService.validarActualizacion.mockResolvedValue({
         actual,
         cambios: {},
@@ -224,7 +220,7 @@ describe('ProductosFacade', () => {
 
       const respuesta = await facade.actualizar(1, {});
 
-      expect(repository.actualizar).not.toHaveBeenCalled();
+      expect(productoService.actualizarProducto).not.toHaveBeenCalled();
       expect(almacenamiento.guardar).not.toHaveBeenCalled();
       expect(productoService.mapear).toHaveBeenCalledWith(actual);
       expect(respuesta).toEqual({
@@ -233,7 +229,7 @@ describe('ProductosFacade', () => {
       });
     });
 
-    it('llama a repository.actualizar cuando cambios está vacío pero hay archivo nuevo', async () => {
+    it('llama a productoService.actualizarProducto cuando cambios está vacío pero hay archivo nuevo', async () => {
       productoService.validarActualizacion.mockResolvedValue({
         actual,
         cambios: {},
@@ -245,7 +241,7 @@ describe('ProductosFacade', () => {
       almacenamiento.guardar.mockResolvedValue(
         '/uploads/negocios/7/productos/new.png',
       );
-      repository.actualizar.mockResolvedValue({
+      productoService.actualizarProducto.mockResolvedValue({
         ...actual,
         imagenUrl: '/uploads/negocios/7/productos/new.png',
       });
@@ -257,10 +253,10 @@ describe('ProductosFacade', () => {
         {},
         true,
       );
-      expect(repository.actualizar).toHaveBeenCalledWith(1, {
+      expect(productoService.actualizarProducto).toHaveBeenCalledWith(1, {
         imagenUrl: '/uploads/negocios/7/productos/new.png',
       });
-      expect(repository.tieneOtraReferenciaAImagen).toHaveBeenCalledWith(
+      expect(productoService.tieneOtraReferenciaAImagen).toHaveBeenCalledWith(
         '/uploads/negocios/7/productos/old.png',
         1,
       );
@@ -278,18 +274,18 @@ describe('ProductosFacade', () => {
       almacenamiento.guardar.mockResolvedValue(
         '/uploads/negocios/7/productos/new.png',
       );
-      repository.actualizar.mockResolvedValue({
+      productoService.actualizarProducto.mockResolvedValue({
         ...actual,
         imagenUrl: '/uploads/negocios/7/productos/new.png',
       });
 
       await facade.actualizar(1, {}, archivo);
 
-      expect(repository.actualizar).toHaveBeenCalledWith(1, {
+      expect(productoService.actualizarProducto).toHaveBeenCalledWith(1, {
         nombre: 'Cera mate',
         imagenUrl: '/uploads/negocios/7/productos/new.png',
       });
-      expect(repository.tieneOtraReferenciaAImagen).toHaveBeenCalledWith(
+      expect(productoService.tieneOtraReferenciaAImagen).toHaveBeenCalledWith(
         '/uploads/negocios/7/productos/old.png',
         1,
       );
@@ -307,7 +303,7 @@ describe('ProductosFacade', () => {
       almacenamiento.guardar.mockResolvedValue(
         '/uploads/negocios/7/productos/new.png',
       );
-      repository.tieneOtraReferenciaAImagen.mockResolvedValue(true);
+      productoService.tieneOtraReferenciaAImagen.mockResolvedValue(true);
 
       await facade.actualizar(1, {}, archivo);
 
@@ -322,7 +318,9 @@ describe('ProductosFacade', () => {
       almacenamiento.guardar.mockResolvedValue(
         '/uploads/negocios/7/productos/new.png',
       );
-      repository.actualizar.mockRejectedValue(new Error('BD caída'));
+      productoService.actualizarProducto.mockRejectedValue(
+        new Error('BD caída'),
+      );
 
       await expect(facade.actualizar(1, {}, archivo)).rejects.toThrow(
         'BD caída',

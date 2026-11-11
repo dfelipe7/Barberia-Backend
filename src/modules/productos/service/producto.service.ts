@@ -256,10 +256,9 @@ export class ProductoService {
    */
   async cambiarEstadoProducto(
     id: number,
-    negocioId: number,
     dto: CambiarEstadoProductoDto,
   ): Promise<ProductoEstadoResponseDto> {
-    await this.repository.actualizarEstadoSiDifiere(id, negocioId, dto.estado);
+    await this.repository.actualizarEstadoSiDifiere(id, dto.estado);
 
     const producto = await this.repository.obtenerPorId(id);
 
@@ -271,6 +270,18 @@ export class ProductoService {
       mensaje: MENSAJE_ESTADO_PRODUCTO_ACTUALIZADO,
       producto: this.mapear(producto),
     };
+  }
+
+  crearProducto(datos: DatosProducto & { imagenUrl: string | null }) {
+    return this.repository.crear(datos);
+  }
+
+  actualizarProducto(id: number, data: CambiosProducto) {
+    return this.repository.actualizar(id, data);
+  }
+
+  tieneOtraReferenciaAImagen(imagenUrl: string, exceptoId: number) {
+    return this.repository.tieneOtraReferenciaAImagen(imagenUrl, exceptoId);
   }
 
   mapear(producto: Producto): ProductoResponseDto {

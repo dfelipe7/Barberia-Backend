@@ -106,13 +106,12 @@ export class ProductoRepository {
    * Actualiza el estado solo si difiere del actual. Devuelve el conteo de
    * filas afectadas: 0 cuando ya estaba en el estado objetivo o no existe.
    */
-  actualizarEstadoSiDifiere(
-    id: number,
-    negocioId: number,
-    estado: EstadoProducto,
-  ) {
+  actualizarEstadoSiDifiere(id: number, estado: EstadoProducto) {
     return this.prisma.producto.updateMany({
-      where: { id, negocioId, estado: { not: estado } },
+      where: this.aislamiento.filtroEscritura({
+        id,
+        estado: { not: estado },
+      }),
       data: { estado },
     });
   }

@@ -289,14 +289,13 @@ describe('ProductoService', () => {
       repository.obtenerPorId.mockResolvedValue(inactivo);
 
       await expect(
-        service.cambiarEstadoProducto(1, 7, { estado: 'INACTIVO' }),
+        service.cambiarEstadoProducto(1, { estado: 'INACTIVO' }),
       ).resolves.toMatchObject({
         mensaje: 'Estado del producto actualizado correctamente',
         producto: { id: 1, estado: 'INACTIVO' },
       });
       expect(repository.actualizarEstadoSiDifiere).toHaveBeenCalledWith(
         1,
-        7,
         'INACTIVO',
       );
     });
@@ -306,13 +305,12 @@ describe('ProductoService', () => {
       repository.obtenerPorId.mockResolvedValue(actual);
 
       await expect(
-        service.cambiarEstadoProducto(1, 7, { estado: 'ACTIVO' }),
+        service.cambiarEstadoProducto(1, { estado: 'ACTIVO' }),
       ).resolves.toMatchObject({
         producto: { id: 1, estado: 'ACTIVO' },
       });
       expect(repository.actualizarEstadoSiDifiere).toHaveBeenCalledWith(
         1,
-        7,
         'ACTIVO',
       );
     });
@@ -322,7 +320,7 @@ describe('ProductoService', () => {
       repository.obtenerPorId.mockResolvedValue(null);
 
       await expect(
-        service.cambiarEstadoProducto(99, 7, { estado: 'INACTIVO' }),
+        service.cambiarEstadoProducto(99, { estado: 'INACTIVO' }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });

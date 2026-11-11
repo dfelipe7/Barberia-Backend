@@ -379,7 +379,8 @@ model Producto {
   negocio Negocio @relation(fields: [negocioId], references: [id], onDelete: Restrict)
 
   @@unique([negocioId, nombre])
-  @@index([negocioId])
+  @@index([negocioId, creadoEn, id])
+  @@index([negocioId, estado, nombre, id])
   @@map("productos")
 }
 

@@ -13,7 +13,6 @@ import {
   ProductosListadoResponseDto,
 } from '../dto/dto-respuesta/producto-response.dto';
 import { MENSAJE_PRODUCTO_ACTUALIZADO } from '../productos.constants';
-import { ProductoRepository } from '../repository/producto.repository';
 import { AlmacenamientoProductosService } from '../service/almacenamiento-productos.service';
 import { ProductoService } from '../service/producto.service';
 
@@ -28,7 +27,6 @@ export class ProductosFacade {
   constructor(
     private readonly productoService: ProductoService,
     private readonly almacenamiento: AlmacenamientoProductosService,
-    private readonly repository: ProductoRepository,
     private readonly aislamiento: NegocioAislamientoService,
   ) {}
 
@@ -56,8 +54,8 @@ export class ProductosFacade {
     id: number,
     dto: CambiarEstadoProductoDto,
   ): Promise<ProductoEstadoResponseDto> {
-    const negocioId = this.aislamiento.negocioIdRequerido();
-    return this.productoService.cambiarEstadoProducto(id, negocioId, dto);
+    this.aislamiento.negocioIdRequerido();
+    return this.productoService.cambiarEstadoProducto(id, dto);
   }
 
   async registrar(
@@ -78,7 +76,7 @@ export class ProductosFacade {
     }
 
     try {
-      const producto = await this.repository.crear({
+      const producto = await this.productoService.crearProducto({
         ...datos,
         imagenUrl,
       });
@@ -126,7 +124,7 @@ export class ProductosFacade {
       const producto =
         Object.keys(datos).length === 0
           ? actual
-          : await this.repository.actualizar(id, datos);
+          : await this.productoService.actualizarProducto(id, datos);
 
       if (
         nuevaImagenUrl &&
@@ -154,7 +152,7 @@ export class ProductosFacade {
     imagenAnterior: string,
   ): Promise<void> {
     try {
-      const compartida = await this.repository.tieneOtraReferenciaAImagen(
+      const compartida = await this.productoService.tieneOtraReferenciaAImagen(
         imagenAnterior,
         productoId,
       );
