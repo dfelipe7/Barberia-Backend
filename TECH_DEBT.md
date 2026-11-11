@@ -31,7 +31,8 @@
   - Dificulta automatizar un lint estricto en CI sin baseline.
 - **Mitigación en curso**:
   1. Fase 1 completada: relajación de reglas de tipado estricto en tests via `eslint.config.mjs`.
-  2. Snapshot baseline (`.eslint-baseline.json`) o resolución progresiva por módulo sin tocar archivos críticos de golpe.
+  2. Fase 2 (2026-11-10): resueltos los errores de `multer.config.ts`, `prisma-extension-aislamiento.ts`, `reservas.service.ts`, `reservas.service.spec.ts`, `servicios.repository.ts` y `servicios.service.ts`. Quedan **31 errores y 6 warnings**, todos en `whatsapp.service.ts` y `whatsapp.service.spec.ts`; ese módulo queda fuera de alcance por decisión explícita.
+  3. Snapshot baseline (`.eslint-baseline.json`) o resolución progresiva por módulo sin tocar archivos críticos de golpe.
 - **Criterio de cierre**: `npx eslint "src/**/*.ts"` devuelve 0 errores.
 - **Target**: progresivo por PRs dedicados por módulo.
 
@@ -104,12 +105,17 @@
 
 - **Severidad**: BAJA
 - **Área**: backend/productos
-- **Estado**: ABIERTA
+- **Estado**: EN_PROGRESO
 - **Detectada**: 2026-11-06
 - **Origen**: sesión `.ai/sessions/2026-11-06/2217-productos-hu02.md`.
 - **Descripción**: `GET /productos` filtra por `negocioId` y ordena por `creadoEn DESC, id DESC`. El esquema solo declara `@@index([negocioId])`, que cubre el filtro pero no el orden. Con catálogos pequeños no hay impacto medible.
 - **Impacto**: al crecer el catálogo por negocio, MariaDB puede recurrir a filesort o a un escaneo mayor. No bloquea HU-02.
-- **Mitigación propuesta**: añadir `@@index([negocioId, creadoEn, id])` mediante migración dedicada, solo después de confirmar el plan con `EXPLAIN` sobre un catálogo representativo.
+- **Mitigación aplicada (2026-11-10)**: se reemplazó el índice simple por
+  `@@index([negocioId, creadoEn, id])` y `@@index([negocioId, estado, nombre, id])`
+  en `prisma/schema.prisma`, con migración idempotente
+  `20261110120000_agregar_indices_productos`. La suite multitenant de productos
+  pasa con la migración aplicada. Pendiente: `EXPLAIN` sobre catálogo grande y
+  commit dedicado para cerrar la entrada.
 - **Criterio de cierre**: `EXPLAIN` con catálogo grande muestra uso del índice y ausencia de filesort para el listado; migración aplicada y verificada.
 - **Target**: cuando el catálogo por negocio justifique la migración, sin fecha.
 
@@ -134,7 +140,7 @@
 
 - **Severidad**: ALTA (seguridad)
 - **Área**: backend/productos | seguridad | datos
-- **Estado**: ABIERTA
+- **Estado**: EN_PROGRESO
 - **Detectada**: 2026-11-07
 - **Origen**: validación de HE-03-HU-05.
 - **Descripción**: El modelo Prisma `Producto` no aparece en
@@ -146,11 +152,11 @@
 - **Impacto**: Una consulta futura que olvide `filtroLectura` podría leer o
   escribir productos de otro negocio. En HU-05 las consultas actuales sí
   filtran, pero la defensa en profundidad no cubre este modelo.
-- **Mitigación propuesta**:
-  1. Añadir `Producto` a `MODELOS_TENANT_SCOPED` con pruebas de la extensión.
-  2. Verificar que la extensión no rompa `create/update` existentes.
-  3. Alternativa: documentar `Producto` como excepción aprobada y reforzar
-     la revisión de repositorios.
+- **Mitigación aplicada (2026-11-10)**: `Producto` añadido a
+  `MODELOS_TENANT_SCOPED`; pruebas unitarias de la constante y pruebas E2E
+  reales en `test/multitenant-extension.e2e-spec.ts` (lectura, `findUnique`
+  ajeno y creación forzada de `negocioId`). Pendiente commit dedicado para
+  cerrar la entrada.
 - **Criterio de cierre**: `Producto` incluido en `MODELOS_TENANT_SCOPED` y
   pruebas que demuestren que una consulta sin filtro explícito no devuelve
   filas de otro negocio; o excepción aprobada y documentada.

@@ -31,10 +31,9 @@ import { directorioUploads } from '../src/common/config/uploads.config';
  * cadena (middleware de contexto, guards, DTOs, almacenamiento, Prisma) es la
  * real. Los archivos van a un `UPLOADS_DIR` temporal.
  *
- * Se omite (no falla) si no hay Docker disponible.
+ * Esta suite exige Docker/MariaDB. Un skip silencioso ocultaría el
+ * aislamiento real. Ver AGENTS.md §12.1.
  */
-
-const OMITIR_SIN_DOCKER = process.env.MARIADB_TEST_SKIP === '1';
 const SECRETO_PERSONAL = 'secreto-personal-productos-e2e';
 const SLUG_A = 'negocio-a';
 const SLUG_B = 'negocio-b';
@@ -121,8 +120,12 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
   );
 
   beforeAll(async () => {
-    if (OMITIR_SIN_DOCKER) {
-      return;
+    if (process.env.MARIADB_TEST_SKIP === '1') {
+      throw new Error(
+        'La suite multitenant-productos exige Docker/MariaDB. ' +
+          'MARIADB_TEST_SKIP=1 no está permitido en esta suite porque ocultaría ' +
+          'el aislamiento real. Ver AGENTS.md §12.1.',
+      );
     }
 
     directorioTemporal = fs.mkdtempSync(
@@ -131,14 +134,10 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     uploadsOriginal = process.env.UPLOADS_DIR;
     process.env.UPLOADS_DIR = directorioTemporal;
 
-    try {
-      conexion = await MariaDbConnection.start({
-        motor: 'mysql',
-        lowerCaseTableNames: false,
-      });
-    } catch {
-      return;
-    }
+    conexion = await MariaDbConnection.start({
+      motor: 'mysql',
+      lowerCaseTableNames: false,
+    });
 
     execFileSync(
       process.execPath,
@@ -438,9 +437,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     return peticion.send({ estado });
   };
 
-  it('1. registra el producto con su imagen en el negocio del contexto', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-01-CA-01 · HE-03-HU-01-CA-03 · 1. registra el producto con su imagen en el negocio del contexto', async () => {
     const { negocioA } = await sembrar();
     const token = await login('admin-a@test.local', SLUG_A);
 
@@ -484,8 +481,6 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
   });
 
   it('2. el nombre es único por negocio, no entre negocios', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
     const { negocioA, negocioB } = await sembrar();
     const tokenA = await login('admin-a@test.local', SLUG_A);
     const tokenB = await login('admin-b@test.local', SLUG_B);
@@ -521,9 +516,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     );
   });
 
-  it('3. acepta imagen opcional y rechaza contenido no permitido', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-01-CA-02 · 3. acepta imagen opcional y rechaza contenido no permitido', async () => {
     const { negocioA } = await sembrar();
     const token = await login('admin-a@test.local', SLUG_A);
 
@@ -589,9 +582,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(archivosDe(negocioA.id)).toHaveLength(0);
   });
 
-  it('4. rechaza precios fuera de rango o con más de dos decimales', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-01-CA-02 · 4. rechaza precios fuera de rango o con más de dos decimales', async () => {
     await sembrar();
     const token = await login('admin-a@test.local', SLUG_A);
 
@@ -607,9 +598,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     }
   });
 
-  it('5. rechaza campos que el cliente no puede fijar', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-01-CA-02 · 5. rechaza campos que el cliente no puede fijar', async () => {
     await sembrar();
     const token = await login('admin-a@test.local', SLUG_A);
 
@@ -624,9 +613,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(respuesta.status).toBe(400);
   });
 
-  it('6. un administrador de A no puede registrar en B', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-01-CA-01 · 6. un administrador de A no puede registrar en B', async () => {
     await sembrar();
     const tokenA = await login('admin-a@test.local', SLUG_A);
 
@@ -640,9 +627,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(respuesta.status).toBe(403);
   });
 
-  it('7. un usuario sin rol administrativo recibe 403 y sin token 401', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-01-CA-01 · 7. un usuario sin rol administrativo recibe 403 y sin token 401', async () => {
     await sembrar();
     const tokenBarbero = await login('barbero-a@test.local', SLUG_A);
 
@@ -663,9 +648,63 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(sinToken.status).toBe(401);
   });
 
-  it('[Visualización de productos] el listado devuelve nombre, descripción, precio, imagen y estado', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
+  it('HE-03-HU-01-CA-02 · rechaza nombre o precio ausentes sin crear fila', async () => {
+    const { negocioA } = await sembrar();
+    const token = await login('admin-a@test.local', SLUG_A);
+    const antes = await prisma.producto.count({
+      where: { negocioId: negocioA.id },
+    });
 
+    const sinNombre = await request(app.getHttpServer())
+      .post('/productos')
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`)
+      .field('precio', '10000')
+      .attach('imagen', PNG_VALIDO, {
+        filename: 'producto.png',
+        contentType: 'image/png',
+      });
+    expect(sinNombre.status).toBe(400);
+
+    const sinPrecio = await request(app.getHttpServer())
+      .post('/productos')
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`)
+      .field('nombre', 'Sin precio')
+      .attach('imagen', PNG_VALIDO, {
+        filename: 'producto.png',
+        contentType: 'image/png',
+      });
+    expect(sinPrecio.status).toBe(400);
+
+    const despues = await prisma.producto.count({
+      where: { negocioId: negocioA.id },
+    });
+    expect(despues).toBe(antes);
+    expect(archivosDe(negocioA.id)).toHaveLength(0);
+  });
+
+  it('HE-03-HU-01-CA-04 · la ausencia de endpoint de cancelación no persiste nada', async () => {
+    const { negocioA } = await sembrar();
+    const token = await login('admin-a@test.local', SLUG_A);
+    const antes = await prisma.producto.count({
+      where: { negocioId: negocioA.id },
+    });
+
+    const respuesta = await request(app.getHttpServer())
+      .delete('/productos/999999')
+      .set('X-Negocio-Slug', SLUG_A)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect([404, 405]).toContain(respuesta.status);
+    const despues = await prisma.producto.count({
+      where: { negocioId: negocioA.id },
+    });
+    expect(despues).toBe(antes);
+    expect(archivosDe(negocioA.id)).toHaveLength(0);
+  });
+
+  it('HE-03-HU-02-CA-01 · [Visualización de productos] el listado devuelve nombre, descripción, precio, imagen y estado', async () => {
     const { negocioA } = await sembrar();
     await crearProducto(negocioA.id, {
       nombre: 'Cera mate',
@@ -693,9 +732,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     });
   });
 
-  it('[Identificación del estado] el listado distingue productos ACTIVO e INACTIVO', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-02-CA-02 · [Identificación del estado] el listado distingue productos ACTIVO e INACTIVO', async () => {
     const { negocioA } = await sembrar();
     await crearProducto(negocioA.id, {
       nombre: 'Activo',
@@ -723,9 +760,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     );
   });
 
-  it('[Catálogo sin productos registrados] responde colección vacía y mensaje sin error de servidor', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-02-CA-03 · [Catálogo sin productos registrados] responde colección vacía y mensaje sin error de servidor', async () => {
     await sembrar();
     const token = await login('admin-a@test.local', SLUG_A);
 
@@ -741,9 +776,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     });
   });
 
-  it('[Consulta de información del producto] el detalle devuelve toda la información registrada', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-02-CA-04 · HE-03-HU-03-CA-01 · [Consulta de información del producto] el detalle devuelve toda la información registrada', async () => {
     const { negocioA } = await sembrar();
     const producto = await crearProducto(negocioA.id, {
       nombre: 'Cera mate',
@@ -775,8 +808,6 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
   });
 
   it('[Aislamiento] ni el listado ni el detalle revelan productos de otro tenant', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
     const { negocioA, negocioB } = await sembrar();
     await crearProducto(negocioA.id, { nombre: 'Propio', precio: 10000 });
     const ajeno = await crearProducto(negocioB.id, {
@@ -811,9 +842,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     );
   });
 
-  it('[Validación] el detalle rechaza identificadores no positivos o no numéricos', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-02-CA-04 · [Validación] el detalle rechaza identificadores no positivos o no numéricos', async () => {
     await sembrar();
     const token = await login('admin-a@test.local', SLUG_A);
 
@@ -832,8 +861,6 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
   });
 
   it('[SUPERADMIN] el superadministrador de la barbería consulta su catálogo y no accede a otro tenant', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
     const { negocioA, negocioB } = await sembrar();
     const propio = await crearProducto(negocioA.id, {
       nombre: 'Propio',
@@ -875,8 +902,6 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
   });
 
   it('[Permisos] el listado y el detalle exigen rol administrativo y token', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
     const { negocioA } = await sembrar();
     const producto = await crearProducto(negocioA.id, {
       nombre: 'Cera',
@@ -908,9 +933,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(detalleSinToken.status).toBe(401);
   });
 
-  it('Actualización de datos: actualiza solo los campos enviados y conserva la imagen', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-03-CA-02 · Actualización de datos: actualiza solo los campos enviados y conserva la imagen', async () => {
     await sembrar();
     const token = await login('admin-a@test.local', SLUG_A);
     const creado = await registrar(
@@ -963,9 +986,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(cuerpo<ProductoRegistrado>(anulada).producto.descripcion).toBeNull();
   });
 
-  it('Actualización de datos: reemplaza la imagen y elimina la anterior', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-03-CA-02 · Actualización de datos: reemplaza la imagen y elimina la anterior', async () => {
     await sembrar();
     const token = await login('admin-a@test.local', SLUG_A);
     const creado = await registrar(
@@ -1002,9 +1023,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(fs.existsSync(rutaVieja)).toBe(false);
   });
 
-  it('Actualización de datos: reenviar los mismos valores no cambia actualizadoEn', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-03-CA-02 · Actualización de datos: reenviar los mismos valores no cambia actualizadoEn', async () => {
     const { negocioA } = await sembrar();
     const token = await login('admin-a@test.local', SLUG_A);
     const producto = await crearProducto(negocioA.id, {
@@ -1032,9 +1051,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(enBase?.actualizadoEn.toISOString()).toBe(fecha.toISOString());
   });
 
-  it('Actualización de datos: reenviar la misma descripción no cambia actualizadoEn', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-03-CA-02 · Actualización de datos: reenviar la misma descripción no cambia actualizadoEn', async () => {
     const { negocioA } = await sembrar();
     const token = await login('admin-a@test.local', SLUG_A);
     const producto = await crearProducto(negocioA.id, {
@@ -1055,9 +1072,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     );
   });
 
-  it('Actualización de datos: reenviar el mismo precio no cambia actualizadoEn', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-03-CA-02 · Actualización de datos: reenviar el mismo precio no cambia actualizadoEn', async () => {
     const { negocioA } = await sembrar();
     const token = await login('admin-a@test.local', SLUG_A);
     const producto = await crearProducto(negocioA.id, {
@@ -1078,9 +1093,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     );
   });
 
-  it('Actualización de datos: una imagen nueva cambia actualizadoEn aunque los datos sean iguales', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-03-CA-02 · Actualización de datos: una imagen nueva cambia actualizadoEn aunque los datos sean iguales', async () => {
     const { negocioA } = await sembrar();
     const token = await login('admin-a@test.local', SLUG_A);
     const producto = await crearProducto(negocioA.id, {
@@ -1107,9 +1120,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     );
   });
 
-  it('Validación de información modificada: rechaza datos inválidos, duplicados y campos internos', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-03-CA-03 · Validación de información modificada: rechaza datos inválidos, duplicados y campos internos', async () => {
     const { negocioA } = await sembrar();
     const token = await login('admin-a@test.local', SLUG_A);
     const producto = await crearProducto(negocioA.id, {
@@ -1205,9 +1216,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(enBase?.descripcion).toBeNull();
   });
 
-  it('Confirmación de actualización: responde 200 con mensaje y producto actualizado', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-03-CA-04 · Confirmación de actualización: responde 200 con mensaje y producto actualizado', async () => {
     const { negocioA } = await sembrar();
     const token = await login('admin-a@test.local', SLUG_A);
     const producto = await crearProducto(negocioA.id, {
@@ -1230,9 +1239,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     });
   });
 
-  it('Acceso a la edición: aísla tenants y exige rol administrativo', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-03-CA-01 · Acceso a la edición: aísla tenants y exige rol administrativo', async () => {
     const { negocioA, negocioB } = await sembrar();
     const productoA = await crearProducto(negocioA.id, {
       nombre: 'Propio',
@@ -1298,9 +1305,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(propioEnBase?.nombre).toBe('Propio');
   });
 
-  it('Acceso a la edición: ADMINISTRADOR y SUPERADMIN del negocio editan su producto', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-03-CA-01 · Acceso a la edición: ADMINISTRADOR y SUPERADMIN del negocio editan su producto', async () => {
     const { negocioA } = await sembrar();
     const productoAdmin = await crearProducto(negocioA.id, {
       nombre: 'Admin',
@@ -1330,9 +1335,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     );
   });
 
-  it('Desactivación de un producto: deja de mostrarse entre los productos disponibles para los clientes', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-04-CA-01 · Desactivación de un producto: deja de mostrarse entre los productos disponibles para los clientes', async () => {
     const { negocioA } = await sembrar();
     const producto = await crearProducto(negocioA.id, {
       nombre: 'Cera',
@@ -1372,9 +1375,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     ).toBe('INACTIVO');
   });
 
-  it('Activación de un producto: vuelve a mostrarse entre los productos disponibles para los clientes', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-04-CA-02 · Activación de un producto: vuelve a mostrarse entre los productos disponibles para los clientes', async () => {
     const { negocioA } = await sembrar();
     const producto = await crearProducto(negocioA.id, {
       nombre: 'Cera',
@@ -1409,9 +1410,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     ).toBe('ACTIVO');
   });
 
-  it('Conservación de información: el cambio de estado conserva los datos del producto', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-04-CA-03 · Conservación de información: el cambio de estado conserva los datos del producto', async () => {
     const { negocioA } = await sembrar();
     const producto = await crearProducto(negocioA.id, {
       nombre: 'Cera',
@@ -1452,9 +1451,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(enBase?.actualizadoEn.getTime()).toBeGreaterThan(fecha.getTime());
   });
 
-  it('Confirmación del cambio de estado: responde 200 con mensaje y producto con el estado nuevo', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-04-CA-04 · Confirmación del cambio de estado: responde 200 con mensaje y producto con el estado nuevo', async () => {
     const { negocioA } = await sembrar();
     const producto = await crearProducto(negocioA.id, {
       nombre: 'Cera',
@@ -1477,9 +1474,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     });
   });
 
-  it('[Idempotencia] repetir el mismo estado responde 200 sin cambiar actualizadoEn', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-04-CA-04 · [Idempotencia] repetir el mismo estado responde 200 sin cambiar actualizadoEn', async () => {
     const { negocioA } = await sembrar();
     const producto = await crearProducto(negocioA.id, {
       nombre: 'Cera',
@@ -1512,9 +1507,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(enBase?.actualizadoEn.toISOString()).toBe(fecha.toISOString());
   });
 
-  it('Idempotencia concurrente: dos PATCH simultáneos al mismo estado solo escriben una vez', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-04-CA-04 · Idempotencia concurrente: dos PATCH simultáneos al mismo estado solo escriben una vez', async () => {
     const { negocioA } = await sembrar();
     const producto = await crearProducto(negocioA.id, {
       nombre: 'Cera',
@@ -1564,9 +1557,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     );
   });
 
-  it('Concurrencia: dos PATCH simultáneos con estados distintos dejan un estado válido sin corromper la fila', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-04-CA-04 · Concurrencia: dos PATCH simultáneos con estados distintos dejan un estado válido sin corromper la fila', async () => {
     const { negocioA } = await sembrar();
     const producto = await crearProducto(negocioA.id, {
       nombre: 'Cera',
@@ -1604,8 +1595,6 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
   });
 
   it('[Aislamiento] el cambio de estado oculta productos de otro tenant como 404', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
     const { negocioB } = await sembrar();
     const ajeno = await crearProducto(negocioB.id, {
       nombre: 'Ajeno',
@@ -1643,8 +1632,6 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
   });
 
   it('[Validación] el cambio de estado rechaza estados distintos de ACTIVO o INACTIVO', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
     const { negocioA } = await sembrar();
     const producto = await crearProducto(negocioA.id, {
       nombre: 'Cera',
@@ -1669,8 +1656,6 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
   });
 
   it('[Permisos] el cambio de estado exige rol administrativo y token', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
     const { negocioA } = await sembrar();
     const producto = await crearProducto(negocioA.id, {
       nombre: 'Cera',
@@ -1711,9 +1696,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(sinToken.status).toBe(401);
   });
 
-  it('Visualización de productos disponibles: el catálogo público muestra solo productos ACTIVO con datos mínimos', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-05-CA-01 · Visualización de productos disponibles: el catálogo público muestra solo productos ACTIVO con datos mínimos', async () => {
     const { negocioA } = await sembrar();
     await crearProducto(negocioA.id, {
       nombre: 'Cera mate',
@@ -1747,8 +1730,6 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
   });
 
   it('Visualización de productos disponibles: no acepta filtros manipulados ni negocioId ajeno', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
     const { negocioA, negocioB } = await sembrar();
     await crearProducto(negocioA.id, { nombre: 'Propio', precio: 10000 });
     await crearProducto(negocioB.id, { nombre: 'Ajeno', precio: 20000 });
@@ -1764,9 +1745,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     ).toEqual(['Propio']);
   });
 
-  it('Información del producto: el detalle público devuelve nombre, descripción, precio e imagen', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-05-CA-02 · Información del producto: el detalle público devuelve nombre, descripción, precio e imagen', async () => {
     const { negocioA } = await sembrar();
     const producto = await crearProducto(negocioA.id, {
       nombre: 'Cera mate',
@@ -1790,9 +1769,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     });
   });
 
-  it('Producto no disponible: un producto INACTIVO responde 404 igual que uno inexistente', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-05-CA-03 · Producto no disponible: un producto INACTIVO responde 404 igual que uno inexistente', async () => {
     const { negocioA } = await sembrar();
     const inactivo = await crearProducto(negocioA.id, {
       nombre: 'Agotado',
@@ -1815,9 +1792,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     );
   });
 
-  it('Producto no disponible: un producto de otro negocio responde 404', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-05-CA-03 · Producto no disponible: un producto de otro negocio responde 404', async () => {
     const { negocioB } = await sembrar();
     const ajeno = await crearProducto(negocioB.id, {
       nombre: 'Ajeno',
@@ -1832,9 +1807,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(respuesta.status).toBe(404);
   });
 
-  it('Catálogo sin productos disponibles: responde colección vacía y mensaje', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-05-CA-04 · Catálogo sin productos disponibles: responde colección vacía y mensaje', async () => {
     const { negocioA } = await sembrar();
     await crearProducto(negocioA.id, {
       nombre: 'Agotado',
@@ -1854,8 +1827,6 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
   });
 
   it('Visualización de productos disponibles: el catálogo y el detalle son públicos sin token', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
     const { negocioA } = await sembrar();
     const producto = await crearProducto(negocioA.id, {
       nombre: 'Cera',
@@ -1875,8 +1846,6 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
   });
 
   it('Visualización de productos disponibles: exige contexto de negocio válido', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
     await sembrar();
 
     const sinContexto = await request(app.getHttpServer()).get(
@@ -1890,9 +1859,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
     expect(negocioInvalido.status).toBe(404);
   });
 
-  it('Información del producto: rechaza identificadores no positivos en el detalle público', async () => {
-    if (OMITIR_SIN_DOCKER || !conexion) return;
-
+  it('HE-03-HU-05-CA-02 · Información del producto: rechaza identificadores no positivos en el detalle público', async () => {
     await sembrar();
 
     const cero = await request(app.getHttpServer())
