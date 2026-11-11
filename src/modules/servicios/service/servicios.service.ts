@@ -30,6 +30,28 @@ type ServicioConBarberos = Prisma.ServicioGetPayload<{
   };
 }>;
 
+interface ServicioPrismaConBarberos {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  precio: number | string | { toString(): string };
+  duracionMinutos: number;
+  fotoUrl: string | null;
+  estado: string;
+  barberos?: Array<{
+    barbero: {
+      id: number;
+      fotoUrl: string | null;
+      usuario: {
+        id: number;
+        nombre: string;
+        apellido: string;
+        email: string;
+      };
+    };
+  }>;
+}
+
 @Injectable()
 export class ServiciosService {
   constructor(private readonly serviciosRepository: ServiciosRepository) {}
@@ -372,6 +394,9 @@ export class ServiciosService {
    * `id` es el `Barbero.id` (NO el `Usuario.id`): es la clave que consumen la
    * disponibilidad y la reserva, de modo que el cliente puede encadenar
    * catálogo → disponibilidad → reserva sin traducir identificadores.
+   *
+   * @param servicio - Objeto de servicio retornado por Prisma con sus relaciones anidadas.
+   * @returns DTO formal `ServicioResponseDto` normalizado para el frontend.
    */
   private mapearServicio(servicio: ServicioConBarberos): ServicioResponseDto {
     return {

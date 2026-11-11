@@ -46,10 +46,19 @@ import {
 
 import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
 
-interface RequestConUsuario {
+/** Petición HTTP con claims de usuario autenticado en la administración de horarios. */
+export interface RequestConUsuario {
   user?: Partial<ClaimsSesionPersonal>;
 }
 
+/**
+ * Controlador de Administración de Horarios y Bloqueos de Barberos.
+ *
+ * @remarks
+ * Exclusivo para administradores de sede (`SUPERADMIN`):
+ * Permite definir, reemplazar y auditar los horarios semanales de trabajo y los bloqueos temporales
+ * de agenda para cualquier barbero de la sede activa.
+ */
 @ApiTags('Horarios - Administración')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)

@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WhatsAppController } from './whatsapp.controller';
-import { WhatsAppService } from './whatsapp.service';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../../auth/roles/roles.guard';
+import { WhatsAppService } from '../service/whatsapp.service';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../auth/roles/roles.guard';
 
 describe('WhatsAppController', () => {
   let controller: WhatsAppController;

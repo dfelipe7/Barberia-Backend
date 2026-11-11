@@ -14,7 +14,7 @@ import { ConfiguracionService } from '../src/modules/configuracion/service/confi
 import { NegocioContextoService } from '../src/modules/negocios/negocio-contexto.service';
 import { ReservasInfraModule } from '../src/modules/reservas/reservas-infra.module';
 import { ReservasRepository } from '../src/modules/reservas/repository/reservas.repository';
-import { WhatsAppPlantillasRepository } from '../src/modules/whatsapp/whatsapp-plantillas.repository';
+import { WhatsAppPlantillasRepository } from '../src/modules/whatsapp/repository/whatsapp-plantillas.repository';
 import { CLAVES_CONFIGURACION } from '../src/modules/configuracion/configuracion.constants';
 
 /**

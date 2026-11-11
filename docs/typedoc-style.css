@@ -1,0 +1,117 @@
+/* Estilos mejorados para TypeDoc - Barbería VIP SaaS */
+:root {
+  --tsd-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', Helvetica, Arial, sans-serif;
+  --tsd-accent-color: #6366f1;
+}
+
+body {
+  font-family: var(--tsd-font-family);
+  letter-spacing: -0.01em;
+  line-height: 1.6;
+}
+
+/* Encabezados y títulos principales */
+.tsd-page-title {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.tsd-page-title h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Paneles de contenido */
+.tsd-panel {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  margin-bottom: 1.75rem;
+  padding: 1.5rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.tsd-panel:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+/* Tablas organizadas para lectura de arquitectura */
+.tsd-typography table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  margin: 1.75rem 0;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.tsd-typography th {
+  background: rgba(99, 102, 241, 0.12);
+  padding: 14px 18px;
+  font-weight: 600;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #a5b4fc;
+}
+
+.tsd-typography td {
+  padding: 12px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tsd-typography tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Bloques de código y firmas de funciones */
+.tsd-signature {
+  background: rgba(0, 0, 0, 0.35) !important;
+  border-radius: 8px !important;
+  padding: 12px 18px !important;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace !important;
+  border-left: 4px solid var(--tsd-accent-color) !important;
+  font-size: 0.92rem !important;
+}
+
+/* Etiquetas de documentación Arc42 / IEEE 1063 */
+.tsd-tag-param {
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.tsd-tag-returns {
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.tsd-tag-throws {
+  color: #f87171;
+  font-weight: 600;
+}
+
+.tsd-tag-remarks {
+  background: rgba(99, 102, 241, 0.1);
+  border-left: 3px solid #818cf8;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 10px 0;
+  display: block;
+}
+
+/* Navegación lateral más limpia */
+.tsd-navigation {
+  font-size: 0.9rem;
+}
+
+.tsd-navigation a {
+  border-radius: 6px;
+  padding: 4px 8px;
+  transition: background 0.15s ease;
+}
+
+.tsd-navigation a:hover {
+  background: rgba(99, 102, 241, 0.15);
+}

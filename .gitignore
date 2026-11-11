@@ -90,6 +90,14 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 !/docs/solicitudes/**
 !/docs/api/
 !/docs/api/**
+!/docs/arc42/
+!/docs/arc42/**
+!/docs/DOCS_PORTAL.md
+!/docs/typedoc-style.css
+!/docs/DICCIONARIO_DE_DATOS.md
+!/docs/MANUAL_DE_USUARIO.md
+!/docs/PLAN_DE_DOCUMENTACION_ISO_26514.md
+!/docs/SEGURIDAD_Y_TESTING.md
 Libro1.xlsx
 opencode.json
 # Testing artifacts

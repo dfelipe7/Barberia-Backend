@@ -23,11 +23,24 @@ import {
   RolUsuario,
 } from '../../../generated/prisma/enums';
 
+/**
+ * Controlador de Gestión de Plataforma y Directorio de Negocios (Tenants).
+ *
+ * @remarks
+ * Proporciona endpoints públicos para listar las barberías federadas en el directorio global,
+ * y endpoints protegidos por `PlataformaAdminGuard` para dar de alta nuevos tenants (onboarding)
+ * y administrar el ciclo de vida (activación / desactivación) de las sedes.
+ */
 @ApiTags('Plataforma - Directorio de Negocios')
 @Controller('plataforma/negocios')
 export class NegociosPlataformaController {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Obtiene la lista de barberías activas para desplegar en el directorio público del SaaS.
+   *
+   * @returns Listado de sedes con su slug, nombre, ciudad y recursos visuales (logos/banners).
+   */
   @Get('publico')
   @ApiOperation({
     summary:
@@ -64,6 +77,11 @@ export class NegociosPlataformaController {
     }));
   }
 
+  /**
+   * Lista todas las barberías registradas en la plataforma con métricas consolidadas.
+   *
+   * @returns Lista de negocios con conteos agregados de barberos, servicios, reservas y clientes.
+   */
   @Get()
   @ApiOperation({
     summary:
@@ -110,6 +128,17 @@ export class NegociosPlataformaController {
     }));
   }
 
+  /**
+   * Da de alta un nuevo negocio (tenant) en la plataforma vinculando opcionalmente a su administrador fundador.
+   *
+   * @remarks
+   * Realiza una transacción anidada en Prisma que inicializa la sede, crea o vincula al usuario administrador,
+   * y le asigna la membresía `superadmin = true` en la nueva barbería.
+   *
+   * @param dto - Información requerida para la creación del negocio (nombre, slug, zona horaria, administrador).
+   * @returns Datos del nuevo negocio registrado y su propietario.
+   * @throws {ConflictException} Si el slug ya se encuentra registrado por otra barbería.
+   */
   @Post()
   @UseGuards(JwtSesionGuard, PlataformaAdminGuard)
   @ApiOperation({
@@ -206,6 +235,14 @@ export class NegociosPlataformaController {
     };
   }
 
+  /**
+   * Conmuta el estado operativo de una barbería (ACTIVO / INACTIVO).
+   *
+   * @param id - Identificador numérico único de la barbería.
+   * @param dto - Nuevo estado que se desea establecer.
+   * @returns Confirmación y datos de la barbería modificada.
+   * @throws {NotFoundException} Si el negocio no existe en la base de datos.
+   */
   @Patch(':id/estado')
   @UseGuards(JwtSesionGuard, PlataformaAdminGuard)
   @ApiOperation({

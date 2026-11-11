@@ -40,10 +40,11 @@ export class SesionPersonalService {
   /**
    * Emite una sesión operativa para un negocio concreto.
    *
-   * @param usuario Identidad global (`Usuario`).
-   * @param negocio Negocio al que queda vinculada la sesión.
-   * @param roles Roles efectivos de la persona en ese negocio.
-   * @param fotoUrl Foto de la sesión (perfil de barbero del negocio o Google).
+   * @param usuario - Identidad global (`Usuario`).
+   * @param negocio - Negocio al que queda vinculada la sesión.
+   * @param roles - Roles efectivos de la persona en ese negocio.
+   * @param fotoUrl - Foto de la sesión (perfil de barbero del negocio o Google).
+   * @returns Respuesta con el token firmado, datos del usuario y barbería asignada.
    */
   emitirParaNegocio(
     usuario: UsuarioSesion,
@@ -81,9 +82,14 @@ export class SesionPersonalService {
   /**
    * Renueva una sesión conservando su ámbito (siempre un negocio).
    *
-   * - El negocio se revalida (sigue activo) y la pertenencia de la persona.
-   * - Los roles se RECALCULAN contra la base de datos, de modo que revocar un
-   *   perfil surte efecto en la renovación.
+   * @remarks
+   * Revalida que la barbería continúe activa y recalcula los roles del usuario contra la base de datos,
+   * garantizando que la revocación de un rol surta efecto inmediato sin esperar a que expire el token anterior.
+   *
+   * @param sesion - Datos de la sesión actual decodificados del token.
+   * @param usuario - Identidad del usuario recargada desde la base de datos.
+   * @returns Nueva respuesta de sesión con token renovado y roles vigentes.
+   * @throws {ForbiddenException} Si el usuario o el negocio no están activos, o si carece de roles.
    */
   async renovar(
     sesion: SesionPersonal,
@@ -128,8 +134,9 @@ export class SesionPersonalService {
   }
 
   /**
-   * CAMBIO EXPLÍCITO DE NEGOCIO.
+   * Conmuta explícitamente el contexto de la sesión a otra sede/barbería.
    *
+   * @remarks
    * El destino se resuelve SIEMPRE desde el slug de la ruta, mediante el
    * repositorio de negocios (que solo devuelve negocios ACTIVOS). El contexto
    * de negocio de la petición NO interviene: así el middleware ordinario no
@@ -138,6 +145,11 @@ export class SesionPersonalService {
    * Se exige un perfil operativo ACTIVO en el negocio de destino, PARA
    * TODAS LAS PERSONAS: el rol SUPERADMIN de una barbería NO habilita el
    * cambio a otra. En este SaaS no existe ninguna transición privilegiada.
+   *
+   * @param sesion - Sesión actual del colaborador.
+   * @param slug - Slug identificador del negocio al que se desea conmutar.
+   * @returns Nueva sesión autorizada para operar en la sede de destino.
+   * @throws {ForbiddenException} Si el negocio no existe, está inactivo o el usuario no tiene membresía activa en él.
    */
   async cambiarNegocio(
     sesion: SesionPersonal,

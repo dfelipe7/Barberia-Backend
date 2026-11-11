@@ -1,3 +1,20 @@
+# ==============================================================================
+# TÉCNICA DE TESTING / SEGURIDAD: SCA (Software Composition Analysis)
+# Subtipo: Quality Gate / Bloqueador de Seguridad en CI/CD (OWASP A06 / A03)
+# ==============================================================================
+# Propósito:
+#   Auditoría de composición de dependencias de terceros y librerías open-source (npm).
+# Rol en la arquitectura:
+#   Actúa como "Inspector / Bloqueador de Pipeline". Examina el árbol completo de
+#   paquetes en package-lock.json. Si se detectan vulnerabilidades conocidas (CVEs)
+#   de nivel ALTO o CRÍTICO, falla la ejecución (código de salida > 0) y bloquea
+#   la integración o despliegue del backend.
+# Momento de activación:
+#   - En cada push a ramas principales (master, main).
+#   - En cada Pull Request.
+#   - Programado periódicamente (cron semanal: lunes a la medianoche).
+# ==============================================================================
+
 name: Security Audit Pipeline
 
 on:

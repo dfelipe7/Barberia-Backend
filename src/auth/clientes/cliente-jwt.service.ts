@@ -83,7 +83,18 @@ export class ClienteJwtService {
     }
   }
 
-  /** Firma el token de sesión del cliente con su secreto y audiencia propios. */
+  /**
+   * Emite y firma un token JWT exclusivo para la sesión del cliente final.
+   *
+   * @remarks
+   * Emplea un secreto criptográfico independiente (`JWT_CLIENTE_SECRET`) y fija la audiencia
+   * en `AUDIENCIA_CLIENTE` ('barberia-cliente') con un tiempo de expiración corto (`EXPIRACION_TOKEN_CLIENTE`).
+   * Vincula la sesión al `negocioId` para impedir el cruce de sesiones entre diferentes barberías.
+   *
+   * @param sesion - Datos del cliente autenticado y el negocio en el que inició sesión.
+   * @returns Token JWT compacto codificado en Base64Url.
+   * @throws {ServiceUnavailableException} Si la variable de entorno del secreto de cliente no está configurada.
+   */
   firmar(sesion: SesionCliente): string {
     const secret = this.obtenerSecreto();
 
@@ -105,11 +116,20 @@ export class ClienteJwtService {
   }
 
   /**
-   * Verifica firma, expiración, audiencia y tipo del token de cliente.
-   * Un token de personal (sin audiencia de cliente, o firmado con otro secreto)
-   * NO supera esta verificación.
+   * Verifica la integridad criptográfica, audiencia, tipo y vigencia del token de sesión de cliente.
    *
-   * @throws UnauthorizedException si el token es inválido o no es de cliente.
+   * @remarks
+   * Aplica validación estricta:
+   * 1. Comprueba la firma HMAC con `JWT_CLIENTE_SECRET`.
+   * 2. Comprueba que el claim `aud` coincida con `AUDIENCIA_CLIENTE`.
+   * 3. Comprueba que el claim `tipo` sea exactamente `TIPO_TOKEN_CLIENTE`.
+   * 4. Valida que el `clienteId` o `sub` sea un entero positivo.
+   * Un token emitido para personal administrativo o de otra naturaleza es rechazado de inmediato.
+   *
+   * @param token - Token JWT recibido en la cabecera `Authorization: Bearer <token>`.
+   * @returns Identidad verificada del cliente autenticado (`ClienteAutenticado`).
+   * @throws {UnauthorizedException} Si la firma falla, expiró o no corresponde a una sesión de cliente válida.
+   * @throws {ServiceUnavailableException} Si el secreto del entorno no se encuentra cargado.
    */
   async verificar(token: string): Promise<ClienteAutenticado> {
     const secret = this.obtenerSecreto();

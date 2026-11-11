@@ -34,11 +34,16 @@ export const ContextoNegocioAlmacenamiento =
   new AsyncLocalStorage<ContextoNegocio>();
 
 /**
- * Ejecuta `operacion` con el contexto de negocio establecido.
+ * Ejecuta una operación sincrónica o asíncrona dentro del almacén contextual de negocio.
  *
+ * @remarks
  * Debe invocarse de forma que `next()` (o la operación equivalente) se
  * llame DENTRO de la callback: el resto de la cadena se registra en el
  * contexto asíncrono actual y hereda el negocio.
+ *
+ * @param contexto - Objeto con el ID y slug de la sede.
+ * @param operacion - Callback a ejecutar dentro del contexto.
+ * @returns El valor producido por la operación.
  */
 export function ejecutarEnContextoNegocio<T>(
   contexto: ContextoNegocio,
@@ -47,22 +52,34 @@ export function ejecutarEnContextoNegocio<T>(
   return ContextoNegocioAlmacenamiento.run(contexto, operacion);
 }
 
-/** Devuelve el contexto de negocio activo, o `undefined` si no hay. */
+/**
+ * Devuelve el contexto de negocio activo en la traza asíncrona actual.
+ *
+ * @returns Datos de la sede ({ id, slug }) o `undefined` si opera en ámbito global.
+ */
 export function obtenerContextoNegocio(): ContextoNegocio | undefined {
   return ContextoNegocioAlmacenamiento.getStore();
 }
 
-/** `true` si la cadena asíncrona actual tiene un contexto de negocio. */
+/**
+ * Comprueba si la cadena asíncrona actual tiene un contexto de negocio registrado.
+ *
+ * @returns `true` si hay un contexto activo.
+ */
 export function tieneContextoNegocio(): boolean {
   return obtenerContextoNegocio() !== undefined;
 }
 
 /**
- * Devuelve el contexto de negocio activo o falla de forma segura.
+ * Devuelve el contexto de negocio activo o lanza una excepción defensiva si no existe.
  *
+ * @remarks
  * Se usa en las operaciones que DEBEN pertenecer a un negocio (lecturas y
  * escrituras tenant-scoped). Fallar aquí evita que una operación sin
  * contexto termine actuando sobre el conjunto completo de negocios.
+ *
+ * @returns Datos de la sede ({ id, slug }).
+ * @throws {ForbiddenException} Si no hay contexto de negocio en la petición.
  */
 export function obtenerContextoNegocioRequerido(): ContextoNegocio {
   const contexto = obtenerContextoNegocio();

@@ -20,7 +20,8 @@ import { HorarioSemanalResponseDto } from '../dto/dto-respuesta/horario-semanal-
 
 import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
 
-interface RequestConUsuario {
+/** Petición HTTP con sesión del barbero para consulta o reemplazo de su horario semanal. */
+export interface RequestConUsuario {
   user?: Partial<ClaimsSesionPersonal>;
 }
 

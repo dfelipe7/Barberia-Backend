@@ -122,6 +122,13 @@ export class ClientesAuthService {
       },
     };
   }
+  /**
+   * Obtiene la información del perfil del cliente autenticado.
+   *
+   * @param clienteId - Identificador único del cliente en la base de datos.
+   * @returns Datos consolidados del perfil (id, nombre, apellido, email, teléfono).
+   * @throws {NotFoundException} Si el cliente no existe o no pertenece a la sede actual.
+   */
   async obtenerPerfil(clienteId: number) {
     const perfil = await this.clientesRepository.obtenerPorId(clienteId);
     if (!perfil) {
@@ -136,6 +143,14 @@ export class ClientesAuthService {
     };
   }
 
+  /**
+   * Actualiza los datos personales (teléfono, nombre, apellido) del cliente.
+   *
+   * @param clienteId - ID del cliente autenticado que solicita la actualización.
+   * @param dto - Datos modificables del cliente.
+   * @returns Registro actualizado del cliente en base de datos.
+   * @throws {NotFoundException} Si el cliente no existe.
+   */
   async actualizarPerfil(clienteId: number, dto: ActualizarPerfilClienteDto) {
     const cliente = await this.clientesRepository.obtenerPorId(clienteId);
     if (!cliente) {

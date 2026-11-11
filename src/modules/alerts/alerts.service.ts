@@ -64,13 +64,27 @@ export function extraerCamposPermitidos(contextInfo: unknown): CamposAlerta {
   };
 }
 
+/**
+ * Servicio de Alertas Críticas de Seguridad y Auditoría (OWASP A09).
+ *
+ * @remarks
+ * Despacha notificaciones por correo electrónico al superadministrador ante errores de servidor 5xx
+ * o intentos anómalos de acceso 403, utilizando una lista blanca estricta (`extraerCamposPermitidos`)
+ * para garantizar que jamás se filtren contraseñas, tokens JWT ni datos personales en los correos.
+ */
 @Injectable()
 export class AlertsService {
   private readonly logger = new Logger(AlertsService.name);
 
   constructor(private readonly mailerService: MailerService) {}
 
-  async sendSecurityAlert(statusCode: number, contextInfo: any) {
+  /**
+   * Envía una notificación de alerta de seguridad por correo electrónico con los datos contextuales permitidos.
+   *
+   * @param statusCode - Código de estado HTTP del error ocurrido.
+   * @param contextInfo - Objeto con la información contextual del error.
+   */
+  async sendSecurityAlert(statusCode: number, contextInfo: unknown) {
     try {
       // Solo se envía lo permitido: el correo nunca arrastra el cuerpo de la
       // petición ni cabeceras de autenticación.

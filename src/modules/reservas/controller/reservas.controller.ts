@@ -64,32 +64,29 @@ import { Roles } from '../../../auth/roles/roles.decorator';
 
 import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
 
-interface RequestConUsuario {
+/** Petición con información de sesión de personal administrativo o barbero. */
+export interface RequestConUsuario {
   user?: Partial<ClaimsSesionPersonal>;
 }
 
 /** Petición con la identidad de cliente que publica el guard de cliente. */
-interface PeticionConCliente {
+export interface PeticionConCliente {
   cliente?: { clienteId: number };
 }
 
 /** Petición con la identidad del personal autenticado (rol e id del token). */
-interface PeticionPersonal {
+export interface PeticionPersonal {
   user?: { id?: number; sub?: string; rol?: string; roles?: string[] };
 }
 
 /**
- * Endpoints de reservas de HE-04.
+ * Controlador del Motor de Reservas y Gestión de Citas.
  *
- * - `POST /reservas`: creación en las dos modalidades de D-01 (invitado sin
- *   token; cliente autenticado con token de cliente).
- * - `GET /reservas/me`: reservas propias (HU-06), próximas primero.
- * - `GET /reservas/me/:reservaId`: detalle de una reserva propia (HU-07).
- * - `GET /reservas/barbero/me`: agenda de reservas del barbero autenticado.
- *
- * Las rutas `/me` exigen un token de CLIENTE; el `clienteId` se toma del token
- * verificado, nunca de parámetros del frontend. La ruta `/barbero/me` exige
- * token de personal con rol BARBERO.
+ * @remarks
+ * Orquesta los dos flujos fundamentales de agendamiento:
+ * 1. **Público / Clientes** (`/reservas`): Modalidad A (invitado con contacto) y Modalidad B (cliente autenticado federado con Google).
+ * 2. **Administración y Colaboradores** (`/reservas/admin`, `/reservas/barbero`): Agendamiento manual, listado con filtros multicriterio,
+ *    reasignaciones, cancelaciones, transiciones de estado (`COMPLETED`, `NO_SHOW`) y consulta de agendas individuales o semanales.
  */
 @ApiTags('reservas')
 @Controller('reservas')

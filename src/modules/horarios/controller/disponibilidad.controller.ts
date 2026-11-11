@@ -56,6 +56,15 @@ export class DisponibilidadController {
     description:
       'La verificación de reservas activas (HE-04) no está integrada; la consulta se rechaza para no anunciar franjas potencialmente ocupadas.',
   })
+  /**
+   * Consulta pública de franjas horarias disponibles para reserva de un barbero.
+   *
+   * @param barberoId - Identificador numérico del barbero (`Barbero.id`).
+   * @param query - Parámetros de consulta (servicioId, fecha en formato YYYY-MM-DD).
+   * @returns Listado de franjas de inicio de cita disponibles (`DisponibilidadPublicaResponseDto`).
+   * @throws {NotFoundException} Si el barbero o servicio no existen o están inactivos.
+   * @throws {BadRequestException} Si la fecha o el servicio son inválidos.
+   */
   async consultarDisponibilidadPublica(
     @Param('barberoId', ParseIntPipe) barberoId: number,
     @Query() consulta: ConsultaDisponibilidadDto,
