@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -18,6 +19,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -28,6 +30,7 @@ import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { ActualizarDescuentoDto } from '../dto/dto-peticion/actualizar-descuento.dto';
 import { CambiarEstadoDescuentoDto } from '../dto/dto-peticion/cambiar-estado-descuento.dto';
 import { CrearDescuentoDto } from '../dto/dto-peticion/crear-descuento.dto';
+import { DescuentoAplicableResponseDto } from '../dto/dto-respuesta/descuento-aplicable-response.dto';
 import {
   DescuentoActualizadoResponseDto,
   DescuentoCreadoResponseDto,
@@ -71,6 +74,98 @@ export class DescuentosController {
   })
   listar(): Promise<ListaDescuentosResponseDto> {
     return this.facade.listar();
+  }
+
+  /**
+   * GET /descuentos/aplicable/producto/:productoId
+   * Evalúa el descuento aplicable a un producto en el momento actual (HE-10-HU-05).
+   * Determina el día actual en la zona horaria oficial del negocio y calcula el precio final.
+   * Endpoint de consulta pública del tenant para catálogo y compras.
+   */
+  @Get('aplicable/producto/:productoId')
+  @HttpCode(HttpStatus.OK)
+  @ApiNegocioHeader()
+  @ApiOperation({
+    summary: 'Visualizar descuento aplicable a un producto (HE-10-HU-05)',
+    description:
+      'Evalúa si el producto tiene un descuento activo y aplicable para el día de hoy según la zona horaria del negocio. Devuelve precio original, porcentaje y precio final redondeado. Un producto inexistente o de otro negocio responde 404.',
+  })
+  @ApiParam({
+    name: 'productoId',
+    example: 1,
+    description: 'ID del producto a evaluar',
+  })
+  @ApiOkResponse({
+    description: 'Evaluación del descuento aplicable al producto',
+    type: DescuentoAplicableResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'El identificador del producto no es un entero positivo',
+  })
+  @ApiNotFoundResponse({
+    description: 'El producto no se encuentra disponible en este negocio',
+  })
+  evaluarProducto(
+    @Param('productoId', ParseIntPipe) productoId: number,
+  ): Promise<DescuentoAplicableResponseDto> {
+    if (productoId <= 0) {
+      throw new BadRequestException(
+        'El identificador del producto debe ser un entero positivo',
+      );
+    }
+
+    return this.facade.evaluarDescuentoProducto(productoId);
+  }
+
+  /**
+   * GET /descuentos/aplicable/servicio/:servicioId
+   * Evalúa el descuento aplicable a un servicio para una fecha de cita (HE-10-HU-05).
+   * Si se omite la fecha, devuelve el precio base y condiciones registradas sin precio final (CA-08).
+   * Endpoint de consulta pública del tenant para catálogo y reservas.
+   */
+  @Get('aplicable/servicio/:servicioId')
+  @HttpCode(HttpStatus.OK)
+  @ApiNegocioHeader()
+  @ApiOperation({
+    summary: 'Visualizar descuento aplicable a un servicio (HE-10-HU-05)',
+    description:
+      'Evalúa si el servicio tiene un descuento activo y aplicable para la fecha de cita indicada (?fecha=YYYY-MM-DD). Si no se envía fecha, responde precio base y condiciones sin precio promocional final. Un servicio inexistente o de otro negocio responde 404.',
+  })
+  @ApiParam({
+    name: 'servicioId',
+    example: 1,
+    description: 'ID del servicio a evaluar',
+  })
+  @ApiQuery({
+    name: 'fecha',
+    required: false,
+    example: '2026-11-13',
+    description: 'Fecha de la cita (YYYY-MM-DD) para evaluar aplicabilidad',
+  })
+  @ApiOkResponse({
+    description: 'Evaluación del descuento aplicable al servicio',
+    type: DescuentoAplicableResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Identificador inválido o formato de fecha no válido (YYYY-MM-DD)',
+  })
+  @ApiNotFoundResponse({
+    description: 'El servicio no se encuentra disponible en este negocio',
+  })
+  evaluarServicio(
+    @Param('servicioId', ParseIntPipe) servicioId: number,
+    @Query('fecha') fecha?: string,
+  ): Promise<DescuentoAplicableResponseDto> {
+    if (servicioId <= 0) {
+      throw new BadRequestException(
+        'El identificador del servicio debe ser un entero positivo',
+      );
+    }
+
+    return this.facade.evaluarDescuentoServicio(servicioId, fecha);
   }
 
   /**

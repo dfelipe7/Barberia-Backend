@@ -66,6 +66,20 @@ export class DescuentoRepository {
     });
   }
 
+  /**
+   * Obtiene la zona horaria oficial configurada para el negocio (HE-10-HU-05).
+   * @param negocioId - Identificador del negocio
+   * @returns Nombre IANA de la zona horaria (ej. 'America/Bogota')
+   */
+  async obtenerZonaHorariaNegocio(negocioId: number): Promise<string> {
+    const negocio = await this.prisma.negocio.findUnique({
+      where: { id: negocioId },
+      select: { zonaHoraria: true },
+    });
+
+    return negocio?.zonaHoraria ?? 'America/Bogota';
+  }
+
   async crear(data: DatosDescuento): Promise<Descuento> {
     try {
       return await this.prisma.descuento.create({

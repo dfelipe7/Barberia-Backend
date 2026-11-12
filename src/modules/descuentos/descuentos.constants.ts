@@ -19,6 +19,10 @@ export const MENSAJE_DESCUENTO_DUPLICADO =
   'Ya existe un descuento configurado para este elemento. Modifique el descuento existente.';
 export const MENSAJE_ELEMENTO_NO_DISPONIBLE =
   'El producto o servicio no está disponible en este negocio';
+export const MENSAJE_PRODUCTO_NO_DISPONIBLE =
+  'El producto no se encuentra disponible en este negocio';
+export const MENSAJE_SERVICIO_NO_DISPONIBLE =
+  'El servicio no se encuentra disponible en este negocio';
 export const MENSAJE_PORCENTAJE_INVALIDO =
   'El porcentaje debe ser un número entre 1 y 99 con máximo dos decimales';
 export const MENSAJE_DIAS_REQUERIDOS =
@@ -28,6 +32,19 @@ export const MENSAJE_DESCUENTOS_LISTADOS =
   'Descuentos consultados correctamente';
 export const MENSAJE_SIN_DESCUENTOS =
   'No hay descuentos configurados para este negocio';
+
+// Constantes de evaluación de descuentos aplicables (HE-10-HU-05)
+export const MENSAJE_DESCUENTO_APLICABLE =
+  'Descuento aplicable para el día evaluado';
+export const MENSAJE_DESCUENTO_NO_APLICABLE_DIA =
+  'El descuento no aplica para el día seleccionado';
+export const MENSAJE_DESCUENTO_INACTIVO = 'El descuento no se encuentra activo';
+export const MENSAJE_SIN_DESCUENTO_CONFIGURADO =
+  'No hay descuento configurado para este elemento';
+export const MENSAJE_SERVICIO_FECHA_REQUERIDA =
+  'Indique la fecha de la cita para calcular el precio con descuento';
+export const MENSAJE_FORMATO_FECHA_INVALIDO =
+  'El formato de fecha debe ser YYYY-MM-DD y corresponder a una fecha válida';
 
 /** Orden canónico para normalizar `diasSemana` en las respuestas. */
 export const DIAS_SEMANA_ORDEN: WeekDay[] = [

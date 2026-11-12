@@ -10,6 +10,8 @@ describe('DescuentosController', () => {
     actualizar: jest.fn(),
     cambiarEstado: jest.fn(),
     listar: jest.fn(),
+    evaluarDescuentoProducto: jest.fn(),
+    evaluarDescuentoServicio: jest.fn(),
   };
   const controller = new DescuentosController(
     facade as unknown as DescuentosFacade,
@@ -17,6 +19,63 @@ describe('DescuentosController', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('HE-10-HU-05 — evaluación de descuentos aplicables', () => {
+    it('evaluarProducto: delega en la fachada y devuelve el resultado', async () => {
+      const respuesta = {
+        tipo: TipoDescuento.PRODUCTO,
+        elementoId: 10,
+        nombreElemento: 'Cera',
+        aplica: true,
+        diaEvaluado: WeekDay.MONDAY,
+        zonaHoraria: 'America/Bogota',
+        porcentajeAplicado: 10,
+        precioOriginal: 100,
+        precioFinal: 90,
+        descuento: null,
+        mensaje: 'Descuento aplicable para el día evaluado',
+      };
+      facade.evaluarDescuentoProducto.mockResolvedValue(respuesta);
+
+      await expect(controller.evaluarProducto(10)).resolves.toBe(respuesta);
+      expect(facade.evaluarDescuentoProducto).toHaveBeenCalledWith(10);
+    });
+
+    it('evaluarProducto: rechaza id menor o igual a 0 con BadRequestException', () => {
+      expect(() => controller.evaluarProducto(0)).toThrow(BadRequestException);
+      expect(facade.evaluarDescuentoProducto).not.toHaveBeenCalled();
+    });
+
+    it('evaluarServicio: delega en la fachada con o sin fecha', async () => {
+      const respuesta = {
+        tipo: TipoDescuento.SERVICIO,
+        elementoId: 20,
+        nombreElemento: 'Corte',
+        aplica: false,
+        diaEvaluado: null,
+        zonaHoraria: 'America/Bogota',
+        porcentajeAplicado: null,
+        precioOriginal: 25000,
+        precioFinal: null,
+        descuento: null,
+        mensaje: 'Indique la fecha de la cita para calcular el precio',
+      };
+      facade.evaluarDescuentoServicio.mockResolvedValue(respuesta);
+
+      await expect(controller.evaluarServicio(20, '2026-11-13')).resolves.toBe(
+        respuesta,
+      );
+      expect(facade.evaluarDescuentoServicio).toHaveBeenCalledWith(
+        20,
+        '2026-11-13',
+      );
+    });
+
+    it('evaluarServicio: rechaza id menor o igual a 0 con BadRequestException', () => {
+      expect(() => controller.evaluarServicio(-1)).toThrow(BadRequestException);
+      expect(facade.evaluarDescuentoServicio).not.toHaveBeenCalled();
+    });
   });
 
   it('HE-10-HU-01-CA-01: delega la consulta de lista en la fachada sin reglas de negocio', async () => {

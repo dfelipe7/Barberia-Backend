@@ -317,10 +317,25 @@ Reglas del catálogo público:
 | Método | Ruta | Auth | Rol | Cuerpo / Query | Respuesta |
 |--------|------|------|-----|----------------|-----------|
 | GET | `/descuentos` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | — | `200` `ListaDescuentosResponseDto` |
+| GET | `/descuentos/aplicable/producto/:productoId` | — (Público de tenant) | Todos | — | `200` `DescuentoAplicableResponseDto` |
+| GET | `/descuentos/aplicable/servicio/:servicioId` | — (Público de tenant) | Todos | Query: `fecha` (`YYYY-MM-DD`, opcional) | `200` `DescuentoAplicableResponseDto` |
 | POST | `/descuentos` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `CrearDescuentoDto` | `201` `DescuentoCreadoResponseDto` |
 | GET | `/descuentos/:descuentoId` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | — | `200` `DescuentoResponseDto` |
 | PATCH | `/descuentos/:descuentoId` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `ActualizarDescuentoDto` | `200` `DescuentoActualizadoResponseDto` |
 | PATCH | `/descuentos/:descuentoId/estado` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `CambiarEstadoDescuentoDto` | `200` `DescuentoEstadoResponseDto` |
+
+Reglas de visualización de descuento aplicable (HE-10-HU-05):
+
+- **Consulta pública orientada a clientes y catálogo**: permite evaluar si un producto o servicio cuenta con un descuento aplicable para calcular el precio final antes de confirmar la compra o reserva. No exige token JWT; el tenant se resuelve del contexto autorizado (`X-Negocio-Slug` o subdominio).
+- **Indicador visible y precio final (CA-01, CA-02, CA-05)**: cuando existe un descuento con `activo: true` y el día evaluado coincide con los `diasSemana` configurados, responde `aplica: true`, `porcentajeAplicado: number`, `precioOriginal: number` y `precioFinal: number` calculado mediante `precioOriginal * (1 - porcentaje / 100)` con redondeo a dos decimales.
+- **Día no aplicable y descuento inactivo (CA-03, CA-04)**: si el descuento está inactivo o el día no coincide con los días configurados, responde `aplica: false`, `porcentajeAplicado: null` y `precioFinal: precioOriginal` (precio completo, sin indicador de descuento).
+- **Distinción entre estado registrado y aplicabilidad (CA-06)**: el objeto `descuento` expone la configuración registrada (`{ id, activo, porcentaje, diasSemana }`) para consulta de condiciones, independientemente de si el descuento aplica o no para la fecha/día puntual evaluado.
+- **Zona horaria oficial del tenant (CA-07)**:
+  - Para **productos**: se evalúa contra la fecha y día actual en la `zonaHoraria` oficial del negocio (ej. `America/Bogota`), nunca UTC ni la hora del cliente/servidor host.
+  - Para **servicios**: se evalúa contra la fecha de la cita (`?fecha=YYYY-MM-DD`) interpretada en la `zonaHoraria` del negocio.
+- **Servicio sin fecha de cita (CA-08)**: si la consulta de un servicio omite el parámetro `fecha`, devuelve `aplica: false`, `diaEvaluado: null`, `porcentajeAplicado: null`, `precioOriginal: number`, `precioFinal: null` y expone las condiciones en `descuento` para que el cliente conozca los días promocionales antes de elegir fecha.
+- **Criterios de integración con reservas (CA-09 a CA-13 / INT-RES)**: la validación en servidor al confirmar reserva, el snapshot de precio en base de datos, la conservación del acuerdo pactado y la reevaluación en reprogramaciones corresponden a la integración posterior con `HE-04-HU-12` (declarados PENDIENTES de integración con reservas).
+- **Aislamiento y errores**: recursos inexistentes, inactivos comercialmente o de otro negocio responden **404 Not Found** (`MENSAJE_PRODUCTO_NO_DISPONIBLE` / `MENSAJE_SERVICIO_NO_DISPONIBLE`). Fechas con formato inválido responden **400 Bad Request**.
 
 Reglas de consulta de listado (HE-10-HU-01):
 

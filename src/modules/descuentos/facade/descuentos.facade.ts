@@ -11,6 +11,7 @@ import {
 import { ActualizarDescuentoDto } from '../dto/dto-peticion/actualizar-descuento.dto';
 import { CambiarEstadoDescuentoDto } from '../dto/dto-peticion/cambiar-estado-descuento.dto';
 import { CrearDescuentoDto } from '../dto/dto-peticion/crear-descuento.dto';
+import { DescuentoAplicableResponseDto } from '../dto/dto-respuesta/descuento-aplicable-response.dto';
 import {
   DescuentoActualizadoResponseDto,
   DescuentoCreadoResponseDto,
@@ -18,6 +19,7 @@ import {
   DescuentoResponseDto,
   ListaDescuentosResponseDto,
 } from '../dto/dto-respuesta/descuento-response.dto';
+import { DescuentoEvaluadorService } from '../service/descuento-evaluador.service';
 import { DescuentoService } from '../service/descuento.service';
 
 /** Punto único de entrada del módulo de descuentos. */
@@ -25,6 +27,7 @@ import { DescuentoService } from '../service/descuento.service';
 export class DescuentosFacade {
   constructor(
     private readonly descuentoService: DescuentoService,
+    private readonly descuentoEvaluadorService: DescuentoEvaluadorService,
     private readonly aislamiento: NegocioAislamientoService,
   ) {}
 
@@ -38,6 +41,27 @@ export class DescuentosFacade {
         : MENSAJE_SIN_DESCUENTOS;
 
     return { mensaje, descuentos, total: descuentos.length };
+  }
+
+  /**
+   * Evalúa el descuento aplicable a un producto en el momento actual (HE-10-HU-05).
+   */
+  async evaluarDescuentoProducto(
+    productoId: number,
+  ): Promise<DescuentoAplicableResponseDto> {
+    this.aislamiento.negocioIdRequerido();
+    return this.descuentoEvaluadorService.evaluarProducto(productoId);
+  }
+
+  /**
+   * Evalúa el descuento aplicable a un servicio para una fecha dada (HE-10-HU-05).
+   */
+  async evaluarDescuentoServicio(
+    servicioId: number,
+    fecha?: string,
+  ): Promise<DescuentoAplicableResponseDto> {
+    this.aislamiento.negocioIdRequerido();
+    return this.descuentoEvaluadorService.evaluarServicio(servicioId, fecha);
   }
 
   async crear(dto: CrearDescuentoDto): Promise<DescuentoCreadoResponseDto> {

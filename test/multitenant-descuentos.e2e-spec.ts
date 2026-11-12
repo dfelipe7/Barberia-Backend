@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+﻿import { execFileSync } from 'node:child_process';
 import * as path from 'node:path';
 import {
   INestApplication,
@@ -36,6 +36,25 @@ const SLUG_B = 'descuentos-negocio-b';
 
 interface SesionEmitida {
   accessToken?: string;
+}
+
+interface DescuentoAplicableCuerpo {
+  tipo: TipoDescuento;
+  elementoId: number;
+  nombreElemento: string;
+  aplica: boolean;
+  diaEvaluado: WeekDay | null;
+  zonaHoraria: string;
+  porcentajeAplicado: number | null;
+  precioOriginal: number;
+  precioFinal: number | null;
+  descuento: {
+    id: number;
+    activo: boolean;
+    porcentaje: number;
+    diasSemana: WeekDay[];
+  } | null;
+  mensaje: string;
 }
 
 interface ListaDescuentosCuerpo {
@@ -941,6 +960,28 @@ describe('Descuentos: modificar descuento existente (HE-10-HU-03 — MySQL 8.0 r
     return peticion.send();
   };
 
+  /** GET /descuentos/aplicable/producto/:id */
+  const evaluarProducto = (slug: string, productoId: number) => {
+    return request(app.getHttpServer())
+      .get(`/descuentos/aplicable/producto/${productoId}`)
+      .set('X-Negocio-Slug', slug)
+      .send();
+  };
+
+  /** GET /descuentos/aplicable/servicio/:id */
+  const evaluarServicio = (
+    slug: string,
+    servicioId: number,
+    fecha?: string,
+  ) => {
+    let ruta = `/descuentos/aplicable/servicio/${servicioId}`;
+    if (fecha) ruta += `?fecha=${fecha}`;
+    return request(app.getHttpServer())
+      .get(ruta)
+      .set('X-Negocio-Slug', slug)
+      .send();
+  };
+
   // -------------------------------------------------------------------------
   // HE-10-HU-03-CA-01 — Carga de configuración
   // -------------------------------------------------------------------------
@@ -1542,6 +1583,156 @@ describe('Descuentos: modificar descuento existente (HE-10-HU-03 — MySQL 8.0 r
       expect(superadminResp.status).toBe(200);
       const datosSuper = cuerpo<ListaDescuentosCuerpo>(superadminResp);
       expect(datosSuper.total).toBe(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // HE-10-HU-05 � Visualizar el descuento aplicable en productos y servicios
+  // -------------------------------------------------------------------------
+  describe('HE-10-HU-05 � Visualizar el descuento aplicable en productos y servicios', () => {
+    it('HE-10-HU-05-CA-01 / CA-02 / CA-05: producto con descuento activo aplica en el d�a configurado con c�lculo verificable', async () => {
+      const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.PRODUCTO,
+        elementoId: productoA.id,
+        porcentaje: 10,
+        diasSemana: [
+          WeekDay.MONDAY,
+          WeekDay.TUESDAY,
+          WeekDay.WEDNESDAY,
+          WeekDay.THURSDAY,
+          WeekDay.FRIDAY,
+          WeekDay.SATURDAY,
+          WeekDay.SUNDAY,
+        ],
+      });
+      expect(creado.status).toBe(201);
+      const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+      await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, { activo: true });
+
+      const resp = await evaluarProducto(SLUG_HU03_A, productoA.id);
+      expect(resp.status).toBe(200);
+
+      const datos = cuerpo<DescuentoAplicableCuerpo>(resp);
+      expect(datos.aplica).toBe(true);
+      expect(datos.porcentajeAplicado).toBe(10);
+      expect(datos.precioOriginal).toBe(Number(productoA.precio));
+      const esperado = Math.round(Number(productoA.precio) * 0.9 * 100) / 100;
+      expect(datos.precioFinal).toBe(esperado);
+      expect(datos.descuento?.activo).toBe(true);
+    });
+
+    it('HE-10-HU-05-CA-03: servicio en d�a no coincidente mantiene precio original sin descuento aplicado', async () => {
+      const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.SERVICIO,
+        elementoId: servicioA.id,
+        porcentaje: 20,
+        diasSemana: [WeekDay.FRIDAY],
+      });
+      const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+      await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, { activo: true });
+
+      // 2026-11-14 es s�bado (SATURDAY)
+      const resp = await evaluarServicio(
+        SLUG_HU03_A,
+        servicioA.id,
+        '2026-11-14',
+      );
+      expect(resp.status).toBe(200);
+
+      const datos = cuerpo<DescuentoAplicableCuerpo>(resp);
+      expect(datos.aplica).toBe(false);
+      expect(datos.diaEvaluado).toBe(WeekDay.SATURDAY);
+      expect(datos.porcentajeAplicado).toBeNull();
+      expect(datos.precioFinal).toBe(Number(servicioA.precio));
+      expect(datos.descuento?.activo).toBe(true);
+    });
+
+    it('HE-10-HU-05-CA-04: descuento inactivo no aplica y devuelve precio original', async () => {
+      await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.PRODUCTO,
+        elementoId: productoA.id,
+        porcentaje: 25,
+        diasSemana: [
+          WeekDay.MONDAY,
+          WeekDay.TUESDAY,
+          WeekDay.WEDNESDAY,
+          WeekDay.THURSDAY,
+          WeekDay.FRIDAY,
+          WeekDay.SATURDAY,
+          WeekDay.SUNDAY,
+        ],
+      });
+
+      const resp = await evaluarProducto(SLUG_HU03_A, productoA.id);
+      expect(resp.status).toBe(200);
+
+      const datos = cuerpo<DescuentoAplicableCuerpo>(resp);
+      expect(datos.aplica).toBe(false);
+      expect(datos.porcentajeAplicado).toBeNull();
+      expect(datos.precioFinal).toBe(Number(productoA.precio));
+      expect(datos.descuento?.activo).toBe(false);
+    });
+
+    it('HE-10-HU-05-CA-07: servicio con fecha de cita v�lida en zona horaria aplica descuento', async () => {
+      const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.SERVICIO,
+        elementoId: servicioA.id,
+        porcentaje: 15,
+        diasSemana: [WeekDay.FRIDAY],
+      });
+      const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+      await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, { activo: true });
+
+      // 2026-11-13 es viernes (FRIDAY)
+      const resp = await evaluarServicio(
+        SLUG_HU03_A,
+        servicioA.id,
+        '2026-11-13',
+      );
+      expect(resp.status).toBe(200);
+
+      const datos = cuerpo<DescuentoAplicableCuerpo>(resp);
+      expect(datos.aplica).toBe(true);
+      expect(datos.diaEvaluado).toBe(WeekDay.FRIDAY);
+      expect(datos.porcentajeAplicado).toBe(15);
+      const precioBase = Number(servicioA.precio);
+      expect(datos.precioFinal).toBe(Math.round(precioBase * 0.85 * 100) / 100);
+    });
+
+    it('HE-10-HU-05-CA-08: servicio sin fecha devuelve precio original y condiciones sin precio final', async () => {
+      const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.SERVICIO,
+        elementoId: servicioA.id,
+        porcentaje: 30,
+        diasSemana: [WeekDay.MONDAY, WeekDay.FRIDAY],
+      });
+      const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+      await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, { activo: true });
+
+      const resp = await evaluarServicio(SLUG_HU03_A, servicioA.id);
+      expect(resp.status).toBe(200);
+
+      const datos = cuerpo<DescuentoAplicableCuerpo>(resp);
+      expect(datos.aplica).toBe(false);
+      expect(datos.diaEvaluado).toBeNull();
+      expect(datos.porcentajeAplicado).toBeNull();
+      expect(datos.precioFinal).toBeNull();
+      expect(datos.precioOriginal).toBe(Number(servicioA.precio));
+      expect(datos.descuento?.porcentaje).toBe(30);
+    });
+
+    it('aislamiento multitenant: producto de negocio A consultado con slug de negocio B responde 404', async () => {
+      const resp = await evaluarProducto(SLUG_HU03_B, productoA.id);
+      expect(resp.status).toBe(404);
+    });
+
+    it('fecha de servicio con formato inv�lido responde 400', async () => {
+      const resp = await evaluarServicio(
+        SLUG_HU03_A,
+        servicioA.id,
+        '13/11/2026',
+      );
+      expect(resp.status).toBe(400);
     });
   });
 });

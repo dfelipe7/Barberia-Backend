@@ -5,11 +5,18 @@ import { ServiciosModule } from '../servicios/servicios.module';
 import { DescuentosController } from './controller/descuentos.controller';
 import { DescuentosFacade } from './facade/descuentos.facade';
 import { DescuentoRepository } from './repository/descuento.repository';
+import { DescuentoEvaluadorService } from './service/descuento-evaluador.service';
 import { DescuentoService } from './service/descuento.service';
 
 @Module({
   imports: [AuthModule, ProductosModule, ServiciosModule],
   controllers: [DescuentosController],
-  providers: [DescuentosFacade, DescuentoService, DescuentoRepository],
+  providers: [
+    DescuentosFacade,
+    DescuentoService,
+    DescuentoEvaluadorService,
+    DescuentoRepository,
+  ],
+  exports: [DescuentoEvaluadorService, DescuentoService, DescuentoRepository],
 })
 export class DescuentosModule {}

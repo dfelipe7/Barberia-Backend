@@ -4,6 +4,7 @@ import {
   MENSAJE_DESCUENTOS_LISTADOS,
   MENSAJE_SIN_DESCUENTOS,
 } from '../descuentos.constants';
+import { DescuentoEvaluadorService } from '../service/descuento-evaluador.service';
 import { DescuentoService } from '../service/descuento.service';
 import { DescuentosFacade } from './descuentos.facade';
 
@@ -15,9 +16,14 @@ describe('DescuentosFacade', () => {
     cambiarEstado: jest.fn(),
     listar: jest.fn(),
   };
+  const descuentoEvaluadorService = {
+    evaluarProducto: jest.fn(),
+    evaluarServicio: jest.fn(),
+  };
   const aislamiento = { negocioIdRequerido: jest.fn() };
   const facade = new DescuentosFacade(
     descuentoService as unknown as DescuentoService,
+    descuentoEvaluadorService as unknown as DescuentoEvaluadorService,
     aislamiento as unknown as NegocioAislamientoService,
   );
 
@@ -36,6 +42,59 @@ describe('DescuentosFacade', () => {
     descuentoService.obtenerPorId.mockResolvedValue(descuento);
     descuentoService.actualizar.mockResolvedValue(descuento);
     descuentoService.listar.mockResolvedValue([descuento]);
+  });
+
+  describe('HE-10-HU-05 — evaluación de descuentos aplicables', () => {
+    it('exige contexto de negocio y delega evaluación de producto', async () => {
+      const respuesta = {
+        tipo: TipoDescuento.PRODUCTO,
+        elementoId: 10,
+        nombreElemento: 'Cera',
+        aplica: true,
+        diaEvaluado: WeekDay.MONDAY,
+        zonaHoraria: 'America/Bogota',
+        porcentajeAplicado: 10,
+        precioOriginal: 100,
+        precioFinal: 90,
+        descuento: null,
+        mensaje: 'Descuento aplicable para el día evaluado',
+      };
+      descuentoEvaluadorService.evaluarProducto.mockResolvedValue(respuesta);
+
+      const res = await facade.evaluarDescuentoProducto(10);
+
+      expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
+      expect(descuentoEvaluadorService.evaluarProducto).toHaveBeenCalledWith(
+        10,
+      );
+      expect(res).toBe(respuesta);
+    });
+
+    it('exige contexto de negocio y delega evaluación de servicio', async () => {
+      const respuesta = {
+        tipo: TipoDescuento.SERVICIO,
+        elementoId: 20,
+        nombreElemento: 'Corte',
+        aplica: true,
+        diaEvaluado: WeekDay.FRIDAY,
+        zonaHoraria: 'America/Bogota',
+        porcentajeAplicado: 20,
+        precioOriginal: 25000,
+        precioFinal: 20000,
+        descuento: null,
+        mensaje: 'Descuento aplicable para el día evaluado',
+      };
+      descuentoEvaluadorService.evaluarServicio.mockResolvedValue(respuesta);
+
+      const res = await facade.evaluarDescuentoServicio(20, '2026-11-13');
+
+      expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
+      expect(descuentoEvaluadorService.evaluarServicio).toHaveBeenCalledWith(
+        20,
+        '2026-11-13',
+      );
+      expect(res).toBe(respuesta);
+    });
   });
 
   describe('HE-10-HU-01 — listar', () => {
