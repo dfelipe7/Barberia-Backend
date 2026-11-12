@@ -1,5 +1,9 @@
 import { TipoDescuento, WeekDay } from '../../../../generated/prisma/enums';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
+import {
+  MENSAJE_DESCUENTOS_LISTADOS,
+  MENSAJE_SIN_DESCUENTOS,
+} from '../descuentos.constants';
 import { DescuentoService } from '../service/descuento.service';
 import { DescuentosFacade } from './descuentos.facade';
 
@@ -9,6 +13,7 @@ describe('DescuentosFacade', () => {
     obtenerPorId: jest.fn(),
     actualizar: jest.fn(),
     cambiarEstado: jest.fn(),
+    listar: jest.fn(),
   };
   const aislamiento = { negocioIdRequerido: jest.fn() };
   const facade = new DescuentosFacade(
@@ -30,6 +35,35 @@ describe('DescuentosFacade', () => {
     descuentoService.crear.mockResolvedValue(descuento);
     descuentoService.obtenerPorId.mockResolvedValue(descuento);
     descuentoService.actualizar.mockResolvedValue(descuento);
+    descuentoService.listar.mockResolvedValue([descuento]);
+  });
+
+  describe('HE-10-HU-01 — listar', () => {
+    it('CA-01: exige contexto de negocio y devuelve lista de descuentos con mensaje y total', async () => {
+      const resultado = await facade.listar();
+
+      expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
+      expect(descuentoService.listar).toHaveBeenCalled();
+      expect(resultado).toEqual({
+        mensaje: MENSAJE_DESCUENTOS_LISTADOS,
+        descuentos: [descuento],
+        total: 1,
+      });
+    });
+
+    it('CA-03: devuelve mensaje descriptivo y total 0 cuando la lista está vacía', async () => {
+      descuentoService.listar.mockResolvedValue([]);
+
+      const resultado = await facade.listar();
+
+      expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
+      expect(descuentoService.listar).toHaveBeenCalled();
+      expect(resultado).toEqual({
+        mensaje: MENSAJE_SIN_DESCUENTOS,
+        descuentos: [],
+        total: 0,
+      });
+    });
   });
 
   it('exige contexto de negocio y delega la creación en el servicio', async () => {

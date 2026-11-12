@@ -33,6 +33,7 @@ import {
   DescuentoCreadoResponseDto,
   DescuentoEstadoResponseDto,
   DescuentoResponseDto,
+  ListaDescuentosResponseDto,
 } from '../dto/dto-respuesta/descuento-response.dto';
 import { DescuentosFacade } from '../facade/descuentos.facade';
 
@@ -40,6 +41,37 @@ import { DescuentosFacade } from '../facade/descuentos.facade';
 @Controller('descuentos')
 export class DescuentosController {
   constructor(private readonly facade: DescuentosFacade) {}
+
+  /**
+   * GET /descuentos
+   * Lista todos los descuentos configurados en el negocio activo (HE-10-HU-01).
+   * Solo SUPERADMIN y ADMINISTRADOR del negocio pueden consultar.
+   * Lista vacía responde 200 con array vacío y mensaje descriptivo.
+   */
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiNegocioHeader()
+  @ApiOperation({
+    summary:
+      'Consultar los descuentos configurados (SUPERADMIN / ADMINISTRADOR)',
+    description:
+      'Devuelve la lista de descuentos registrados en el negocio activo, incluyendo tipo, porcentaje, días aplicables, estado y el elemento (producto o servicio) asociado. Una lista vacía responde 200 con array vacío y mensaje descriptivo sin error técnico.',
+  })
+  @ApiOkResponse({
+    description: 'Lista de descuentos configurados',
+    type: ListaDescuentosResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
+  @ApiResponse({
+    status: 403,
+    description: 'No autorizado (solo SUPERADMIN o ADMINISTRADOR del negocio)',
+  })
+  listar(): Promise<ListaDescuentosResponseDto> {
+    return this.facade.listar();
+  }
 
   /**
    * GET /descuentos/:descuentoId

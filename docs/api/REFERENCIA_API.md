@@ -316,10 +316,19 @@ Reglas del catálogo público:
 
 | Método | Ruta | Auth | Rol | Cuerpo / Query | Respuesta |
 |--------|------|------|-----|----------------|-----------|
+| GET | `/descuentos` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | — | `200` `ListaDescuentosResponseDto` |
 | POST | `/descuentos` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `CrearDescuentoDto` | `201` `DescuentoCreadoResponseDto` |
 | GET | `/descuentos/:descuentoId` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | — | `200` `DescuentoResponseDto` |
 | PATCH | `/descuentos/:descuentoId` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `ActualizarDescuentoDto` | `200` `DescuentoActualizadoResponseDto` |
 | PATCH | `/descuentos/:descuentoId/estado` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `CambiarEstadoDescuentoDto` | `200` `DescuentoEstadoResponseDto` |
+
+Reglas de consulta de listado (HE-10-HU-01):
+
+- **Listado general (`GET /descuentos`)**: devuelve todos los descuentos configurados en el negocio activo del contexto autenticado.
+- Cada elemento incluye: `id`, `tipo` (`PRODUCTO` o `SERVICIO`), `porcentaje`, `diasSemana` (orden canónico), `activo` (estado registrado) y `elemento` (`id` y `nombre`).
+- **Diferenciación del elemento**: el campo `tipo` discrimina explícitamente si se trata de un producto o de un servicio.
+- **Listado vacío**: si el negocio no tiene descuentos configurados, responde **200 OK** con `descuentos: []`, `total: 0` y mensaje descriptivo (`"No hay descuentos configurados para este negocio"`), sin generar error técnico ni 404.
+- **Aislamiento y permisos**: sólo `ADMINISTRADOR` y `SUPERADMIN` del negocio tienen acceso; `BARBERO` recibe **403 Forbidden** y peticiones sin token reciben **401 Unauthorized**. Las consultas quedan acotadas por tenant desde la base de datos (un administrador de otro negocio solo ve sus propios descuentos).
 
 Reglas de creación (HE-10-HU-02):
 

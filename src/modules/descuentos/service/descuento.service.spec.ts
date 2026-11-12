@@ -30,6 +30,7 @@ describe('DescuentoService', () => {
     obtenerPorId: jest.fn(),
     actualizar: jest.fn(),
     cambiarEstado: jest.fn(),
+    listar: jest.fn(),
   };
   const productoRepository = { obtenerPorId: jest.fn() };
   const serviciosRepository = { obtenerServicioPorId: jest.fn() };
@@ -322,6 +323,68 @@ describe('DescuentoService', () => {
         NotFoundException,
       );
       expect(descuentoRepository.cambiarEstado).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('HE-10-HU-01 — listar', () => {
+    const fila = {
+      id: 1,
+      negocioId: 7,
+      tipo: TipoDescuento.PRODUCTO,
+      productoId: 10,
+      servicioId: null,
+      porcentaje: 10.25,
+      diasSemana: [WeekDay.MONDAY],
+      activo: true,
+      creadoEn: new Date('2026-11-11T12:00:00.000Z'),
+      actualizadoEn: new Date('2026-11-11T12:00:00.000Z'),
+      producto: { id: 10, nombre: 'Cera' },
+      servicio: null,
+    };
+
+    beforeEach(() => {
+      descuentoRepository.listar = jest.fn();
+    });
+
+    it('CA-01/CA-02: mapea cada descuento con tipo, porcentaje, días, estado y elemento', async () => {
+      descuentoRepository.listar.mockResolvedValue([fila]);
+
+      const resultado = await service.listar();
+
+      expect(resultado).toHaveLength(1);
+      expect(resultado[0]).toMatchObject({
+        id: 1,
+        tipo: TipoDescuento.PRODUCTO,
+        porcentaje: 10.25,
+        diasSemana: [WeekDay.MONDAY],
+        activo: true,
+        elemento: { id: 10, nombre: 'Cera' },
+      });
+    });
+
+    it('CA-03: devuelve array vacío sin lanzar error cuando no hay descuentos', async () => {
+      descuentoRepository.listar.mockResolvedValue([]);
+
+      const resultado = await service.listar();
+
+      expect(resultado).toEqual([]);
+    });
+
+    it('CA-02: discrimina tipo SERVICIO usando el nombre del servicio', async () => {
+      const filaServicio = {
+        ...fila,
+        tipo: TipoDescuento.SERVICIO,
+        productoId: null,
+        servicioId: 20,
+        producto: null,
+        servicio: { id: 20, nombre: 'Corte' },
+      };
+      descuentoRepository.listar.mockResolvedValue([filaServicio]);
+
+      const resultado = await service.listar();
+
+      expect(resultado[0].tipo).toBe(TipoDescuento.SERVICIO);
+      expect(resultado[0].elemento).toEqual({ id: 20, nombre: 'Corte' });
     });
   });
 });

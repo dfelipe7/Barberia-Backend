@@ -24,6 +24,11 @@ export const MENSAJE_PORCENTAJE_INVALIDO =
 export const MENSAJE_DIAS_REQUERIDOS =
   'Debe seleccionar al menos un día de la semana válido';
 
+export const MENSAJE_DESCUENTOS_LISTADOS =
+  'Descuentos consultados correctamente';
+export const MENSAJE_SIN_DESCUENTOS =
+  'No hay descuentos configurados para este negocio';
+
 /** Orden canónico para normalizar `diasSemana` en las respuestas. */
 export const DIAS_SEMANA_ORDEN: WeekDay[] = [
   WeekDay.MONDAY,

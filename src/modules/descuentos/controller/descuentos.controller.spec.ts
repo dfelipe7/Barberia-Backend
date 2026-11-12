@@ -9,6 +9,7 @@ describe('DescuentosController', () => {
     obtenerPorId: jest.fn(),
     actualizar: jest.fn(),
     cambiarEstado: jest.fn(),
+    listar: jest.fn(),
   };
   const controller = new DescuentosController(
     facade as unknown as DescuentosFacade,
@@ -16,6 +17,18 @@ describe('DescuentosController', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('HE-10-HU-01-CA-01: delega la consulta de lista en la fachada sin reglas de negocio', async () => {
+    const respuesta = {
+      mensaje: 'Descuentos consultados correctamente',
+      descuentos: [],
+      total: 0,
+    };
+    facade.listar.mockResolvedValue(respuesta);
+
+    await expect(controller.listar()).resolves.toBe(respuesta);
+    expect(facade.listar).toHaveBeenCalledWith();
   });
 
   it('delega la creación en la fachada sin reglas de negocio', async () => {

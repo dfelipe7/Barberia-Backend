@@ -7,6 +7,7 @@ import { DescuentoRepository } from './descuento.repository';
 describe('DescuentoRepository', () => {
   const prisma = {
     descuento: {
+      findMany: jest.fn(),
       findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
@@ -24,6 +25,34 @@ describe('DescuentoRepository', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('HE-10-HU-01', () => {
+    it('CA-01: lista descuentos del negocio con relaciones ordenados por activo y creadoEn', async () => {
+      const fila = { id: 1, activo: true };
+      prisma.descuento.findMany.mockResolvedValue([fila]);
+
+      const resultado = await repository.listar();
+
+      expect(aislamiento.filtroLectura).toHaveBeenCalledWith({});
+      expect(prisma.descuento.findMany).toHaveBeenCalledWith({
+        where: { negocioId: 7 },
+        orderBy: [{ activo: 'desc' }, { creadoEn: 'asc' }],
+        include: {
+          producto: { select: { id: true, nombre: true } },
+          servicio: { select: { id: true, nombre: true } },
+        },
+      });
+      expect(resultado).toEqual([fila]);
+    });
+
+    it('CA-03: devuelve array vacío si el negocio no tiene descuentos', async () => {
+      prisma.descuento.findMany.mockResolvedValue([]);
+
+      const resultado = await repository.listar();
+
+      expect(resultado).toEqual([]);
+    });
   });
 
   it('HE-10-HU-03-CA-01: obtiene un descuento por id acotado al negocio con relaciones', async () => {

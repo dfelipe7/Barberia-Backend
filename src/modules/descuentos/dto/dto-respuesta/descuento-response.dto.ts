@@ -70,3 +70,15 @@ export class DescuentoEstadoResponseDto {
   @ApiProperty({ type: DescuentoResponseDto })
   descuento: DescuentoResponseDto;
 }
+
+/** Respuesta del listado de descuentos configurados (HE-10-HU-01). */
+export class ListaDescuentosResponseDto {
+  @ApiProperty({ example: 'Descuentos consultados correctamente' })
+  mensaje: string;
+
+  @ApiProperty({ type: [DescuentoResponseDto] })
+  descuentos: DescuentoResponseDto[];
+
+  @ApiProperty({ example: 2, description: 'Cantidad total de descuentos' })
+  total: number;
+}

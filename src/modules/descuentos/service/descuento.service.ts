@@ -52,6 +52,16 @@ export class DescuentoService {
     private readonly serviciosRepository: ServiciosRepository,
   ) {}
 
+  /** Devuelve la lista de descuentos del negocio activo (HE-10-HU-01). */
+  async listar(): Promise<DescuentoResponseDto[]> {
+    const descuentos = await this.descuentoRepository.listar();
+
+    return descuentos.map((d) => {
+      const nombre = d.producto?.nombre ?? d.servicio?.nombre ?? '';
+      return this.mapear(d, nombre);
+    });
+  }
+
   async crear(dto: CrearDescuentoDto): Promise<DescuentoResponseDto> {
     const diasSemana = this.normalizarDias(dto.diasSemana);
     this.validarPorcentaje(dto.porcentaje);

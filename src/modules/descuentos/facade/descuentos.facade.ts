@@ -5,6 +5,8 @@ import {
   MENSAJE_DESCUENTO_ACTUALIZADO,
   MENSAJE_DESCUENTO_CREADO,
   MENSAJE_DESCUENTO_DESACTIVADO,
+  MENSAJE_DESCUENTOS_LISTADOS,
+  MENSAJE_SIN_DESCUENTOS,
 } from '../descuentos.constants';
 import { ActualizarDescuentoDto } from '../dto/dto-peticion/actualizar-descuento.dto';
 import { CambiarEstadoDescuentoDto } from '../dto/dto-peticion/cambiar-estado-descuento.dto';
@@ -14,6 +16,7 @@ import {
   DescuentoCreadoResponseDto,
   DescuentoEstadoResponseDto,
   DescuentoResponseDto,
+  ListaDescuentosResponseDto,
 } from '../dto/dto-respuesta/descuento-response.dto';
 import { DescuentoService } from '../service/descuento.service';
 
@@ -24,6 +27,18 @@ export class DescuentosFacade {
     private readonly descuentoService: DescuentoService,
     private readonly aislamiento: NegocioAislamientoService,
   ) {}
+
+  /** Lista todos los descuentos configurados en el negocio activo (HE-10-HU-01). */
+  async listar(): Promise<ListaDescuentosResponseDto> {
+    this.aislamiento.negocioIdRequerido();
+    const descuentos = await this.descuentoService.listar();
+    const mensaje =
+      descuentos.length > 0
+        ? MENSAJE_DESCUENTOS_LISTADOS
+        : MENSAJE_SIN_DESCUENTOS;
+
+    return { mensaje, descuentos, total: descuentos.length };
+  }
 
   async crear(dto: CrearDescuentoDto): Promise<DescuentoCreadoResponseDto> {
     this.aislamiento.negocioIdRequerido();

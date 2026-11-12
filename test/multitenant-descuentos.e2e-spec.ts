@@ -38,6 +38,21 @@ interface SesionEmitida {
   accessToken?: string;
 }
 
+interface ListaDescuentosCuerpo {
+  mensaje: string;
+  descuentos: Array<{
+    id: number;
+    tipo: TipoDescuento;
+    elemento: { id: number; nombre: string };
+    porcentaje: number;
+    diasSemana: WeekDay[];
+    activo: boolean;
+    creadoEn?: string;
+    actualizadoEn?: string;
+  }>;
+  total: number;
+}
+
 interface DescuentoCreado {
   mensaje: string;
   descuento: {
@@ -916,6 +931,16 @@ describe('Descuentos: modificar descuento existente (HE-10-HU-03 — MySQL 8.0 r
     return peticion.send(cuerpoReq);
   };
 
+  /** GET /descuentos */
+  const listarDescuentos = (token: string | undefined, slug: string) => {
+    let peticion = request(app.getHttpServer())
+      .get('/descuentos')
+      .set('X-Negocio-Slug', slug);
+
+    if (token) peticion = peticion.set('Authorization', `Bearer ${token}`);
+    return peticion.send();
+  };
+
   // -------------------------------------------------------------------------
   // HE-10-HU-03-CA-01 — Carga de configuración
   // -------------------------------------------------------------------------
@@ -1420,5 +1445,103 @@ describe('Descuentos: modificar descuento existente (HE-10-HU-03 — MySQL 8.0 r
       where: { servicioId: servicioA.id },
     });
     expect(reservasDespues).toBe(reservasAntes);
+  });
+
+  // -------------------------------------------------------------------------
+  // HE-10-HU-01 � Consultar los descuentos configurados
+  // -------------------------------------------------------------------------
+  describe('HE-10-HU-01 � Consultar los descuentos configurados', () => {
+    it('HE-10-HU-01-CA-01 / CA-02: lista descuentos con tipo, porcentaje, d�as, estado y elemento', async () => {
+      // Crear descuento producto
+      const creadoProd = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.PRODUCTO,
+        elementoId: productoA.id,
+        porcentaje: 10,
+        diasSemana: [WeekDay.MONDAY, WeekDay.FRIDAY],
+      });
+      expect(creadoProd.status).toBe(201);
+
+      // Crear descuento servicio
+      const creadoServ = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.SERVICIO,
+        elementoId: servicioA.id,
+        porcentaje: 25,
+        diasSemana: [WeekDay.TUESDAY, WeekDay.SATURDAY],
+      });
+      expect(creadoServ.status).toBe(201);
+
+      // Consultar listado
+      const resp = await listarDescuentos(tokenAdminA, SLUG_HU03_A);
+      expect(resp.status).toBe(200);
+
+      const datos = cuerpo<ListaDescuentosCuerpo>(resp);
+      expect(datos.mensaje).toBe('Descuentos consultados correctamente');
+      expect(datos.total).toBe(2);
+      expect(datos.descuentos).toHaveLength(2);
+
+      // CA-02: Diferenciaci�n del elemento
+      const descProd = datos.descuentos.find(
+        (d) => d.tipo === TipoDescuento.PRODUCTO,
+      );
+      expect(descProd).toBeDefined();
+      expect(descProd?.elemento.id).toBe(productoA.id);
+      expect(descProd?.elemento.nombre).toBe(productoA.nombre);
+      expect(descProd?.porcentaje).toBe(10);
+      expect(descProd?.activo).toBe(false);
+
+      const descServ = datos.descuentos.find(
+        (d) => d.tipo === TipoDescuento.SERVICIO,
+      );
+      expect(descServ).toBeDefined();
+      expect(descServ?.elemento.id).toBe(servicioA.id);
+      expect(descServ?.elemento.nombre).toBe(servicioA.nombre);
+      expect(descServ?.porcentaje).toBe(25);
+    });
+
+    it('HE-10-HU-01-CA-03: listado vac�o responde 200 con array vac�o y mensaje descriptivo', async () => {
+      const resp = await listarDescuentos(tokenAdminA, SLUG_HU03_A);
+      expect(resp.status).toBe(200);
+
+      const datos = cuerpo<ListaDescuentosCuerpo>(resp);
+      expect(datos.total).toBe(0);
+      expect(datos.descuentos).toEqual([]);
+      expect(datos.mensaje).toBe(
+        'No hay descuentos configurados para este negocio',
+      );
+    });
+
+    it('HE-10-HU-01-CA-04: control de acceso y aislamiento multitenant estricto', async () => {
+      // Crear descuento en negocio A
+      await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.PRODUCTO,
+        elementoId: productoA.id,
+        porcentaje: 15,
+        diasSemana: [WeekDay.WEDNESDAY],
+      });
+
+      // 401 sin autenticaci�n
+      const sinToken = await listarDescuentos(undefined, SLUG_HU03_A);
+      expect(sinToken.status).toBe(401);
+
+      // 403 para barbero
+      const barberoResp = await listarDescuentos(tokenBarberoA, SLUG_HU03_A);
+      expect(barberoResp.status).toBe(403);
+
+      // Aislamiento: Admin de negocio B no ve los descuentos de negocio A
+      const respB = await listarDescuentos(tokenAdminB, SLUG_HU03_B);
+      expect(respB.status).toBe(200);
+      const datosB = cuerpo<ListaDescuentosCuerpo>(respB);
+      expect(datosB.total).toBe(0);
+      expect(datosB.descuentos).toEqual([]);
+
+      // SUPERADMIN de negocio A puede consultar
+      const superadminResp = await listarDescuentos(
+        tokenSuperadminA,
+        SLUG_HU03_A,
+      );
+      expect(superadminResp.status).toBe(200);
+      const datosSuper = cuerpo<ListaDescuentosCuerpo>(superadminResp);
+      expect(datosSuper.total).toBe(1);
+    });
   });
 });

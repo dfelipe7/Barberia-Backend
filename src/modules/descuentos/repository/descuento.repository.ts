@@ -33,6 +33,18 @@ export class DescuentoRepository {
     private readonly aislamiento: NegocioAislamientoService,
   ) {}
 
+  /** Devuelve todos los descuentos del negocio activo ordenados por estado y fecha (HE-10-HU-01). */
+  listar(): Promise<DescuentoConElemento[]> {
+    return this.prisma.descuento.findMany({
+      where: this.aislamiento.filtroLectura({}),
+      orderBy: [{ activo: 'desc' }, { creadoEn: 'asc' }],
+      include: {
+        producto: { select: { id: true, nombre: true } },
+        servicio: { select: { id: true, nombre: true } },
+      },
+    });
+  }
+
   obtenerPorId(id: number): Promise<DescuentoConElemento | null> {
     return this.prisma.descuento.findFirst({
       where: this.aislamiento.filtroLectura({ id }),
