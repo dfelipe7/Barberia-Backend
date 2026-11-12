@@ -42,7 +42,7 @@ A continuación se detalla la comparativa oficial de las cuatro técnicas de an�
 | :--- | :--- | :---: | :--- | :--- |
 | **SAST** | Código fuente propio (TypeScript / NestJS / React) | **Sí** (Caja Blanca) | Fase de desarrollo local y pipelines de Pull Request | • TypeScript Compiler (`tsc --noEmit`)<br>• ESLint con reglas de seguridad<br>• **SonarCloud Quality Gate** en `.github/workflows/build.yml` |
 | **SCA** | Bibliotecas y paquetes de terceros (`node_modules`) | **Sí** (Archivos `package-lock.json`) | Fase de compilación y auditorías programadas en CI/CD | • **npm audit** (`--audit-level=high`) en `.github/workflows/security-audit.yml`<br>• **Dependabot** en `.github/dependabot.yml`<br>• Bloque `overrides` en `package.json` |
-| **IAST** | Código en tiempo de ejecución mientras se ejecutan pruebas funcionales | **Sí** (Agente interno de intercepción) | Entornos de QA / Pruebas de integración E2E | • Middleware `AsyncLocalStorage`<br>• Extensiones Prisma (`prisma-extension-aislamiento.ts`) que auditan queries SQL en runtime |
+| **IAST** | Código en tiempo de ejecución mientras se ejecutan pruebas funcionales | **Sí** (Agente interno de intercepción) | Entornos de QA / Pruebas de integración E2E | • **Datadog ASM / IAST** (`dd-trace` + `datadog/agent-github-action`) en `.github/workflows/iast-datadog.yml`<br>• Intercepción interactiva en memoria con `AsyncLocalStorage` y extensiones Prisma |
 | **DAST** | Endpoints HTTP de la API web en ejecución | **No** (Caja Negra exterior) | Entornos de Staging y Pre-producción | • **OWASP ZAP (Zed Attack Proxy)** automatizado en `.github/workflows/dast-zap.yml`<br>• Script local `scripts/testing/zap-run.mjs` |
 
 ---
@@ -85,13 +85,19 @@ El análisis de composición audita las bibliotecas de código abierto importada
 
 ### 3.3 IAST (Interactive Application Security Testing)
 
-A diferencia del análisis pasivo, el enfoque IAST utiliza mecanismos internos mientras la aplicación ejecuta sus casos de prueba funcionales y de estrés:
-1. **Auditoría de Aislamiento Multitenant en Memoria:**
+A diferencia del análisis pasivo, el enfoque IAST utiliza un agente interactivo que monitorea el flujo de datos y la memoria interna mientras la aplicación ejecuta sus casos de prueba funcionales y de integración:
+
+1. **Agente Oficial Datadog ASM / IAST (`dd-trace`):**
+   * El proyecto integra la librería oficial `dd-trace` en [src/datadog.ts](../src/datadog.ts) inicializada al arranque de [src/main.ts](../src/main.ts).
+   * Cuando se activa la variable `DD_IAST_ENABLED=true`, el agente ejecuta análisis de propagación (*Taint Tracking*) en tiempo de ejecución, auditando llamadas de red, filesystem y base de datos para detectar inyecciones y fallos de autorización en caliente.
+2. **Workflow Automatizado en GitHub Actions:**
+   * Archivo: [`.github/workflows/iast-datadog.yml`](../.github/workflows/iast-datadog.yml)
+   * Levanta el Datadog Agent mediante `datadog/agent-github-action@v1` conectado a la nube de Datadog (`datadoghq.com`) a través del secreto `DD_API_KEY`.
+   * Ejecuta el backend y dispara pruebas interactivas enviando la telemetría directamente a la consola de **Datadog Security (ASM)**.
+3. **Auditoría de Aislamiento Multitenant en Memoria:**
    * La infraestructura implementa `AsyncLocalStorage` (`negocio-contexto.service.ts`), propagando el identificador del negocio (`negocioId`) de forma inmutable a lo largo de toda la cadena asíncrona.
-2. **Agente Interceptor en la Capa de Datos:**
-   * El archivo `prisma-extension-aislamiento.ts` actúa como un agente de inspección interactivo: ante cada lectura, escritura o eliminación en la base de datos, intercepta la operación y valida en tiempo de ejecución que el filtro `WHERE negocioId = context.negocioId` esté presente.
-3. **Pruebas E2E Negativas de Intrusión:**
-   * Las suites de prueba `multitenant-aislamiento-negativo` intentan forzar lecturas cruzadas entre diferentes barberías; el agente interactivo detecta el intento de intrusión y aborta la transacción con `403 Forbidden` o `404 Not Found`.
+4. **Agente Interceptor en la Capa de Datos:**
+   * El archivo `prisma-extension-aislamiento.ts` intercepta cada operación SQL y valida en tiempo de ejecución que el filtro `WHERE negocioId = context.negocioId` esté presente, abortando transacciones con `403 Forbidden` o `404 Not Found` ante intentos de intrusión entre sedes.
 
 ---
 

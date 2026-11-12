@@ -1,4 +1,9 @@
-import { Injectable, ConflictException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import * as fs from 'node:fs';
 import { join } from 'node:path';
 import { UsuariosRepository } from '../repository/usuarios.repository';
@@ -414,6 +419,46 @@ export class BarberosService {
         estadoGlobal: barbero.usuario.estado,
       };
     });
+  }
+
+  /**
+   * Sube la foto de perfil del barbero autenticado en la sesión actual.
+   */
+  async subirMiFoto(
+    usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
+    file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Debe seleccionar un archivo de imagen');
+    }
+    const usuarioId = usuarioAutenticado?.id ? Number(usuarioAutenticado.id) : null;
+    const usuario = usuarioId
+      ? await this.usuariosRepository.obtenerUsuarioPorId(usuarioId)
+      : await this.usuariosRepository.obtenerUsuarioPorEmail(
+          usuarioAutenticado?.email ?? '',
+        );
+
+    if (!usuario) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+    return this.subirFotoBarbero(usuario.id, file);
+  }
+
+  /**
+   * Elimina la foto de perfil del barbero autenticado en la sesión actual.
+   */
+  async eliminarMiFoto(usuarioAutenticado?: Partial<ClaimsSesionPersonal>) {
+    const usuarioId = usuarioAutenticado?.id ? Number(usuarioAutenticado.id) : null;
+    const usuario = usuarioId
+      ? await this.usuariosRepository.obtenerUsuarioPorId(usuarioId)
+      : await this.usuariosRepository.obtenerUsuarioPorEmail(
+          usuarioAutenticado?.email ?? '',
+        );
+
+    if (!usuario) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+    return this.eliminarFotoBarbero(usuario.id);
   }
 
   /**

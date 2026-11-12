@@ -18,6 +18,7 @@
    * [3.3 Flujo de Agendamiento Online en 4 Pasos](#33-flujo-de-agendamiento-online-en-4-pasos)
    * [3.4 Comprobante Digital y Confirmación por WhatsApp](#34-comprobante-digital-y-confirmación-por-whatsapp)
    * [3.5 Consulta y Cancelación de Cita con Token de Gestión](#35-consulta-y-cancelación-de-cita-con-token-de-gestión)
+   * [3.6 Catálogo de Productos y Pedidos por WhatsApp](#36-catálogo-de-productos-y-pedidos-por-whatsapp)
 4. [Módulo 2: Operatoria del Barbero (Staff)](#4-módulo-2-operatoria-del-barbero-staff)
    * [4.1 Inicio de Sesión y Acceso Seguro](#41-inicio-de-sesión-y-acceso-seguro)
    * [4.2 Consulta de Agenda Diaria y Semanal](#42-consulta-de-agenda-diaria-y-semanal)
@@ -27,8 +28,9 @@
    * [5.1 Configuración de la Identidad Visual y Temas](#51-configuración-de-la-identidad-visual-y-temas)
    * [5.2 Gestión del Catálogo de Servicios y Precios](#52-gestión-del-catálogo-de-servicios-y-precios)
    * [5.3 Gestión del Equipo de Barberos y Comisiones](#53-gestión-del-equipo-de-barberos-y-comisiones)
-   * [5.4 Vinculación de WhatsApp Web mediante Código QR](#54-vinculación-de-whatsapp-web-mediante-código-qr)
-   * [5.5 Configuración de Mensajes y Recordatorios Automáticos](#55-configuración-de-mensajes-y-recordatorios-automáticos)
+   * [5.4 Gestión del Catálogo Comercial de Productos](#54-gestión-del-catálogo-comercial-de-productos)
+   * [5.5 Vinculación de WhatsApp Web mediante Código QR](#55-vinculación-de-whatsapp-web-mediante-código-qr)
+   * [5.6 Configuración de Mensajes y Recordatorios Automáticos](#56-configuración-de-mensajes-y-recordatorios-automáticos)
 6. [Módulo 4: Superadministración de la Plataforma](#6-módulo-4-superadministración-de-la-plataforma)
 7. [Guía de Solución de Problemas y Preguntas Frecuentes (FAQ)](#7-guía-de-solución-de-problemas-y-preguntas-frecuentes-faq)
 
@@ -143,6 +145,15 @@ $$\mathbf{https://barberia.app/:slug/reserva/:id?token=SECURE\_TOKEN}$$
 
 ---
 
+### 3.6 Catálogo de Productos y Pedidos por WhatsApp
+Los clientes y visitantes pueden acceder a la sección **Productos** (`/:slug/catalogo/productos`):
+1. **Exploración Visual:** Galería de artículos y productos comercializados por la barbería (pomadas, aceites de barba, ceras, champús) con fotografía de alta fidelidad, precio en moneda local ($ COP) y descripción detallada.
+2. **Búsqueda Instantánea:** Filtrado dinámico en tiempo real por nombre del producto o características.
+3. **Modal "Ver más":** Visualización ampliada con efecto blur ambiental, detalles de uso y dirección física de la sede donde se encuentra disponible.
+4. **Botón "Pedir por WhatsApp":** Genera un enlace directo (*deep link*) hacia la línea oficial de WhatsApp de la barbería con un mensaje estructurado y listo para enviar (ej. *"¡Hola Barbería! Me interesa comprar el producto Cera ($ 40.000)..."*).
+
+---
+
 ## 4. Módulo 2: Operatoria del Barbero (Staff)
 
 Este módulo está destinado a los profesionales que atienden a los clientes en los sillones de la barbería.
@@ -242,7 +253,22 @@ En la sección **"Barberos / Personal"**:
 
 ---
 
-### 5.4 Vinculación de WhatsApp Web mediante Código QR
+### 5.4 Gestión del Catálogo Comercial de Productos (Épica HE-03)
+En la sección **"Productos"** del menú lateral (acceso exclusivo para `SUPERADMIN` y `ADMINISTRADOR`):
+1. **Registrar Nuevo Producto:**
+   * **Nombre del Producto:** Denominación comercial (único por barbería; máx. 100 caracteres).
+   * **Precio de Venta ($ COP):** Valor monetario en pesos colombianos (mayor a 0).
+   * **Fotografía:** Carga de imagen en formatos JPG, PNG o WEBP (hasta 5 MB) con previsualización inmediata.
+   * **Descripción:** Texto explicativo sobre características, beneficios o modo de aplicación (hasta 500 caracteres).
+2. **Edición Integral:** Modificación ágil de precios, descripción o reemplazo de la fotografía del artículo.
+3. **Control de Estado (Activar / Desactivar):**
+   * **Activo:** El producto es inmediatamente visible en el catálogo público de la barbería.
+   * **Desactivar / Pausar:** Oculta el producto de los clientes sin borrar su información ni histórico comercial.
+4. **Filtros y Búsqueda:** Clasificación por pestañas (*"Todos"*, *"Activos"*, *"Inactivos"*) con contadores de inventario en tiempo real.
+
+---
+
+### 5.5 Vinculación de WhatsApp Web mediante Código QR
 Para que el sistema envíe los mensajes de confirmación y recordatorios desde el número oficial de la barbería:
 
 ```mermaid
@@ -276,7 +302,7 @@ sequenceDiagram
 
 ---
 
-### 5.5 Configuración de Mensajes y Recordatorios Automáticos
+### 5.6 Configuración de Mensajes y Recordatorios Automáticos
 El administrador puede personalizar los textos que reciben los clientes:
 * **Mensaje de Confirmación Inmediata:** Enviado al instante de agendar.
 * **Recordatorio Anticipado:** Disparado automáticamente por el servidor con 2, 4 o 24 horas de antelación al turno.
