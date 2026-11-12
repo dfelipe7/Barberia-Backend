@@ -17,9 +17,13 @@ export class NegociosRepository {
   /**
    * Busca un negocio por su slug PÚBLICO y estable.
    *
+   * @remarks
    * Solo devuelve negocios `ACTIVO`: un negocio desactivado no debe poder
    * recibir peticiones. La ausencia de un negocio inactivo y la de uno
    * inexistente son indistinguibles para quien consulta.
+   *
+   * @param slug - Cadena identificadora única de la barbería (ej. 'kyrios-studio').
+   * @returns Datos mínimos del negocio activo ({ id, slug }) o `null` si no existe o está inactivo.
    */
   async buscarActivoPorSlug(slug: string) {
     return this.prisma.negocio.findFirst({
@@ -31,9 +35,13 @@ export class NegociosRepository {
   /**
    * Busca un negocio por su identificador interno, sea cual sea su estado.
    *
+   * @remarks
    * Se usa para las operaciones de plataforma (inicialización de su
    * configuración operativa), donde el negocio es el objetivo de la operación
    * y no el contexto de una petición.
+   *
+   * @param id - Identificador numérico primario del negocio.
+   * @returns Registro básico del negocio o `null`.
    */
   async buscarPorId(id: number) {
     return this.prisma.negocio.findUnique({
@@ -42,7 +50,11 @@ export class NegociosRepository {
     });
   }
 
-  /** Devuelve todos los negocios registrados, con su estado. */
+  /**
+   * Devuelve todos los negocios registrados en la plataforma junto con su estado.
+   *
+   * @returns Lista de negocios ordenados por ID de forma ascendente.
+   */
   async listar() {
     return this.prisma.negocio.findMany({
       select: { id: true, slug: true, nombre: true, estado: true },

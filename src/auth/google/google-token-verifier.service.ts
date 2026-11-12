@@ -52,6 +52,13 @@ export class GoogleTokenVerifier {
     this.oauthClient = new OAuth2Client(this.googleClientId);
   }
 
+  /**
+   * Valida la firma criptográfica, la vigencia temporal y la audiencia de un token ID emitido por Google.
+   *
+   * @param idToken - Cadena JWT suministrada por el cliente tras autenticarse con el SDK de Google.
+   * @returns Datos extraídos y validados del payload del token (`PayloadGoogleVerificado`).
+   * @throws {UnauthorizedException} Si la firma es inválida, el token ha expirado o falta el claim `sub`.
+   */
   async verificar(idToken: string): Promise<PayloadGoogleVerificado> {
     let payload: PayloadGoogleVerificado | undefined;
 

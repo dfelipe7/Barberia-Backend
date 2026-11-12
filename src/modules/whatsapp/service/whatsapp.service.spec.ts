@@ -5,12 +5,12 @@ import {
   PLANTILLA_RECORDATORIO_DEFAULT,
   enmascararTelefono,
 } from './whatsapp.service';
-import { WhatsAppPlantillasRepository } from './whatsapp-plantillas.repository';
-import { ConfiguracionService } from '../configuracion/service/configuracion.service';
-import { NegocioContextoService } from '../negocios/negocio-contexto.service';
-import { NegociosRepository } from '../negocios/repository/negocios.repository';
-import { PerfilNegocioService } from '../perfil-negocio/service/perfil-negocio.service';
-import { PrismaService } from '../../prisma/prisma.service';
+import { WhatsAppPlantillasRepository } from '../repository/whatsapp-plantillas.repository';
+import { ConfiguracionService } from '../../configuracion/service/configuracion.service';
+import { NegocioContextoService } from '../../negocios/negocio-contexto.service';
+import { NegociosRepository } from '../../negocios/repository/negocios.repository';
+import { PerfilNegocioService } from '../../perfil-negocio/service/perfil-negocio.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 describe('WhatsAppService', () => {
   let service: WhatsAppService;
@@ -25,6 +25,7 @@ describe('WhatsAppService', () => {
     obtenerTexto: jest.fn(),
     obtenerTextoDelNegocio: jest.fn(),
     obtenerNumero: jest.fn(),
+    obtenerNumeroDelNegocio: jest.fn(),
     guardarTexto: jest.fn(),
     guardarNumero: jest.fn(),
   };
@@ -36,6 +37,7 @@ describe('WhatsAppService', () => {
   };
   const negociosRepositoryMock = {
     buscarPorId: jest.fn(),
+    listar: jest.fn(),
   };
 
   const prismaMock = {
@@ -786,7 +788,9 @@ describe('WhatsAppService', () => {
         horaInicioCitaMs: ahora + 7200_000,
       });
 
-      prismaMock.reservation.findUnique.mockRejectedValue(new Error('DB connection lost'));
+      prismaMock.reservation.findUnique.mockRejectedValue(
+        new Error('DB connection lost'),
+      );
       const enviarSpy = jest
         .spyOn(service, 'enviarConfirmacionReserva')
         .mockRejectedValue(new Error('Send socket error'));
@@ -797,16 +801,19 @@ describe('WhatsAppService', () => {
     });
 
     it('enviarReprogramacionReserva envía mensaje formateado con datos del negocio', async () => {
-      jest.spyOn(service as any, 'datosComercialesDelNegocio').mockResolvedValue({
-        nombre: 'Barbería VIP',
-        direccion: 'Calle 10 # 20-30',
-        telefono: '3001112233',
-      });
+      jest
+        .spyOn(service as any, 'datosComercialesDelNegocio')
+        .mockResolvedValue({
+          nombre: 'Barbería VIP',
+          direccion: 'Calle 10 # 20-30',
+          telefono: '3001112233',
+        });
       const enviarMensajeSpy = jest
         .spyOn(service, 'enviarMensaje')
         .mockResolvedValue(true);
 
-      const resultado = await service.enviarReprogramacionReserva(payloadPrueba);
+      const resultado =
+        await service.enviarReprogramacionReserva(payloadPrueba);
 
       expect(resultado).toBe(true);
       expect(enviarMensajeSpy).toHaveBeenCalledWith(
@@ -818,7 +825,187 @@ describe('WhatsAppService', () => {
 
     it('no hace nada si la cola de la sede esta vacia o no existe', async () => {
       await expect(service.despacharColaPendiente(99)).resolves.not.toThrow();
-      expect(() => service.cancelarMensajesPendientesDeReserva(123, 99)).not.toThrow();
+      expect(() =>
+        service.cancelarMensajesPendientesDeReserva(123, 99),
+      ).not.toThrow();
+    });
+  });
+
+  describe('Cobertura adicional de ramas y casos extremos', () => {
+    const payloadTest = {
+      clienteNombre: 'Carlos',
+      barberoNombre: 'Mateo',
+      servicioNombre: 'Corte Clásico',
+      fecha: '2026-11-20',
+      hora: '10:00',
+      telefono: '3001234567',
+      negocioId: 3,
+    };
+
+    it('onModuleInit conecta negocios con sesion guardada', async () => {
+      negociosRepositoryMock.listar.mockResolvedValue([
+        { id: 1, nombre: 'Kyrios' },
+        { id: 2, nombre: 'Sede 2' },
+      ]);
+      jest
+        .spyOn(service, 'tieneSesionGuardada')
+        .mockImplementation((id) => id === 1);
+      const iniciarSocketSpy = jest
+        .spyOn(service, 'iniciarSocket')
+        .mockResolvedValue(undefined);
+
+      await service.onModuleInit();
+      expect(iniciarSocketSpy).toHaveBeenCalledWith(1);
+    });
+
+    it('onModuleInit maneja error al listar negocios con fallback a negocio 1', async () => {
+      negociosRepositoryMock.listar.mockRejectedValue(new Error('DB down'));
+      jest.spyOn(service, 'tieneSesionGuardada').mockReturnValue(true);
+      const iniciarSocketSpy = jest
+        .spyOn(service, 'iniciarSocket')
+        .mockResolvedValue(undefined);
+
+      await service.onModuleInit();
+      expect(iniciarSocketSpy).toHaveBeenCalledWith(1);
+    });
+
+    it('enviarMensaje retorna false si el teléfono no es válido', async () => {
+      const sesion = (service as any).obtenerOCrearSesion(1);
+      sesion.isConnected = true;
+      sesion.sock = { sendMessage: jest.fn() };
+
+      const res = await service.enviarMensaje('abc', 'Hola', 1);
+      expect(res).toBe(false);
+      expect(sesion.sock.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('enviarMensaje retorna false si sendMessage arroja excepción', async () => {
+      const sesion = (service as any).obtenerOCrearSesion(1);
+      sesion.isConnected = true;
+      sesion.sock = {
+        sendMessage: jest.fn().mockRejectedValue(new Error('Network drop')),
+      };
+
+      const res = await service.enviarMensaje('3001234567', 'Hola', 1);
+      expect(res).toBe(false);
+    });
+
+    it('enviarCancelacionReserva envía mensaje formateado al cliente con y sin negocioId explícito', async () => {
+      const spy = jest.spyOn(service, 'enviarMensaje').mockResolvedValue(true);
+      await service.enviarCancelacionReserva(payloadTest);
+      expect(spy).toHaveBeenCalledWith(
+        payloadTest.telefono,
+        expect.stringContaining('CITA CANCELADA'),
+        payloadTest.negocioId,
+      );
+
+      const sinNegocio = { ...payloadTest, negocioId: undefined };
+      await service.enviarCancelacionReserva(sinNegocio);
+      expect(spy).toHaveBeenCalledWith(
+        sinNegocio.telefono,
+        expect.stringContaining('CITA CANCELADA'),
+      );
+    });
+
+    it('enviarCompletadoReserva envía mensaje de agradecimiento con y sin negocioId explícito', async () => {
+      const spy = jest.spyOn(service, 'enviarMensaje').mockResolvedValue(true);
+      await service.enviarCompletadoReserva(payloadTest);
+      expect(spy).toHaveBeenCalledWith(
+        payloadTest.telefono,
+        expect.stringContaining('¡Gracias por tu visita!'),
+        payloadTest.negocioId,
+      );
+
+      const sinNegocio = { ...payloadTest, negocioId: undefined };
+      await service.enviarCompletadoReserva(sinNegocio);
+      expect(spy).toHaveBeenCalledWith(
+        sinNegocio.telefono,
+        expect.stringContaining('¡Gracias por tu visita!'),
+      );
+    });
+
+    it('enviarConfirmacionReserva y enviarRecordatorioReserva respetan negocioId explícito', async () => {
+      const spy = jest.spyOn(service, 'enviarMensaje').mockResolvedValue(true);
+      await service.enviarConfirmacionReserva(payloadTest);
+      expect(spy).toHaveBeenCalledWith(
+        payloadTest.telefono,
+        expect.any(String),
+        payloadTest.negocioId,
+      );
+
+      await service.enviarRecordatorioReserva(payloadTest);
+      expect(spy).toHaveBeenCalledWith(
+        payloadTest.telefono,
+        expect.any(String),
+        payloadTest.negocioId,
+      );
+    });
+
+    it('retorna minutos de configuración de negocio cuando valor > 0', async () => {
+      configuracionServiceMock.obtenerNumero.mockResolvedValue(60);
+      contextoServiceMock.obtenerContexto.mockReturnValue({
+        id: 5,
+        slug: 'test',
+      });
+
+      const minutos = await service.obtenerMinutosAnticipacion();
+      expect(minutos).toBe(60);
+    });
+
+    it('maneja error cuando falla la lectura de anticipación del negocio', async () => {
+      configuracionServiceMock.obtenerNumero.mockRejectedValue(
+        new Error('fail'),
+      );
+      contextoServiceMock.obtenerContexto.mockReturnValue({
+        id: 5,
+        slug: 'test',
+      });
+      plantillasRepositoryMock.obtenerPlantillas.mockRejectedValue(
+        new Error('repo fail'),
+      );
+
+      const minutos = await service.obtenerMinutosAnticipacion();
+      expect(minutos).toBe(120);
+    });
+
+    it('guardarPlantillas guarda CONFIG_RECORDATORIO_MINUTOS en repositorio cuando no hay contexto', async () => {
+      contextoServiceMock.obtenerContexto.mockReturnValue(undefined);
+      await service.guardarPlantillas({ minutosAnticipacion: 90 });
+
+      expect(plantillasRepositoryMock.guardarPlantilla).toHaveBeenCalledWith(
+        null,
+        'CONFIG_RECORDATORIO_MINUTOS',
+        '90',
+      );
+    });
+
+    it('resetPlantillas elimina CONFIG_RECORDATORIO_MINUTOS cuando no hay contexto de negocio', async () => {
+      contextoServiceMock.obtenerContexto.mockReturnValue(undefined);
+      await service.resetPlantillas();
+
+      expect(
+        plantillasRepositoryMock.eliminarPlantillas,
+      ).toHaveBeenCalledWith(null, [
+        'CONFIRMACION',
+        'RECORDATORIO',
+        'CONFIG_RECORDATORIO_MINUTOS',
+      ]);
+    });
+
+    it('maneja error al obtener dirección comercial del perfil', async () => {
+      contextoServiceMock.obtenerContexto.mockReturnValue({
+        id: 1,
+        slug: 'kyrios',
+      });
+      perfilNegocioServiceMock.obtenerDireccionComercial.mockRejectedValue(
+        new Error('perfil error'),
+      );
+      configuracionServiceMock.obtenerTextoDelNegocio.mockRejectedValue(
+        new Error('cfg error'),
+      );
+
+      const datos = await (service as any).datosComercialesDelNegocio();
+      expect(datos.direccion).toBe('');
     });
   });
 });

@@ -145,9 +145,13 @@ function negocioIdDeclarado(
   objeto: WherePrisma | DataPrisma | DataPrisma[],
 ): number | undefined {
   if (Array.isArray(objeto)) {
-    return undefined;
+    const itemConNegocio = objeto.find(
+      (item) => typeof item.negocioId === 'number',
+    );
+    return typeof itemConNegocio?.negocioId === 'number'
+      ? itemConNegocio.negocioId
+      : undefined;
   }
-
   const valor = objeto.negocioId;
 
   return typeof valor === 'number' ? valor : undefined;

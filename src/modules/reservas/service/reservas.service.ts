@@ -16,7 +16,7 @@ import {
 import {
   WhatsAppService,
   type DatosConfirmacionWhatsApp,
-} from '../../whatsapp/whatsapp.service';
+} from '../../whatsapp/service/whatsapp.service';
 import { CrearReservaDto } from '../dto/dto-peticion/crear-reserva.dto';
 import { ModificarReservaDto } from '../dto/dto-peticion/modificar-reserva.dto';
 import { ConsultaAgendaBarberoDto } from '../dto/dto-peticion/consulta-agenda-barbero.dto';
@@ -607,7 +607,7 @@ export class ReservasService {
 
     return {
       ...dto,
-      cliente: cliente
+      cliente: cliente && cliente.nombre
         ? {
             nombre: cliente.nombre,
             apellido: cliente.apellido ?? null,
@@ -2408,6 +2408,10 @@ export class ReservasService {
 
   /**
    * Extrae el `Usuario.id` del payload JWT de personal (`id` numérico o `sub`).
+   *
+   * @param usuarioAutenticado - Claims de la sesión personal decodificados.
+   * @returns Identificador numérico válido del usuario.
+   * @throws {UnauthorizedException} Si el ID no se encuentra o es inválido.
    */
   private resolverUsuarioId(usuarioAutenticado: unknown): number {
     const payload =

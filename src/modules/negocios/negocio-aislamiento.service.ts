@@ -21,23 +21,25 @@ export class NegocioAislamientoService {
   constructor(private readonly contextoService: NegocioContextoService) {}
 
   /**
-   * Identificador del negocio activo.
+   * Obtiene el identificador numérico de la sede activa en el contexto.
    *
-   * @throws ForbiddenException si la operación es tenant-scoped y no hay
-   * contexto validado. Es un fallo SEGURO: es preferible rechazar la
-   * operación a ejecutarla sobre el conjunto completo de negocios.
+   * @returns ID del negocio activo.
+   * @throws {ForbiddenException} Si la operación es tenant-scoped y no hay contexto validado.
    */
   negocioIdRequerido(): number {
     return this.contextoService.obtenerContextoRequerido().id;
   }
 
   /**
-   * Filtro de negocio para las operaciones de lectura (`findFirst`,
-   * `findMany`, `count`, `aggregate`).
+   * Enriquecedor de filtros `where` para lecturas en base de datos.
    *
+   * @remarks
    * El filtro se integra en el `where` de la consulta, NO se aplica después
    * de recuperar la fila: así la base de datos nunca llega a devolver datos
    * de otro negocio, ni siquiera de forma temporal.
+   *
+   * @param where - Cláusula where original de Prisma.
+   * @returns Cláusula where complementada con `negocioId`.
    */
   filtroLectura<T extends Record<string, unknown>>(
     where: T = {} as T,
@@ -46,13 +48,16 @@ export class NegocioAislamientoService {
   }
 
   /**
-   * Filtro de negocio para las operaciones de escritura por clave
-   * (`update`, `delete`).
+   * Enriquecedor de filtros `where` para escrituras en base de datos (`update`, `delete`).
    *
+   * @remarks
    * Incorpora el negocio a la MISMA cláusula `where` que identifica el
    * recurso, de modo que la fila solo se modifica si pertenece al negocio
    * activo. Si el recurso es de otro negocio, la operación no afecta a
    * ninguna fila (y el servicio detecta el cambio nulo).
+   *
+   * @param where - Cláusula where de la entidad.
+   * @returns Cláusula where complementada con `negocioId`.
    */
   filtroEscritura<T extends Record<string, unknown>>(
     where: T = {} as T,
@@ -61,21 +66,20 @@ export class NegocioAislamientoService {
   }
 
   /**
-   * Comprueba que un recurso pertenece al negocio activo.
+   * Comprueba si un ID de negocio coincide exactamente con el del contexto activo.
    *
-   * Se usa cuando la fila ya fue recuperada (por ejemplo, porque la consulta
-   * no podía filtrar por negocio) y hay que decidir si se acepta.
+   * @param negocioId - ID de negocio a evaluar.
+   * @returns `true` si coincide con la sede activa.
    */
   perteneceAlNegocioActivo(negocioId: number | null | undefined): boolean {
     return negocioId === this.negocioIdRequerido();
   }
 
   /**
-   * Falla de forma segura si el recurso no pertenece al negocio activo.
+   * Falla de forma segura con 403 si el recurso no pertenece al negocio activo.
    *
-   * El mensaje NO revela si el recurso existe en otro negocio: se comporta
-   * igual que un recurso inexistente, para no permitir enumerar los datos de
-   * otros negocios probando identificadores.
+   * @param negocioId - ID de negocio del recurso evaluado.
+   * @throws {ForbiddenException} Si no pertenece a la sede activa.
    */
   exigirPertenencia(negocioId: number | null | undefined): void {
     if (!this.perteneceAlNegocioActivo(negocioId)) {
@@ -86,16 +90,15 @@ export class NegocioAislamientoService {
   }
 
   /**
-   * Ejecuta `operacion` con el contexto del negocio indicado.
+   * Ejecuta una rutina dentro del contexto explícito de un negocio dado.
    *
-   * Lo usan los PROCESOS DE FONDO que deben recorrer los negocios uno a uno
-   * (por ejemplo, el cron de recordatorios de HU-11): en lugar de consultar
-   * "las reservas de todos los negocios" de una vez, cada negocio se
-   * consulta por separado, fijando su contexto, de modo que la capa de
-   * aislamiento sigue siendo EFFECTIVA.
+   * @remarks
+   * Utilizado por tareas en segundo plano (crons de recordatorios, sincronización)
+   * para iterar entre sedes manteniendo el aislamiento de datos.
    *
-   * No es un escape: el contexto se fija al negocio que se está recorriendo,
-   * así que ninguna consulta sale de su ámbito.
+   * @param negocio - Par de identidad de la sede ({ id, slug }).
+   * @param operacion - Función a ejecutar en dicho ámbito.
+   * @returns Resultado de la operación.
    */
   ejecutarEnNegocio<T>(
     negocio: { id: number; slug: string },

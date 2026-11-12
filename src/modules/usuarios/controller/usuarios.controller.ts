@@ -45,14 +45,23 @@ import {
 } from '../../negocios/negocios.constants';
 import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
 
-interface RequestConUsuario {
+/** Petición HTTP con sesión obligatoria de personal. */
+export interface RequestConUsuario {
   user?: Partial<ClaimsSesionPersonal>;
 }
 
-interface RequestConUsuarioOpcional {
+/** Petición HTTP con sesión opcional de personal para escenarios de aprovisionamiento. */
+export interface RequestConUsuarioOpcional {
   user?: Partial<ClaimsSesionPersonal>;
 }
 
+/**
+ * Controlador de Identidad de Usuarios, Perfil Propio y Diagnóstico de Alertas.
+ *
+ * @remarks
+ * Administra el perfil del usuario autenticado (`/usuarios/me`), la habilitación de roles operativos,
+ * la actualización de datos generales de cuenta y el endpoint de prueba controlada de fallos (OWASP A09).
+ */
 @ApiTags('Usuarios')
 @ApiBearerAuth()
 @Controller('usuarios')
@@ -63,25 +72,16 @@ export class UsuariosController {
   ) {}
 
   /**
-   * GET /usuarios/simular-error-grave
+   * Endpoint de diagnóstico que simula un fallo crítico (Error 500) para verificar la emisión de alertas.
    *
-   * Herramienta de diagnóstico de la cadena de alertas por correo (OWASP A09).
+   * @remarks
+   * Conforme a OWASP A09 (Security Logging and Monitoring Failures):
+   * Exige sesión válida de personal y rol administrativo. Se desactiva indefectiblemente en producción (`NODE_ENV=production`).
+   * Ante intentos no autorizados o entornos no habilitados, responde con `404 Not Found` uniforme sin activar alertas.
    *
-   * REGLAS DE ACCESO
-   * ----------------
-   * 1. Exige sesión de personal válida (`JwtAuthGuard`): sin sesión responde
-   *    401 y NO se envía ningún correo.
-   * 2. Exige rol de administración del negocio (`SUPERADMIN` o `ADMINISTRADOR`).
-   *    La comprobación es explícita y NO usa `RolesGuard` a propósito: `RolesGuard`
-   *    responde 403 y el filtro global envía correo de alerta ante todo 403, de
-   *    modo que un intento no autorizado podría generar correo. Aquí se responde
-   *    404, que no genera alerta.
-   * 3. Está deshabilitado salvo habilitación explícita
-   *    (`SIMULADOR_ERROR_HABILITADO=true`) y NUNCA en producción
-   *    (`NODE_ENV=production`). Si está deshabilitado responde 404.
-   *
-   * Un 404 con la habilitación activa solo se da cuando la ruta no existe para
-   * quien pregunta: ni la existencia de la ruta ni la del dato se revelan.
+   * @param request - Petición HTTP con los roles de la sesión activa.
+   * @throws {NotFoundException} Si el simulador está inactivo o el usuario carece de roles administrativos.
+   * @throws {InternalServerErrorException} Siempre que se cumplan las condiciones controladas de prueba.
    */
   @Get('simular-error-grave')
   @UseGuards(JwtAuthGuard)
@@ -124,6 +124,14 @@ export class UsuariosController {
     );
   }
 
+  /**
+   * Inicializa o configura el perfil de barbero del usuario actualmente autenticado.
+   *
+   * @param request - Petición HTTP con los datos de sesión del usuario.
+   * @param dto - Parámetros de configuración del barbero (comisión, foto).
+   * @returns Datos del perfil de barbero asociado.
+   * @throws {BadRequestException} Si los datos son inválidos.
+   */
   @Post('me/barbero')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
@@ -143,10 +151,14 @@ export class UsuariosController {
   }
 
   /**
-   * POST /usuarios/:usuarioId/barbero
+   * Configura el perfil de barbero de un usuario específico en la barbería activa.
    *
-   * `usuarioId` es el `Usuario.id` (identidad global de la persona a la que se
-   * le crea el perfil de barbero en esta barbería).
+   * @param usuarioId - Identificador del usuario (`Usuario.id`).
+   * @param dto - Parámetros de configuración del barbero.
+   * @param request - Petición HTTP con claims de autorización.
+   * @returns Datos del perfil configurado.
+   * @throws {ForbiddenException} Si el usuario no es SUPERADMIN ni el propio titular de la cuenta.
+   * @throws {BadRequestException} Si los datos son inválidos.
    */
   @Post(':usuarioId/barbero')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -184,6 +196,12 @@ export class UsuariosController {
     return this.barberosService.configurarBarberoPorId(Number(usuarioId), dto);
   }
 
+  /**
+   * Obtiene la ficha completa y membresías activas del colaborador autenticado.
+   *
+   * @param request - Petición HTTP con sesión del colaborador.
+   * @returns Perfil con nombre, correo, roles y datos operativos.
+   */
   @Get('me')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: 'Obtiene el perfil del usuario autenticado actual' })
@@ -195,6 +213,14 @@ export class UsuariosController {
     return this.usuariosService.obtenerMiPerfil(request.user);
   }
 
+  /**
+   * Obtiene la ficha de un usuario por su ID global (`Usuario.id`).
+   *
+   * @param usuarioId - Identificador único de usuario.
+   * @param request - Petición con la sesión del actor que consulta.
+   * @returns Datos del usuario consultado.
+   * @throws {ForbiddenException} Si el solicitante no posee permisos para consultar a este usuario.
+   */
   @Get(':usuarioId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
@@ -225,6 +251,16 @@ export class UsuariosController {
     );
   }
 
+  /**
+   * Actualiza los datos personales o atributos editables de un usuario.
+   *
+   * @param usuarioId - Identificador del usuario.
+   * @param dto - Datos modificables.
+   * @param request - Petición con la sesión del actor que solicita la edición.
+   * @returns Datos actualizados del usuario.
+   * @throws {ForbiddenException} Si carece de permisos para editar al usuario seleccionado.
+   * @throws {BadRequestException} Si los datos son inválidos.
+   */
   @Patch(':usuarioId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR', 'BARBERO')
@@ -246,6 +282,15 @@ export class UsuariosController {
     );
   }
 
+  /**
+   * Cambia el estado de una membresía operativa del usuario en la barbería actual.
+   *
+   * @param usuarioId - Identificador numérico del usuario.
+   * @param dto - Nuevo estado y tipo de membresía a afectar.
+   * @param request - Petición con la sesión del administrador.
+   * @returns Registro actualizado de la membresía.
+   * @throws {ForbiddenException} Si carece de permisos para alterar el estado de la membresía.
+   */
   @Patch(':usuarioId/estado')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPERADMIN', 'ADMINISTRADOR')

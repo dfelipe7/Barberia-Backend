@@ -19,7 +19,8 @@ import { DisponibilidadDetalladaResponseDto } from '../dto/dto-respuesta/disponi
 
 import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
 
-interface RequestConUsuario {
+/** Petición HTTP con sesión del barbero para consulta de disponibilidad propia. */
+export interface RequestConUsuario {
   user?: Partial<ClaimsSesionPersonal>;
 }
 

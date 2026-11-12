@@ -1,0 +1,89 @@
+# ==============================================================================
+# TÉCNICA DE TESTING / SEGURIDAD: DAST (Dynamic Application Security Testing)
+# Subtipo: Escaneo Dinámico de Caja Negra (Black-Box Security Audit)
+# Herramienta: OWASP ZAP (Zed Attack Proxy)
+# ==============================================================================
+# Propósito:
+#   Inspeccionar la superficie expuesta de la aplicación en tiempo de ejecución
+#   desde el exterior, simulando un atacante real sin acceso al código fuente.
+# Objetivos de prueba:
+#   - Detección de fallos en cabeceras de seguridad HTTP (Helmet, CSP, X-Frame-Options).
+#   - Detección de fugas de información en endpoints públicos y mensajes de error.
+#   - Comprobación de políticas CORS, Rate Limiting y protección anti-clickjacking.
+# Artefacto generado:
+#   - Reporte interactivo formal zap_report.html descargable desde los Artefactos de GitHub.
+# Momento de activación:
+#   - En cada push a ramas principales (master, main).
+#   - En cada Pull Request.
+#   - Ejecución manual bajo demanda mediante workflow_dispatch.
+# ==============================================================================
+
+name: DAST Security Audit (OWASP ZAP)
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+  workflow_dispatch:
+
+jobs:
+  dast-scan:
+    name: OWASP ZAP Dynamic Scan
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: barberia_dev
+        ports:
+          - 3306:3306
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=2s --health-retries=5
+
+    steps:
+      - name: Descargar código fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias y compilar
+        run: |
+          npm ci
+          npm run build
+
+      - name: Aplicar esquema en MariaDB
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: 'mysql://root:root@127.0.0.1:3306/barberia_dev'
+
+      - name: Iniciar servidor backend para escaneo dinámico
+        run: |
+          node dist/src/main &
+          npx wait-on http://127.0.0.1:3000/health --timeout 60000
+        env:
+          PORT: 3000
+          SWAGGER_HABILITADO: 'true'
+          DATABASE_URL: 'mysql://root:root@127.0.0.1:3306/barberia_dev'
+          JWT_SECRET: 'test_jwt_secret_dast_ci_key_32chars_long'
+
+      - name: Ejecutar Escaneo Dinámico OWASP ZAP (Baseline Scan)
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: 'http://127.0.0.1:3000/api/docs'
+          issue_title: 'OWASP ZAP - Alerta de Seguridad Dinámica (DAST)'
+          fail_action: false
+          allow_issue_writing: false
+
+      - name: Subir Reporte DAST (HTML) como Artefacto
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reporte-dast-owasp-zap
+          path: zap_report.html
+          retention-days: 14

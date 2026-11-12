@@ -28,6 +28,18 @@ import {
 export class JwtSesionGuard implements CanActivate {
   constructor(private readonly personalJwt: PersonalJwtService) {}
 
+  /**
+   * Valida la autenticidad del token de sesión de personal en rutas de gestión de sesión.
+   *
+   * @remarks
+   * A diferencia de `JwtAuthGuard`, no exige correspondencia con la sede actual porque
+   * se utiliza específicamente para refrescar el token o conmutar de sede (`/auth/tenant/:slug`).
+   * Valida que el token corresponda al tipo `TIPO_TOKEN_PERSONAL` e inyecta los claims en `request.user`.
+   *
+   * @param context - Contexto de ejecución de NestJS.
+   * @returns Booleano indicando si la petición está autorizada para proceder.
+   * @throws {UnauthorizedException} Si el token falta, tiene formato incorrecto, expiró o no es de tipo personal.
+   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<{
       headers: { authorization?: string };

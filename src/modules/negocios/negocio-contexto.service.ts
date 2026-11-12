@@ -31,32 +31,40 @@ export type { ContextoNegocio } from './negocio-almacenamiento';
 @Injectable()
 export class NegocioContextoService {
   /**
-   * Ejecuta `operacion` con el contexto de negocio establecido.
+   * Ejecuta una operación sincrónica o asíncrona dentro del contexto de negocio establecido.
    *
-   * Debe invocarse de forma que `next()` (o la operación equivalente) se
-   * llame DENTRO de la callback: el resto de la cadena se registra en el
-   * contexto asíncrono actual y hereda el negocio.
+   * @param contexto - Metadatos de la barbería activa (id, slug, estado)
+   * @param operacion - Función a ejecutar que hereda el contexto en toda su cadena de promesas
+   * @returns El resultado producido por la operación
    */
   ejecutarEnContexto<T>(contexto: ContextoNegocio, operacion: () => T): T {
     return ejecutarEnContextoNegocio(contexto, operacion);
   }
 
-  /** Devuelve el contexto de negocio activo, o `undefined` si no hay. */
+  /**
+   * Devuelve el contexto de negocio activo en la traza de ejecución actual.
+   *
+   * @returns El contexto de la barbería resuelta o `undefined` si opera en ámbito global.
+   */
   obtenerContexto(): ContextoNegocio | undefined {
     return obtenerContextoNegocio();
   }
 
-  /** `true` si la cadena asíncrona actual tiene un contexto de negocio. */
+  /**
+   * Comprueba si la cadena asíncrona actual tiene un contexto de negocio asociado.
+   *
+   * @returns `true` si existe un negocio activo en el AsyncLocalStorage.
+   */
   tieneContexto(): boolean {
     return tieneContextoNegocio();
   }
 
   /**
-   * Devuelve el contexto de negocio activo o falla de forma segura.
+   * Devuelve el contexto de negocio activo o lanza una excepción defensiva si no existe.
+   * Garantiza que operaciones críticas jamás operen sin aislamiento multitenant.
    *
-   * Se usa en las operaciones que DEBEN pertenecer a un negocio (lecturas y
-   * escrituras tenant-scoped). Fallar aquí evita que una operación sin
-   * contexto termine actuando sobre el conjunto completo de negocios.
+   * @returns El contexto obligatorio de la barbería.
+   * @throws {Error} Si se invoca fuera del ciclo de vida de una petición multitenant.
    */
   obtenerContextoRequerido(): ContextoNegocio {
     return obtenerContextoNegocioRequerido();

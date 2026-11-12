@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WhatsAppPlantillasRepository } from './whatsapp-plantillas.repository';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 describe('WhatsAppPlantillasRepository', () => {
   let repository: WhatsAppPlantillasRepository;
