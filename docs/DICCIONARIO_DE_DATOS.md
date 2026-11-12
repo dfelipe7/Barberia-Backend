@@ -17,6 +17,7 @@ erDiagram
     NEGOCIO ||--o{ BARBERO : "contrata (1:N)"
     NEGOCIO ||--o{ CLIENTE : "registra (1:N)"
     NEGOCIO ||--o{ SERVICIO : "publica (1:N)"
+    NEGOCIO ||--o{ PRODUCTO : "comercializa (1:N)"
     NEGOCIO ||--o{ BARBERO_SERVICIO : "contextualiza (1:N)"
     NEGOCIO ||--o{ BARBER_WEEKLY_SLOT : "horario (1:N)"
     NEGOCIO ||--o{ BARBER_SCHEDULE_BLOCK : "bloqueos (1:N)"
@@ -58,6 +59,7 @@ erDiagram
 | **`RolUsuario`** | `SUPERADMIN`, `PERSONAL` | Clasificación global heredada. Los roles reales derivan de `Administrador.superadmin` y perfiles por sede. |
 | **`TipoRedSocial`** | `TIKTOK`, `FACEBOOK`, `INSTAGRAM`, `WHATSAPP`, `OTRO` | Identificador de canales sociales públicos de la sede. |
 | **`EstadoServicio`** | `ACTIVO`, `INACTIVO` | Publicación del servicio en catálogo y portal de reservas. |
+| **`EstadoProducto`** | `ACTIVO`, `INACTIVO` | Estado comercial del producto en el catálogo y portal de venta. |
 | **`WeekDay`** | `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY`, `SUNDAY` | Días de la semana para matrices de horario laboral. |
 | **`ScheduleBlockStatus`**| `ACTIVE`, `REACTIVATED`, `CANCELLED` | Historial de bloqueos de tiempo sin borrado físico. |
 | **`ScheduleBlockReason`**| `PERSONAL`, `MEDICAL`, `VACATION`, `OTHER` | Motivo de auditoría del bloqueo de agenda del barbero. |
@@ -374,10 +376,31 @@ Políticas operativas por barbería (Ámbito Tenant: antelación de cancelación
 
 ---
 
+### 3.17 `productos` (Modelo: `Producto`)
+Artículos y productos del catálogo comercial de la barbería (HE-03). Aislamiento multitenant por `negocioId`.
+
+| Columna | Tipo SQL | Nulo | Clave | Valor por Defecto | Descripción |
+| :--- | :--- | :---: | :---: | :--- | :--- |
+| `id` | `INT` | No | **PK** | `AUTO_INCREMENT` | Identificador único del producto. |
+| `negocioId` | `INT` | No | **FK / UK** | — | Negocio dueño del producto (`ON DELETE RESTRICT`). |
+| `nombre` | `VARCHAR(100)`| No | **UK** | — | Nombre comercial del artículo (único por negocio). |
+| `descripcion` | `TEXT` | Sí | — | `NULL` | Características, beneficios o modo de uso del producto. |
+| `precio` | `DECIMAL(10,2)`| No | — | — | Precio de venta al público en moneda local (mayor a 0). |
+| `imagenUrl` | `VARCHAR(500)`| Sí | — | `NULL` | Ruta relativa a la fotografía del producto almacenada en el servidor. |
+| `estado` | `ENUM` | No | — | `'ACTIVO'` | Estado comercial (`ACTIVO`, `INACTIVO`). |
+| `creadoEn` | `DATETIME(3)` | No | — | `CURRENT_TIMESTAMP` | Fecha y hora de registro. |
+| `actualizadoEn`| `DATETIME(3)` | No | — | `AUTO UPDATE` | Fecha y hora de última modificación. |
+
+* **Restricción UNIQUE:** `(negocioId, nombre)` (Garantiza que una barbería no pueda registrar dos productos con el mismo nombre).
+* **Índice Compuesto 1:** `(negocioId, creadoEn, id)` (Optimiza el listado administrativo ordenado por fecha de creación).
+* **Índice Compuesto 2:** `(negocioId, estado, nombre, id)` (Optimiza el catálogo público filtrado por estado `ACTIVO` y ordenado por nombre).
+
+---
+
 ## 4. 🛡️ Políticas de Integridad Referencial y Cascada
 
 * **`ON DELETE RESTRICT` (Protección de Integridad de Datos):**  
-  Las relaciones estructurales críticas (`Negocio -> Administrador`, `Negocio -> Barbero`, `Negocio -> Servicio`, `Reservation -> Barbero`) tienen eliminación restringida. No se puede borrar accidentalmente un negocio con historial financiero o citas programadas; se exige la desactivación lógica mediante `estado = INACTIVO`.
+  Las relaciones estructurales críticas (`Negocio -> Administrador`, `Negocio -> Barbero`, `Negocio -> Servicio`, `Negocio -> Producto`, `Reservation -> Barbero`) tienen eliminación restringida. No se puede borrar accidentalmente un negocio con historial financiero o citas programadas; se exige la desactivación lógica mediante `estado = INACTIVO`.
 * **`ON DELETE CASCADE` (Limpieza de Dependencias Débiles):**  
   Tablas subordinadas exclusivas (`PerfilNegocio`, `RedSocialNegocio`, `BarberoServicio`, `BarberWeeklySlot`, `BarberScheduleBlock`) se eliminan automáticamente si la entidad padre es retirada.
 * **`ON DELETE SET NULL` (Preservación de Trazabilidad):**  

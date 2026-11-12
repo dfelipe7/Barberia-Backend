@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { NegociosPlataformaController } from './negocios-plataforma.controller';
-import { PrismaService } from '../../prisma/prisma.service';
+import { NegociosPlataformaService } from './service/negocios-plataforma.service';
 import { JwtSesionGuard } from '../../auth/guards/jwt-sesion.guard';
 import { PersonalJwtService } from '../../auth/sesion/personal-jwt.service';
 import { PlataformaAdminGuard } from './guards/plataforma-admin.guard';
@@ -9,39 +9,27 @@ import { EstadoNegocio } from '../../../generated/prisma/enums';
 
 describe('NegociosPlataformaController', () => {
   let controller: NegociosPlataformaController;
-  let prisma: {
-    negocio: {
-      findMany: jest.Mock;
-      findUnique: jest.Mock;
-      create: jest.Mock;
-      update: jest.Mock;
-    };
-    usuario: {
-      findUnique: jest.Mock;
-      create: jest.Mock;
-    };
+  let service: {
+    listarBarberiasPublicas: jest.Mock;
+    listarBarberias: jest.Mock;
+    crearBarberia: jest.Mock;
+    cambiarEstado: jest.Mock;
   };
 
   beforeEach(async () => {
-    prisma = {
-      negocio: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-      },
-      usuario: {
-        findUnique: jest.fn(),
-        create: jest.fn(),
-      },
+    service = {
+      listarBarberiasPublicas: jest.fn(),
+      listarBarberias: jest.fn(),
+      crearBarberia: jest.fn(),
+      cambiarEstado: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [NegociosPlataformaController],
       providers: [
         {
-          provide: PrismaService,
-          useValue: prisma,
+          provide: NegociosPlataformaService,
+          useValue: service,
         },
         {
           provide: PersonalJwtService,
@@ -64,73 +52,37 @@ describe('NegociosPlataformaController', () => {
   });
 
   describe('listarBarberiasPublicas (GET /plataforma/negocios/publico)', () => {
-    it('la respuesta pública contiene exactamente las claves permitidas y ningún campo prohibido', async () => {
-      prisma.negocio.findMany.mockResolvedValue([
+    it('delega la consulta al servicio y retorna el resultado', async () => {
+      const mockPublico = [
         {
           id: 1,
           nombre: 'Barberia Centro',
           slug: 'barberia-centro',
-          perfil: {
-            ciudad: 'Popayán',
-            logoBlancoUrl: 'https://logo.png',
-            bannerUrl: 'https://banner.png',
-            frasePrincipal: 'Estilo y calidad',
-            direccion: 'Calle 5 # 4-20',
-            departamento: 'Cauca',
-          },
-          zonaHoraria: 'America/Bogota',
-          creadoEn: new Date(),
-          _count: {
-            barberos: 5,
-            servicios: 10,
-            reservas: 100,
-            clientes: 50,
-          },
+          ciudad: 'Popayán',
+          logoBlancoUrl: 'https://logo.png',
+          bannerUrl: 'https://banner.png',
+          frasePrincipal: 'Estilo y calidad',
         },
-      ]);
+      ];
+      service.listarBarberiasPublicas.mockResolvedValue(mockPublico);
 
       const resultado = await controller.listarBarberiasPublicas();
 
-      expect(resultado).toHaveLength(1);
-      const item = resultado[0];
-
-      // Exact allowed keys
-      const allowedKeys = [
-        'id',
-        'nombre',
-        'slug',
-        'ciudad',
-        'logoBlancoUrl',
-        'bannerUrl',
-        'frasePrincipal',
-      ].sort();
-      expect(Object.keys(item).sort()).toEqual(allowedKeys);
-
-      // Must NOT contain forbidden fields or nested objects
-      expect(item).not.toHaveProperty('perfil');
-      expect(item).not.toHaveProperty('direccion');
-      expect(item).not.toHaveProperty('departamento');
-      expect(item).not.toHaveProperty('zonaHoraria');
-      expect(item).not.toHaveProperty('creadoEn');
-      expect(item).not.toHaveProperty('estadisticas');
-      expect(item).not.toHaveProperty('totalReservas');
-      expect(item).not.toHaveProperty('totalClientes');
-      expect(item).not.toHaveProperty('totalBarberos');
-      expect(item).not.toHaveProperty('totalServicios');
+      expect(service.listarBarberiasPublicas).toHaveBeenCalledTimes(1);
+      expect(resultado).toEqual(mockPublico);
     });
   });
 
   describe('listarBarberias (GET /plataforma/negocios - admin full)', () => {
-    it('retorna el detalle completo y estadísticas para administradores', async () => {
-      const fecha = new Date();
-      prisma.negocio.findMany.mockResolvedValue([
+    it('delega al servicio y retorna el detalle completo con estadísticas', async () => {
+      const mockAdmin = [
         {
           id: 1,
           nombre: 'Barberia Centro',
           slug: 'barberia-centro',
           estado: EstadoNegocio.ACTIVO,
           zonaHoraria: 'America/Bogota',
-          creadoEn: fecha,
+          creadoEn: new Date(),
           perfil: {
             direccion: 'Calle 5 # 4-20',
             ciudad: 'Popayán',
@@ -138,31 +90,67 @@ describe('NegociosPlataformaController', () => {
             bannerUrl: 'https://banner.png',
             frasePrincipal: 'Estilo',
           },
-          _count: {
-            barberos: 3,
-            servicios: 8,
-            reservas: 45,
-            clientes: 30,
+          estadisticas: {
+            totalBarberos: 3,
+            totalServicios: 8,
+            totalReservas: 45,
+            totalClientes: 30,
           },
         },
-      ]);
+      ];
+      service.listarBarberias.mockResolvedValue(mockAdmin);
 
       const resultado = await controller.listarBarberias();
 
-      expect(resultado).toHaveLength(1);
-      const item = resultado[0];
-      expect(item.id).toBe(1);
-      expect(item.nombre).toBe('Barberia Centro');
-      expect(item.estado).toBe(EstadoNegocio.ACTIVO);
-      expect(item.zonaHoraria).toBe('America/Bogota');
-      expect(item.creadoEn).toBe(fecha);
-      expect(item.perfil?.direccion).toBe('Calle 5 # 4-20');
-      expect(item.estadisticas).toEqual({
-        totalBarberos: 3,
-        totalServicios: 8,
-        totalReservas: 45,
-        totalClientes: 30,
-      });
+      expect(service.listarBarberias).toHaveBeenCalledTimes(1);
+      expect(resultado).toEqual(mockAdmin);
+    });
+  });
+
+  describe('crearBarberia (POST /plataforma/negocios)', () => {
+    it('delega la creación al servicio con el DTO recibido', async () => {
+      const dto = {
+        nombre: 'Nueva Barberia',
+        slug: 'nueva-barberia',
+      };
+      const mockCreado = {
+        mensaje: 'Barbería registrada exitosamente en la plataforma.',
+        negocio: {
+          id: 2,
+          nombre: 'Nueva Barberia',
+          slug: 'nueva-barberia',
+          estado: EstadoNegocio.ACTIVO,
+          perfil: null,
+          dueno: null,
+        },
+      };
+      service.crearBarberia.mockResolvedValue(mockCreado);
+
+      const resultado = await controller.crearBarberia(dto);
+
+      expect(service.crearBarberia).toHaveBeenCalledWith(dto);
+      expect(resultado).toEqual(mockCreado);
+    });
+  });
+
+  describe('cambiarEstado (PATCH /plataforma/negocios/:id/estado)', () => {
+    it('delega la actualización de estado al servicio', async () => {
+      const dto = { estado: EstadoNegocio.INACTIVO };
+      const mockActualizado = {
+        mensaje: "La barbería 'Barberia' ahora está INACTIVO.",
+        negocio: {
+          id: 1,
+          nombre: 'Barberia',
+          slug: 'barberia',
+          estado: EstadoNegocio.INACTIVO,
+        },
+      };
+      service.cambiarEstado.mockResolvedValue(mockActualizado);
+
+      const resultado = await controller.cambiarEstado(1, dto);
+
+      expect(service.cambiarEstado).toHaveBeenCalledWith(1, dto);
+      expect(resultado).toEqual(mockActualizado);
     });
   });
 

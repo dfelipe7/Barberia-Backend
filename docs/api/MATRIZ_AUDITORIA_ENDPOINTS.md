@@ -25,7 +25,9 @@ Trazabilidad:
 | Gestionar usuarios (altas, estado, perfil) | **Cubierta** | `/usuarios/**` |
 | Gestionar barberos y su perfil | **Cubierta** | `/usuarios/barberos/**` |
 | Gestionar servicios y sus asignaciones | **Cubierta** | `/servicios/**` |
+| Gestionar catálogo comercial de productos | **Cubierta** | `/productos/**` (alta, edición, estado, listado administrativo, catálogo público) |
 | Gestionar el perfil y la marca del negocio | **Cubierta** | `/perfil-negocio/**` |
+| Directorio y gestión de plataforma (SaaS multitenant) | **Cubierta** | `GET/POST /plataforma/negocios/**` (directorio público, métricas, onboarding, estado) |
 | Crear y consultar horarios (agenda semanal) | **Cubierta** | `/usuarios/me/barbero/horario-semanal` y `/usuarios/barberos/:barberoId/horario-semanal` |
 | Bloquear y reactivar franjas | **Cubierta** | `/bloqueos-horario/**` |
 | Consultar disponibilidad | **Cubierta** (informativa) | `GET /usuarios/barberos/:barberoId/disponibilidad` |
@@ -47,6 +49,7 @@ Trazabilidad:
 | Baja lógica de personal | `PATCH /usuarios/administradores/:id/estado`, `PATCH /usuarios/barberos/:usuarioId/estado`, `PATCH /usuarios/:usuarioId/estado` | Cubierta |
 | Ficha de persona | `GET /usuarios/me`, `GET /usuarios/:usuarioId`, `PATCH /usuarios/:usuarioId` | Cubierta |
 | Catálogo de servicios | `GET /servicios` (público), `GET /servicios/gestion`, `GET /servicios/:id` | Cubierta |
+| Catálogo de productos | `GET /productos/catalogo` (público), `GET /productos` (gestión), `GET /productos/:id`, `POST /productos`, `PATCH /productos/:id`, `PATCH /productos/:id/estado` | Cubierta |
 | Alta/edición/baja de servicio | `POST /servicios`, `PATCH /servicios/:id`, `PATCH /servicios/:id/estado` | Cubierta |
 | Asignación de barberos a un servicio | `POST /servicios` y `PATCH /servicios/:id` (campo `barberoIds[]`), `GET /servicios/:servicioId/barberos` | Cubierta |
 | Servicios de un barbero | `GET /servicios/barbero/:barberoId` | Cubierta |
@@ -66,6 +69,8 @@ Trazabilidad:
 | Listado de reservas del negocio | `GET /reservas/admin` (**solo SUPERADMIN**) | Parcial (G-02) |
 | Estados finales de la reserva | `PATCH /reservas/:reservaId/completar`, `PATCH /reservas/:reservaId/no-show` | Cubierta |
 | Perfil y marca del negocio | `GET /perfil-negocio`, `GET/PUT /perfil-negocio`, `PUT /perfil-negocio/referencias` | Cubierta |
+| Directorio global de barberías (público) | `GET /plataforma/negocios/publico` | Cubierta |
+| Gestión global de sedes (métricas, alta y suspensión) | `GET /plataforma/negocios`, `POST /plataforma/negocios`, `PATCH /plataforma/negocios/:id/estado` | Cubierta |
 | Recursos de marca (favicon, banner, logos) | `POST/DELETE /perfil-negocio/{favicon,banner,logo-blanco,logo-negro}` | Cubierta |
 | Sesión de WhatsApp | `GET /whatsapp/status`, `POST /whatsapp/iniciar|pausar|desconectar` | Cubierta |
 | Plantillas de WhatsApp | `GET/PUT /whatsapp/plantillas`, `POST /whatsapp/plantillas/reset` | Cubierta |
