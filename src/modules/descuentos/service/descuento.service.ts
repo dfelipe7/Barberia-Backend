@@ -10,6 +10,7 @@ import { ProductoRepository } from '../../productos/repository/producto.reposito
 import { ServiciosRepository } from '../../servicios/repository/servicios.repository';
 import {
   DIAS_SEMANA_ORDEN,
+  MENSAJE_CONFIGURACION_INVALIDA_ACTIVACION,
   MENSAJE_DESCUENTO_DUPLICADO,
   MENSAJE_DESCUENTO_NO_ENCONTRADO,
   MENSAJE_DIAS_REQUERIDOS,
@@ -116,6 +117,49 @@ export class DescuentoService {
       descuento.producto?.nombre ?? descuento.servicio?.nombre ?? '';
 
     return this.mapear(descuento, nombreElemento);
+  }
+
+  async cambiarEstado(
+    id: number,
+    activo: boolean,
+  ): Promise<DescuentoResponseDto> {
+    const existente = await this.descuentoRepository.obtenerPorId(id);
+    if (!existente) {
+      throw new NotFoundException(MENSAJE_DESCUENTO_NO_ENCONTRADO);
+    }
+
+    if (activo) {
+      const porcentaje = Number(existente.porcentaje);
+      if (
+        !Number.isFinite(porcentaje) ||
+        porcentaje < PORCENTAJE_MINIMO_DESCUENTO ||
+        porcentaje > PORCENTAJE_MAXIMO_DESCUENTO ||
+        Math.abs(porcentaje * 100 - Math.round(porcentaje * 100)) > 1e-9 ||
+        !Array.isArray(existente.diasSemana) ||
+        existente.diasSemana.length === 0 ||
+        (!existente.producto && !existente.servicio)
+      ) {
+        throw new BadRequestException(
+          MENSAJE_CONFIGURACION_INVALIDA_ACTIVACION,
+        );
+      }
+    }
+
+    const nombreElemento =
+      existente.producto?.nombre ?? existente.servicio?.nombre ?? '';
+
+    if (existente.activo === activo) {
+      return this.mapear(existente, nombreElemento);
+    }
+
+    const actualizado = await this.descuentoRepository.cambiarEstado(
+      id,
+      activo,
+    );
+    const nombreActualizado =
+      actualizado.producto?.nombre ?? actualizado.servicio?.nombre ?? '';
+
+    return this.mapear(actualizado, nombreActualizado);
   }
 
   private async obtenerElemento(

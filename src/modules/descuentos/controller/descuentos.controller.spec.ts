@@ -8,6 +8,7 @@ describe('DescuentosController', () => {
     crear: jest.fn(),
     obtenerPorId: jest.fn(),
     actualizar: jest.fn(),
+    cambiarEstado: jest.fn(),
   };
   const controller = new DescuentosController(
     facade as unknown as DescuentosFacade,
@@ -58,5 +59,24 @@ describe('DescuentosController', () => {
       BadRequestException,
     );
     expect(facade.actualizar).not.toHaveBeenCalled();
+  });
+
+  it('HE-10-HU-04-CA-03: delega el cambio de estado en la fachada', async () => {
+    const dto = { activo: true };
+    const respuesta = {
+      mensaje: 'Descuento activado correctamente',
+      descuento: { id: 5, activo: true },
+    };
+    facade.cambiarEstado.mockResolvedValue(respuesta);
+
+    await expect(controller.cambiarEstado(5, dto)).resolves.toBe(respuesta);
+    expect(facade.cambiarEstado).toHaveBeenCalledWith(5, dto);
+  });
+
+  it('HE-10-HU-04-CA-03: rechaza un id no positivo al cambiar estado', () => {
+    expect(() => controller.cambiarEstado(0, { activo: true })).toThrow(
+      BadRequestException,
+    );
+    expect(facade.cambiarEstado).not.toHaveBeenCalled();
   });
 });

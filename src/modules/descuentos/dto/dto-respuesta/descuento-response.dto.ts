@@ -61,3 +61,12 @@ export class DescuentoActualizadoResponseDto {
   @ApiProperty({ type: DescuentoResponseDto })
   descuento: DescuentoResponseDto;
 }
+
+/** Respuesta del cambio de estado (activar/desactivar) de un descuento. */
+export class DescuentoEstadoResponseDto {
+  @ApiProperty({ example: 'Descuento activado correctamente' })
+  mensaje: string;
+
+  @ApiProperty({ type: DescuentoResponseDto })
+  descuento: DescuentoResponseDto;
+}

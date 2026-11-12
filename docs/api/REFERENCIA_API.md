@@ -319,6 +319,7 @@ Reglas del catálogo público:
 | POST | `/descuentos` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `CrearDescuentoDto` | `201` `DescuentoCreadoResponseDto` |
 | GET | `/descuentos/:descuentoId` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | — | `200` `DescuentoResponseDto` |
 | PATCH | `/descuentos/:descuentoId` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `ActualizarDescuentoDto` | `200` `DescuentoActualizadoResponseDto` |
+| PATCH | `/descuentos/:descuentoId/estado` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `CambiarEstadoDescuentoDto` | `200` `DescuentoEstadoResponseDto` |
 
 Reglas de creación (HE-10-HU-02):
 
@@ -360,6 +361,25 @@ Reglas de modificación (HE-10-HU-03):
   `BARBERO` recibe **403**.
 - No existe endpoint de cancelación de modificaciones (ej. `DELETE /descuentos/:id/cancelar` devuelve **404**).
 - Modificar un descuento no altera acuerdos, importes ni precios guardados en reservas confirmadas.
+
+Reglas de activación y desactivación (HE-10-HU-04):
+
+- **Cambio de estado (`PATCH /descuentos/:descuentoId/estado`)**: activa o desactiva
+  temporalmente un descuento existente dentro del negocio activo.
+- Requiere enviar el estado objetivo explícito en el cuerpo: `{ "activo": true }` o `{ "activo": false }`.
+  Evita toggles ciegos y opera de manera segura ante reintentos.
+- **Idempotencia**: solicitar el estado en el que el descuento ya se encuentra responde **200 OK**
+  con el estado y confirmación sin error ni escrituras redundantes.
+- **Desactivación (`activo: false`)**: desactiva el beneficio comercial conservando intactos el
+  porcentaje, los días aplicables y la asociación al producto o servicio. No altera reservas confirmadas.
+- **Activación (`activo: true`)**: activa el descuento únicamente si su configuración registrada
+  es válida (porcentaje en rango 1–99 con máx. dos decimales, al menos un día asignado y elemento existente).
+  Una configuración inválida responde **400** impidiendo su activación.
+- **Unicidad preservada**: un descuento desactivado sigue ocupando la exclusividad sobre su elemento;
+  desactivar **no habilita** crear un segundo descuento para el mismo producto o servicio (responde **409**).
+- **Roles autorizados**: tanto `ADMINISTRADOR` como `SUPERADMIN` del negocio están facultados para
+  activar y desactivar descuentos en su sede. `BARBERO` recibe **403**.
+- Petición a descuento inexistente o de otro tenant responde **404** sin filtrar información.
 
 ---
 

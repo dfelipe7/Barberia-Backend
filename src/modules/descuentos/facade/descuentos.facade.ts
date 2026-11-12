@@ -1,14 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
 import {
+  MENSAJE_DESCUENTO_ACTIVADO,
   MENSAJE_DESCUENTO_ACTUALIZADO,
   MENSAJE_DESCUENTO_CREADO,
+  MENSAJE_DESCUENTO_DESACTIVADO,
 } from '../descuentos.constants';
 import { ActualizarDescuentoDto } from '../dto/dto-peticion/actualizar-descuento.dto';
+import { CambiarEstadoDescuentoDto } from '../dto/dto-peticion/cambiar-estado-descuento.dto';
 import { CrearDescuentoDto } from '../dto/dto-peticion/crear-descuento.dto';
 import {
   DescuentoActualizadoResponseDto,
   DescuentoCreadoResponseDto,
+  DescuentoEstadoResponseDto,
   DescuentoResponseDto,
 } from '../dto/dto-respuesta/descuento-response.dto';
 import { DescuentoService } from '../service/descuento.service';
@@ -45,6 +49,22 @@ export class DescuentosFacade {
 
     return {
       mensaje: MENSAJE_DESCUENTO_ACTUALIZADO,
+      descuento,
+    };
+  }
+
+  async cambiarEstado(
+    id: number,
+    dto: CambiarEstadoDescuentoDto,
+  ): Promise<DescuentoEstadoResponseDto> {
+    this.aislamiento.negocioIdRequerido();
+    const descuento = await this.descuentoService.cambiarEstado(id, dto.activo);
+    const mensaje = dto.activo
+      ? MENSAJE_DESCUENTO_ACTIVADO
+      : MENSAJE_DESCUENTO_DESACTIVADO;
+
+    return {
+      mensaje,
       descuento,
     };
   }

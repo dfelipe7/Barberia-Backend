@@ -8,6 +8,7 @@ describe('DescuentosFacade', () => {
     crear: jest.fn(),
     obtenerPorId: jest.fn(),
     actualizar: jest.fn(),
+    cambiarEstado: jest.fn(),
   };
   const aislamiento = { negocioIdRequerido: jest.fn() };
   const facade = new DescuentosFacade(
@@ -64,5 +65,31 @@ describe('DescuentosFacade', () => {
     descuentoService.crear.mockRejectedValue(error);
 
     await expect(facade.crear(dto)).rejects.toBe(error);
+  });
+
+  it('HE-10-HU-04-CA-03: exige contexto de negocio y responde confirmación al activar', async () => {
+    const descuentoActivo = { id: 1, activo: true };
+    descuentoService.cambiarEstado.mockResolvedValue(descuentoActivo);
+
+    await expect(facade.cambiarEstado(1, { activo: true })).resolves.toEqual({
+      mensaje: 'Descuento activado correctamente',
+      descuento: descuentoActivo,
+    });
+
+    expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
+    expect(descuentoService.cambiarEstado).toHaveBeenCalledWith(1, true);
+  });
+
+  it('HE-10-HU-04-CA-03: exige contexto de negocio y responde confirmación al desactivar', async () => {
+    const descuentoInactivo = { id: 1, activo: false };
+    descuentoService.cambiarEstado.mockResolvedValue(descuentoInactivo);
+
+    await expect(facade.cambiarEstado(1, { activo: false })).resolves.toEqual({
+      mensaje: 'Descuento desactivado correctamente',
+      descuento: descuentoInactivo,
+    });
+
+    expect(aislamiento.negocioIdRequerido).toHaveBeenCalled();
+    expect(descuentoService.cambiarEstado).toHaveBeenCalledWith(1, false);
   });
 });

@@ -901,6 +901,21 @@ describe('Descuentos: modificar descuento existente (HE-10-HU-03 — MySQL 8.0 r
     return peticion.send(cuerpoReq);
   };
 
+  /** PATCH /descuentos/:id/estado */
+  const cambiarEstado = (
+    token: string | undefined,
+    slug: string,
+    id: number,
+    cuerpoReq: Record<string, unknown>,
+  ) => {
+    let peticion = request(app.getHttpServer())
+      .patch(`/descuentos/${id}/estado`)
+      .set('X-Negocio-Slug', slug);
+
+    if (token) peticion = peticion.set('Authorization', `Bearer ${token}`);
+    return peticion.send(cuerpoReq);
+  };
+
   // -------------------------------------------------------------------------
   // HE-10-HU-03-CA-01 — Carga de configuración
   // -------------------------------------------------------------------------
@@ -1185,4 +1200,225 @@ describe('Descuentos: modificar descuento existente (HE-10-HU-03 — MySQL 8.0 r
       expect(Number(fila?.porcentaje)).toBeCloseTo(50, 5);
     },
   );
+
+  // -------------------------------------------------------------------------
+  // HE-10-HU-04 — Activar o desactivar descuento
+  // -------------------------------------------------------------------------
+  it('HE-10-HU-04-CA-01: desactiva un descuento activo conservando porcentaje, días y elemento', async () => {
+    const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+      tipo: TipoDescuento.PRODUCTO,
+      elementoId: productoA.id,
+      porcentaje: 25,
+      diasSemana: [WeekDay.MONDAY, WeekDay.FRIDAY],
+    });
+    expect(creado.status).toBe(201);
+    const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+    // Primero activarlo
+    const activaResp = await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, {
+      activo: true,
+    });
+    expect(activaResp.status).toBe(200);
+    expect(activaResp.body.descuento.activo).toBe(true);
+
+    // Luego desactivarlo
+    const desactivaResp = await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, {
+      activo: false,
+    });
+    expect(desactivaResp.status).toBe(200);
+    expect(desactivaResp.body.mensaje).toBe(
+      'Descuento desactivado correctamente',
+    );
+    expect(desactivaResp.body.descuento.activo).toBe(false);
+    expect(desactivaResp.body.descuento.porcentaje).toBe(25);
+    expect(desactivaResp.body.descuento.diasSemana).toEqual(
+      expect.arrayContaining([WeekDay.MONDAY, WeekDay.FRIDAY]),
+    );
+
+    // En base de datos se conserva todo
+    const enDb = await prisma.descuento.findUnique({ where: { id } });
+    expect(enDb?.activo).toBe(false);
+    expect(Number(enDb?.porcentaje)).toBeCloseTo(25, 5);
+    expect(enDb?.productoId).toBe(productoA.id);
+  });
+
+  it('HE-10-HU-04-CA-02: activa un descuento inactivo con configuración válida', async () => {
+    const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+      tipo: TipoDescuento.PRODUCTO,
+      elementoId: productoA.id,
+      porcentaje: 15,
+      diasSemana: [WeekDay.TUESDAY],
+    });
+    expect(creado.status).toBe(201);
+    const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+    const resp = await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, {
+      activo: true,
+    });
+    expect(resp.status).toBe(200);
+    expect(resp.body.mensaje).toBe('Descuento activado correctamente');
+    expect(resp.body.descuento.activo).toBe(true);
+    expect(resp.body.descuento.porcentaje).toBe(15);
+  });
+
+  it('HE-10-HU-04-CA-02: rechaza activar un descuento con configuración inválida', async () => {
+    const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+      tipo: TipoDescuento.PRODUCTO,
+      elementoId: productoA.id,
+      porcentaje: 15,
+      diasSemana: [WeekDay.TUESDAY],
+    });
+    expect(creado.status).toBe(201);
+    const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+    // Manipular BD para simular configuración corrupta/inválida
+    await prisma.descuento.update({
+      where: { id },
+      data: { porcentaje: 0 },
+    });
+
+    const resp = await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, {
+      activo: true,
+    });
+    expect(resp.status).toBe(400);
+
+    // Sigue inactivo en BD
+    const enDb = await prisma.descuento.findUnique({ where: { id } });
+    expect(enDb?.activo).toBe(false);
+  });
+
+  it('HE-10-HU-04-CA-03: confirma el estado y es idempotente ante reintentos', async () => {
+    const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+      tipo: TipoDescuento.PRODUCTO,
+      elementoId: productoA.id,
+      porcentaje: 20,
+      diasSemana: [WeekDay.WEDNESDAY],
+    });
+    expect(creado.status).toBe(201);
+    const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+    // Nace inactivo; enviar false de nuevo responde 200 sin error
+    const reintentoInactivo = await cambiarEstado(
+      tokenAdminA,
+      SLUG_HU03_A,
+      id,
+      {
+        activo: false,
+      },
+    );
+    expect(reintentoInactivo.status).toBe(200);
+    expect(reintentoInactivo.body.descuento.activo).toBe(false);
+
+    // Activar
+    const activa = await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, {
+      activo: true,
+    });
+    expect(activa.status).toBe(200);
+    expect(activa.body.descuento.activo).toBe(true);
+
+    // Reintento de activar cuando ya está activo responde 200
+    const reintentoActivo = await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, {
+      activo: true,
+    });
+    expect(reintentoActivo.status).toBe(200);
+    expect(reintentoActivo.body.descuento.activo).toBe(true);
+  });
+
+  it('HE-10-HU-04-CA-04: ADMINISTRADOR y SUPERADMIN activan/desactivan; BARBERO recibe 403; tenant ajeno 404', async () => {
+    const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+      tipo: TipoDescuento.PRODUCTO,
+      elementoId: productoA.id,
+      porcentaje: 30,
+      diasSemana: [WeekDay.THURSDAY],
+    });
+    expect(creado.status).toBe(201);
+    const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+    // SUPERADMIN puede activar y desactivar (decisión de usuario)
+    const superActiva = await cambiarEstado(tokenSuperadminA, SLUG_HU03_A, id, {
+      activo: true,
+    });
+    expect(superActiva.status).toBe(200);
+    expect(superActiva.body.descuento.activo).toBe(true);
+
+    const superDesactiva = await cambiarEstado(
+      tokenSuperadminA,
+      SLUG_HU03_A,
+      id,
+      {
+        activo: false,
+      },
+    );
+    expect(superDesactiva.status).toBe(200);
+    expect(superDesactiva.body.descuento.activo).toBe(false);
+
+    // BARBERO recibe 403
+    const barberoActiva = await cambiarEstado(tokenBarberoA, SLUG_HU03_A, id, {
+      activo: true,
+    });
+    expect(barberoActiva.status).toBe(403);
+
+    // Token de otro tenant recibe 404 (aislamiento)
+    const ajenoResp = await cambiarEstado(tokenAdminB, SLUG_HU03_B, id, {
+      activo: true,
+    });
+    expect(ajenoResp.status).toBe(404);
+  });
+
+  it('HE-10-HU-04-CA-04: desactivar un descuento NO habilita crear un segundo descuento para el mismo elemento', async () => {
+    const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+      tipo: TipoDescuento.PRODUCTO,
+      elementoId: productoA.id,
+      porcentaje: 10,
+      diasSemana: [WeekDay.MONDAY],
+    });
+    expect(creado.status).toBe(201);
+    const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+    // Desactivar explícitamente (o confirmar que está inactivo)
+    await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, { activo: false });
+
+    // Intentar crear otro descuento para el mismo productoA mientras está inactivo
+    const segundo = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+      tipo: TipoDescuento.PRODUCTO,
+      elementoId: productoA.id,
+      porcentaje: 20,
+      diasSemana: [WeekDay.FRIDAY],
+    });
+    expect(segundo.status).toBe(409);
+
+    const total = await prisma.descuento.count({
+      where: { negocioId: negocioA.id, productoId: productoA.id },
+    });
+    expect(total).toBe(1);
+  });
+
+  it('HE-10-HU-04-CA-04: desactivar un descuento no altera reservas confirmadas preexistentes', async () => {
+    const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+      tipo: TipoDescuento.SERVICIO,
+      elementoId: servicioA.id,
+      porcentaje: 20,
+      diasSemana: [WeekDay.FRIDAY],
+    });
+    expect(creado.status).toBe(201);
+    const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+    // Activar primero
+    await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, { activo: true });
+
+    const reservasAntes = await prisma.reservation.count({
+      where: { servicioId: servicioA.id },
+    });
+
+    // Desactivar
+    const resp = await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, {
+      activo: false,
+    });
+    expect(resp.status).toBe(200);
+
+    const reservasDespues = await prisma.reservation.count({
+      where: { servicioId: servicioA.id },
+    });
+    expect(reservasDespues).toBe(reservasAntes);
+  });
 });

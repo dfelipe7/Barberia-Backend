@@ -29,6 +29,7 @@ describe('DescuentoService', () => {
     crear: jest.fn(),
     obtenerPorId: jest.fn(),
     actualizar: jest.fn(),
+    cambiarEstado: jest.fn(),
   };
   const productoRepository = { obtenerPorId: jest.fn() };
   const serviciosRepository = { obtenerServicioPorId: jest.fn() };
@@ -244,6 +245,83 @@ describe('DescuentoService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(descuentoRepository.actualizar).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('HE-10-HU-04: Activar o desactivar un descuento', () => {
+    const descuentoConElemento = {
+      ...descuentoBase,
+      activo: false,
+      producto: { id: 10, nombre: 'Cera Fijadora' },
+      servicio: null,
+    };
+
+    it('HE-10-HU-04-CA-02: activa un descuento inactivo con configuración válida', async () => {
+      descuentoRepository.obtenerPorId.mockResolvedValue(descuentoConElemento);
+      descuentoRepository.cambiarEstado.mockResolvedValue({
+        ...descuentoConElemento,
+        activo: true,
+      });
+
+      const resultado = await service.cambiarEstado(1, true);
+
+      expect(descuentoRepository.obtenerPorId).toHaveBeenCalledWith(1);
+      expect(descuentoRepository.cambiarEstado).toHaveBeenCalledWith(1, true);
+      expect(resultado.activo).toBe(true);
+      expect(resultado.porcentaje).toBe(10.25);
+    });
+
+    it('HE-10-HU-04-CA-01: desactiva un descuento activo conservando parámetros', async () => {
+      descuentoRepository.obtenerPorId.mockResolvedValue({
+        ...descuentoConElemento,
+        activo: true,
+      });
+      descuentoRepository.cambiarEstado.mockResolvedValue({
+        ...descuentoConElemento,
+        activo: false,
+      });
+
+      const resultado = await service.cambiarEstado(1, false);
+
+      expect(descuentoRepository.obtenerPorId).toHaveBeenCalledWith(1);
+      expect(descuentoRepository.cambiarEstado).toHaveBeenCalledWith(1, false);
+      expect(resultado.activo).toBe(false);
+      expect(resultado.porcentaje).toBe(10.25);
+      expect(resultado.diasSemana).toEqual(descuentoBase.diasSemana);
+    });
+
+    it('HE-10-HU-04-CA-03: es idempotente si se solicita el mismo estado actual', async () => {
+      descuentoRepository.obtenerPorId.mockResolvedValue({
+        ...descuentoConElemento,
+        activo: true,
+      });
+
+      const resultado = await service.cambiarEstado(1, true);
+
+      expect(descuentoRepository.obtenerPorId).toHaveBeenCalledWith(1);
+      expect(descuentoRepository.cambiarEstado).not.toHaveBeenCalled();
+      expect(resultado.activo).toBe(true);
+    });
+
+    it('HE-10-HU-04-CA-02: rechaza activar un descuento con configuración inválida', async () => {
+      descuentoRepository.obtenerPorId.mockResolvedValue({
+        ...descuentoConElemento,
+        porcentaje: 0,
+      });
+
+      await expect(service.cambiarEstado(1, true)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(descuentoRepository.cambiarEstado).not.toHaveBeenCalled();
+    });
+
+    it('HE-10-HU-04-CA-04: lanza NotFoundException si el descuento no existe', async () => {
+      descuentoRepository.obtenerPorId.mockResolvedValue(null);
+
+      await expect(service.cambiarEstado(999, true)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(descuentoRepository.cambiarEstado).not.toHaveBeenCalled();
     });
   });
 });

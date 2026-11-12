@@ -26,10 +26,12 @@ import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { Roles } from '../../../auth/roles/roles.decorator';
 import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { ActualizarDescuentoDto } from '../dto/dto-peticion/actualizar-descuento.dto';
+import { CambiarEstadoDescuentoDto } from '../dto/dto-peticion/cambiar-estado-descuento.dto';
 import { CrearDescuentoDto } from '../dto/dto-peticion/crear-descuento.dto';
 import {
   DescuentoActualizadoResponseDto,
   DescuentoCreadoResponseDto,
+  DescuentoEstadoResponseDto,
   DescuentoResponseDto,
 } from '../dto/dto-respuesta/descuento-response.dto';
 import { DescuentosFacade } from '../facade/descuentos.facade';
@@ -139,6 +141,58 @@ export class DescuentosController {
     }
 
     return this.facade.actualizar(descuentoId, dto);
+  }
+
+  /**
+   * PATCH /descuentos/:descuentoId/estado
+   * Activa o desactiva un descuento del negocio activo (HE-10-HU-04).
+   * Conserva el porcentaje, días y asociación al elemento.
+   * SUPERADMIN y ADMINISTRADOR del negocio pueden activar y desactivar.
+   */
+  @Patch(':descuentoId/estado')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPERADMIN', 'ADMINISTRADOR')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiNegocioHeader()
+  @ApiOperation({
+    summary: 'Activar o desactivar un descuento (SUPERADMIN / ADMINISTRADOR)',
+    description:
+      'Activa o desactiva temporalmente la aplicación de un descuento conservando su porcentaje, días y elemento registrado. Solicitar el estado actual es idempotente y responde 200.',
+  })
+  @ApiParam({
+    name: 'descuentoId',
+    example: 1,
+    description: 'ID del descuento',
+  })
+  @ApiBody({ type: CambiarEstadoDescuentoDto })
+  @ApiOkResponse({
+    description: 'Estado del descuento actualizado correctamente',
+    type: DescuentoEstadoResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Datos inválidos o configuración no activable',
+  })
+  @ApiResponse({ status: 401, description: 'No autenticado' })
+  @ApiResponse({
+    status: 403,
+    description: 'No autorizado (solo SUPERADMIN o ADMINISTRADOR)',
+  })
+  @ApiNotFoundResponse({
+    description: 'El descuento no se encuentra disponible',
+  })
+  cambiarEstado(
+    @Param('descuentoId', ParseIntPipe) descuentoId: number,
+    @Body() dto: CambiarEstadoDescuentoDto,
+  ): Promise<DescuentoEstadoResponseDto> {
+    if (descuentoId <= 0) {
+      throw new BadRequestException(
+        'El identificador del descuento debe ser un entero positivo',
+      );
+    }
+
+    return this.facade.cambiarEstado(descuentoId, dto);
   }
 
   /**

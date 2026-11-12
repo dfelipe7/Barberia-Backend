@@ -74,6 +74,32 @@ describe('DescuentoRepository', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('HE-10-HU-04-CA-01/CA-02: cambia el estado activo dentro del negocio', async () => {
+    const actualizado = { id: 12, activo: true };
+    prisma.descuento.update.mockResolvedValue(actualizado);
+
+    const resultado = await repository.cambiarEstado(12, true);
+
+    expect(aislamiento.filtroEscritura).toHaveBeenCalledWith({ id: 12 });
+    expect(prisma.descuento.update).toHaveBeenCalledWith({
+      where: { negocioId: 7, id: 12 },
+      data: { activo: true },
+      include: {
+        producto: { select: { id: true, nombre: true } },
+        servicio: { select: { id: true, nombre: true } },
+      },
+    });
+    expect(resultado).toBe(actualizado);
+  });
+
+  it('HE-10-HU-04-CA-04: lanza NotFoundException si Prisma reporta P2025 al cambiar estado', async () => {
+    prisma.descuento.update.mockRejectedValue({ code: 'P2025' });
+
+    await expect(repository.cambiarEstado(12, false)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
   it('busca un descuento de producto dentro del negocio del contexto', async () => {
     prisma.descuento.findFirst.mockResolvedValue(null);
 

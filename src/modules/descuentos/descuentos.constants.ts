@@ -6,6 +6,11 @@ export const PORCENTAJE_MAXIMO_DESCUENTO = 99;
 export const MENSAJE_DESCUENTO_CREADO = 'Descuento creado correctamente';
 export const MENSAJE_DESCUENTO_ACTUALIZADO =
   'Descuento actualizado correctamente';
+export const MENSAJE_DESCUENTO_ACTIVADO = 'Descuento activado correctamente';
+export const MENSAJE_DESCUENTO_DESACTIVADO =
+  'Descuento desactivado correctamente';
+export const MENSAJE_CONFIGURACION_INVALIDA_ACTIVACION =
+  'No se puede activar un descuento con configuración inválida';
 export const MENSAJE_DESCUENTO_NO_ENCONTRADO =
   'El descuento no se encuentra disponible';
 export const MENSAJE_SIN_CAMBIOS_DESCUENTO =

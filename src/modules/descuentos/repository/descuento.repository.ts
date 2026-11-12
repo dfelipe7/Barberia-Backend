@@ -105,4 +105,26 @@ export class DescuentoRepository {
       throw error;
     }
   }
+
+  async cambiarEstado(
+    id: number,
+    activo: boolean,
+  ): Promise<DescuentoConElemento> {
+    try {
+      return await this.prisma.descuento.update({
+        where: this.aislamiento.filtroEscritura({ id }),
+        data: { activo },
+        include: {
+          producto: { select: { id: true, nombre: true } },
+          servicio: { select: { id: true, nombre: true } },
+        },
+      });
+    } catch (error) {
+      if ((error as { code?: string })?.code === 'P2025') {
+        throw new NotFoundException(MENSAJE_DESCUENTO_NO_ENCONTRADO);
+      }
+
+      throw error;
+    }
+  }
 }
