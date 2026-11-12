@@ -11,15 +11,21 @@ import { ServiciosRepository } from '../../servicios/repository/servicios.reposi
 import {
   DIAS_SEMANA_ORDEN,
   MENSAJE_DESCUENTO_DUPLICADO,
+  MENSAJE_DESCUENTO_NO_ENCONTRADO,
   MENSAJE_DIAS_REQUERIDOS,
   MENSAJE_ELEMENTO_NO_DISPONIBLE,
   MENSAJE_PORCENTAJE_INVALIDO,
+  MENSAJE_SIN_CAMBIOS_DESCUENTO,
   PORCENTAJE_MAXIMO_DESCUENTO,
   PORCENTAJE_MINIMO_DESCUENTO,
 } from '../descuentos.constants';
+import { ActualizarDescuentoDto } from '../dto/dto-peticion/actualizar-descuento.dto';
 import { CrearDescuentoDto } from '../dto/dto-peticion/crear-descuento.dto';
 import { DescuentoResponseDto } from '../dto/dto-respuesta/descuento-response.dto';
-import { DescuentoRepository } from '../repository/descuento.repository';
+import {
+  CambiosDescuento,
+  DescuentoRepository,
+} from '../repository/descuento.repository';
 
 /** Datos ya validados que el repositorio persiste. */
 export interface DatosDescuento {
@@ -68,6 +74,48 @@ export class DescuentoService {
     });
 
     return this.mapear(descuento, elemento.nombre);
+  }
+
+  async obtenerPorId(id: number): Promise<DescuentoResponseDto> {
+    const descuento = await this.descuentoRepository.obtenerPorId(id);
+
+    if (!descuento) {
+      throw new NotFoundException(MENSAJE_DESCUENTO_NO_ENCONTRADO);
+    }
+
+    const nombreElemento =
+      descuento.producto?.nombre ?? descuento.servicio?.nombre ?? '';
+
+    return this.mapear(descuento, nombreElemento);
+  }
+
+  async actualizar(
+    id: number,
+    dto: ActualizarDescuentoDto,
+  ): Promise<DescuentoResponseDto> {
+    if (dto.porcentaje === undefined && dto.diasSemana === undefined) {
+      throw new BadRequestException(MENSAJE_SIN_CAMBIOS_DESCUENTO);
+    }
+
+    if (dto.porcentaje !== undefined) {
+      this.validarPorcentaje(dto.porcentaje);
+    }
+
+    const diasSemana =
+      dto.diasSemana !== undefined
+        ? this.normalizarDias(dto.diasSemana)
+        : undefined;
+
+    const datos: CambiosDescuento = {
+      ...(dto.porcentaje !== undefined ? { porcentaje: dto.porcentaje } : {}),
+      ...(diasSemana !== undefined ? { diasSemana } : {}),
+    };
+
+    const descuento = await this.descuentoRepository.actualizar(id, datos);
+    const nombreElemento =
+      descuento.producto?.nombre ?? descuento.servicio?.nombre ?? '';
+
+    return this.mapear(descuento, nombreElemento);
   }
 
   private async obtenerElemento(

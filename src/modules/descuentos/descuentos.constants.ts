@@ -4,6 +4,12 @@ export const PORCENTAJE_MINIMO_DESCUENTO = 1;
 export const PORCENTAJE_MAXIMO_DESCUENTO = 99;
 
 export const MENSAJE_DESCUENTO_CREADO = 'Descuento creado correctamente';
+export const MENSAJE_DESCUENTO_ACTUALIZADO =
+  'Descuento actualizado correctamente';
+export const MENSAJE_DESCUENTO_NO_ENCONTRADO =
+  'El descuento no se encuentra disponible';
+export const MENSAJE_SIN_CAMBIOS_DESCUENTO =
+  'Debe indicar al menos un campo para actualizar (porcentaje o días)';
 export const MENSAJE_DESCUENTO_DUPLICADO =
   'Ya existe un descuento configurado para este elemento. Modifique el descuento existente.';
 export const MENSAJE_ELEMENTO_NO_DISPONIBLE =

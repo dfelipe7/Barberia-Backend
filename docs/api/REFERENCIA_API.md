@@ -317,6 +317,8 @@ Reglas del catálogo público:
 | Método | Ruta | Auth | Rol | Cuerpo / Query | Respuesta |
 |--------|------|------|-----|----------------|-----------|
 | POST | `/descuentos` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `CrearDescuentoDto` | `201` `DescuentoCreadoResponseDto` |
+| GET | `/descuentos/:descuentoId` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | — | `200` `DescuentoResponseDto` |
+| PATCH | `/descuentos/:descuentoId` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `ActualizarDescuentoDto` | `200` `DescuentoActualizadoResponseDto` |
 
 Reglas de creación (HE-10-HU-02):
 
@@ -336,6 +338,28 @@ Reglas de creación (HE-10-HU-02):
   mensaje, para no revelar su existencia.
 - La creación no evalúa precios ni acumula promociones; esa aplicación corresponde a la
   consulta de catálogo/reserva. HU-02 no expone endpoint de cancelación.
+
+Reglas de modificación (HE-10-HU-03):
+
+- **Consulta (`GET /descuentos/:descuentoId`)**: devuelve la configuración completa:
+  `porcentaje`, `diasSemana` (en orden canónico), `activo` (estado registrado) y `elemento`
+  asociado (`id` y `nombre`). Si el descuento no existe o pertenece a otro negocio, responde **404**
+  sin revelar datos ajenos. `BARBERO` recibe **403**.
+- **Modificación (`PATCH /descuentos/:descuentoId`)**: actualiza únicamente `porcentaje` y/o
+  `diasSemana` sobre el mismo registro en base de datos.
+- Conserva el `id` original y la asociación al elemento (`tipo`, `productoId`, `servicioId`) y su
+  estado `activo`. No crea registros nuevos ni reubica el descuento a otro elemento o tenant.
+- Se debe enviar al menos un campo (`porcentaje` o `diasSemana`); si el cuerpo viene vacío se
+  rechaza con **400**.
+- `porcentaje` admite entre 1 y 99 con máximo dos decimales; mayor precisión devuelve **400** sin
+  redondeo silencioso.
+- `diasSemana` exige al menos un día válido. Se normalizan duplicados y se ordenan canónicamente.
+- **Validación atómica**: una validación fallida rechaza la petición con **400** y conserva intacta
+  la configuración previa en la base de datos, sin modificaciones parciales.
+- **Roles autorizados**: tanto `ADMINISTRADOR` como `SUPERADMIN` del negocio pueden consultar y modificar.
+  `BARBERO` recibe **403**.
+- No existe endpoint de cancelación de modificaciones (ej. `DELETE /descuentos/:id/cancelar` devuelve **404**).
+- Modificar un descuento no altera acuerdos, importes ni precios guardados en reservas confirmadas.
 
 ---
 

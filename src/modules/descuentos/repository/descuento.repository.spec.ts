@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { TipoDescuento, WeekDay } from '../../../../generated/prisma/enums';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
@@ -9,10 +9,12 @@ describe('DescuentoRepository', () => {
     descuento: {
       findFirst: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
   };
   const aislamiento = {
     filtroLectura: jest.fn((where: object) => ({ negocioId: 7, ...where })),
+    filtroEscritura: jest.fn((where: object) => ({ negocioId: 7, ...where })),
     negocioIdRequerido: jest.fn(() => 7),
   };
   const repository = new DescuentoRepository(
@@ -22,6 +24,54 @@ describe('DescuentoRepository', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('HE-10-HU-03-CA-01: obtiene un descuento por id acotado al negocio con relaciones', async () => {
+    prisma.descuento.findFirst.mockResolvedValue(null);
+
+    await repository.obtenerPorId(12);
+
+    expect(aislamiento.filtroLectura).toHaveBeenCalledWith({ id: 12 });
+    expect(prisma.descuento.findFirst).toHaveBeenCalledWith({
+      where: { negocioId: 7, id: 12 },
+      include: {
+        producto: { select: { id: true, nombre: true } },
+        servicio: { select: { id: true, nombre: true } },
+      },
+    });
+  });
+
+  it('HE-10-HU-03-CA-02: actualiza porcentaje y días dentro del negocio', async () => {
+    const actualizado = {
+      id: 12,
+      porcentaje: 15,
+      diasSemana: [WeekDay.FRIDAY],
+    };
+    prisma.descuento.update.mockResolvedValue(actualizado);
+
+    const resultado = await repository.actualizar(12, {
+      porcentaje: 15,
+      diasSemana: [WeekDay.FRIDAY],
+    });
+
+    expect(aislamiento.filtroEscritura).toHaveBeenCalledWith({ id: 12 });
+    expect(prisma.descuento.update).toHaveBeenCalledWith({
+      where: { negocioId: 7, id: 12 },
+      data: { porcentaje: 15, diasSemana: [WeekDay.FRIDAY] },
+      include: {
+        producto: { select: { id: true, nombre: true } },
+        servicio: { select: { id: true, nombre: true } },
+      },
+    });
+    expect(resultado).toBe(actualizado);
+  });
+
+  it('HE-10-HU-03-CA-02: lanza NotFoundException si Prisma reporta P2025 al actualizar', async () => {
+    prisma.descuento.update.mockRejectedValue({ code: 'P2025' });
+
+    await expect(
+      repository.actualizar(12, { porcentaje: 15 }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('busca un descuento de producto dentro del negocio del contexto', async () => {

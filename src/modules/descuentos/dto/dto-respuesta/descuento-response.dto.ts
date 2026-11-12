@@ -52,3 +52,12 @@ export class DescuentoCreadoResponseDto {
   @ApiProperty({ type: DescuentoResponseDto })
   descuento: DescuentoResponseDto;
 }
+
+/** Respuesta de la modificación de un descuento. */
+export class DescuentoActualizadoResponseDto {
+  @ApiProperty({ example: 'Descuento actualizado correctamente' })
+  mensaje: string;
+
+  @ApiProperty({ type: DescuentoResponseDto })
+  descuento: DescuentoResponseDto;
+}

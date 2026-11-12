@@ -27,6 +27,8 @@ describe('DescuentoService', () => {
   const descuentoRepository = {
     buscarPorElemento: jest.fn(),
     crear: jest.fn(),
+    obtenerPorId: jest.fn(),
+    actualizar: jest.fn(),
   };
   const productoRepository = { obtenerPorId: jest.fn() };
   const serviciosRepository = { obtenerServicioPorId: jest.fn() };
@@ -163,5 +165,85 @@ describe('DescuentoService', () => {
     await service.crear({ ...dtoProducto, porcentaje: 99 });
 
     expect(descuentoRepository.crear).toHaveBeenCalledTimes(2);
+  });
+
+  describe('HE-10-HU-03: Modificar descuento existente', () => {
+    const descuentoConElemento = {
+      ...descuentoBase,
+      producto: { id: 10, nombre: 'Cera' },
+      servicio: null,
+    };
+
+    it('HE-10-HU-03-CA-01: carga la configuración de un descuento existente', async () => {
+      descuentoRepository.obtenerPorId.mockResolvedValue(descuentoConElemento);
+
+      const resultado = await service.obtenerPorId(1);
+
+      expect(descuentoRepository.obtenerPorId).toHaveBeenCalledWith(1);
+      expect(resultado).toEqual({
+        id: 1,
+        tipo: TipoDescuento.PRODUCTO,
+        elemento: { id: 10, nombre: 'Cera' },
+        porcentaje: 10.25,
+        diasSemana: [WeekDay.MONDAY, WeekDay.FRIDAY],
+        activo: false,
+        creadoEn: descuentoBase.creadoEn,
+        actualizadoEn: descuentoBase.actualizadoEn,
+      });
+    });
+
+    it('HE-10-HU-03-CA-01: responde 404 si el descuento no existe o no pertenece al negocio', async () => {
+      descuentoRepository.obtenerPorId.mockResolvedValue(null);
+
+      await expect(service.obtenerPorId(999)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('HE-10-HU-03-CA-02: modifica porcentaje y días válidos conservando el mismo ID', async () => {
+      const actualizado = {
+        ...descuentoConElemento,
+        porcentaje: 25,
+        diasSemana: [WeekDay.WEDNESDAY],
+      };
+      descuentoRepository.actualizar.mockResolvedValue(actualizado);
+
+      const resultado = await service.actualizar(1, {
+        porcentaje: 25,
+        diasSemana: [WeekDay.WEDNESDAY],
+      });
+
+      expect(descuentoRepository.actualizar).toHaveBeenCalledWith(1, {
+        porcentaje: 25,
+        diasSemana: [WeekDay.WEDNESDAY],
+      });
+      expect(resultado.porcentaje).toBe(25);
+      expect(resultado.diasSemana).toEqual([WeekDay.WEDNESDAY]);
+      expect(resultado.id).toBe(1);
+    });
+
+    it('HE-10-HU-03-CA-03: rechaza actualizar si no se envía ningún campo', async () => {
+      await expect(service.actualizar(1, {})).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+
+      expect(descuentoRepository.actualizar).not.toHaveBeenCalled();
+    });
+
+    it('HE-10-HU-03-CA-03: rechaza porcentaje inválido y conserva la configuración sin tocar repositorio', async () => {
+      await expect(
+        service.actualizar(1, { porcentaje: 10.251 }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(descuentoRepository.actualizar).not.toHaveBeenCalled();
+    });
+
+    it('HE-10-HU-03-CA-03: rechaza días vacíos o inválidos sin tocar repositorio', async () => {
+      await expect(
+        service.actualizar(1, { diasSemana: [] }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(descuentoRepository.actualizar).not.toHaveBeenCalled();
+    });
   });
 });

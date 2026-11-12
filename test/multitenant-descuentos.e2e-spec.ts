@@ -630,3 +630,559 @@ describe('Descuentos: crear descuento único por elemento (MySQL 8.0 real)', () 
     expect(totalB).toBe(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// HE-10-HU-03 — Modificar descuento existente (MySQL 8.0 real)
+// ---------------------------------------------------------------------------
+describe('Descuentos: modificar descuento existente (HE-10-HU-03 — MySQL 8.0 real)', () => {
+  let conexion: MariaDbConnection | undefined;
+  let app: INestApplication<App>;
+  let prisma: PrismaClient;
+
+  let negocioA: { id: number; slug: string };
+  let negocioB: { id: number; slug: string };
+  let productoA: { id: number; nombre: string };
+  let productoB: { id: number; nombre: string };
+  let servicioA: { id: number; nombre: string };
+
+  let tokenAdminA: string | undefined;
+  let tokenAdminB: string | undefined;
+  let tokenSuperadminA: string | undefined;
+  let tokenBarberoA: string | undefined;
+
+  const SLUG_HU03_A = 'hu03-negocio-a';
+  const SLUG_HU03_B = 'hu03-negocio-b';
+  const SECRETO_HU03 = 'secreto-hu03-descuentos';
+
+  const verificarGoogle = jest.fn((idToken: string) =>
+    Promise.resolve({
+      sub: `sub-${idToken}`,
+      email: idToken,
+      email_verified: true,
+      given_name: 'Persona',
+    }),
+  );
+
+  beforeAll(async () => {
+    if (process.env.MARIADB_TEST_SKIP === '1') {
+      throw new Error(
+        'La suite HE-10-HU-03 exige Docker/MariaDB. ' +
+          'MARIADB_TEST_SKIP=1 no está permitido. Ver AGENTS.md §12.1.',
+      );
+    }
+
+    conexion = await MariaDbConnection.start({
+      motor: 'mysql',
+      lowerCaseTableNames: false,
+    });
+
+    execFileSync(
+      process.execPath,
+      [
+        path.join(
+          __dirname,
+          '..',
+          'node_modules',
+          'prisma',
+          'build',
+          'index.js',
+        ),
+        'migrate',
+        'deploy',
+      ],
+      {
+        cwd: path.join(__dirname, '..'),
+        env: { ...process.env, DATABASE_URL: conexion.urlBase },
+        stdio: 'pipe',
+        encoding: 'utf8',
+      },
+    );
+
+    process.env.DATABASE_URL = conexion.urlBase;
+    process.env.JWT_SECRET = SECRETO_HU03;
+    process.env.NEGOCIO_PERMITIR_HEADER_SLUG = 'true';
+
+    const url = new URL(conexion.urlBase);
+    prisma = new PrismaClient({
+      adapter: new PrismaMariaDb({
+        host: url.hostname,
+        port: Number(url.port),
+        user: decodeURIComponent(url.username),
+        password: decodeURIComponent(url.password),
+        database: url.pathname.substring(1),
+        connectionLimit: 5,
+      }),
+    });
+
+    const moduleRef = await Test.createTestingModule({
+      imports: [PruebaDescuentosModule],
+    })
+      .overrideProvider(GoogleTokenVerifier)
+      .useValue({ verificar: verificarGoogle })
+      .compile();
+
+    app = moduleRef.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
+
+    await app.init();
+
+    negocioA = await prisma.negocio.upsert({
+      where: { slug: SLUG_HU03_A },
+      update: {},
+      create: { slug: SLUG_HU03_A, nombre: 'HU03 Negocio A' },
+    });
+    negocioB = await prisma.negocio.upsert({
+      where: { slug: SLUG_HU03_B },
+      update: {},
+      create: { slug: SLUG_HU03_B, nombre: 'HU03 Negocio B' },
+    });
+
+    const crearUsuario = (email: string) =>
+      prisma.usuario.upsert({
+        where: { email },
+        update: {},
+        create: {
+          email,
+          nombre: 'Persona',
+          apellido: email,
+          rol: 'PERSONAL',
+        },
+      });
+
+    const adminA = await crearUsuario('hu03-admin-a@test.local');
+    const adminB = await crearUsuario('hu03-admin-b@test.local');
+    const superadminA = await crearUsuario('hu03-superadmin-a@test.local');
+    const barberoA = await crearUsuario('hu03-barbero-a@test.local');
+
+    for (const [negocio, usuario] of [
+      [negocioA, adminA],
+      [negocioB, adminB],
+    ] as const) {
+      await prisma.administrador.upsert({
+        where: {
+          negocioId_usuarioId: { negocioId: negocio.id, usuarioId: usuario.id },
+        },
+        update: {},
+        create: {
+          usuarioId: usuario.id,
+          negocioId: negocio.id,
+          superadmin: false,
+        },
+      });
+    }
+
+    await prisma.administrador.upsert({
+      where: {
+        negocioId_usuarioId: {
+          negocioId: negocioA.id,
+          usuarioId: superadminA.id,
+        },
+      },
+      update: { superadmin: true },
+      create: {
+        usuarioId: superadminA.id,
+        negocioId: negocioA.id,
+        superadmin: true,
+      },
+    });
+
+    await prisma.barbero.upsert({
+      where: {
+        negocioId_usuarioId: {
+          negocioId: negocioA.id,
+          usuarioId: barberoA.id,
+        },
+      },
+      update: {},
+      create: {
+        usuarioId: barberoA.id,
+        negocioId: negocioA.id,
+        telefono: '3111111111',
+        porcentajeComision: 50,
+      },
+    });
+
+    tokenAdminA = await loginHu03('hu03-admin-a@test.local', SLUG_HU03_A);
+    tokenAdminB = await loginHu03('hu03-admin-b@test.local', SLUG_HU03_B);
+    tokenSuperadminA = await loginHu03(
+      'hu03-superadmin-a@test.local',
+      SLUG_HU03_A,
+    );
+    tokenBarberoA = await loginHu03('hu03-barbero-a@test.local', SLUG_HU03_A);
+  }, 300000);
+
+  beforeEach(async () => {
+    await prisma.descuento.deleteMany({
+      where: { negocioId: { in: [negocioA.id, negocioB.id] } },
+    });
+    await prisma.producto.deleteMany({
+      where: { negocioId: { in: [negocioA.id, negocioB.id] } },
+    });
+    await prisma.servicio.deleteMany({
+      where: { negocioId: { in: [negocioA.id, negocioB.id] } },
+    });
+
+    productoA = await prisma.producto.create({
+      data: { negocioId: negocioA.id, nombre: 'Prod HU03 A', precio: 20000 },
+    });
+    productoB = await prisma.producto.create({
+      data: { negocioId: negocioB.id, nombre: 'Prod HU03 B', precio: 20000 },
+    });
+    servicioA = await prisma.servicio.create({
+      data: {
+        negocioId: negocioA.id,
+        nombre: 'Serv HU03 A',
+        precio: 15000,
+        duracionMinutos: 30,
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await app?.close();
+    await prisma?.$disconnect();
+    conexion?.stop();
+  });
+
+  const loginHu03 = async (
+    email: string,
+    slug: string,
+  ): Promise<string | undefined> => {
+    const respuesta = await request(app.getHttpServer())
+      .post('/auth/google')
+      .set('X-Negocio-Slug', slug)
+      .send({ idToken: email });
+
+    return cuerpo<SesionEmitida>(respuesta).accessToken;
+  };
+
+  /** Crea un descuento directamente vía API. */
+  const crearDescuento = (
+    token: string | undefined,
+    slug: string,
+    campos: Record<string, unknown>,
+  ) => {
+    let peticion = request(app.getHttpServer())
+      .post('/descuentos')
+      .set('X-Negocio-Slug', slug);
+
+    if (token) peticion = peticion.set('Authorization', `Bearer ${token}`);
+    return peticion.send(campos);
+  };
+
+  /** GET /descuentos/:id */
+  const consultar = (token: string | undefined, slug: string, id: number) => {
+    let peticion = request(app.getHttpServer())
+      .get(`/descuentos/${id}`)
+      .set('X-Negocio-Slug', slug);
+
+    if (token) peticion = peticion.set('Authorization', `Bearer ${token}`);
+    return peticion.send();
+  };
+
+  /** PATCH /descuentos/:id */
+  const modificar = (
+    token: string | undefined,
+    slug: string,
+    id: number,
+    cuerpoReq: Record<string, unknown>,
+  ) => {
+    let peticion = request(app.getHttpServer())
+      .patch(`/descuentos/${id}`)
+      .set('X-Negocio-Slug', slug);
+
+    if (token) peticion = peticion.set('Authorization', `Bearer ${token}`);
+    return peticion.send(cuerpoReq);
+  };
+
+  // -------------------------------------------------------------------------
+  // HE-10-HU-03-CA-01 — Carga de configuración
+  // -------------------------------------------------------------------------
+  it(
+    'HE-10-HU-03-CA-01: GET devuelve porcentaje, días, estado y elemento; ' +
+      '403 para barbero; 404 para token de otro tenant; 404 para id inexistente',
+    async () => {
+      const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.PRODUCTO,
+        elementoId: productoA.id,
+        porcentaje: 15,
+        diasSemana: [WeekDay.MONDAY, WeekDay.WEDNESDAY],
+      });
+      expect(creado.status).toBe(201);
+      const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+      // ADMINISTRADOR puede consultar
+      const adminResp = await consultar(tokenAdminA, SLUG_HU03_A, id);
+      expect(adminResp.status).toBe(200);
+      const data = adminResp.body.descuento ?? adminResp.body;
+      expect(data.porcentaje).toBe(15);
+      expect(data.diasSemana).toEqual(
+        expect.arrayContaining([WeekDay.MONDAY, WeekDay.WEDNESDAY]),
+      );
+      expect(data.activo).toBe(false);
+      expect(data.elemento).toBeDefined();
+      expect(data.elemento.id).toBe(productoA.id);
+
+      // SUPERADMIN también puede consultar
+      const superResp = await consultar(tokenSuperadminA, SLUG_HU03_A, id);
+      expect(superResp.status).toBe(200);
+
+      // BARBERO no puede consultar
+      const barberoResp = await consultar(tokenBarberoA, SLUG_HU03_A, id);
+      expect(barberoResp.status).toBe(403);
+
+      // Admin del otro tenant recibe 404 (no revela datos ajenos)
+      const ajenoResp = await consultar(tokenAdminB, SLUG_HU03_B, id);
+      expect(ajenoResp.status).toBe(404);
+
+      // ID inexistente
+      const noExiste = await consultar(tokenAdminA, SLUG_HU03_A, 999999);
+      expect(noExiste.status).toBe(404);
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // HE-10-HU-03-CA-02 — Modificación válida
+  // -------------------------------------------------------------------------
+  it(
+    'HE-10-HU-03-CA-02: PATCH actualiza solo porcentaje; conserva ID y elemento; ' +
+      'no crea registro nuevo',
+    async () => {
+      const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.PRODUCTO,
+        elementoId: productoA.id,
+        porcentaje: 10,
+        diasSemana: [WeekDay.MONDAY],
+      });
+      expect(creado.status).toBe(201);
+      const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+      const resp = await modificar(tokenAdminA, SLUG_HU03_A, id, {
+        porcentaje: 25.5,
+      });
+      expect(resp.status).toBe(200);
+
+      const body = resp.body.descuento ?? resp.body;
+      expect(body.id).toBe(id);
+      expect(body.porcentaje).toBe(25.5);
+      expect(body.elemento.id).toBe(productoA.id);
+
+      // Solo existe un registro en BD
+      const total = await prisma.descuento.count({
+        where: { negocioId: negocioA.id, productoId: productoA.id },
+      });
+      expect(total).toBe(1);
+    },
+  );
+
+  it(
+    'HE-10-HU-03-CA-02: PATCH actualiza solo diasSemana; normaliza duplicados ' +
+      'y orden canónico',
+    async () => {
+      const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.PRODUCTO,
+        elementoId: productoA.id,
+        porcentaje: 10,
+        diasSemana: [WeekDay.MONDAY],
+      });
+      expect(creado.status).toBe(201);
+      const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+      const resp = await modificar(tokenAdminA, SLUG_HU03_A, id, {
+        diasSemana: [WeekDay.FRIDAY, WeekDay.MONDAY, WeekDay.FRIDAY],
+      });
+      expect(resp.status).toBe(200);
+
+      const dias: WeekDay[] = (resp.body.descuento ?? resp.body).diasSemana;
+      // Sin duplicados
+      const sinDuplicados = [...new Set(dias)];
+      expect(dias.length).toBe(sinDuplicados.length);
+      // Ambos días presentes
+      expect(dias).toContain(WeekDay.MONDAY);
+      expect(dias).toContain(WeekDay.FRIDAY);
+    },
+  );
+
+  it(
+    'HE-10-HU-03-CA-02: SUPERADMIN puede modificar; BARBERO recibe 403; ' +
+      'Admin de otro tenant recibe 404',
+    async () => {
+      const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.PRODUCTO,
+        elementoId: productoA.id,
+        porcentaje: 10,
+        diasSemana: [WeekDay.TUESDAY],
+      });
+      expect(creado.status).toBe(201);
+      const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+      // Tenant B tiene su propio producto y descuento
+      const creadoB = await crearDescuento(tokenAdminB, SLUG_HU03_B, {
+        tipo: TipoDescuento.PRODUCTO,
+        elementoId: productoB.id,
+        porcentaje: 20,
+        diasSemana: [WeekDay.THURSDAY],
+      });
+      expect(creadoB.status).toBe(201);
+
+      // SUPERADMIN puede modificar
+      const superResp = await modificar(tokenSuperadminA, SLUG_HU03_A, id, {
+        porcentaje: 20,
+      });
+      expect(superResp.status).toBe(200);
+
+      // BARBERO no puede
+      const barberoResp = await modificar(tokenBarberoA, SLUG_HU03_A, id, {
+        porcentaje: 30,
+      });
+      expect(barberoResp.status).toBe(403);
+
+      // Admin de otro tenant no puede (acceso cruzado → 404)
+      const ajenoResp = await modificar(tokenAdminB, SLUG_HU03_B, id, {
+        porcentaje: 30,
+      });
+      expect(ajenoResp.status).toBe(404);
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // HE-10-HU-03-CA-03 — Validación durante modificación
+  // -------------------------------------------------------------------------
+  it(
+    'HE-10-HU-03-CA-03: PATCH con porcentaje de más de dos decimales devuelve 400 ' +
+      'y no altera la BD',
+    async () => {
+      const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.PRODUCTO,
+        elementoId: productoA.id,
+        porcentaje: 10,
+        diasSemana: [WeekDay.MONDAY],
+      });
+      expect(creado.status).toBe(201);
+      const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+      const resp = await modificar(tokenAdminA, SLUG_HU03_A, id, {
+        porcentaje: 10.251,
+      });
+      expect(resp.status).toBe(400);
+
+      // BD sin cambios
+      const fila = await prisma.descuento.findUnique({ where: { id } });
+      expect(Number(fila?.porcentaje)).toBeCloseTo(10, 5);
+    },
+  );
+
+  it('HE-10-HU-03-CA-03: PATCH con diasSemana vacío devuelve 400 y no altera la BD', async () => {
+    const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+      tipo: TipoDescuento.PRODUCTO,
+      elementoId: productoA.id,
+      porcentaje: 10,
+      diasSemana: [WeekDay.MONDAY],
+    });
+    expect(creado.status).toBe(201);
+    const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+    const resp = await modificar(tokenAdminA, SLUG_HU03_A, id, {
+      diasSemana: [],
+    });
+    expect(resp.status).toBe(400);
+
+    const fila = await prisma.descuento.findUnique({ where: { id } });
+    expect(fila).not.toBeNull();
+    expect(Number(fila?.porcentaje)).toBeCloseTo(10, 5);
+  });
+
+  it('HE-10-HU-03-CA-03: PATCH sin ningún campo devuelve 400', async () => {
+    const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+      tipo: TipoDescuento.PRODUCTO,
+      elementoId: productoA.id,
+      porcentaje: 10,
+      diasSemana: [WeekDay.MONDAY],
+    });
+    expect(creado.status).toBe(201);
+    const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+    const resp = await modificar(tokenAdminA, SLUG_HU03_A, id, {});
+    expect(resp.status).toBe(400);
+  });
+
+  // -------------------------------------------------------------------------
+  // HE-10-HU-03-CA-04 — Cancelación sin escritura
+  // -------------------------------------------------------------------------
+  it(
+    'HE-10-HU-03-CA-04: no existe endpoint de cancelación; DELETE devuelve 404 ' +
+      'y no deja persistencia',
+    async () => {
+      const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.PRODUCTO,
+        elementoId: productoA.id,
+        porcentaje: 10,
+        diasSemana: [WeekDay.MONDAY],
+      });
+      expect(creado.status).toBe(201);
+      const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+      const deleteResp = await request(app.getHttpServer())
+        .delete(`/descuentos/${id}/cancelar`)
+        .set('X-Negocio-Slug', SLUG_HU03_A)
+        .set('Authorization', `Bearer ${tokenAdminA}`);
+      expect(deleteResp.status).toBe(404);
+
+      // El registro original sigue intacto
+      const fila = await prisma.descuento.findUnique({ where: { id } });
+      expect(fila).not.toBeNull();
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // HE-10-HU-03-CA-05 — Conservación histórica de reservas
+  // -------------------------------------------------------------------------
+  it(
+    'HE-10-HU-03-CA-05: modificar porcentaje/días no altera el descuento guardado ' +
+      'en reservas confirmadas existentes',
+    async () => {
+      // Crear descuento
+      const creado = await crearDescuento(tokenAdminA, SLUG_HU03_A, {
+        tipo: TipoDescuento.SERVICIO,
+        elementoId: servicioA.id,
+        porcentaje: 20,
+        diasSemana: [WeekDay.WEDNESDAY],
+      });
+      expect(creado.status).toBe(201);
+      const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
+
+      // Verificar recuento de reservas antes (0 — no hay reservas en esta suite)
+      const reservasAntes = await prisma.reservation.count({
+        where: { servicioId: servicioA.id },
+      });
+
+      // Modificar el descuento
+      const patchResp = await modificar(tokenAdminA, SLUG_HU03_A, id, {
+        porcentaje: 50,
+      });
+      expect(patchResp.status).toBe(200);
+
+      // Recuento de reservas no debe cambiar
+      const reservasDespues = await prisma.reservation.count({
+        where: { servicioId: servicioA.id },
+      });
+      expect(reservasDespues).toBe(reservasAntes);
+
+      // El registro de descuento sí se actualizó (sigue siendo uno)
+      const total = await prisma.descuento.count({
+        where: { negocioId: negocioA.id },
+      });
+      expect(total).toBe(1);
+
+      // El porcentaje nuevo está en BD
+      const fila = await prisma.descuento.findUnique({ where: { id } });
+      expect(Number(fila?.porcentaje)).toBeCloseTo(50, 5);
+    },
+  );
+});
