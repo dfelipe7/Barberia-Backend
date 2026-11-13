@@ -84,7 +84,7 @@ describe('H-01: el simulador de error grave exige sesión, rol y habilitación',
     }).compile();
 
     app = moduleRef.createNestApplication();
-    app.useGlobalFilters(new AllExceptionsFilter(alertsMock));
+    app.useGlobalFilters(new AllExceptionsFilter(alertsMock as any));
     await app.init();
   });
 

@@ -469,7 +469,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
 
     const ruta = path.resolve(
       directorioUploads(),
-      datos.producto.imagenUrl.replace('/uploads/', ''),
+      datos.producto.imagenUrl!.replace('/uploads/', ''),
     );
     expect(fs.existsSync(ruta)).toBe(true);
 
