@@ -24,6 +24,31 @@
         ]
       }
     },
+    "/health": {
+      "get": {
+        "description": "Verifica el estado de disponibilidad del API.",
+        "operationId": "AppController_getHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "El servidor está respondiendo correctamente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "status": "ok"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Health Check Endpoint",
+        "tags": [
+          "Sistema"
+        ]
+      }
+    },
     "/auth/google": {
       "post": {
         "description": "Valida el ID Token de Google, busca al usuario en la plataforma y devuelve el JWT de sesión. Los roles del token son los EFECTIVOS en la barbería de la petición (membresías Administrador/Barbero activas). El carácter SUPERADMIN es de la membresía: no existe sesión de plataforma.",
@@ -1403,6 +1428,458 @@
         "summary": "Elimina la foto de un servicio",
         "tags": [
           "servicios"
+        ]
+      }
+    },
+    "/productos": {
+      "get": {
+        "description": "Devuelve los productos del negocio del contexto, activos e inactivos, ordenados por fecha de creación descendente. Si no hay productos, responde 200 con `productos: []` y el mensaje \"No existen productos registrados\".",
+        "operationId": "ProductosController_listar",
+        "parameters": [
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listado de productos del negocio",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductosListadoResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado"
+          },
+          "403": {
+            "description": "No autorizado o negocio sin contexto válido"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Consultar los productos registrados (SUPERADMIN / ADMINISTRADOR)",
+        "tags": [
+          "productos"
+        ]
+      },
+      "post": {
+        "description": "El negocio se toma del contexto autorizado, nunca del cuerpo. La imagen es opcional. El nombre es único por negocio: si ya existe, responde 409 y el cliente debe reintentar con otro nombre. No se admite Idempotency-Key.",
+        "operationId": "ProductosController_registrar",
+        "parameters": [
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nombre",
+                  "precio"
+                ],
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "Cera para cabello"
+                  },
+                  "descripcion": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "Cera de fijación fuerte con acabado mate"
+                  },
+                  "precio": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "maximum": 99999999.99,
+                    "example": 35000,
+                    "description": "Mayor que cero, máximo dos decimales."
+                  },
+                  "imagen": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPG, PNG o WEBP de máximo 5 MB (opcional)."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Producto registrado correctamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductoRegistradoResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos o formato/tamaño de imagen no permitido"
+          },
+          "401": {
+            "description": "No autenticado"
+          },
+          "403": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Negocio inexistente o inactivo"
+          },
+          "409": {
+            "description": "Ya existe un producto con este nombre en este negocio. Reintentar con otro nombre."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Registrar un producto con imagen opcional",
+        "tags": [
+          "productos"
+        ]
+      }
+    },
+    "/productos/catalogo": {
+      "get": {
+        "description": "Catálogo PÚBLICO de la barbería de la petición. Solo devuelve productos ACTIVO del negocio resuelto por el contexto (subdominio o cabecera X-Negocio-Slug), ordenados por nombre. Si no hay productos activos, responde 200 con `productos: []` y el mensaje \"No hay productos disponibles en este momento\".",
+        "operationId": "ProductosController_listarCatalogo",
+        "parameters": [
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Catálogo de productos activos disponibles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductosCatalogoResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Negocio sin contexto válido"
+          },
+          "404": {
+            "description": "El negocio solicitado no está disponible"
+          }
+        },
+        "summary": "Consultar el catálogo público de productos activos",
+        "tags": [
+          "productos"
+        ]
+      }
+    },
+    "/productos/catalogo/{productoId}": {
+      "get": {
+        "description": "Devuelve los datos comerciales de un producto ACTIVO del negocio de la petición. Un producto inactivo, inexistente o de otro negocio responde 404 con el mismo mensaje para no revelar su existencia.",
+        "operationId": "ProductosController_obtenerCatalogoPorId",
+        "parameters": [
+          {
+            "name": "productoId",
+            "required": true,
+            "in": "path",
+            "description": "ID del producto",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle público del producto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductoCatalogoResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El identificador del producto no es un entero positivo"
+          },
+          "403": {
+            "description": "Negocio sin contexto válido"
+          },
+          "404": {
+            "description": "El producto no se encuentra disponible"
+          }
+        },
+        "summary": "Consultar el detalle público de un producto activo",
+        "tags": [
+          "productos"
+        ]
+      }
+    },
+    "/productos/{productoId}": {
+      "get": {
+        "description": "Devuelve la información completa del producto dentro del negocio del contexto. Un producto inexistente o de otro negocio responde 404 con el mismo mensaje.",
+        "operationId": "ProductosController_obtenerPorId",
+        "parameters": [
+          {
+            "name": "productoId",
+            "required": true,
+            "in": "path",
+            "description": "ID del producto",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle del producto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductoResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El identificador del producto no es un entero positivo"
+          },
+          "401": {
+            "description": "No autenticado"
+          },
+          "403": {
+            "description": "No autorizado o negocio sin contexto válido"
+          },
+          "404": {
+            "description": "El producto no se encuentra disponible"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Consultar el detalle de un producto (SUPERADMIN / ADMINISTRADOR)",
+        "tags": [
+          "productos"
+        ]
+      },
+      "patch": {
+        "description": "Edita nombre, descripción, precio e imagen de un producto del negocio del contexto. La imagen se envía como archivo multipart en el campo `imagen`; `imagenUrl` no se acepta. Los campos omitidos no cambian y reenviar los mismos valores no modifica `actualizadoEn`. `descripcion: null` o vacía limpia la descripción. Sin campos ni imagen responde 400. Un producto inexistente o de otro negocio responde 404 con el mismo mensaje.",
+        "operationId": "ProductosController_actualizar",
+        "parameters": [
+          {
+            "name": "productoId",
+            "required": true,
+            "in": "path",
+            "description": "ID del producto",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "Cera para cabello",
+                    "description": "Si se omite, el nombre no cambia."
+                  },
+                  "descripcion": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "nullable": true,
+                    "example": "Cera de fijación fuerte con acabado mate",
+                    "description": "Si se omite, la descripción no cambia. Enviar null o cadena vacía para limpiarla."
+                  },
+                  "precio": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "maximum": 99999999.99,
+                    "example": 35000,
+                    "description": "Si se omite, el precio no cambia. Mayor que cero, máximo dos decimales."
+                  },
+                  "imagen": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPG, PNG o WEBP de máximo 5 MB. Si se omite, se conserva la imagen actual."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Producto actualizado correctamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductoActualizadoResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos, sin campos para actualizar o formato/tamaño de imagen no permitido"
+          },
+          "401": {
+            "description": "No autenticado"
+          },
+          "403": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "El producto no se encuentra disponible"
+          },
+          "409": {
+            "description": "Ya existe un producto con este nombre en este negocio. Reintentar con otro nombre."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Actualizar un producto (SUPERADMIN / ADMINISTRADOR)",
+        "tags": [
+          "productos"
+        ]
+      }
+    },
+    "/productos/{productoId}/estado": {
+      "patch": {
+        "description": "Activa o desactiva un producto del negocio del contexto. El estado se envía explícitamente como ACTIVO o INACTIVO; no es un toggle ciego. Repetir el estado actual responde 200 sin modificar `actualizadoEn`. Un producto inexistente o de otro negocio responde 404 con el mismo mensaje.",
+        "operationId": "ProductosController_cambiarEstado",
+        "parameters": [
+          {
+            "name": "productoId",
+            "required": true,
+            "in": "path",
+            "description": "ID del producto",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarEstadoProductoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado del producto actualizado correctamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductoEstadoResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (debe ser ACTIVO o INACTIVO)"
+          },
+          "401": {
+            "description": "No autenticado"
+          },
+          "403": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "El producto no se encuentra disponible"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cambiar el estado de un producto (SUPERADMIN / ADMINISTRADOR)",
+        "tags": [
+          "productos"
         ]
       }
     },
@@ -5219,6 +5696,194 @@
             }
           }
         }
+      },
+      "ProductoResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1,
+            "description": "ID único del producto"
+          },
+          "nombre": {
+            "type": "string",
+            "example": "Cera para cabello"
+          },
+          "descripcion": {
+            "type": "object",
+            "example": "Cera de fijación fuerte con acabado mate"
+          },
+          "precio": {
+            "type": "number",
+            "example": 35000,
+            "description": "Precio del producto"
+          },
+          "imagenUrl": {
+            "type": "object",
+            "example": "/uploads/negocios/1/productos/producto-1234-abcd.jpg",
+            "description": "Ruta pública de la imagen del producto",
+            "nullable": true
+          },
+          "estado": {
+            "type": "string",
+            "example": "ACTIVO",
+            "description": "Estado del producto"
+          },
+          "creadoEn": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actualizadoEn": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "precio",
+          "estado",
+          "creadoEn",
+          "actualizadoEn"
+        ]
+      },
+      "ProductosListadoResponseDto": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "example": "No existen productos registrados",
+            "description": "Presente únicamente cuando el negocio no tiene productos registrados."
+          },
+          "productos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductoResponseDto"
+            }
+          }
+        },
+        "required": [
+          "productos"
+        ]
+      },
+      "ProductoCatalogoResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1,
+            "description": "ID único del producto"
+          },
+          "nombre": {
+            "type": "string",
+            "example": "Cera para cabello"
+          },
+          "descripcion": {
+            "type": "object",
+            "example": "Cera de fijación fuerte con acabado mate",
+            "nullable": true
+          },
+          "precio": {
+            "type": "number",
+            "example": 35000,
+            "description": "Precio del producto"
+          },
+          "imagenUrl": {
+            "type": "object",
+            "example": "/uploads/negocios/1/productos/producto-1234-abcd.jpg",
+            "description": "Ruta pública de la imagen del producto",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "precio"
+        ]
+      },
+      "ProductosCatalogoResponseDto": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "example": "No hay productos disponibles en este momento",
+            "description": "Presente únicamente cuando el negocio no tiene productos activos."
+          },
+          "productos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductoCatalogoResponseDto"
+            }
+          }
+        },
+        "required": [
+          "productos"
+        ]
+      },
+      "CambiarEstadoProductoDto": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "type": "string",
+            "description": "Nuevo estado para el producto",
+            "enum": [
+              "ACTIVO",
+              "INACTIVO"
+            ],
+            "example": "INACTIVO"
+          }
+        },
+        "required": [
+          "estado"
+        ]
+      },
+      "ProductoEstadoResponseDto": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "example": "Estado del producto actualizado correctamente"
+          },
+          "producto": {
+            "$ref": "#/components/schemas/ProductoResponseDto"
+          }
+        },
+        "required": [
+          "mensaje",
+          "producto"
+        ]
+      },
+      "ProductoActualizadoResponseDto": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "example": "Producto actualizado correctamente"
+          },
+          "producto": {
+            "$ref": "#/components/schemas/ProductoResponseDto"
+          }
+        },
+        "required": [
+          "mensaje",
+          "producto"
+        ]
+      },
+      "ProductoRegistradoResponseDto": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "example": "Producto registrado correctamente"
+          },
+          "producto": {
+            "$ref": "#/components/schemas/ProductoResponseDto"
+          }
+        },
+        "required": [
+          "mensaje",
+          "producto"
+        ]
       },
       "FranjaHorarioSemanalDto": {
         "type": "object",

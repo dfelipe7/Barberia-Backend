@@ -48,7 +48,7 @@ De acuerdo con la Cláusula 7 de la norma ISO 26514, los documentos deben diseñ
 | **Administrador de Sede** | Dueño o manager que gestiona precios, comisiones y vincula WhatsApp Web. | Intermedio | `docs/MANUAL_DE_USUARIO.md` (Módulo 3) |
 | **Desarrollador / Integrador** | Ingeniero que implementa nuevas funciones o consume los endpoints de la API. | Avanzado | `docs/arc42/`, `docs/DOCS_PORTAL.md`, TypeDoc y `openapi.json` |
 | **Administrador de Base de Datos** | Ingeniero encargado de persistencia, índices, integridad y migraciones. | Avanzado | `docs/DICCIONARIO_DE_DATOS.md` |
-| **Auditor / Evaluador** | Revisor técnico que evalúa la calidad, seguridad OWASP y diseño del software. | Avanzado | `README.md` (raíz), `docs/arc42/` y Matriz de Requerimientos |
+| **Auditor / Evaluador** | Revisor técnico que evalúa la calidad, seguridad OWASP, IAST/DAST y diseño del software. | Avanzado | `README.md` (raíz), `docs/arc42/`, `docs/SEGURIDAD_Y_TESTING.md` y Matriz de Requerimientos |
 
 ---
 
@@ -139,6 +139,9 @@ Para evitar inconsistencias o ambigüedades en el equipo y en los usuarios, se d
 | **Token de Gestión** | Contraseña de cita, PIN de cliente | Hash criptográfico único que permite al cliente consultar o cancelar su cita sin registrarse. |
 | **No-Show** | Falta, Inasistencia, Plantón | Estado formal que indica que el cliente no se presentó a su cita en el horario pactado. |
 | **Doble Reserva** | Conflicto de turno, Solapamiento | Incidencia prevenida por índice único donde dos clientes reservan el mismo minuto con el mismo barbero. |
+| **Walk-in / Mostrador** | Cita al paso, Turno manual | Reserva agendada por el recepcionista para un cliente que llega físicamente al local o llama por teléfono. |
+| **Superadministrador** | Master admin, Dueño general | Rol de gobernanza global de la plataforma multitenant para dar de alta y auditar sedes. |
+| **Administrador de Sede** | Encargado, Gerente de tienda | Rol operativo que administra el catálogo, los barberos y la sede específica asignada. |
 
 ---
 
@@ -164,6 +167,7 @@ Conforme a la Cláusula 8 de la norma ISO 26514:
 | **Arc42 v8.2** | `Barberia-Backend/docs/arc42/` (Capítulos 00 al 12) | Arquitectos de Software y Líderes Técnicos | Markdown estructurado |
 | **OpenAPI Specification 3.0** | `docs/api/openapi.json`<br>Swagger UI (`/api/docs`) | Desarrolladores Frontend e Integradores API | JSON / Swagger UI Web |
 | **Modelo Relacional & ER** | `docs/DICCIONARIO_DE_DATOS.md` | Administradores de Base de Datos y Backend | Markdown + Mermaid ERD |
+| **OWASP Top 10 / ISO 25010** | `docs/SEGURIDAD_Y_TESTING.md` | Auditores de Seguridad, Evaluadores y Devs | Markdown estructurado |
 
 ---
 

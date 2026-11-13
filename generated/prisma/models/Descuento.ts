@@ -24,7 +24,7 @@ import type * as Prisma from "../internal/prismaNamespace.js"
  * normaliza duplicados. Se guarda como JSON para no crear una tabla hija por
  * un dato pequeño y siempre leído junto al descuento.
  * - Exactamente uno de `productoId` / `servicioId` debe estar presente. La
- * aplicación lo garantiza y la migración añade un CHECK de refuerzo.
+ * aplicación lo garantiza al mapear `tipo` a una sola columna.
  */
 export type DescuentoModel = runtime.Types.Result.DefaultSelection<Prisma.$DescuentoPayload>
 

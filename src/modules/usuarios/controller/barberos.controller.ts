@@ -34,7 +34,6 @@ import { FiltroBarberosDto } from '../dto/dto-peticion/filtro-barberos.dto';
 import { BarberoGestionDto } from '../dto/dto-respuesta/barbero-gestion.dto';
 import { BarberoCatalogoDto } from '../dto/dto-respuesta/barbero-catalogo.dto';
 import { BarberosService } from '../service/barberos.service';
-import { UsuariosRepository } from '../repository/usuarios.repository';
 import { ApiNegocioHeader } from '../../../common/decorators/api-negocio-header.decorator';
 import { ClaimsSesionPersonal } from '../../../auth/sesion/sesion-personal';
 
@@ -55,10 +54,7 @@ export interface RequestConUsuario {
 @ApiBearerAuth()
 @Controller('usuarios/barberos')
 export class BarberosController {
-  constructor(
-    private readonly barberosService: BarberosService,
-    private readonly usuariosRepository: UsuariosRepository,
-  ) {}
+  constructor(private readonly barberosService: BarberosService) {}
 
   /**
    * Da de alta a un barbero en la sede activa vinculando opcionalmente su porcentaje de comisión inicial.
@@ -222,20 +218,7 @@ export class BarberosController {
     @UploadedFile() file: Express.Multer.File,
     @Req() request: RequestConUsuario,
   ) {
-    if (!file) {
-      throw new BadRequestException('Debe seleccionar un archivo de imagen');
-    }
-    const usuarioId = request.user?.id ? Number(request.user.id) : null;
-    const usuario = usuarioId
-      ? await this.usuariosRepository.obtenerUsuarioPorId(usuarioId)
-      : await this.usuariosRepository.obtenerUsuarioPorEmail(
-          request.user?.email ?? '',
-        );
-
-    if (!usuario) {
-      throw new BadRequestException('Usuario no encontrado');
-    }
-    return this.barberosService.subirFotoBarbero(usuario.id, file);
+    return this.barberosService.subirMiFoto(request.user, file);
   }
 
   /**
@@ -252,17 +235,7 @@ export class BarberosController {
     summary: 'Elimina la foto de perfil del barbero autenticado',
   })
   async eliminarMiFoto(@Req() request: RequestConUsuario) {
-    const usuarioId = request.user?.id ? Number(request.user.id) : null;
-    const usuario = usuarioId
-      ? await this.usuariosRepository.obtenerUsuarioPorId(usuarioId)
-      : await this.usuariosRepository.obtenerUsuarioPorEmail(
-          request.user?.email ?? '',
-        );
-
-    if (!usuario) {
-      throw new BadRequestException('Usuario no encontrado');
-    }
-    return this.barberosService.eliminarFotoBarbero(usuario.id);
+    return this.barberosService.eliminarMiFoto(request.user);
   }
 
   /**

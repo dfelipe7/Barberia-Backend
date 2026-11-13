@@ -628,6 +628,67 @@ describe('BarberosService', () => {
     });
   });
 
+  describe('subirMiFoto', () => {
+    it('debe lanzar BadRequestException si no se envía archivo', async () => {
+      await expect(service.subirMiFoto({ id: 1 }, undefined)).rejects.toThrow(
+        'Debe seleccionar un archivo de imagen',
+      );
+    });
+
+    it('debe lanzar BadRequestException si el usuario autenticado no existe', async () => {
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue(null);
+      await expect(
+        service.subirMiFoto({ id: 99 }, { filename: 'foto.jpg' } as any),
+      ).rejects.toThrow('Usuario no encontrado');
+    });
+
+    it('debe buscar por email si no viene id numérico', async () => {
+      usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue(null);
+      await expect(
+        service.subirMiFoto(
+          { email: 'desconocido@test.com' },
+          { filename: 'foto.jpg' } as any,
+        ),
+      ).rejects.toThrow('Usuario no encontrado');
+    });
+
+    it('debe llamar a subirFotoBarbero cuando el usuario existe', async () => {
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 7 });
+      jest.spyOn(service, 'subirFotoBarbero').mockResolvedValue({
+        mensaje: 'ok',
+        fotoUrl: '/uploads/barberos/foto.jpg',
+      });
+
+      const file = { filename: 'foto.jpg' } as any;
+      const res = await service.subirMiFoto({ id: 7 }, file);
+
+      expect(service.subirFotoBarbero).toHaveBeenCalledWith(7, file);
+      expect(res.fotoUrl).toBe('/uploads/barberos/foto.jpg');
+    });
+  });
+
+  describe('eliminarMiFoto', () => {
+    it('debe lanzar BadRequestException si el usuario no existe', async () => {
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue(null);
+      await expect(service.eliminarMiFoto({ id: 99 })).rejects.toThrow(
+        'Usuario no encontrado',
+      );
+    });
+
+    it('debe llamar a eliminarFotoBarbero cuando el usuario existe', async () => {
+      usuariosRepository.obtenerUsuarioPorId.mockResolvedValue({ id: 8 });
+      jest.spyOn(service, 'eliminarFotoBarbero').mockResolvedValue({
+        mensaje: 'Foto eliminada',
+        fotoUrl: null,
+      });
+
+      const res = await service.eliminarMiFoto({ id: 8 });
+
+      expect(service.eliminarFotoBarbero).toHaveBeenCalledWith(8);
+      expect(res.mensaje).toBe('Foto eliminada');
+    });
+  });
+
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // eliminarFotoBarbero â€” branches
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

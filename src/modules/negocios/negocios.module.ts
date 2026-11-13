@@ -5,6 +5,7 @@ import { NegocioContextoMiddleware } from './middleware/negocio-contexto.middlew
 import { NegociosRepository } from './repository/negocios.repository';
 import { NegocioResolucionService } from './service/negocio-resolucion.service';
 import { NegocioRolesService } from './service/negocio-roles.service';
+import { NegociosPlataformaService } from './service/negocios-plataforma.service';
 import { NegociosPlataformaController } from './negocios-plataforma.controller';
 import { AuthModule } from '../../auth/auth.module';
 import { PlataformaAdminGuard } from './guards/plataforma-admin.guard';
@@ -31,6 +32,7 @@ import { PlataformaAdminGuard } from './guards/plataforma-admin.guard';
     NegocioAislamientoService,
     NegocioResolucionService,
     NegocioRolesService,
+    NegociosPlataformaService,
     NegociosRepository,
     NegocioContextoMiddleware,
   ],
@@ -39,6 +41,7 @@ import { PlataformaAdminGuard } from './guards/plataforma-admin.guard';
     NegocioAislamientoService,
     NegocioResolucionService,
     NegocioRolesService,
+    NegociosPlataformaService,
     NegociosRepository,
     NegocioContextoMiddleware,
   ],

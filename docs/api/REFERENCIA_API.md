@@ -605,7 +605,20 @@ campo heredado `Negocio.direccion` y al valor `negocio_direccion` de la configur
 
 ---
 
-## 11. Configuración
+## 11. Plataforma y Directorio de Negocios (`/plataforma/negocios`)
+
+Gestiona el directorio federado de barberías, la creación de nuevos tenants (*onboarding*) y la conmutación de su estado operativo.
+
+| Método | Ruta | Auth | Rol | Cuerpo | Respuesta |
+|--------|------|------|-----|--------|-----------|
+| GET | `/plataforma/negocios/publico` | — | — | — | `200` `[NegocioPublicoDto]` (id, nombre, slug, ciudad, logos, frase) |
+| GET | `/plataforma/negocios` | `JwtSesionGuard`, `PlataformaAdminGuard` | Personal de plataforma | — | `200` Lista completa con métricas agregadas (barberos, servicios, reservas, clientes) |
+| POST | `/plataforma/negocios` | `JwtSesionGuard`, `PlataformaAdminGuard` | Personal de plataforma | `CrearNegocioPlataformaDto` | `201` Alta atómica de sede, perfil y membresía superadmin |
+| PATCH | `/plataforma/negocios/:id/estado` | `JwtSesionGuard`, `PlataformaAdminGuard` | Personal de plataforma | `CambiarEstadoNegocioDto` | `200` Conmutación de estado (`ACTIVO` / `INACTIVO`) |
+
+---
+
+## 12. Configuración
 
 El módulo `src/modules/configuracion` **no expone ningún endpoint HTTP**: la
 configuración (del sistema y del negocio) se gestiona internamente y por base de datos.
@@ -613,7 +626,7 @@ Ver `docs/api/MATRIZ_AUDITORIA_ENDPOINTS.md` (gap G-04).
 
 ---
 
-## 12. Cómo se verificó este documento
+## 13. Cómo se verificó este documento
 
 - Rutas, guards y roles: extraídos de los 16 controladores del proyecto
   (`src/app.controller.ts`, `src/auth/**`, `src/modules/**`): **86 rutas** en el código.

@@ -1,0 +1,92 @@
+# ==============================================================================
+# TÉCNICA DE TESTING / SEGURIDAD: IAST (Interactive Application Security Testing)
+# Herramienta: Datadog ASM / IAST (dd-trace + Datadog Agent)
+# ==============================================================================
+# Propósito:
+#   Instrumentar el código en tiempo de ejecución mientras se ejecutan pruebas
+#   funcionales y de integración E2E, detectando vulnerabilidades reales (taint analysis,
+#   inyecciones, debilidades criptográficas y fugas) sin generar falsos positivos.
+# Artefacto generado:
+#   - Reporte interactivo de vulnerabilidades y trazas en el panel de Datadog Security.
+# Momento de activación:
+#   - En cada push a ramas principales (master, main).
+#   - En cada Pull Request.
+#   - Ejecución manual bajo demanda mediante workflow_dispatch.
+# ==============================================================================
+
+name: IAST Security Audit (Datadog)
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+  workflow_dispatch:
+
+jobs:
+  iast-audit:
+    name: Datadog IAST Interactive Testing
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: barberia_dev
+        ports:
+          - 3306:3306
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=2s --health-retries=5
+
+    steps:
+      - name: Descargar código fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Iniciar Datadog Agent
+        uses: datadog/agent-github-action@v1
+        with:
+          api_key: ${{ secrets.DD_API_KEY }}
+          datadog_site: datadoghq.com
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Compilar backend
+        run: npm run build
+
+      - name: Aplicar esquema en MariaDB
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: 'mysql://root:root@127.0.0.1:3306/barberia_dev'
+
+      - name: Iniciar servidor backend con Datadog IAST activado
+        run: |
+          node dist/src/main &
+          npx wait-on http://127.0.0.1:3000/health --timeout 60000
+        env:
+          PORT: 3000
+          SWAGGER_HABILITADO: 'true'
+          DATABASE_URL: 'mysql://root:root@127.0.0.1:3306/barberia_dev'
+          JWT_SECRET: 'test_jwt_secret_iast_ci_key_32chars_long'
+          DD_IAST_ENABLED: 'true'
+          DD_APPSEC_ENABLED: 'true'
+          DD_SERVICE: 'barberia-backend'
+          DD_ENV: 'ci'
+          DD_SITE: 'datadoghq.com'
+
+      - name: Ejecutar batería de pruebas interactivas (Simulación de tráfico)
+        run: npm run test:multitenant
+        env:
+          DATABASE_URL: 'mysql://root:root@127.0.0.1:3306/barberia_dev'
+          JWT_SECRET: 'test_jwt_secret_iast_ci_key_32chars_long'
+          DD_IAST_ENABLED: 'true'
+          DD_APPSEC_ENABLED: 'true'
+          DD_SERVICE: 'barberia-backend'
+          DD_ENV: 'ci'
+
