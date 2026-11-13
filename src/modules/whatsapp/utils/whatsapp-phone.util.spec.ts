@@ -34,16 +34,24 @@ describe('whatsapp-phone.util', () => {
     });
 
     it('formatea número celular colombiano de 10 dígitos que inicia con 3', () => {
-      expect(formatearNumeroAJid('3187594854')).toBe('573187594854@s.whatsapp.net');
-      expect(formatearNumeroAJid('+57 (318) 759-4854')).toBe('573187594854@s.whatsapp.net');
+      expect(formatearNumeroAJid('3187594854')).toBe(
+        '573187594854@s.whatsapp.net',
+      );
+      expect(formatearNumeroAJid('+57 (318) 759-4854')).toBe(
+        '573187594854@s.whatsapp.net',
+      );
     });
 
     it('formatea número celular colombiano de 12 dígitos que inicia con 573', () => {
-      expect(formatearNumeroAJid('573187594854')).toBe('573187594854@s.whatsapp.net');
+      expect(formatearNumeroAJid('573187594854')).toBe(
+        '573187594854@s.whatsapp.net',
+      );
     });
 
     it('formatea números internacionales de 8 o más dígitos', () => {
-      expect(formatearNumeroAJid('14155552671')).toBe('14155552671@s.whatsapp.net');
+      expect(formatearNumeroAJid('14155552671')).toBe(
+        '14155552671@s.whatsapp.net',
+      );
       expect(formatearNumeroAJid('12345678')).toBe('12345678@s.whatsapp.net');
     });
 
@@ -55,16 +63,22 @@ describe('whatsapp-phone.util', () => {
 
   describe('esLogRuidosoLibsignal', () => {
     it('identifica mensajes de depuración típicos de libsignal', () => {
-      expect(esLogRuidosoLibsignal('Closing session: 57318@s.whatsapp.net')).toBe(true);
+      expect(
+        esLogRuidosoLibsignal('Closing session: 57318@s.whatsapp.net'),
+      ).toBe(true);
       expect(esLogRuidosoLibsignal('Closing open session')).toBe(true);
-      expect(esLogRuidosoLibsignal('Decrypted message with closed session')).toBe(true);
+      expect(
+        esLogRuidosoLibsignal('Decrypted message with closed session'),
+      ).toBe(true);
       expect(esLogRuidosoLibsignal('Failed to decrypt message')).toBe(true);
       expect(esLogRuidosoLibsignal('Bad MAC')).toBe(true);
       expect(esLogRuidosoLibsignal('Session error')).toBe(true);
     });
 
     it('identifica mensajes dentro de objetos de error con propiedad message', () => {
-      expect(esLogRuidosoLibsignal({ message: 'Session error in cipher' })).toBe(true);
+      expect(
+        esLogRuidosoLibsignal({ message: 'Session error in cipher' }),
+      ).toBe(true);
       expect(esLogRuidosoLibsignal({ message: 123 })).toBe(false);
       expect(esLogRuidosoLibsignal(null, undefined, 42)).toBe(false);
     });
@@ -75,4 +89,3 @@ describe('whatsapp-phone.util', () => {
     });
   });
 });
-
