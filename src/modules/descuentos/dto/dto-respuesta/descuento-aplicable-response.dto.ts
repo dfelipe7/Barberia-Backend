@@ -1,6 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { TipoDescuento, WeekDay } from '../../../../../generated/prisma/enums';
 
+export type EstadoAplicabilidadDescuento =
+  | 'APLICADO'
+  | 'SIN_DESCUENTO'
+  | 'INACTIVO'
+  | 'REQUIERE_FECHA'
+  | 'NO_APLICA_DIA';
+
 /** Condiciones registradas del descuento para información previa al cliente. */
 export class CondicionesDescuentoDto {
   @ApiProperty({ example: 1, description: 'ID del descuento registrado' })
@@ -36,11 +43,34 @@ export class DescuentoAplicableResponseDto {
   nombreElemento: string;
 
   @ApiProperty({
+    example: 'APLICADO',
+    enum: [
+      'APLICADO',
+      'SIN_DESCUENTO',
+      'INACTIVO',
+      'REQUIERE_FECHA',
+      'NO_APLICA_DIA',
+    ],
+    description:
+      'Estado estructurado de la evaluación del descuento para decisiones del frontend',
+  })
+  estado: EstadoAplicabilidadDescuento;
+
+  @ApiProperty({
     example: true,
     description:
-      'Indica si el descuento aplica efectivamente para la fecha/día evaluado',
+      'Indica si el descuento aplica efectivamente para la fecha/día evaluado (derivado: estado === "APLICADO")',
   })
   aplica: boolean;
+
+  @ApiProperty({
+    enum: WeekDay,
+    nullable: true,
+    example: WeekDay.FRIDAY,
+    description:
+      'Próximo día de la semana en que aplicará el descuento (cuando estado es NO_APLICA_DIA)',
+  })
+  proximoDiaAplicable: WeekDay | null;
 
   @ApiProperty({
     enum: WeekDay,
@@ -92,4 +122,3 @@ export class DescuentoAplicableResponseDto {
   })
   mensaje: string;
 }
-

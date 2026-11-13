@@ -13,19 +13,25 @@ import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.se
 import { ProductoRepository } from '../../productos/repository/producto.repository';
 import { ServiciosRepository } from '../../servicios/repository/servicios.repository';
 import {
+  DIAS_SEMANA_ORDEN,
   MENSAJE_DESCUENTO_APLICABLE,
   MENSAJE_DESCUENTO_INACTIVO,
   MENSAJE_DESCUENTO_NO_APLICABLE_DIA,
+  MENSAJE_FECHA_CITA_PASADA,
   MENSAJE_FORMATO_FECHA_INVALIDO,
   MENSAJE_PRODUCTO_NO_DISPONIBLE,
   MENSAJE_SERVICIO_FECHA_REQUERIDA,
   MENSAJE_SERVICIO_NO_DISPONIBLE,
   MENSAJE_SIN_DESCUENTO_CONFIGURADO,
+  normalizarDiasSemana,
 } from '../descuentos.constants';
 import {
   CondicionesDescuentoDto,
   DescuentoAplicableResponseDto,
+  EstadoAplicabilidadDescuento,
 } from '../dto/dto-respuesta/descuento-aplicable-response.dto';
+import { DescuentosBatchResponseDto } from '../dto/dto-respuesta/descuentos-batch-response.dto';
+import { EvaluarDescuentosBatchDto } from '../dto/dto-peticion/evaluar-descuentos-batch.dto';
 import { DescuentoRepository } from '../repository/descuento.repository';
 
 const DIAS_INGLES_A_WEEKDAY: Record<string, WeekDay> = {
@@ -59,16 +65,91 @@ export class DescuentoEvaluadorService {
   ) {}
 
   /**
+   * Evalúa de forma eficiente en lote el descuento aplicable para un conjunto de productos y servicios.
+   * Garantiza misma cardinalidad y orden alineado por índice con los IDs solicitados.
+   */
+  async evaluarBatch(
+    dto: EvaluarDescuentosBatchDto,
+  ): Promise<DescuentosBatchResponseDto> {
+    const productos: DescuentoAplicableResponseDto[] = [];
+    if (Array.isArray(dto.productoIds)) {
+      for (const prodId of dto.productoIds) {
+        try {
+          const res = await this.evaluarProducto(prodId, true);
+          productos.push(res);
+        } catch (e) {
+          if (e instanceof NotFoundException) {
+            productos.push({
+              tipo: TipoDescuento.PRODUCTO,
+              elementoId: prodId,
+              nombreElemento: '',
+              estado: 'SIN_DESCUENTO',
+              aplica: false,
+              proximoDiaAplicable: null,
+              diaEvaluado: null,
+              zonaHoraria: '',
+              porcentajeAplicado: null,
+              precioOriginal: 0,
+              precioFinal: 0,
+              descuento: null,
+              mensaje: MENSAJE_PRODUCTO_NO_DISPONIBLE,
+            });
+            continue;
+          }
+          throw e;
+        }
+      }
+    }
+
+    const servicios: DescuentoAplicableResponseDto[] = [];
+    if (Array.isArray(dto.servicioIds)) {
+      for (const servId of dto.servicioIds) {
+        try {
+          const res = await this.evaluarServicio(servId, dto.fecha, true);
+          servicios.push(res);
+        } catch (e) {
+          if (e instanceof NotFoundException) {
+            servicios.push({
+              tipo: TipoDescuento.SERVICIO,
+              elementoId: servId,
+              nombreElemento: '',
+              estado: 'SIN_DESCUENTO',
+              aplica: false,
+              proximoDiaAplicable: null,
+              diaEvaluado: null,
+              zonaHoraria: '',
+              porcentajeAplicado: null,
+              precioOriginal: 0,
+              precioFinal: null,
+              descuento: null,
+              mensaje: MENSAJE_SERVICIO_NO_DISPONIBLE,
+            });
+            continue;
+          }
+          throw e;
+        }
+      }
+    }
+
+    return { productos, servicios };
+  }
+
+  /**
    * Evalúa el descuento aplicable a un producto para el momento actual.
    * La evaluación siempre se ejecuta en la zona horaria oficial del negocio.
+   * Si permitirInactivo es true, evalúa productos inactivos devolviendo estado INACTIVO sin lanzar NotFoundException.
    */
   async evaluarProducto(
     productoId: number,
+    permitirInactivo = false,
   ): Promise<DescuentoAplicableResponseDto> {
     const negocioId = this.aislamiento.negocioIdRequerido();
     const producto = await this.productoRepository.obtenerPorId(productoId);
 
-    if (!producto || producto.estado === EstadoProducto.INACTIVO) {
+    if (
+      !producto ||
+      (!permitirInactivo && producto.estado === EstadoProducto.INACTIVO)
+    ) {
       throw new NotFoundException(MENSAJE_PRODUCTO_NO_DISPONIBLE);
     }
 
@@ -88,7 +169,9 @@ export class DescuentoEvaluadorService {
         tipo: TipoDescuento.PRODUCTO,
         elementoId: producto.id,
         nombreElemento: producto.nombre,
+        estado: 'SIN_DESCUENTO' as EstadoAplicabilidadDescuento,
         aplica: false,
+        proximoDiaAplicable: null,
         diaEvaluado: diaActual,
         zonaHoraria,
         porcentajeAplicado: null,
@@ -99,12 +182,14 @@ export class DescuentoEvaluadorService {
       };
     }
 
-    if (!descuento.activo) {
+    if (!descuento.activo || producto.estado === EstadoProducto.INACTIVO) {
       return {
         tipo: TipoDescuento.PRODUCTO,
         elementoId: producto.id,
         nombreElemento: producto.nombre,
+        estado: 'INACTIVO' as EstadoAplicabilidadDescuento,
         aplica: false,
+        proximoDiaAplicable: null,
         diaEvaluado: diaActual,
         zonaHoraria,
         porcentajeAplicado: null,
@@ -115,16 +200,19 @@ export class DescuentoEvaluadorService {
       };
     }
 
-    const diasConfigurados = Array.isArray(descuento.diasSemana)
-      ? (descuento.diasSemana as WeekDay[])
-      : [];
+    const diasConfigurados = normalizarDiasSemana(descuento.diasSemana);
 
     if (!diasConfigurados.includes(diaActual)) {
       return {
         tipo: TipoDescuento.PRODUCTO,
         elementoId: producto.id,
         nombreElemento: producto.nombre,
+        estado: 'NO_APLICA_DIA' as EstadoAplicabilidadDescuento,
         aplica: false,
+        proximoDiaAplicable: this.calcularProximoDia(
+          diaActual,
+          diasConfigurados,
+        ),
         diaEvaluado: diaActual,
         zonaHoraria,
         porcentajeAplicado: null,
@@ -142,7 +230,9 @@ export class DescuentoEvaluadorService {
       tipo: TipoDescuento.PRODUCTO,
       elementoId: producto.id,
       nombreElemento: producto.nombre,
+      estado: 'APLICADO' as EstadoAplicabilidadDescuento,
       aplica: true,
+      proximoDiaAplicable: null,
       diaEvaluado: diaActual,
       zonaHoraria,
       porcentajeAplicado: porcentaje,
@@ -157,16 +247,21 @@ export class DescuentoEvaluadorService {
    * Evalúa el descuento aplicable a un servicio.
    * Si se indica `fecha` (YYYY-MM-DD), evalúa el día de la cita.
    * Si se omite `fecha`, devuelve el precio base y condiciones sin precio promocional final (CA-08).
+   * Si permitirInactivo es true, no lanza NotFoundException si el servicio está inactivo.
    */
   async evaluarServicio(
     servicioId: number,
     fecha?: string,
+    permitirInactivo = false,
   ): Promise<DescuentoAplicableResponseDto> {
     const negocioId = this.aislamiento.negocioIdRequerido();
     const servicio =
       await this.serviciosRepository.obtenerServicioPorId(servicioId);
 
-    if (!servicio || servicio.estado === EstadoServicio.INACTIVO) {
+    if (
+      !servicio ||
+      (!permitirInactivo && servicio.estado === EstadoServicio.INACTIVO)
+    ) {
       throw new NotFoundException(MENSAJE_SERVICIO_NO_DISPONIBLE);
     }
 
@@ -186,7 +281,9 @@ export class DescuentoEvaluadorService {
         tipo: TipoDescuento.SERVICIO,
         elementoId: servicio.id,
         nombreElemento: servicio.nombre,
+        estado: 'REQUIERE_FECHA' as EstadoAplicabilidadDescuento,
         aplica: false,
+        proximoDiaAplicable: null,
         diaEvaluado: null,
         zonaHoraria,
         porcentajeAplicado: null,
@@ -200,12 +297,20 @@ export class DescuentoEvaluadorService {
     // Validación de fecha (YYYY-MM-DD)
     const diaCita = this.obtenerDiaSemanaDeFecha(fecha, zonaHoraria);
 
+    // Validación de fecha no pasada (H9)
+    const fechaHoyEnZona = this.obtenerFechaHoyEnZona(zonaHoraria);
+    if (fecha < fechaHoyEnZona) {
+      throw new BadRequestException(MENSAJE_FECHA_CITA_PASADA);
+    }
+
     if (!descuento) {
       return {
         tipo: TipoDescuento.SERVICIO,
         elementoId: servicio.id,
         nombreElemento: servicio.nombre,
+        estado: 'SIN_DESCUENTO' as EstadoAplicabilidadDescuento,
         aplica: false,
+        proximoDiaAplicable: null,
         diaEvaluado: diaCita,
         zonaHoraria,
         porcentajeAplicado: null,
@@ -216,12 +321,14 @@ export class DescuentoEvaluadorService {
       };
     }
 
-    if (!descuento.activo) {
+    if (!descuento.activo || servicio.estado === EstadoServicio.INACTIVO) {
       return {
         tipo: TipoDescuento.SERVICIO,
         elementoId: servicio.id,
         nombreElemento: servicio.nombre,
+        estado: 'INACTIVO' as EstadoAplicabilidadDescuento,
         aplica: false,
+        proximoDiaAplicable: null,
         diaEvaluado: diaCita,
         zonaHoraria,
         porcentajeAplicado: null,
@@ -232,16 +339,16 @@ export class DescuentoEvaluadorService {
       };
     }
 
-    const diasConfigurados = Array.isArray(descuento.diasSemana)
-      ? (descuento.diasSemana as WeekDay[])
-      : [];
+    const diasConfigurados = normalizarDiasSemana(descuento.diasSemana);
 
     if (!diasConfigurados.includes(diaCita)) {
       return {
         tipo: TipoDescuento.SERVICIO,
         elementoId: servicio.id,
         nombreElemento: servicio.nombre,
+        estado: 'NO_APLICA_DIA' as EstadoAplicabilidadDescuento,
         aplica: false,
+        proximoDiaAplicable: this.calcularProximoDia(diaCita, diasConfigurados),
         diaEvaluado: diaCita,
         zonaHoraria,
         porcentajeAplicado: null,
@@ -259,7 +366,9 @@ export class DescuentoEvaluadorService {
       tipo: TipoDescuento.SERVICIO,
       elementoId: servicio.id,
       nombreElemento: servicio.nombre,
+      estado: 'APLICADO' as EstadoAplicabilidadDescuento,
       aplica: true,
+      proximoDiaAplicable: null,
       diaEvaluado: diaCita,
       zonaHoraria,
       porcentajeAplicado: porcentaje,
@@ -280,6 +389,49 @@ export class DescuentoEvaluadorService {
   /** Determina el día de la semana actual en la zona horaria del negocio. */
   obtenerDiaActualEnZona(zonaHoraria: string): WeekDay {
     return this.resolverDiaSemana(new Date(), zonaHoraria);
+  }
+
+  /** Devuelve la fecha de hoy en formato YYYY-MM-DD en la zona horaria indicada. */
+  obtenerFechaHoyEnZona(zonaHoraria: string): string {
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: zonaHoraria,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+    } catch {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+    }
+  }
+
+  /**
+   * Calcula el próximo día de la semana en que aplicará el descuento a partir del día actual
+   * recorriendo el ciclo semanal canónico.
+   */
+  calcularProximoDia(
+    diaActual: WeekDay,
+    diasConfigurados: WeekDay[],
+  ): WeekDay | null {
+    if (diasConfigurados.length === 0) {
+      return null;
+    }
+    const indiceActual = DIAS_SEMANA_ORDEN.indexOf(diaActual);
+    if (indiceActual === -1) {
+      return diasConfigurados[0];
+    }
+    for (let offset = 1; offset <= 7; offset++) {
+      const siguiente = DIAS_SEMANA_ORDEN[(indiceActual + offset) % 7];
+      if (diasConfigurados.includes(siguiente)) {
+        return siguiente;
+      }
+    }
+    return null;
   }
 
   /** Interpreta la fecha YYYY-MM-DD en la zona horaria y devuelve su WeekDay canónico. */
@@ -342,9 +494,7 @@ export class DescuentoEvaluadorService {
       id: descuento.id,
       activo: descuento.activo,
       porcentaje: Number(descuento.porcentaje),
-      diasSemana: Array.isArray(descuento.diasSemana)
-        ? (descuento.diasSemana as WeekDay[])
-        : [],
+      diasSemana: normalizarDiasSemana(descuento.diasSemana),
     };
   }
 }

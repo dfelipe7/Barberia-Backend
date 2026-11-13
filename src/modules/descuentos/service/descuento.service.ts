@@ -10,7 +10,9 @@ import { ProductoRepository } from '../../productos/repository/producto.reposito
 import { ServiciosRepository } from '../../servicios/repository/servicios.repository';
 import {
   DIAS_SEMANA_ORDEN,
-  MENSAJE_CONFIGURACION_INVALIDA_ACTIVACION,
+  MENSAJE_ACTIVACION_DIAS_VACIOS,
+  MENSAJE_ACTIVACION_PORCENTAJE_INVALIDO,
+  MENSAJE_ACTIVACION_SIN_ELEMENTO,
   MENSAJE_DESCUENTO_DUPLICADO,
   MENSAJE_DESCUENTO_NO_ENCONTRADO,
   MENSAJE_DIAS_REQUERIDOS,
@@ -19,6 +21,7 @@ import {
   MENSAJE_SIN_CAMBIOS_DESCUENTO,
   PORCENTAJE_MAXIMO_DESCUENTO,
   PORCENTAJE_MINIMO_DESCUENTO,
+  normalizarDiasSemana,
 } from '../descuentos.constants';
 import { ActualizarDescuentoDto } from '../dto/dto-peticion/actualizar-descuento.dto';
 import { CrearDescuentoDto } from '../dto/dto-peticion/crear-descuento.dto';
@@ -108,6 +111,11 @@ export class DescuentoService {
       throw new BadRequestException(MENSAJE_SIN_CAMBIOS_DESCUENTO);
     }
 
+    const actual = await this.descuentoRepository.obtenerPorId(id);
+    if (!actual) {
+      throw new NotFoundException(MENSAJE_DESCUENTO_NO_ENCONTRADO);
+    }
+
     if (dto.porcentaje !== undefined) {
       this.validarPorcentaje(dto.porcentaje);
     }
@@ -117,16 +125,38 @@ export class DescuentoService {
         ? this.normalizarDias(dto.diasSemana)
         : undefined;
 
-    const datos: CambiosDescuento = {
-      ...(dto.porcentaje !== undefined ? { porcentaje: dto.porcentaje } : {}),
-      ...(diasSemana !== undefined ? { diasSemana } : {}),
-    };
+    const datos: CambiosDescuento = {};
+
+    if (
+      dto.porcentaje !== undefined &&
+      dto.porcentaje !== Number(actual.porcentaje)
+    ) {
+      datos.porcentaje = dto.porcentaje;
+    }
+
+    if (diasSemana !== undefined) {
+      const diasActuales = normalizarDiasSemana(actual.diasSemana);
+      const sonIguales =
+        diasActuales.length === diasSemana.length &&
+        diasActuales.every((dia, idx) => dia === diasSemana[idx]);
+      if (!sonIguales) {
+        datos.diasSemana = diasSemana;
+      }
+    }
+
+    const nombreElemento =
+      actual.producto?.nombre ?? actual.servicio?.nombre ?? '';
+
+    // Si los valores enviados son idénticos a los ya persistidos, no ejecutamos update en base de datos (H6)
+    if (Object.keys(datos).length === 0) {
+      return this.mapear(actual, nombreElemento);
+    }
 
     const descuento = await this.descuentoRepository.actualizar(id, datos);
-    const nombreElemento =
+    const nombreElementoActualizado =
       descuento.producto?.nombre ?? descuento.servicio?.nombre ?? '';
 
-    return this.mapear(descuento, nombreElemento);
+    return this.mapear(descuento, nombreElementoActualizado);
   }
 
   async cambiarEstado(
@@ -144,14 +174,18 @@ export class DescuentoService {
         !Number.isFinite(porcentaje) ||
         porcentaje < PORCENTAJE_MINIMO_DESCUENTO ||
         porcentaje > PORCENTAJE_MAXIMO_DESCUENTO ||
-        Math.abs(porcentaje * 100 - Math.round(porcentaje * 100)) > 1e-9 ||
-        !Array.isArray(existente.diasSemana) ||
-        existente.diasSemana.length === 0 ||
-        (!existente.producto && !existente.servicio)
+        Math.abs(porcentaje * 100 - Math.round(porcentaje * 100)) > 1e-9
       ) {
-        throw new BadRequestException(
-          MENSAJE_CONFIGURACION_INVALIDA_ACTIVACION,
-        );
+        throw new BadRequestException(MENSAJE_ACTIVACION_PORCENTAJE_INVALIDO);
+      }
+
+      const diasConfigurados = normalizarDiasSemana(existente.diasSemana);
+      if (diasConfigurados.length === 0) {
+        throw new BadRequestException(MENSAJE_ACTIVACION_DIAS_VACIOS);
+      }
+
+      if (!existente.producto && !existente.servicio) {
+        throw new BadRequestException(MENSAJE_ACTIVACION_SIN_ELEMENTO);
       }
     }
 
@@ -170,6 +204,16 @@ export class DescuentoService {
       actualizado.producto?.nombre ?? actualizado.servicio?.nombre ?? '';
 
     return this.mapear(actualizado, nombreActualizado);
+  }
+
+  /**
+   * Desactiva en cascada todos los descuentos activos de un producto al ser
+   * desactivado (P2). Fire-and-forget: no lanza si no hay descuentos activos.
+   */
+  desactivarDescuentoDeProducto(
+    productoId: number,
+  ): Promise<{ count: number }> {
+    return this.descuentoRepository.desactivarPorProducto(productoId);
   }
 
   private async obtenerElemento(
@@ -244,9 +288,7 @@ export class DescuentoService {
         nombre: nombreElemento,
       },
       porcentaje: Number(descuento.porcentaje),
-      diasSemana: Array.isArray(descuento.diasSemana)
-        ? (descuento.diasSemana as WeekDay[])
-        : [],
+      diasSemana: normalizarDiasSemana(descuento.diasSemana),
       activo: descuento.activo,
       creadoEn: descuento.creadoEn,
       actualizadoEn: descuento.actualizadoEn,

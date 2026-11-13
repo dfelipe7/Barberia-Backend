@@ -11,7 +11,9 @@ import {
 import { ActualizarDescuentoDto } from '../dto/dto-peticion/actualizar-descuento.dto';
 import { CambiarEstadoDescuentoDto } from '../dto/dto-peticion/cambiar-estado-descuento.dto';
 import { CrearDescuentoDto } from '../dto/dto-peticion/crear-descuento.dto';
+import { EvaluarDescuentosBatchDto } from '../dto/dto-peticion/evaluar-descuentos-batch.dto';
 import { DescuentoAplicableResponseDto } from '../dto/dto-respuesta/descuento-aplicable-response.dto';
+import { DescuentosBatchResponseDto } from '../dto/dto-respuesta/descuentos-batch-response.dto';
 import {
   DescuentoActualizadoResponseDto,
   DescuentoCreadoResponseDto,
@@ -48,9 +50,15 @@ export class DescuentosFacade {
    */
   async evaluarDescuentoProducto(
     productoId: number,
+    permitirInactivo?: boolean,
   ): Promise<DescuentoAplicableResponseDto> {
     this.aislamiento.negocioIdRequerido();
-    return this.descuentoEvaluadorService.evaluarProducto(productoId);
+    return permitirInactivo !== undefined
+      ? this.descuentoEvaluadorService.evaluarProducto(
+          productoId,
+          permitirInactivo,
+        )
+      : this.descuentoEvaluadorService.evaluarProducto(productoId);
   }
 
   /**
@@ -59,9 +67,26 @@ export class DescuentosFacade {
   async evaluarDescuentoServicio(
     servicioId: number,
     fecha?: string,
+    permitirInactivo?: boolean,
   ): Promise<DescuentoAplicableResponseDto> {
     this.aislamiento.negocioIdRequerido();
-    return this.descuentoEvaluadorService.evaluarServicio(servicioId, fecha);
+    return permitirInactivo !== undefined
+      ? this.descuentoEvaluadorService.evaluarServicio(
+          servicioId,
+          fecha,
+          permitirInactivo,
+        )
+      : this.descuentoEvaluadorService.evaluarServicio(servicioId, fecha);
+  }
+
+  /**
+   * Evalúa de forma eficiente en lote el descuento de múltiples productos y servicios (H3).
+   */
+  async evaluarBatch(
+    dto: EvaluarDescuentosBatchDto,
+  ): Promise<DescuentosBatchResponseDto> {
+    this.aislamiento.negocioIdRequerido();
+    return this.descuentoEvaluadorService.evaluarBatch(dto);
   }
 
   async crear(dto: CrearDescuentoDto): Promise<DescuentoCreadoResponseDto> {

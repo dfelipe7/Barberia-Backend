@@ -11,6 +11,14 @@ export const MENSAJE_DESCUENTO_DESACTIVADO =
   'Descuento desactivado correctamente';
 export const MENSAJE_CONFIGURACION_INVALIDA_ACTIVACION =
   'No se puede activar un descuento con configuración inválida';
+export const MENSAJE_ACTIVACION_PORCENTAJE_INVALIDO =
+  'El porcentaje de descuento debe estar entre 1 y 99 con un máximo de dos decimales';
+export const MENSAJE_ACTIVACION_DIAS_VACIOS =
+  'El descuento debe tener al menos un día de la semana configurado para poder activarse';
+export const MENSAJE_ACTIVACION_SIN_ELEMENTO =
+  'El descuento debe estar asociado a un producto o servicio para poder activarse';
+export const MENSAJE_FECHA_CITA_PASADA =
+  'La fecha de la cita no puede ser anterior a la fecha actual';
 export const MENSAJE_DESCUENTO_NO_ENCONTRADO =
   'El descuento no se encuentra disponible';
 export const MENSAJE_SIN_CAMBIOS_DESCUENTO =
@@ -56,3 +64,23 @@ export const DIAS_SEMANA_ORDEN: WeekDay[] = [
   WeekDay.SATURDAY,
   WeekDay.SUNDAY,
 ];
+
+/**
+ * Normaliza y valida un arreglo desconocido de días de la semana contra el enum canónico WeekDay,
+ * eliminando duplicados y ordenándolos canónicamente (Lunes a Domingo).
+ */
+export function normalizarDiasSemana(valor: unknown): WeekDay[] {
+  if (!Array.isArray(valor)) {
+    return [];
+  }
+  const set = new Set<string>();
+  for (const item of valor) {
+    if (
+      typeof item === 'string' &&
+      DIAS_SEMANA_ORDEN.includes(item as WeekDay)
+    ) {
+      set.add(item);
+    }
+  }
+  return DIAS_SEMANA_ORDEN.filter((dia) => set.has(dia));
+}

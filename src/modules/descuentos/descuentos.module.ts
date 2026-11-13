@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../../auth/auth.module';
-import { ProductosModule } from '../productos/productos.module';
+import { ProductosInfraModule } from '../productos/productos-infra.module';
 import { ServiciosModule } from '../servicios/servicios.module';
 import { DescuentosController } from './controller/descuentos.controller';
 import { DescuentosFacade } from './facade/descuentos.facade';
@@ -9,7 +9,7 @@ import { DescuentoEvaluadorService } from './service/descuento-evaluador.service
 import { DescuentoService } from './service/descuento.service';
 
 @Module({
-  imports: [AuthModule, ProductosModule, ServiciosModule],
+  imports: [AuthModule, ProductosInfraModule, ServiciosModule],
   controllers: [DescuentosController],
   providers: [
     DescuentosFacade,
@@ -17,6 +17,6 @@ import { DescuentoService } from './service/descuento.service';
     DescuentoEvaluadorService,
     DescuentoRepository,
   ],
-  exports: [DescuentoEvaluadorService, DescuentoService, DescuentoRepository],
+  exports: [DescuentosFacade, DescuentoEvaluadorService, DescuentoService],
 })
 export class DescuentosModule {}

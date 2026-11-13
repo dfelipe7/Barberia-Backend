@@ -208,6 +208,7 @@ describe('DescuentoService', () => {
         porcentaje: 25,
         diasSemana: [WeekDay.WEDNESDAY],
       };
+      descuentoRepository.obtenerPorId.mockResolvedValue(descuentoConElemento);
       descuentoRepository.actualizar.mockResolvedValue(actualizado);
 
       const resultado = await service.actualizar(1, {
@@ -233,6 +234,8 @@ describe('DescuentoService', () => {
     });
 
     it('HE-10-HU-03-CA-03: rechaza porcentaje inválido y conserva la configuración sin tocar repositorio', async () => {
+      descuentoRepository.obtenerPorId.mockResolvedValue(descuentoConElemento);
+
       await expect(
         service.actualizar(1, { porcentaje: 10.251 }),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -241,6 +244,8 @@ describe('DescuentoService', () => {
     });
 
     it('HE-10-HU-03-CA-03: rechaza días vacíos o inválidos sin tocar repositorio', async () => {
+      descuentoRepository.obtenerPorId.mockResolvedValue(descuentoConElemento);
+
       await expect(
         service.actualizar(1, { diasSemana: [] }),
       ).rejects.toBeInstanceOf(BadRequestException);

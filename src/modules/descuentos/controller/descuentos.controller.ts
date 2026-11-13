@@ -30,7 +30,9 @@ import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { ActualizarDescuentoDto } from '../dto/dto-peticion/actualizar-descuento.dto';
 import { CambiarEstadoDescuentoDto } from '../dto/dto-peticion/cambiar-estado-descuento.dto';
 import { CrearDescuentoDto } from '../dto/dto-peticion/crear-descuento.dto';
+import { EvaluarDescuentosBatchDto } from '../dto/dto-peticion/evaluar-descuentos-batch.dto';
 import { DescuentoAplicableResponseDto } from '../dto/dto-respuesta/descuento-aplicable-response.dto';
+import { DescuentosBatchResponseDto } from '../dto/dto-respuesta/descuentos-batch-response.dto';
 import {
   DescuentoActualizadoResponseDto,
   DescuentoCreadoResponseDto,
@@ -166,6 +168,28 @@ export class DescuentosController {
     }
 
     return this.facade.evaluarDescuentoServicio(servicioId, fecha);
+  }
+
+  /**
+   * POST /descuentos/aplicables
+   * Evalúa en lote los descuentos aplicables a múltiples productos y servicios (H3).
+   */
+  @Post('aplicables')
+  @HttpCode(HttpStatus.OK)
+  @ApiNegocioHeader()
+  @ApiOperation({
+    summary: 'Evaluar descuentos en lote para productos y servicios (H3)',
+    description:
+      'Evalúa de forma eficiente en lote los descuentos aplicables para múltiples productos y servicios en el negocio resuelto por el contexto.',
+  })
+  @ApiOkResponse({
+    description: 'Evaluación en lote de descuentos aplicables',
+    type: DescuentosBatchResponseDto,
+  })
+  evaluarBatch(
+    @Body() dto: EvaluarDescuentosBatchDto,
+  ): Promise<DescuentosBatchResponseDto> {
+    return this.facade.evaluarBatch(dto);
   }
 
   /**

@@ -56,6 +56,7 @@ export class DescuentoRepository {
   }
 
   buscarPorElemento(tipo: TipoDescuento, elementoId: number) {
+    // TODO(H7): fail-fast si TipoDescuento crece (COMBO, PACK)
     const where =
       tipo === TipoDescuento.PRODUCTO
         ? { productoId: elementoId }
@@ -66,18 +67,40 @@ export class DescuentoRepository {
     });
   }
 
+  private readonly cacheZonaHoraria = new Map<
+    number,
+    { valor: string; expiraEn: number }
+  >();
+  private readonly TTL_ZONA_HORARIA_MS = 5 * 60 * 1000; // 5 minutos
+
   /**
-   * Obtiene la zona horaria oficial configurada para el negocio (HE-10-HU-05).
+   * Obtiene la zona horaria oficial configurada para el negocio con caché en memoria (H3).
    * @param negocioId - Identificador del negocio
    * @returns Nombre IANA de la zona horaria (ej. 'America/Bogota')
    */
   async obtenerZonaHorariaNegocio(negocioId: number): Promise<string> {
+    const ahora = Date.now();
+    const cacheado = this.cacheZonaHoraria.get(negocioId);
+    if (cacheado && cacheado.expiraEn > ahora) {
+      return cacheado.valor;
+    }
+
     const negocio = await this.prisma.negocio.findUnique({
       where: { id: negocioId },
       select: { zonaHoraria: true },
     });
 
-    return negocio?.zonaHoraria ?? 'America/Bogota';
+    const valor = negocio?.zonaHoraria ?? 'America/Bogota';
+    this.cacheZonaHoraria.set(negocioId, {
+      valor,
+      expiraEn: ahora + this.TTL_ZONA_HORARIA_MS,
+    });
+    return valor;
+  }
+
+  /** Invalida la entrada en caché de zona horaria para un negocio. */
+  invalidarZonaHoraria(negocioId: number): void {
+    this.cacheZonaHoraria.delete(negocioId);
   }
 
   async crear(data: DatosDescuento): Promise<Descuento> {
@@ -130,6 +153,22 @@ export class DescuentoRepository {
 
       throw error;
     }
+  }
+
+  /**
+   * Desactiva (soft) todos los descuentos de PRODUCTO activos asociados al
+   * productoId indicado en el negocio del contexto. Se invoca en cascada
+   * cuando el producto es desactivado (P2).
+   */
+  desactivarPorProducto(productoId: number): Promise<{ count: number }> {
+    return this.prisma.descuento.updateMany({
+      where: this.aislamiento.filtroLectura({
+        tipo: TipoDescuento.PRODUCTO,
+        productoId,
+        activo: true,
+      }),
+      data: { activo: false },
+    });
   }
 
   async cambiarEstado(
