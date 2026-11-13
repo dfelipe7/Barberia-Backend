@@ -38,3 +38,4 @@
 * **Componentes Pendientes (Dependencia Externa Humana):** **2 / 16** (12.5%)
   1. *Capturas de pantalla reales:* Requieren ser tomadas en el navegador y guardadas en `docs/usuario/img/`.
   2. *Firmas del registro de revisión:* Requieren ser completadas tras la sesión de prueba con lectores externos.
+

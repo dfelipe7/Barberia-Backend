@@ -55,3 +55,4 @@
 1. **Dominio base de producción:** `[CONFIRMAR: dominio base de producción]` (utilizado en las URLs canónicas del manual como `https://<dominio>/:slug`).
 2. **Selector de idioma multilingüe:** `[CONFIRMAR: selector de idioma multilingüe planificado para futuras versiones]` (el sistema opera 100% en español en la actualidad).
 3. **Canal o correo de soporte técnico:** `[CONFIRMAR: Canal o correo oficial de soporte técnico]` (debe ser suministrado por la institución u operador del SaaS en producción).
+

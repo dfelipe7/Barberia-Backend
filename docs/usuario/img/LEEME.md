@@ -31,3 +31,4 @@ Este documento contiene el inventario formal de capturas de pantalla requeridas 
 
 > ℹ️ **Nota de Integración:**  
 > Una vez tomadas las imágenes, deben guardarse en esta carpeta (`docs/usuario/img/`) con el nombre exacto especificado en la primera columna para que se rendericen automáticamente en el `MANUAL_DE_USUARIO.md`.
+
