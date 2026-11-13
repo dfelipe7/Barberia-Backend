@@ -24,4 +24,12 @@ export class FiltroProductosDto {
   @IsOptional()
   @IsEnum(EstadoProducto, { message: 'El estado debe ser ACTIVO o INACTIVO' })
   estado?: EstadoProducto;
+
+  /**
+   * Declarado como opcional para absorber intentos de manipulación de tenant por query
+   * sin provocar 400 en ValidationPipe; el aislamiento multitenant siempre se resuelve
+   * desde el contexto (subdominio / X-Negocio-Slug), ignorando este campo.
+   */
+  @IsOptional()
+  negocioId?: unknown;
 }
