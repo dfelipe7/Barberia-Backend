@@ -17,6 +17,7 @@ import {
   WhatsAppService,
   type DatosConfirmacionWhatsApp,
 } from '../../whatsapp/service/whatsapp.service';
+import { DescuentoEvaluadorService } from '../../descuentos/service/descuento-evaluador.service';
 import { CrearReservaDto } from '../dto/dto-peticion/crear-reserva.dto';
 import { ModificarReservaDto } from '../dto/dto-peticion/modificar-reserva.dto';
 import { ConsultaAgendaBarberoDto } from '../dto/dto-peticion/consulta-agenda-barbero.dto';
@@ -160,6 +161,7 @@ export class ReservasService {
     private readonly barberosRepository: BarberosRepository,
     private readonly configuracionService: ConfiguracionService,
     @Optional() private readonly whatsappService?: WhatsAppService,
+    @Optional() private readonly descuentoEvaluador?: DescuentoEvaluadorService,
   ) {}
 
   /**
@@ -280,6 +282,21 @@ export class ReservasService {
       franja.startTime,
     );
 
+    let precioReservado = Number(servicio.precio);
+    if (this.descuentoEvaluador) {
+      try {
+        const evaluacion = await this.descuentoEvaluador.evaluarServicio(
+          dto.servicioId,
+          dto.fecha,
+        );
+        if (evaluacion.aplica && evaluacion.precioFinal !== null) {
+          precioReservado = evaluacion.precioFinal;
+        }
+      } catch {
+        // En caso de incidencia en el evaluador opcional, se conserva el precio base
+      }
+    }
+
     const datos = {
       barberoId: dto.barberoId,
       servicioId: dto.servicioId,
@@ -287,8 +304,8 @@ export class ReservasService {
       dayOfWeek: this.fechaBogotaService.obtenerDiaSemana(dto.fecha),
       startTime: franja.startTime,
       endTime: franja.endTime,
-      // Precio histórico calculado en el servidor, no confiado al cliente.
-      precioReservado: Number(servicio.precio),
+      // Precio histórico calculado en el servidor (con descuento aplicable si corresponde).
+      precioReservado,
       gestionTokenHash: gestionTokenHash ?? null,
       gestionTokenCifrado: gestionTokenCifrado ?? null,
       idempotencyKey: idempotencyKey ?? null,
@@ -607,13 +624,14 @@ export class ReservasService {
 
     return {
       ...dto,
-      cliente: cliente && cliente.nombre
-        ? {
-            nombre: cliente.nombre,
-            apellido: cliente.apellido ?? null,
-            telefono: cliente.telefono ?? null,
-          }
-        : undefined,
+      cliente:
+        cliente && cliente.nombre
+          ? {
+              nombre: cliente.nombre,
+              apellido: cliente.apellido ?? null,
+              telefono: cliente.telefono ?? null,
+            }
+          : undefined,
     };
   }
 
@@ -720,6 +738,21 @@ export class ReservasService {
     const recordatorioYaCubiertoAdmin =
       await this.debeMarcarRecordatorioComoEnviado(dto.fecha, franja.startTime);
 
+    let precioReservadoAdmin = Number(servicio.precio);
+    if (this.descuentoEvaluador) {
+      try {
+        const evaluacion = await this.descuentoEvaluador.evaluarServicio(
+          dto.servicioId,
+          dto.fecha,
+        );
+        if (evaluacion.aplica && evaluacion.precioFinal !== null) {
+          precioReservadoAdmin = evaluacion.precioFinal;
+        }
+      } catch {
+        // En caso de incidencia en el evaluador opcional, se conserva el precio base
+      }
+    }
+
     const reserva = await this.crearConManejoDeConflicto({
       barberoId: dto.barberoId,
       servicioId: dto.servicioId,
@@ -728,7 +761,7 @@ export class ReservasService {
       startTime: franja.startTime,
       endTime: franja.endTime,
       status: ReservationStatus.CONFIRMED,
-      precioReservado: Number(servicio.precio),
+      precioReservado: precioReservadoAdmin,
       gestionTokenHash,
       gestionTokenCifrado,
       cliente: clienteDeReserva,

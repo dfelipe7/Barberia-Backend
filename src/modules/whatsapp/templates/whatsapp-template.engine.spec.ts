@@ -22,7 +22,11 @@ describe('WhatsAppTemplateEngine', () => {
     it('reemplaza correctamente todas las variables básicas de la cita', () => {
       const plantilla =
         'Hola {cliente}, tu cita de {servicio} con {barbero} es el {fecha} a las {hora}. {precio}';
-      const resultado = WhatsAppTemplateEngine.renderizar(plantilla, datosMock, comercialMock);
+      const resultado = WhatsAppTemplateEngine.renderizar(
+        plantilla,
+        datosMock,
+        comercialMock,
+      );
 
       expect(resultado).toContain('Hola Carlos Gomez');
       expect(resultado).toContain('Corte VIP y Barba');
@@ -30,12 +34,19 @@ describe('WhatsAppTemplateEngine', () => {
       expect(resultado).toContain('15/11/2026');
       expect(resultado).toContain('14:30');
       expect(resultado).toContain('45.000');
-      expect(resultado).toContain('https://barberia.app/elite/reserva/123?token=xyz');
+      expect(resultado).toContain(
+        'https://barberia.app/elite/reserva/123?token=xyz',
+      );
     });
 
     it('incluye ubicación comercial si la plantilla lo solicita', () => {
-      const plantilla = 'Cita en {negocio}. 📍 *Ubicación:* {ubicacion}\nTe esperamos!';
-      const resultado = WhatsAppTemplateEngine.renderizar(plantilla, datosMock, comercialMock);
+      const plantilla =
+        'Cita en {negocio}. 📍 *Ubicación:* {ubicacion}\nTe esperamos!';
+      const resultado = WhatsAppTemplateEngine.renderizar(
+        plantilla,
+        datosMock,
+        comercialMock,
+      );
 
       expect(resultado).toContain('Cita en Barbería Elite VIP.');
       expect(resultado).toContain('📍 *Ubicación:* Calle 100 # 15-20, Bogotá');
@@ -57,7 +68,10 @@ describe('WhatsAppTemplateEngine', () => {
 
   describe('construirCancelacion', () => {
     it('construye el mensaje de cancelación con dirección comercial', () => {
-      const resultado = WhatsAppTemplateEngine.construirCancelacion(datosMock, comercialMock);
+      const resultado = WhatsAppTemplateEngine.construirCancelacion(
+        datosMock,
+        comercialMock,
+      );
 
       expect(resultado).toContain('❌ *CITA CANCELADA - Barbería Elite VIP*');
       expect(resultado).toContain('Carlos Gomez');
@@ -78,7 +92,10 @@ describe('WhatsAppTemplateEngine', () => {
 
   describe('construirCompletada', () => {
     it('construye el mensaje de felicitación por cita completada', () => {
-      const resultado = WhatsAppTemplateEngine.construirCompletada(datosMock, comercialMock);
+      const resultado = WhatsAppTemplateEngine.construirCompletada(
+        datosMock,
+        comercialMock,
+      );
 
       expect(resultado).toContain('✅ *CITA COMPLETADA - Barbería Elite VIP*');
       expect(resultado).toContain('¡Hola Carlos Gomez!');
@@ -88,9 +105,14 @@ describe('WhatsAppTemplateEngine', () => {
 
   describe('construirReprogramacion', () => {
     it('construye el mensaje de cita reprogramada con nuevos horarios', () => {
-      const resultado = WhatsAppTemplateEngine.construirReprogramacion(datosMock, comercialMock);
+      const resultado = WhatsAppTemplateEngine.construirReprogramacion(
+        datosMock,
+        comercialMock,
+      );
 
-      expect(resultado).toContain('🔄 *CITA REPROGRAMADA - Barbería Elite VIP*');
+      expect(resultado).toContain(
+        '🔄 *CITA REPROGRAMADA - Barbería Elite VIP*',
+      );
       expect(resultado).toContain('📅 *Nueva Fecha:* 15/11/2026');
       expect(resultado).toContain('⏰ *Nueva Hora:* 14:30');
       expect(resultado).toContain('💈 *Barbero:* Mateo Lopez');

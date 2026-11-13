@@ -55,7 +55,9 @@ jest.mock('@whiskeysockets/baileys', () => {
 });
 
 jest.mock('qrcode', () => ({
-  toDataURL: jest.fn().mockResolvedValue('data:image/png;base64,mocked-qr-data-url'),
+  toDataURL: jest
+    .fn()
+    .mockResolvedValue('data:image/png;base64,mocked-qr-data-url'),
 }));
 
 describe('WhatsAppSessionManager', () => {
@@ -135,7 +137,9 @@ describe('WhatsAppSessionManager', () => {
       fs.mkdirSync(dirNegocio, { recursive: true });
       fs.writeFileSync(
         path.join(dirNegocio, 'creds.json'),
-        JSON.stringify({ me: { id: '573187594854:1@s.whatsapp.net', name: 'Barberia' } }),
+        JSON.stringify({
+          me: { id: '573187594854:1@s.whatsapp.net', name: 'Barberia' },
+        }),
       );
 
       expect(manager.tieneSesionGuardada(10)).toBe(true);
@@ -144,7 +148,10 @@ describe('WhatsAppSessionManager', () => {
     it('retorna false si creds.json contiene JSON inválido o sin propiedad me', () => {
       const dirNegocio = path.join(tempBaseDir, 'negocio_11');
       fs.mkdirSync(dirNegocio, { recursive: true });
-      fs.writeFileSync(path.join(dirNegocio, 'creds.json'), '{ invalido: true }');
+      fs.writeFileSync(
+        path.join(dirNegocio, 'creds.json'),
+        '{ invalido: true }',
+      );
 
       expect(manager.tieneSesionGuardada(11)).toBe(false);
     });
@@ -169,7 +176,9 @@ describe('WhatsAppSessionManager', () => {
 
     it('ejecuta el callback de inactividad pasando a reposo y limpiando qr', () => {
       let timerCb: () => void = () => {};
-      jest.spyOn(global, 'setTimeout').mockImplementationOnce(((cb: () => void) => {
+      jest.spyOn(global, 'setTimeout').mockImplementationOnce(((
+        cb: () => void,
+      ) => {
         timerCb = cb;
         return 123 as any;
       }) as any);
@@ -243,7 +252,10 @@ describe('WhatsAppSessionManager', () => {
       sesion.isConnected = false;
 
       const status = manager.getStatus(21);
-      expect(status).toEqual({ conectado: false, qr: 'data:image/png;base64,mockqr' });
+      expect(status).toEqual({
+        conectado: false,
+        qr: 'data:image/png;base64,mockqr',
+      });
     });
 
     it('retorna conectado true y qr null si la sesión ya está conectada', () => {
@@ -305,13 +317,17 @@ describe('WhatsAppSessionManager', () => {
       const res = await manager.desconectar(40);
 
       expect(mockLogout).toHaveBeenCalled();
-      expect(res).toEqual({ mensaje: 'Dispositivo WhatsApp desvinculado con éxito.' });
+      expect(res).toEqual({
+        mensaje: 'Dispositivo WhatsApp desvinculado con éxito.',
+      });
       expect(sesion.isConnected).toBe(false);
       expect(sesion.enReposo).toBe(true);
     });
 
     it('maneja error al ejecutar logout en socket roto', async () => {
-      const mockLogout = jest.fn().mockRejectedValue(new Error('Socket disconnected'));
+      const mockLogout = jest
+        .fn()
+        .mockRejectedValue(new Error('Socket disconnected'));
       const sesion = manager.obtenerOCrearSesion(41);
       sesion.sock = {
         logout: mockLogout,
@@ -321,7 +337,9 @@ describe('WhatsAppSessionManager', () => {
       } as any;
 
       const res = await manager.desconectar(41);
-      expect(res).toEqual({ mensaje: 'Dispositivo WhatsApp desvinculado con éxito.' });
+      expect(res).toEqual({
+        mensaje: 'Dispositivo WhatsApp desvinculado con éxito.',
+      });
     });
   });
 
@@ -436,7 +454,9 @@ describe('WhatsAppSessionManager', () => {
 
     it('programa reconexion cuando la sesion esta autenticada en disco y se desconecta', async () => {
       let reconnCb: () => void = () => {};
-      jest.spyOn(global, 'setTimeout').mockImplementationOnce(((cb: () => void) => {
+      jest.spyOn(global, 'setTimeout').mockImplementationOnce(((
+        cb: () => void,
+      ) => {
         reconnCb = cb;
         return 999 as any;
       }) as any);
@@ -465,7 +485,9 @@ describe('WhatsAppSessionManager', () => {
 
     it('programa regeneracion de QR cuando WhatsApp solicita reinicio (515) sin sesion guardada', async () => {
       let restartCb: () => void = () => {};
-      jest.spyOn(global, 'setTimeout').mockImplementationOnce(((cb: () => void) => {
+      jest.spyOn(global, 'setTimeout').mockImplementationOnce(((
+        cb: () => void,
+      ) => {
         restartCb = cb;
         return 998 as any;
       }) as any);

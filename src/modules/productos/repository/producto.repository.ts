@@ -6,6 +6,7 @@ import {
 import { EstadoProducto } from '../../../../generated/prisma/enums';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
+import { FiltroProductosDto } from '../dto/dto-peticion/filtro-productos.dto';
 import { CambiosProducto, DatosProducto } from '../service/producto.service';
 import {
   MENSAJE_NOMBRE_DUPLICADO,
@@ -26,19 +27,44 @@ export class ProductoRepository {
     });
   }
 
-  listar() {
+  listar(filtro?: FiltroProductosDto) {
+    const whereCondition: Record<string, unknown> = {};
+
+    if (filtro?.estado) {
+      whereCondition.estado = filtro.estado;
+    }
+
+    if (filtro?.nombre) {
+      whereCondition.OR = [
+        { nombre: { contains: filtro.nombre } },
+        { descripcion: { contains: filtro.nombre } },
+      ];
+    }
+
     return this.prisma.producto.findMany({
-      where: this.aislamiento.filtroLectura(),
+      where: this.aislamiento.filtroLectura(whereCondition),
       orderBy: [{ creadoEn: 'desc' }, { id: 'desc' }],
     });
   }
 
-  /** Catálogo público: solo productos ACTIVO del negocio del contexto. */
-  listarCatalogo() {
+  /**
+   * Catálogo público: solo productos ACTIVO del negocio del contexto.
+   * Ignora cualquier valor de filtro.estado y siempre fuerza ACTIVO.
+   */
+  listarCatalogo(filtro?: FiltroProductosDto) {
+    const whereCondition: Record<string, unknown> = {
+      estado: EstadoProducto.ACTIVO,
+    };
+
+    if (filtro?.nombre) {
+      whereCondition.OR = [
+        { nombre: { contains: filtro.nombre } },
+        { descripcion: { contains: filtro.nombre } },
+      ];
+    }
+
     return this.prisma.producto.findMany({
-      where: this.aislamiento.filtroLectura({
-        estado: EstadoProducto.ACTIVO,
-      }),
+      where: this.aislamiento.filtroLectura(whereCondition),
       orderBy: [{ nombre: 'asc' }, { id: 'asc' }],
     });
   }

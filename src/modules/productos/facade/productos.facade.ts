@@ -1,8 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { EstadoProducto } from '../../../../generated/prisma/enums';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
+import { DescuentoService } from '../../descuentos/service/descuento.service';
 import { ActualizarProductoDto } from '../dto/dto-peticion/actualizar-producto.dto';
 import { CambiarEstadoProductoDto } from '../dto/dto-peticion/cambiar-estado-producto.dto';
 import { CrearProductoDto } from '../dto/dto-peticion/crear-producto.dto';
+import { FiltroProductosDto } from '../dto/dto-peticion/filtro-productos.dto';
 import {
   ProductoActualizadoResponseDto,
   ProductoCatalogoResponseDto,
@@ -28,16 +31,21 @@ export class ProductosFacade {
     private readonly productoService: ProductoService,
     private readonly almacenamiento: AlmacenamientoProductosService,
     private readonly aislamiento: NegocioAislamientoService,
+    private readonly descuentoService: DescuentoService,
   ) {}
 
-  async listar(): Promise<ProductosListadoResponseDto> {
+  async listar(
+    filtro?: FiltroProductosDto,
+  ): Promise<ProductosListadoResponseDto> {
     this.aislamiento.negocioIdRequerido();
-    return this.productoService.listar();
+    return this.productoService.listar(filtro);
   }
 
-  async listarCatalogo(): Promise<ProductosCatalogoResponseDto> {
+  async listarCatalogo(
+    filtro?: FiltroProductosDto,
+  ): Promise<ProductosCatalogoResponseDto> {
     this.aislamiento.negocioIdRequerido();
-    return this.productoService.listarCatalogo();
+    return this.productoService.listarCatalogo(filtro);
   }
 
   async obtenerCatalogoPorId(id: number): Promise<ProductoCatalogoResponseDto> {
@@ -55,7 +63,22 @@ export class ProductosFacade {
     dto: CambiarEstadoProductoDto,
   ): Promise<ProductoEstadoResponseDto> {
     this.aislamiento.negocioIdRequerido();
-    return this.productoService.cambiarEstadoProducto(id, dto);
+    const resultado = await this.productoService.cambiarEstadoProducto(id, dto);
+
+    // P2: cascada soft — desactiva el descuento del producto al desactivarlo.
+    // Solo en INACTIVO (no en reactivación). Fire-and-forget con log de errores.
+    if (dto.estado === EstadoProducto.INACTIVO) {
+      this.descuentoService
+        .desactivarDescuentoDeProducto(id)
+        .catch((err: unknown) =>
+          this.logger.error(
+            `Cascada P2: error al desactivar descuento de producto ${id}`,
+            err,
+          ),
+        );
+    }
+
+    return resultado;
   }
 
   async registrar(

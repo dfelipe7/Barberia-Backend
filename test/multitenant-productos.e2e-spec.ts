@@ -77,6 +77,9 @@ interface ProductoCatalogo {
   descripcion?: string | null;
   precio: number;
   imagenUrl: string | null;
+  precioOriginal?: number;
+  precioFinal?: number;
+  descuentoAplicable?: unknown;
 }
 
 interface ProductosCatalogo {
@@ -1723,6 +1726,9 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
           nombre: 'Cera mate',
           descripcion: 'Fijación fuerte',
           precio: 35000.5,
+          precioOriginal: 35000.5,
+          precioFinal: 35000.5,
+          descuentoAplicable: null,
           imagenUrl: `/uploads/negocios/${negocioA.id}/productos/cera.png`,
         },
       ],
@@ -1765,6 +1771,9 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
       nombre: 'Cera mate',
       descripcion: 'Fijación fuerte',
       precio: 35000.5,
+      precioOriginal: 35000.5,
+      precioFinal: 35000.5,
+      descuentoAplicable: null,
       imagenUrl: `/uploads/negocios/${negocioA.id}/productos/cera.png`,
     });
   });

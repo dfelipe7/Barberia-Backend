@@ -31,6 +31,10 @@ export const MENSAJE_IMAGEN_INVALIDA =
 export const MENSAJE_NOMBRE_DUPLICADO =
   'Ya existe un producto con este nombre en este negocio';
 
+/** Mensaje cuando ya existe un producto inactivo con el mismo nombre. */
+export const MENSAJE_PRODUCTO_INACTIVO_DUPLICADO =
+  'Ya existe un producto inactivo con ese nombre. Reactívelo o elija otro nombre.';
+
 /** Mensaje del listado administrativo cuando el negocio no tiene productos. */
 export const MENSAJE_SIN_PRODUCTOS = 'No existen productos registrados';
 

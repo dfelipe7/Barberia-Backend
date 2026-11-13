@@ -31,6 +31,7 @@ import {
   EstadoUsuario,
   ReservationStatus,
 } from '../../../../generated/prisma/enums';
+import { DescuentoEvaluadorService } from '../../descuentos/service/descuento-evaluador.service';
 
 const FECHA = '2026-11-01';
 const HORA = '14:00';
@@ -2030,6 +2031,136 @@ describe('ReservasService', () => {
       expect(cifrado).not.toContain(token);
       expect(service.hashearToken(token)).toHaveLength(64);
       expect(service.hashearToken(token)).not.toBe(token);
+    });
+  });
+
+  describe('H1 — Integración con DescuentoEvaluadorService en reservas', () => {
+    const descuentoEvaluadorMock = {
+      evaluarServicio: jest.fn(),
+    };
+
+    let serviceConDescuento: ReservasService;
+
+    beforeEach(async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReservasService,
+          { provide: ReservasRepository, useValue: reservasRepository },
+          { provide: ClientesRepository, useValue: clientesRepository },
+          { provide: DisponibilidadService, useValue: disponibilidadService },
+          { provide: ServiciosRepository, useValue: serviciosRepository },
+          { provide: FechaBogotaService, useValue: fechaBogotaService },
+          { provide: BarberosRepository, useValue: barberosRepository },
+          { provide: ConfiguracionService, useValue: configuracionService },
+          {
+            provide: DescuentoEvaluadorService,
+            useValue: descuentoEvaluadorMock,
+          },
+        ],
+      }).compile();
+
+      serviceConDescuento = module.get<ReservasService>(ReservasService);
+      jest.clearAllMocks();
+
+      // Configuración base de mocks
+      fechaBogotaService.esFechaCalendarioValida.mockReturnValue(true);
+      fechaBogotaService.obtenerDiaSemana.mockReturnValue('SUNDAY');
+      disponibilidadService.calcularDisponibilidad.mockResolvedValue([
+        franjaDisponible,
+      ]);
+      serviciosRepository.obtenerServicioActivoPorId.mockResolvedValue(
+        servicioActivo,
+      );
+      serviciosRepository.listarBarberosActivosPorServicio.mockResolvedValue([
+        { id: 3, usuario: { id: 9, nombre: 'Carlos', apellido: 'Gómez' } },
+      ]);
+      reservasRepository.crearConBloqueo.mockResolvedValue(reservaCreada);
+    });
+
+    it('H1 — crearReserva aplica descuento cuando evaluador responde APLICADO', async () => {
+      descuentoEvaluadorMock.evaluarServicio.mockResolvedValue({
+        aplica: true,
+        precioFinal: 20000,
+        estado: 'APLICADO',
+      });
+
+      await serviceConDescuento.crearReserva({
+        ...dtoBase,
+        nombre: 'Cliente',
+        telefono: '3001234567',
+      });
+
+      expect(descuentoEvaluadorMock.evaluarServicio).toHaveBeenCalledWith(
+        dtoBase.servicioId,
+        dtoBase.fecha,
+      );
+      expect(reservasRepository.crearConBloqueo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          precioReservado: 20000,
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('H1 — crearReserva sin descuento aplicable conserva precioOriginal', async () => {
+      descuentoEvaluadorMock.evaluarServicio.mockResolvedValue({
+        aplica: false,
+        precioFinal: null,
+        estado: 'SIN_DESCUENTO',
+      });
+
+      await serviceConDescuento.crearReserva({
+        ...dtoBase,
+        nombre: 'Cliente',
+        telefono: '3001234567',
+      });
+
+      expect(reservasRepository.crearConBloqueo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          precioReservado: 50000,
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('H1 — crearReserva con evaluador ausente (@Optional) opera con precio original', async () => {
+      await service.crearReserva({
+        ...dtoBase,
+        nombre: 'Cliente',
+        telefono: '3001234567',
+      });
+
+      expect(reservasRepository.crearConBloqueo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          precioReservado: 50000,
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('H1 — crearReservaAdmin aplica descuento cuando evaluador responde APLICADO', async () => {
+      descuentoEvaluadorMock.evaluarServicio.mockResolvedValue({
+        aplica: true,
+        precioFinal: 20000,
+        estado: 'APLICADO',
+      });
+
+      await serviceConDescuento.crearReservaAdmin({
+        ...dtoBase,
+        nombre: 'Cliente Ocasional',
+        telefono: '3001234567',
+      });
+
+      expect(descuentoEvaluadorMock.evaluarServicio).toHaveBeenCalledWith(
+        dtoBase.servicioId,
+        dtoBase.fecha,
+      );
+      expect(reservasRepository.crearConBloqueo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          precioReservado: 20000,
+        }),
+        expect.anything(),
+      );
     });
   });
 });

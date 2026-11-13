@@ -154,6 +154,21 @@ export type Servicio = Prisma.ServicioModel
  */
 export type Producto = Prisma.ProductoModel
 /**
+ * Model Descuento
+ * Descuento porcentual de un negocio sobre UN producto o UN servicio.
+ * 
+ * REGLAS DE NEGOCIO (HE-10-HU-02):
+ * - Un solo descuento por elemento, esté activo o inactivo. La unicidad la
+ * imponen los índices `(negocioId, productoId)` y `(negocioId, servicioId)`.
+ * - Nace INACTIVO: crearlo no lo aplica. Activarlo es una operación posterior.
+ * - `diasSemana` es un arreglo JSON de valores `WeekDay`; el servicio valida y
+ * normaliza duplicados. Se guarda como JSON para no crear una tabla hija por
+ * un dato pequeño y siempre leído junto al descuento.
+ * - Exactamente uno de `productoId` / `servicioId` debe estar presente. La
+ * aplicación lo garantiza al mapear `tipo` a una sola columna.
+ */
+export type Descuento = Prisma.DescuentoModel
+/**
  * Model BarberoServicio
  * 
  */
