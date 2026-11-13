@@ -3,6 +3,12 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { EstadoProducto } from '../../../../generated/prisma/enums';
+import { DescuentosFacade } from '../../descuentos/facade/descuentos.facade';
+import {
+  MENSAJE_NOMBRE_DUPLICADO,
+  MENSAJE_PRODUCTO_INACTIVO_DUPLICADO,
+} from '../productos.constants';
 import { ProductoService } from './producto.service';
 import { ProductoRepository } from '../repository/producto.repository';
 
@@ -36,13 +42,22 @@ describe('ProductoService', () => {
     obtenerPorId: jest.fn(),
     actualizarEstadoSiDifiere: jest.fn(),
   };
+  const descuentosFacade = {
+    evaluarBatch: jest.fn(),
+    evaluarDescuentoProducto: jest.fn(),
+  };
   const service = new ProductoService(
     repository as unknown as ProductoRepository,
+    descuentosFacade as unknown as DescuentosFacade,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
     repository.buscarPorNombre.mockResolvedValue(null);
+    descuentosFacade.evaluarBatch.mockResolvedValue({
+      productos: [],
+      servicios: [],
+    });
   });
 
   describe('validarRegistro', () => {
@@ -91,12 +106,28 @@ describe('ProductoService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('rechaza un nombre duplicado en el negocio', async () => {
-      repository.buscarPorNombre.mockResolvedValue({ id: 1 });
+    it('rechaza un nombre duplicado activo en el negocio con mensaje estándar', async () => {
+      repository.buscarPorNombre.mockResolvedValue({
+        id: 1,
+        estado: EstadoProducto.ACTIVO,
+      });
 
       await expect(
         service.validarRegistro({ nombre: 'Cera', precio: 10 }),
-      ).rejects.toBeInstanceOf(ConflictException);
+      ).rejects.toThrow(new ConflictException(MENSAJE_NOMBRE_DUPLICADO));
+    });
+
+    it('rechaza un nombre duplicado inactivo en el negocio con mensaje específico (P7)', async () => {
+      repository.buscarPorNombre.mockResolvedValue({
+        id: 1,
+        estado: EstadoProducto.INACTIVO,
+      });
+
+      await expect(
+        service.validarRegistro({ nombre: 'Cera', precio: 10 }),
+      ).rejects.toThrow(
+        new ConflictException(MENSAJE_PRODUCTO_INACTIVO_DUPLICADO),
+      );
     });
   });
 
@@ -169,14 +200,59 @@ describe('ProductoService', () => {
       estado: 'INACTIVO',
     };
 
-    it('lista activos e inactivos y los mapea', async () => {
+    it('lista activos e inactivos y los mapea enriqueciendo con descuentos (P1)', async () => {
       repository.listar.mockResolvedValue([activo, inactivo]);
+      descuentosFacade.evaluarBatch.mockResolvedValue({
+        productos: [
+          {
+            tipo: 'PRODUCTO',
+            elementoId: 1,
+            nombreElemento: 'Cera',
+            estado: 'APLICADO',
+            aplica: true,
+            precioOriginal: 35000.5,
+            precioFinal: 31500.45,
+            descuento: {
+              id: 1,
+              activo: true,
+              porcentaje: 10,
+              diasSemana: ['MONDAY'],
+            },
+          },
+          {
+            tipo: 'PRODUCTO',
+            elementoId: 2,
+            nombreElemento: 'Gel',
+            estado: 'INACTIVO',
+            aplica: false,
+            precioOriginal: 20000,
+            precioFinal: 20000,
+            descuento: null,
+          },
+        ],
+        servicios: [],
+      });
 
       await expect(service.listar()).resolves.toEqual({
         productos: [
-          expect.objectContaining({ id: 1, estado: 'ACTIVO' }),
-          expect.objectContaining({ id: 2, estado: 'INACTIVO' }),
+          expect.objectContaining({
+            id: 1,
+            estado: 'ACTIVO',
+            precioOriginal: 35000.5,
+            precioFinal: 31500.45,
+            descuentoAplicable: expect.objectContaining({ estado: 'APLICADO' }),
+          }),
+          expect.objectContaining({
+            id: 2,
+            estado: 'INACTIVO',
+            precioOriginal: 35000.5,
+            precioFinal: 35000.5,
+            descuentoAplicable: expect.objectContaining({ estado: 'INACTIVO' }),
+          }),
         ],
+      });
+      expect(descuentosFacade.evaluarBatch).toHaveBeenCalledWith({
+        productoIds: [1, 2],
       });
     });
 
@@ -189,17 +265,39 @@ describe('ProductoService', () => {
       });
     });
 
-    it('devuelve el detalle completo del producto', async () => {
+    it('devuelve el detalle completo del producto enriquecido con descuento (P1)', async () => {
       repository.obtenerPorId.mockResolvedValue(activo);
+      descuentosFacade.evaluarDescuentoProducto.mockResolvedValue({
+        tipo: 'PRODUCTO',
+        elementoId: 1,
+        nombreElemento: 'Cera',
+        estado: 'APLICADO',
+        aplica: true,
+        precioOriginal: 35000.5,
+        precioFinal: 31500.45,
+        descuento: {
+          id: 1,
+          activo: true,
+          porcentaje: 10,
+          diasSemana: ['MONDAY'],
+        },
+      });
 
       await expect(service.obtenerPorId(1)).resolves.toMatchObject({
         id: 1,
         nombre: 'Cera',
         descripcion: 'Mate',
         precio: 35000.5,
+        precioOriginal: 35000.5,
+        precioFinal: 31500.45,
+        descuentoAplicable: expect.objectContaining({ estado: 'APLICADO' }),
         imagenUrl: '/uploads/negocios/7/productos/cera.png',
         estado: 'ACTIVO',
       });
+      expect(descuentosFacade.evaluarDescuentoProducto).toHaveBeenCalledWith(
+        1,
+        true,
+      );
     });
 
     it('oculta como 404 un producto inexistente o de otro negocio', async () => {
@@ -225,6 +323,21 @@ describe('ProductoService', () => {
 
     it('devuelve solo los datos comerciales del catálogo', async () => {
       repository.listarCatalogo.mockResolvedValue([activo]);
+      descuentosFacade.evaluarBatch.mockResolvedValue({
+        productos: [
+          {
+            tipo: 'PRODUCTO',
+            elementoId: 1,
+            nombreElemento: 'Cera',
+            estado: 'SIN_DESCUENTO',
+            aplica: false,
+            precioOriginal: 35000.5,
+            precioFinal: 35000.5,
+            descuento: null,
+          },
+        ],
+        servicios: [],
+      });
 
       const respuesta = await service.listarCatalogo();
 
@@ -234,11 +347,117 @@ describe('ProductoService', () => {
           nombre: 'Cera',
           descripcion: 'Mate',
           precio: 35000.5,
+          precioOriginal: 35000.5,
+          precioFinal: 35000.5,
+          descuentoAplicable: null,
           imagenUrl: '/uploads/negocios/7/productos/cera.png',
         },
       ]);
       expect(respuesta.productos[0]).not.toHaveProperty('estado');
       expect(respuesta.productos[0]).not.toHaveProperty('creadoEn');
+    });
+
+    it('catálogo con 3 productos (1 con descuento APLICADO, 1 INACTIVO, 1 SIN_DESCUENTO) devuelve precioFinal correcto (P1)', async () => {
+      const p1 = {
+        id: 1,
+        nombre: 'Cera',
+        descripcion: null,
+        precio: 100,
+        imagenUrl: null,
+        estado: 'ACTIVO',
+      };
+      const p2 = {
+        id: 2,
+        nombre: 'Gel',
+        descripcion: null,
+        precio: 50,
+        imagenUrl: null,
+        estado: 'ACTIVO',
+      };
+      const p3 = {
+        id: 3,
+        nombre: 'Peine',
+        descripcion: null,
+        precio: 30,
+        imagenUrl: null,
+        estado: 'ACTIVO',
+      };
+
+      repository.listarCatalogo.mockResolvedValue([p1, p2, p3]);
+      descuentosFacade.evaluarBatch.mockResolvedValue({
+        productos: [
+          {
+            tipo: 'PRODUCTO',
+            elementoId: 1,
+            nombreElemento: 'Cera',
+            estado: 'APLICADO',
+            aplica: true,
+            precioOriginal: 100,
+            precioFinal: 90,
+            descuento: {
+              id: 10,
+              activo: true,
+              porcentaje: 10,
+              diasSemana: ['MONDAY'],
+            },
+          },
+          {
+            tipo: 'PRODUCTO',
+            elementoId: 2,
+            nombreElemento: 'Gel',
+            estado: 'INACTIVO',
+            aplica: false,
+            precioOriginal: 50,
+            precioFinal: 50,
+            descuento: {
+              id: 11,
+              activo: false,
+              porcentaje: 20,
+              diasSemana: ['MONDAY'],
+            },
+          },
+          {
+            tipo: 'PRODUCTO',
+            elementoId: 3,
+            nombreElemento: 'Peine',
+            estado: 'SIN_DESCUENTO',
+            aplica: false,
+            precioOriginal: 30,
+            precioFinal: 30,
+            descuento: null,
+          },
+        ],
+        servicios: [],
+      });
+
+      const respuesta = await service.listarCatalogo();
+
+      expect(descuentosFacade.evaluarBatch).toHaveBeenCalledWith({
+        productoIds: [1, 2, 3],
+      });
+      expect(respuesta.productos).toHaveLength(3);
+
+      // Producto 1: APLICADO -> precioFinal: 90
+      expect(respuesta.productos[0].id).toBe(1);
+      expect(respuesta.productos[0].precioOriginal).toBe(100);
+      expect(respuesta.productos[0].precioFinal).toBe(90);
+      expect(respuesta.productos[0].descuentoAplicable?.estado).toBe(
+        'APLICADO',
+      );
+
+      // Producto 2: INACTIVO -> precioFinal: 50 (precioOriginal)
+      expect(respuesta.productos[1].id).toBe(2);
+      expect(respuesta.productos[1].precioOriginal).toBe(50);
+      expect(respuesta.productos[1].precioFinal).toBe(50);
+      expect(respuesta.productos[1].descuentoAplicable?.estado).toBe(
+        'INACTIVO',
+      );
+
+      // Producto 3: SIN_DESCUENTO -> precioFinal: 30, descuentoAplicable: null
+      expect(respuesta.productos[2].id).toBe(3);
+      expect(respuesta.productos[2].precioOriginal).toBe(30);
+      expect(respuesta.productos[2].precioFinal).toBe(30);
+      expect(respuesta.productos[2].descuentoAplicable).toBeNull();
     });
 
     it('responde colección vacía con mensaje si no hay productos activos', async () => {
@@ -250,16 +469,35 @@ describe('ProductoService', () => {
       });
     });
 
-    it('devuelve el detalle público de un producto activo', async () => {
+    it('devuelve el detalle público de un producto activo enriquecido con descuento (P1)', async () => {
       repository.obtenerDisponiblePorId.mockResolvedValue(activo);
+      descuentosFacade.evaluarDescuentoProducto.mockResolvedValue({
+        tipo: 'PRODUCTO',
+        elementoId: 1,
+        nombreElemento: 'Cera',
+        estado: 'APLICADO',
+        aplica: true,
+        precioOriginal: 35000.5,
+        precioFinal: 31500.45,
+        descuento: {
+          id: 1,
+          activo: true,
+          porcentaje: 10,
+          diasSemana: ['MONDAY'],
+        },
+      });
 
       await expect(service.obtenerCatalogoPorId(1)).resolves.toEqual({
         id: 1,
         nombre: 'Cera',
         descripcion: 'Mate',
         precio: 35000.5,
+        precioOriginal: 35000.5,
+        precioFinal: 31500.45,
+        descuentoAplicable: expect.objectContaining({ estado: 'APLICADO' }),
         imagenUrl: '/uploads/negocios/7/productos/cera.png',
       });
+      expect(descuentosFacade.evaluarDescuentoProducto).toHaveBeenCalledWith(1);
     });
 
     it('oculta como 404 un producto inactivo, inexistente o ajeno', async () => {
@@ -489,12 +727,28 @@ describe('ProductoService', () => {
       expect(resultado.cambios).toEqual({ precio: 35000.5 });
     });
 
-    it('rechaza un nombre duplicado de otro producto del negocio', async () => {
-      repository.buscarPorNombre.mockResolvedValue({ id: 2 });
+    it('rechaza un nombre duplicado activo de otro producto con mensaje estándar', async () => {
+      repository.buscarPorNombre.mockResolvedValue({
+        id: 2,
+        estado: EstadoProducto.ACTIVO,
+      });
 
       await expect(
         service.validarActualizacion(1, { nombre: 'Aceite' }, false),
-      ).rejects.toBeInstanceOf(ConflictException);
+      ).rejects.toThrow(new ConflictException(MENSAJE_NOMBRE_DUPLICADO));
+    });
+
+    it('rechaza un nombre duplicado inactivo de otro producto con mensaje específico (P7)', async () => {
+      repository.buscarPorNombre.mockResolvedValue({
+        id: 2,
+        estado: EstadoProducto.INACTIVO,
+      });
+
+      await expect(
+        service.validarActualizacion(1, { nombre: 'Aceite' }, false),
+      ).rejects.toThrow(
+        new ConflictException(MENSAJE_PRODUCTO_INACTIVO_DUPLICADO),
+      );
     });
 
     it('rechaza nombre vacío y precio inválido', async () => {

@@ -4,14 +4,18 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EstadoProducto } from '../../../../generated/prisma/enums';
 import type { Producto } from '../../../../generated/prisma/client';
 import {
   detectarTipoArchivo,
   TipoArchivo,
 } from '../../../common/security/detectar-tipo-archivo';
+import { DescuentosFacade } from '../../descuentos/facade/descuentos.facade';
+import { DescuentoAplicableResponseDto } from '../../descuentos/dto/dto-respuesta/descuento-aplicable-response.dto';
 import { ActualizarProductoDto } from '../dto/dto-peticion/actualizar-producto.dto';
 import { CambiarEstadoProductoDto } from '../dto/dto-peticion/cambiar-estado-producto.dto';
 import { CrearProductoDto } from '../dto/dto-peticion/crear-producto.dto';
+import { FiltroProductosDto } from '../dto/dto-peticion/filtro-productos.dto';
 import {
   ProductoCatalogoResponseDto,
   ProductoEstadoResponseDto,
@@ -25,6 +29,7 @@ import {
   MENSAJE_ESTADO_PRODUCTO_ACTUALIZADO,
   MENSAJE_IMAGEN_INVALIDA,
   MENSAJE_NOMBRE_DUPLICADO,
+  MENSAJE_PRODUCTO_INACTIVO_DUPLICADO,
   MENSAJE_PRODUCTO_NO_DISPONIBLE,
   MENSAJE_SIN_CAMPOS_ACTUALIZAR,
   MENSAJE_SIN_PRODUCTOS,
@@ -55,7 +60,10 @@ export interface ImagenProducto {
 /** Reglas de negocio del producto, sin HTTP ni Prisma. */
 @Injectable()
 export class ProductoService {
-  constructor(private readonly repository: ProductoRepository) {}
+  constructor(
+    private readonly repository: ProductoRepository,
+    private readonly descuentosFacade: DescuentosFacade,
+  ) {}
 
   /**
    * Normaliza y valida los datos de texto, y comprueba la unicidad por
@@ -68,6 +76,9 @@ export class ProductoService {
 
     const existente = await this.repository.buscarPorNombre(nombre);
     if (existente) {
+      if (existente.estado === EstadoProducto.INACTIVO) {
+        throw new ConflictException(MENSAJE_PRODUCTO_INACTIVO_DUPLICADO);
+      }
       throw new ConflictException(MENSAJE_NOMBRE_DUPLICADO);
     }
 
@@ -109,6 +120,9 @@ export class ProductoService {
       if (nombre !== actual.nombre) {
         const existente = await this.repository.buscarPorNombre(nombre);
         if (existente && existente.id !== id) {
+          if (existente.estado === EstadoProducto.INACTIVO) {
+            throw new ConflictException(MENSAJE_PRODUCTO_INACTIVO_DUPLICADO);
+          }
           throw new ConflictException(MENSAJE_NOMBRE_DUPLICADO);
         }
         cambios.nombre = nombre;
@@ -199,19 +213,46 @@ export class ProductoService {
   }
 
   /** Listado administrativo: activos e inactivos del negocio activo. */
-  async listar(): Promise<ProductosListadoResponseDto> {
-    const productos = await this.repository.listar();
+  async listar(
+    filtro?: FiltroProductosDto,
+  ): Promise<ProductosListadoResponseDto> {
+    const productos = await this.repository.listar(filtro);
 
     if (productos.length === 0) {
       return { mensaje: MENSAJE_SIN_PRODUCTOS, productos: [] };
     }
 
-    return { productos: productos.map((producto) => this.mapear(producto)) };
+    const batch = await this.descuentosFacade.evaluarBatch({
+      productoIds: productos.map((p) => p.id),
+    });
+
+    return {
+      productos: productos.map((producto, index) => {
+        const evaluacion = batch.productos[index];
+        const precioOriginal = Number(producto.precio);
+        const descuentoAplicable =
+          evaluacion && evaluacion.estado !== 'SIN_DESCUENTO'
+            ? evaluacion
+            : null;
+        const precioFinal =
+          descuentoAplicable && descuentoAplicable.aplica
+            ? (descuentoAplicable.precioFinal ?? precioOriginal)
+            : precioOriginal;
+
+        return this.mapear(producto, {
+          precioOriginal,
+          precioFinal,
+          descuentoAplicable,
+        });
+      }),
+    };
   }
 
   /** Catálogo público: solo productos ACTIVO, con mensaje si no hay ninguno. */
-  async listarCatalogo(): Promise<ProductosCatalogoResponseDto> {
-    const productos = await this.repository.listarCatalogo();
+  async listarCatalogo(
+    filtro?: FiltroProductosDto,
+  ): Promise<ProductosCatalogoResponseDto> {
+    const productos = await this.repository.listarCatalogo(filtro);
 
     if (productos.length === 0) {
       return {
@@ -220,8 +261,29 @@ export class ProductoService {
       };
     }
 
+    const batch = await this.descuentosFacade.evaluarBatch({
+      productoIds: productos.map((p) => p.id),
+    });
+
     return {
-      productos: productos.map((producto) => this.mapearCatalogo(producto)),
+      productos: productos.map((producto, index) => {
+        const evaluacion = batch.productos[index];
+        const precioOriginal = Number(producto.precio);
+        const descuentoAplicable =
+          evaluacion && evaluacion.estado !== 'SIN_DESCUENTO'
+            ? evaluacion
+            : null;
+        const precioFinal =
+          descuentoAplicable && descuentoAplicable.aplica
+            ? (descuentoAplicable.precioFinal ?? precioOriginal)
+            : precioOriginal;
+
+        return this.mapearCatalogo(producto, {
+          precioOriginal,
+          precioFinal,
+          descuentoAplicable,
+        });
+      }),
     };
   }
 
@@ -236,7 +298,20 @@ export class ProductoService {
       throw new NotFoundException(MENSAJE_PRODUCTO_NO_DISPONIBLE);
     }
 
-    return this.mapearCatalogo(producto);
+    const evaluacion = await this.descuentosFacade.evaluarDescuentoProducto(id);
+    const precioOriginal = Number(producto.precio);
+    const descuentoAplicable =
+      evaluacion && evaluacion.estado !== 'SIN_DESCUENTO' ? evaluacion : null;
+    const precioFinal =
+      descuentoAplicable && descuentoAplicable.aplica
+        ? (descuentoAplicable.precioFinal ?? precioOriginal)
+        : precioOriginal;
+
+    return this.mapearCatalogo(producto, {
+      precioOriginal,
+      precioFinal,
+      descuentoAplicable,
+    });
   }
 
   /** Detalle administrativo; un producto ajeno se comporta como inexistente. */
@@ -247,7 +322,23 @@ export class ProductoService {
       throw new NotFoundException(MENSAJE_PRODUCTO_NO_DISPONIBLE);
     }
 
-    return this.mapear(producto);
+    const evaluacion = await this.descuentosFacade.evaluarDescuentoProducto(
+      id,
+      true,
+    );
+    const precioOriginal = Number(producto.precio);
+    const descuentoAplicable =
+      evaluacion && evaluacion.estado !== 'SIN_DESCUENTO' ? evaluacion : null;
+    const precioFinal =
+      descuentoAplicable && descuentoAplicable.aplica
+        ? (descuentoAplicable.precioFinal ?? precioOriginal)
+        : precioOriginal;
+
+    return this.mapear(producto, {
+      precioOriginal,
+      precioFinal,
+      descuentoAplicable,
+    });
   }
 
   /**
@@ -284,12 +375,25 @@ export class ProductoService {
     return this.repository.tieneOtraReferenciaAImagen(imagenUrl, exceptoId);
   }
 
-  mapear(producto: Producto): ProductoResponseDto {
+  mapear(
+    producto: Producto,
+    precios?: {
+      precioOriginal: number;
+      precioFinal: number;
+      descuentoAplicable?: DescuentoAplicableResponseDto | null;
+    },
+  ): ProductoResponseDto {
+    const precioOriginal = precios?.precioOriginal ?? Number(producto.precio);
+    const precioFinal = precios?.precioFinal ?? precioOriginal;
+
     return {
       id: producto.id,
       nombre: producto.nombre,
       descripcion: producto.descripcion,
       precio: Number(producto.precio),
+      precioOriginal,
+      precioFinal,
+      descuentoAplicable: precios?.descuentoAplicable ?? null,
       imagenUrl: producto.imagenUrl,
       estado: producto.estado,
       creadoEn: producto.creadoEn,
@@ -297,12 +401,25 @@ export class ProductoService {
     };
   }
 
-  private mapearCatalogo(producto: Producto): ProductoCatalogoResponseDto {
+  private mapearCatalogo(
+    producto: Producto,
+    precios?: {
+      precioOriginal: number;
+      precioFinal: number;
+      descuentoAplicable?: DescuentoAplicableResponseDto | null;
+    },
+  ): ProductoCatalogoResponseDto {
+    const precioOriginal = precios?.precioOriginal ?? Number(producto.precio);
+    const precioFinal = precios?.precioFinal ?? precioOriginal;
+
     return {
       id: producto.id,
       nombre: producto.nombre,
       descripcion: producto.descripcion,
       precio: Number(producto.precio),
+      precioOriginal,
+      precioFinal,
+      descuentoAplicable: precios?.descuentoAplicable ?? null,
       imagenUrl: producto.imagenUrl,
     };
   }

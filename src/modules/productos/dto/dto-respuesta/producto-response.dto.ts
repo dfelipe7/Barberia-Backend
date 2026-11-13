@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { DescuentoAplicableResponseDto } from '../../../descuentos/dto/dto-respuesta/descuento-aplicable-response.dto';
 
 /** Producto tal como lo consume el panel administrativo. */
 export class ProductoResponseDto {
@@ -16,6 +17,22 @@ export class ProductoResponseDto {
 
   @ApiProperty({ example: 35000, description: 'Precio del producto' })
   precio: number;
+
+  @ApiProperty({ example: 35000, description: 'Precio original del producto' })
+  precioOriginal: number;
+
+  @ApiProperty({
+    example: 35000,
+    description: 'Precio final del producto tras aplicar descuento vigente',
+  })
+  precioFinal: number;
+
+  @ApiPropertyOptional({
+    type: DescuentoAplicableResponseDto,
+    nullable: true,
+    description: 'Información del descuento aplicable al producto si existe',
+  })
+  descuentoAplicable?: DescuentoAplicableResponseDto | null;
 
   @ApiProperty({
     example: '/uploads/negocios/1/productos/producto-1234-abcd.jpg',
@@ -92,6 +109,22 @@ export class ProductoCatalogoResponseDto {
 
   @ApiProperty({ example: 35000, description: 'Precio del producto' })
   precio: number;
+
+  @ApiProperty({ example: 35000, description: 'Precio original del producto' })
+  precioOriginal: number;
+
+  @ApiProperty({
+    example: 35000,
+    description: 'Precio final del producto tras aplicar descuento vigente',
+  })
+  precioFinal: number;
+
+  @ApiPropertyOptional({
+    type: DescuentoAplicableResponseDto,
+    nullable: true,
+    description: 'Información del descuento aplicable al producto si existe',
+  })
+  descuentoAplicable?: DescuentoAplicableResponseDto | null;
 
   @ApiProperty({
     example: '/uploads/negocios/1/productos/producto-1234-abcd.jpg',
