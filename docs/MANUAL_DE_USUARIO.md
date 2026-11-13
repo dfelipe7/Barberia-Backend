@@ -22,27 +22,32 @@
 3. [Módulo 1: Experiencia del cliente e invitado (Portal público)](#3-módulo-1-experiencia-del-cliente-e-invitado-portal-público)
    * [3.1 Acceso al portal de la barbería](#31-acceso-al-portal-de-la-barbería)
    * [3.2 Exploración del catálogo y radar GPS](#32-exploración-del-catálogo-y-radar-gps)
-   * [3.3 Flujo de agendamiento online (Doble modalidad)](#33-flujo-de-agendamiento-online-doble-modalidad)
+   * [3.3 Procedimiento: Agendar una cita online (Doble modalidad)](#33-procedimiento-agendar-una-cita-online-doble-modalidad)
    * [3.4 Comprobante digital y confirmación por WhatsApp](#34-comprobante-digital-y-confirmación-por-whatsapp)
-   * [3.5 Consulta y cancelación de cita con enlace corto](#35-consulta-y-cancelación-de-cita-con-enlace-corto)
-   * [3.6 Catálogo de productos y pedidos por WhatsApp](#36-catálogo-de-productos-y-pedidos-por-whatsapp)
+   * [3.5 Procedimiento: Consultar y cancelar cita con enlace corto](#35-procedimiento-consultar-y-cancelar-cita-con-enlace-corto)
+   * [3.6 Procedimiento: Pedir un producto por WhatsApp](#36-procedimiento-pedir-un-producto-por-whatsapp)
    * [3.7 Portal del cliente registrado ("Mi cuenta")](#37-portal-del-cliente-registrado-mi-cuenta)
 4. [Módulo 2: Operatoria del barbero (Staff)](#4-módulo-2-operatoria-del-barbero-staff)
-   * [4.1 Inicio de sesión y acceso seguro (Inicio de sesión con Google)](#41-inicio-de-sesión-y-acceso-seguro-inicio-de-sesión-con-google)
+   * [4.1 Procedimiento: Iniciar sesión en la sede con Google](#41-procedimiento-iniciar-sesión-en-la-sede-con-google)
    * [4.2 Consulta de agenda diaria y semanal](#42-consulta-de-agenda-diaria-y-semanal)
-   * [4.3 Gestión de estados de cita (Completar / No-Show)](#43-gestión-de-estados-de-cita-completar-no-show)
-   * [4.4 Bloqueo de horarios personales y descansos](#44-bloqueo-de-horarios-personales-y-descansos)
+   * [4.3 Procedimiento: Cambiar el estado de una cita (Completar o No Asistió)](#43-procedimiento-cambiar-el-estado-de-una-cita-completar-o-no-asistió)
+   * [4.4 Procedimiento: Bloquear horario personal o descanso](#44-procedimiento-bloquear-horario-personal-o-descanso)
 5. [Módulo 3: Administración de la barbería (Dueño / Administrador)](#5-módulo-3-administración-de-la-barbería-dueño-administrador)
-   * [5.1 Configuración integral del perfil de la barbería (Superadmin y Administrador)](#51-configuración-integral-del-perfil-de-la-barbería-superadmin-y-administrador)
-   * [5.2 Gestión del catálogo de servicios y precios](#52-gestión-del-catálogo-de-servicios-y-precios)
-   * [5.3 Gestión del equipo de barberos y comisiones](#53-gestión-del-equipo-de-barberos-y-comisiones)
-   * [5.4 Gestión del catálogo comercial de productos](#54-gestión-del-catálogo-comercial-de-productos)
-   * [5.5 Vinculación de WhatsApp mediante código QR](#55-vinculación-de-whatsapp-mediante-código-qr)
+   * [5.1 Configuración integral del perfil de la barbería](#51-configuración-integral-del-perfil-de-la-barbería)
+   * [5.2 Procedimiento: Crear y gestionar servicios](#52-procedimiento-crear-y-gestionar-servicios)
+   * [5.3 Procedimiento: Crear y gestionar barberos y comisiones](#53-procedimiento-crear-y-gestionar-barberos-y-comisiones)
+   * [5.4 Procedimiento: Gestionar catálogo de productos comerciales](#54-procedimiento-gestionar-catálogo-de-productos-comerciales)
+   * [5.5 Procedimiento: Vincular WhatsApp mediante código QR](#55-procedimiento-vincular-whatsapp-mediante-código-qr)
    * [5.6 Personalización de plantillas, variables y anticipación](#56-personalización-de-plantillas-variables-y-anticipación)
-   * [5.7 Agendamiento administrativo en mostrador (Walk-in / Llamadas)](#57-agendamiento-administrativo-en-mostrador-walk-in-llamadas)
+   * [5.7 Procedimiento: Registrar reserva administrativa en mostrador (Walk-in)](#57-procedimiento-registrar-reserva-administrativa-en-mostrador-walk-in)
    * [5.8 Tablero de control y métricas del negocio (Dashboard)](#58-tablero-de-control-y-métricas-del-negocio-dashboard)
 6. [Módulo 4: Superadministración de la plataforma](#6-módulo-4-superadministración-de-la-plataforma)
-7. [Guía de solución de problemas y preguntas frecuentes (FAQ)](#7-guía-de-solución-de-problemas-y-preguntas-frecuentes-faq)
+   * [6.1 Procedimiento: Alta de una nueva barbería (Sede)](#61-procedimiento-alta-de-una-nueva-barbería-sede)
+   * [6.2 Reglas de validación y lista de identificadores reservados (Slugs)](#62-reglas-de-validación-y-lista-de-identificadores-reservados-slugs)
+   * [6.3 Procedimiento: Cambiar el estado operativo de una barbería](#63-procedimiento-cambiar-el-estado-operativo-de-una-barbería)
+7. [Errores del sistema y solución de problemas](#7-errores-del-sistema-y-solución-de-problemas)
+   * [7.1 Tabla de mensajes de error de la interfaz](#71-tabla-de-mensajes-de-error-de-la-interfaz)
+   * [7.2 Preguntas frecuentes (FAQ)](#72-preguntas-frecuentes-faq)
 8. [Glosario](#8-glosario)
 9. [Fuentes relacionadas](#9-fuentes-relacionadas)
 10. [Historial de cambios](#10-historial-de-cambios)
@@ -73,14 +78,14 @@ Este manual está organizado según tu rol dentro de la plataforma. Para consult
 | **Barbero (Staff)** | Consultar tu agenda de turnos diaria y semanal, marcar citas y bloquear descansos. | **[Sección 4](#4-módulo-2-operatoria-del-barbero-staff)** |
 | **Administrador de Sede** | Configurar horarios, servicios, barberos, comisiones, vincular WhatsApp y registrar reservas en mostrador. | **[Sección 5](#5-módulo-3-administración-de-la-barbería-dueño-administrador)** |
 | **Superadministrador** | Dar de alta nuevas sedes, asignar identificadores web (slugs) y gestionar membresías globales. | **[Sección 6](#6-módulo-4-superadministración-de-la-plataforma)** |
-| **Cualquier usuario** | Resolver dudas comunes, incidencias técnicas o consultar términos desconocidos. | **[Secciones 7 y 8](#7-guía-de-solución-de-problemas-y-preguntas-frecuentes-faq)** |
+| **Cualquier usuario** | Resolver dudas comunes, incidencias técnicas o consultar términos desconocidos. | **[Secciones 7 y 8](#7-errores-del-sistema-y-solución-de-problemas)** |
 
 #### Convenciones tipográficas y notas de aviso
 A lo largo del documento encontrarás las siguientes convenciones visuales:
 * **Elementos de la interfaz:** Los nombres de botones, pestañas, menús y opciones aparecen siempre en **Negrita** (por ejemplo: pulsa **Confirmar Reserva** o entra a **Configuración**).
 * **Rutas y valores técnicos:** Las direcciones web, identificadores y valores exactos se muestran en formato de código (por ejemplo: `/:slug/reservar`).
 * ℹ️ **Información:** Aporta contexto operativo adicional útil para completar una tarea.
-* ⚠️ **Importante / Advertencia:** Señala requisitos indispensables o acciones sensibles que liberan turnos o modifican datos.
+* ⚠️ **Importante / Advertencia:** Señala requisitos indispensables o acciones sensibles que liberan turnos o modifican datos. **En este manual, toda advertencia aparece siempre antes del paso al que afecta.**
 
 ---
 
@@ -182,6 +187,8 @@ Entra directamente mediante la dirección web oficial de la barbería:
 
 > *Ejemplo:* Si el negocio se llama "Barbería Elite", su dirección web será `https://<dominio>/barberia-elite`.
 
+![Portada del portal público de la barbería con catálogo y radar GPS](img/pantalla-portal-inicio.png)
+
 ---
 
 ### 3.2 Exploración del catálogo y radar GPS
@@ -194,21 +201,47 @@ Al entrar al portal de la barbería encuentras:
 
 ---
 
-### 3.3 Flujo de agendamiento online (Doble modalidad)
+### 3.3 Procedimiento: Agendar una cita online (Doble modalidad)
 
-El asistente de reservas se adapta a tu preferencia mediante dos caminos:
+* **Quién:** Clientes e invitados que visitan el portal público.
+* **Antes de empezar:** Debes disponer de un número de teléfono móvil con WhatsApp activo para recibir el comprobante.
 
-#### 🔹 Modalidad A: Agendar iniciando por servicio
-1. **Paso 1 (Servicio):** Pulsa sobre el servicio que deseas en el catálogo (por ejemplo: "Corte Clásico"). Pulsa el botón **Continuar**.
-2. **Paso 2 (Barbero):** Elige a tu barbero preferido entre los habilitados para ese corte, o selecciona **Cualquier Profesional** para ver la mayor cantidad de horarios disponibles.
-3. **Paso 3 (Fecha y hora):** Selecciona el día en el calendario y pulsa la hora deseada. Los bloques ocupados o en descanso no se muestran.
-4. **Paso 4 (Datos y confirmación):** Escribe tu nombre, número de WhatsApp y notas adicionales si las requieres. Pulsa **Confirmar Reserva**.
+![Asistente paso a paso para agendar una cita online](img/pantalla-reserva-stepper.png)
 
-#### 🔹 Modalidad B: Agendar iniciando por barbero
-1. **Paso 1 (Profesional):** En la sección del equipo o perfil del barbero, pulsa el botón **Reservar con este Barbero**.
-2. **Paso 2 (Servicio):** El sistema fija al profesional y te muestra únicamente los servicios que él realiza. Selecciona el servicio deseado.
-3. **Paso 3 (Fecha y hora):** Elige el día y selecciona una franja libre de su agenda personal.
-4. **Paso 4 (Datos y confirmación):** Ingresa tu nombre y número de WhatsApp y pulsa **Confirmar Reserva**.
+#### Pasos para agendar iniciando por servicio (Modalidad A):
+1. En la página principal de la sede, localiza el servicio deseado en el catálogo y pulsa sobre su tarjeta.
+2. En la parte inferior, pulsa el botón **Continuar**.
+3. En la lista de profesionales, pulsa sobre el barbero de tu preferencia o selecciona la tarjeta **Cualquier Profesional** si deseas ver mayor cantidad de horarios.
+4. En el calendario, pulsa sobre el día deseado.
+5. En la cuadrícula de horas disponibles, pulsa sobre la franja horaria de tu preferencia (ejemplo: `14:00`).
+6. En el formulario final, completa tus datos de contacto:
+   * Escribe tu **Nombre** (obligatorio).
+   * Escribe tu **Apellido** (opcional).
+   * Escribe tu número de **Teléfono / WhatsApp** (obligatorio).
+   * Escribe **Notas adicionales** (opcional).
+7. ⚠️ **Advertencia:** Asegúrate de que el número de teléfono sea correcto, ya que allí recibirás el único enlace para cancelar o gestionar tu cita.
+8. Pulsa el botón **Confirmar Reserva**.
+
+#### Pasos para agendar iniciando por barbero (Modalidad B):
+1. En la página principal, baja hasta la sección del equipo y pulsa el botón **Reservar con este Barbero**.
+2. El sistema fija al profesional. Pulsa sobre uno de los servicios que él tiene asignados.
+3. Elige la fecha en el calendario y pulsa la hora deseada.
+4. Completa tus datos de contacto y pulsa **Confirmar Reserva**.
+
+* **Resultado:** Se muestra de inmediato la pantalla de éxito con tu comprobante digital y tu código de reserva. Paralelamente, recibes un mensaje en tu WhatsApp con los datos del turno y tu enlace directo de gestión.
+* **Si algo falla:** Si recibes el mensaje *"El horario seleccionado ya no está disponible"*, consulta la [Sección 7.1](#71-tabla-de-mensajes-de-error-de-la-interfaz) para seleccionar otra franja horaria.
+
+#### Campos del formulario de reserva del cliente:
+| Campo | Obligatorio | Formato o límite | Ejemplo |
+| :--- | :---: | :--- | :--- |
+| **Servicio** | Sí | Selección de un servicio activo | `Corte Clásico` |
+| **Barbero** | Sí | Selección de un profesional o "Cualquiera" | `Carlos Gómez` |
+| **Fecha** | Sí | Formato `AAAA-MM-DD`, día de calendario futuro | `2026-11-20` |
+| **Hora** | Sí | Formato `HH:mm` (24 horas), bloque disponible | `14:00` |
+| **Nombre** | Sí (invitado) | Texto alfanumérico, máx. 100 caracteres | `Juan` |
+| **Apellido** | No | Texto alfanumérico, máx. 100 caracteres | `Pérez` |
+| **Teléfono** | Sí (invitado) | Solo dígitos, entre 7 y 30 caracteres | `3001234567` |
+| **Notas adicionales** | No | Texto libre descriptivo, máx. 250 caracteres | `Llegaré 5 minutos antes` |
 
 ---
 
@@ -217,24 +250,45 @@ Al confirmar tu turno:
 1. **Pantalla de confirmación:** Visualizas en pantalla el comprobante digital con tu código de cita, servicio, barbero, fecha, hora y dirección física.
 2. **Mensaje automático de WhatsApp:** Recibes en tu teléfono un mensaje con el saludo de la barbería, los detalles de tu cita y un enlace directo de autoservicio.
 
----
-
-### 3.5 Consulta y cancelación de cita con enlace corto
-No necesitas recordar contraseñas para administrar tu turno. El mensaje de WhatsApp incluye un enlace corto seguro:
-`https://<dominio>/:slug/c/:id/:token` `[CONFIRMAR: dominio base de producción]`
-
-* **Consultar estado:** Pulsa el enlace para verificar si tu cita está confirmada o en atención.
-* **Cancelar cita:** Si tienes un imprevisto, pulsa el botón **Cancelar Cita**. El sistema libera de inmediato el horario para otros clientes y avisa al barbero.
-
-> ℹ️ **Nota de cancelación:** Las cancelaciones están sujetas a la anticipación fijada por la barbería (por ejemplo: permitidas hasta con 2 horas de antelación al turno).
+![Comprobante digital de cita confirmada](img/pantalla-reserva-comprobante.png)
 
 ---
 
-### 3.6 Catálogo de productos y pedidos por WhatsApp
-Puedes consultar los artículos de cuidado personal en `/:slug/catalogo/productos`:
-1. **Galería de productos:** Revisa productos (pomadas, aceites, champús) con foto, precio y descripción.
-2. **Búsqueda rápida:** Escribe en la barra de búsqueda para filtrar por nombre en tiempo real.
-3. **Botón "Pedir por WhatsApp":** Abre una conversación con el WhatsApp de la barbería con un mensaje predefinido con el nombre del producto y su precio para coordinar la compra.
+### 3.5 Procedimiento: Consultar y cancelar cita con enlace corto
+
+* **Quién:** Clientes que recibieron su enlace de WhatsApp o que tienen el token de reserva.
+* **Antes de empezar:** Debes abrir el enlace que llegó a tu WhatsApp desde tu teléfono o navegador web.
+
+#### Pasos:
+1. Abre el mensaje de confirmación en tu aplicación de WhatsApp.
+2. Pulsa sobre el enlace corto de gestión:  
+   `https://<dominio>/:slug/c/:id/:token` `[CONFIRMAR: dominio base de producción]`
+3. Se abrirá la pantalla con los detalles de tu reserva (estado, barbero, fecha y hora).
+4. Si necesitas cancelar, localiza la sección de gestión en la parte inferior.
+5. ⚠️ **Advertencia:** La cancelación es irreversible. Una vez cancelada, la franja horaria queda libre inmediatamente para otros clientes. Además, no podrás cancelar si falta menos tiempo del fijado por la política de la barbería (por ejemplo: menos de 2 horas antes de la cita).
+6. Pulsa el botón **Cancelar Cita**.
+7. En el diálogo de confirmación que aparece, pulsa **Confirmar Cancelación**.
+
+* **Resultado:** La pantalla se actualiza mostrando la insignia de estado **Cancelada** y el horario queda liberado en la agenda del barbero.
+* **Si algo falla:** Si recibes el mensaje *"No es posible cancelar la reserva: faltan menos de X minutos para la cita"*, significa que estás fuera de plazo. Consulta la [Sección 7.1](#71-tabla-de-mensajes-de-error-de-la-interfaz) para comunicarte directamente con la sede.
+
+---
+
+### 3.6 Procedimiento: Pedir un producto por WhatsApp
+
+* **Quién:** Clientes y visitantes interesados en comprar artículos de la barbería.
+* **Antes de empezar:** Debes tener instalada la aplicación de WhatsApp o tener acceso a WhatsApp Web en tu dispositivo.
+
+#### Pasos:
+1. En el portal de la sede, entra a la sección **Productos** (`/:slug/catalogo/productos`).
+2. Explora la galería o escribe el nombre del artículo en la barra de búsqueda.
+3. Pulsa sobre la tarjeta del producto o en el botón **Ver más** para leer la descripción y modo de uso.
+4. Pulsa el botón **Pedir por WhatsApp**.
+5. Se abrirá una conversación con el número oficial de la sede con un mensaje estructurado con el nombre del producto y su precio.
+6. Pulsa el botón de enviar en WhatsApp para coordinar la entrega o retiro en el local con el administrador.
+
+* **Resultado:** La conversación se inicia en tu WhatsApp con el mensaje estructurado listo para acordar el pago y entrega.
+* **Si algo falla:** Si el enlace no abre WhatsApp, verifica que tu navegador tenga permisos para abrir enlaces de aplicaciones externas.
 
 ---
 
@@ -259,12 +313,23 @@ flowchart TD
     AuthCheck -->|No pertenece a la sede| Error403["Acceso no autorizado"]
 ```
 
-### 4.1 Inicio de sesión y acceso seguro (Inicio de sesión con Google)
-La plataforma utiliza inicio de sesión seguro con Google. No necesitas crear contraseñas locales:
-1. Entra a la dirección web de tu barbería: `https://<dominio>/:slug/login`.
-2. En la pestaña de acceso, pulsa el botón **Continuar con Google**.
-3. Selecciona tu cuenta de correo de Google registrada previamente por el administrador.
-4. El sistema comprueba tu membresía activa en la sede y abre tu panel de agenda de turnos.
+### 4.1 Procedimiento: Iniciar sesión en la sede con Google
+
+* **Quién:** Barberos activos y personal del establecimiento.
+* **Antes de empezar:** Tu correo electrónico de Google debe haber sido registrado previamente por el administrador de la sede en la sección de personal.
+
+![Pantalla de inicio de sesión seguro con Google](img/pantalla-login.png)
+
+#### Pasos:
+1. Abre tu navegador web e ingresa a la dirección de tu barbería:  
+   `https://<dominio>/:slug/login` `[CONFIRMAR: dominio base de producción]`
+2. Asegúrate de estar en la pestaña **Personal / Staff**.
+3. Pulsa el botón **Continuar con Google**.
+4. En la ventana emergente de Google, selecciona o escribe tu cuenta de correo electrónico autorizada y tu contraseña de Google.
+5. Concede los permisos de autenticación requeridos por Google.
+
+* **Resultado:** El sistema valida tu membresía activa en la sede y te redirige automáticamente a tu panel de trabajo (`/:slug/dashboard` o `/:slug/reservas`).
+* **Si algo falla:** Si recibes el mensaje *"Tu cuenta no tiene permiso para realizar esta acción"* o *"El usuario no tiene un perfil de barbero asociado"*, consulta la [Sección 7.1](#71-tabla-de-mensajes-de-error-de-la-interfaz) para que el administrador verifique tu correo en la sede.
 
 ---
 
@@ -278,21 +343,60 @@ En tu panel de trabajo dispones de un calendario interactivo:
   * 🔴 **Cancelada:** Turno cancelado por el cliente o la administración.
   * ⚪ **Bloqueo Personal:** Horario fuera de servicio por descanso o permiso.
 
----
-
-### 4.3 Gestión de estados de cita (Completar / No-Show)
-Al terminar una cita:
-* **Completar servicio:** Pulsa **Marcar como Completada** al terminar la atención. Esto cierra el turno y suma el valor a tu liquidación de comisiones.
-* **Cliente ausente (No-Show):** Si el cliente no se presenta tras el tiempo de tolerancia, pulsa **Marcar como No Asistió**. Esto registra la inasistencia sin generar comisiones erróneas.
+![Agenda de turnos del barbero con citas y bloqueos](img/pantalla-agenda-barbero.png)
 
 ---
 
-### 4.4 Bloqueo de horarios personales y descansos
-Si necesitas ausentarte en tu horario laboral (almuerzo, cita médica o descanso):
-1. Pulsa el botón **Bloquear Horario** en tu agenda.
-2. Selecciona la fecha, hora de inicio y hora de fin del bloqueo.
-3. Escribe un motivo breve (por ejemplo: *"Almuerzo"*).
-4. Pulsa **Guardar Bloqueo**. El horario quedará cerrado y ningún cliente podrá reservar en ese intervalo.
+### 4.3 Procedimiento: Cambiar el estado de una cita (Completar o No Asistió)
+
+* **Quién:** Barbero asignado a la cita o Administrador de la sede.
+* **Antes de empezar:** La cita debe encontrarse en estado confirmado y corresponder a la fecha actual o una fecha pasada.
+
+#### Pasos para marcar cita completada:
+1. En tu agenda diaria, pulsa sobre la tarjeta de la cita que acabas de atender.
+2. En el panel lateral de detalles de la reserva, revisa el servicio y el precio final.
+3. Pulsa el botón **Marcar como Completada**.
+
+#### Pasos para registrar inasistencia (No-Show):
+1. ⚠️ **Advertencia:** Solo puedes marcar como inasistencia una cita si el cliente no se presentó y ya transcurrió el tiempo de tolerancia fijado por la barbería (por defecto, 15 minutos tras la hora de inicio pactada).
+2. Pulsa sobre la cita en tu agenda.
+3. Pulsa el botón **Marcar como No Asistió**.
+
+* **Resultado:** La cita cambia inmediatamente su estado visual. Si fue marcada como completada, se acumula al cálculo de tus comisiones del período. Si fue marcada como inasistencia, queda registrada en auditoría sin generar comisiones.
+* **Si algo falla:** Si la cita ya fue cancelada previamente, el sistema impedirá el cambio de estado con un mensaje de aviso.
+
+---
+
+### 4.4 Procedimiento: Bloquear horario personal o descanso
+
+* **Quién:** Barbero activo.
+* **Antes de empezar:** Debes conocer la fecha y franja horaria exacta de tu ausencia (almuerzo, cita personal, capacitación).
+
+#### Pasos:
+1. En tu pantalla de agenda, pulsa el botón **Bloquear Horario**.
+2. En el formulario emergente, selecciona la **Fecha** del bloqueo.
+3. Selecciona la **Hora de inicio** (formato `HH:mm`, alineada en múltiplos de hora laboral).
+4. Selecciona la **Hora de fin** (debe ser estrictamente posterior a la hora de inicio).
+5. Selecciona el **Motivo** en la lista desplegable:
+   * `Personal` (asuntos privados).
+   * `Médico` (cita de salud).
+   * `Vacaciones` (días de descanso extendido).
+   * `Otro` (cualquier otra causa justificada).
+6. ⚠️ **Advertencia:** Asegúrate de no tener citas ya confirmadas con clientes en esa misma franja; de lo contrario, el sistema rechazará el bloqueo por solapamiento.
+7. Escribe una nota breve en el campo **Notas** (opcional).
+8. Pulsa el botón **Guardar Bloqueo**.
+
+* **Resultado:** La franja horaria se visualiza en color gris en tu agenda y queda bloqueada para que ningún cliente pueda agendar en ella desde la web.
+* **Si algo falla:** Si recibes el mensaje *"El horario seleccionado ya no está disponible"*, verifica que no existan citas activas en esa franja.
+
+#### Campos del formulario de bloqueo de horario:
+| Campo | Obligatorio | Formato o límite | Ejemplo |
+| :--- | :---: | :--- | :--- |
+| **Fecha (`date`)** | Sí | Formato `AAAA-MM-DD` | `2026-11-20` |
+| **Hora de inicio (`startTime`)** | Sí | Formato `HH:mm`, entre 09:00 y 20:00 | `13:00` |
+| **Hora de fin (`endTime`)** | Sí | Formato `HH:mm`, posterior al inicio | `14:00` |
+| **Motivo (`reason`)** | No | `PERSONAL`, `MEDICAL`, `VACATION`, `OTHER` | `PERSONAL` |
+| **Notas (`notes`)** | No | Texto libre, máx. 500 caracteres | `Almuerzo con familia` |
 
 ---
 
@@ -310,65 +414,162 @@ graph TD
     AdminPanel --> ModBarberos["Equipo & Comisiones"]
 ```
 
-### 5.1 Configuración integral del perfil de la barbería (Superadmin y Administrador)
-Tanto el Superadministrador como el Administrador de la sede pueden configurar el perfil en `/:slug/configuracion`:
-1. **Información general:** Edita el nombre comercial de la sede y el eslogan o frase principal de portada.
-2. **Ubicación y mapa GPS:** Escribe la dirección física o pega directamente el enlace de Google Maps del local; el sistema extrae automáticamente la latitud y longitud para el botón del mapa público.
-3. **Identidad visual:** Carga o reemplaza el Favicon (ícono de pestaña), el Banner de portada, el Logo para fondo oscuro (blanco) y el Logo para fondo claro (negro).
-4. **Paleta de colores de la marca:** Elige entre 6 estilos visuales predefinidos (`clasico-azul`, `cyber-lime`, `sunset-amber`, `midnight-cyan`, `crimson-velvet`, `monochrome-noir`).
-5. **Redes sociales:** Vincula los enlaces de Instagram, TikTok, Facebook y WhatsApp, y activa o desactiva canales según los necesites.
+### 5.1 Configuración integral del perfil de la barbería
+
+* **Quién:** Superadministrador de la plataforma o Administrador asignado a la sede.
+* **Antes de empezar:** Debes tener a mano la dirección física de la sede, las imágenes de logotipo en formatos válidos y los enlaces de redes sociales.
+
+![Panel de configuración general y de marca de la barbería](img/pantalla-configuracion-perfil.png)
+
+#### Pasos para actualizar información y ubicación:
+1. En el menú de navegación lateral, entra a **Configuración** (`/:slug/configuracion`).
+2. En la pestaña **General**, escribe el **Nombre comercial** y la **Frase principal (Lema)** de la barbería.
+3. En la sección de ubicación, ingresa la **Dirección física**.
+4. Para la geolocalización, copia el enlace de tu barbería desde Google Maps o Waze y pégalo en el campo **Enlace o Coordenadas de Google Maps**; el sistema extraerá automáticamente la latitud y longitud numéricas. También puedes escribir manualmente ambos valores numéricos.
+5. Pulsa el botón **Guardar Cambios**.
+
+#### Pasos para actualizar identidad gráfica y archivos:
+1. Ve a la pestaña **Identidad Gráfica**.
+2. ⚠️ **Advertencia:** Cumple los límites estrictos de archivo: el Favicon, el Logo Blanco y el Logo Negro deben ser archivos vectoriales SVG válidos (máximo 256 KB); el Banner debe ser una imagen PNG (máximo 2 MB).
+3. Pulsa sobre el área de carga del recurso que deseas cambiar (**Favicon**, **Banner**, **Logo Blanco** o **Logo Negro**).
+4. Selecciona el archivo en tu computadora y confirma la carga. La previsualización se actualizará en pantalla.
+
+#### Pasos para cambiar el tema visual:
+1. En la pestaña **Temas de Marca**, pulsa sobre una de las 6 paletas de color disponibles (`clasico-azul`, `cyber-lime`, `sunset-amber`, `midnight-cyan`, `crimson-velvet`, `monochrome-noir`).
+2. El sistema aplica el cambio en tiempo real y lo guarda automáticamente.
+
+#### Pasos para gestionar redes sociales:
+1. En la sección **Redes Sociales**, pulsa **Agregar Red Social**.
+2. Selecciona el tipo (`Instagram`, `TikTok`, `Facebook`, `WhatsApp` u `Otro`).
+3. ⚠️ **Advertencia:** Si seleccionas `Otro`, es obligatorio escribir el nombre visible de la red. La dirección URL debe comenzar obligatoriamente con `https://`.
+4. Pega la URL completa y pulsa **Guardar Red Social**. Puedes usar el interruptor de activación para ocultarla temporalmente del portal sin borrarla.
+
+#### Campos del formulario de perfil y redes sociales:
+| Campo | Obligatorio | Formato o límite | Ejemplo |
+| :--- | :---: | :--- | :--- |
+| **Nombre de la sede** | Sí | Texto, entre 2 y 150 caracteres | `Kyrios Barber Studio` |
+| **Frase principal (Lema)** | No | Texto libre, máx. 200 caracteres | `Estilo y elegancia tradicional` |
+| **Dirección** | No | Texto libre, máx. 200 caracteres | `Carrera 6 # 3-45, Popayán` |
+| **Latitud GPS** | No (en par) | Decimal entre -90 y 90 | `2.4419` |
+| **Longitud GPS** | No (en par) | Decimal entre -180 y 180 | `-76.6063` |
+| **Favicon** | No | Archivo SVG válido, máx. 256 KB | `favicon.svg` |
+| **Banner horizontal** | No | Archivo PNG válido, máx. 2 MB | `banner.png` |
+| **Logo Blanco / Negro** | No | Archivo SVG válido, máx. 256 KB | `logo.svg` |
+| **Tipo de red social** | Sí | `TIKTOK`, `FACEBOOK`, `INSTAGRAM`, `WHATSAPP`, `OTRO` | `INSTAGRAM` |
+| **Nombre de la red** | Sí (solo si es OTRO) | Texto obligatorio para OTRO, máx. 80 caracteres | `Canal de Telegram` |
+| **URL de red social** | Sí | Dirección web con protocolo `https://`, máx. 500 caracteres | `https://instagram.com/kyrios` |
 
 ---
 
-### 5.2 Gestión del catálogo de servicios y precios
-En la sección **Servicios**:
-* **Crear nuevo servicio:** Pulsa **Nuevo Servicio**, escribe el nombre, categoría, precio, duración en minutos y descripción.
-* **Fotografía:** Sube una imagen demostrativa del corte o tratamiento.
-* **Activar o pausar:** Puedes desactivar un servicio temporalmente sin eliminarlo ni afectar el historial de citas pasadas.
+### 5.2 Procedimiento: Crear y gestionar servicios
+
+* **Quién:** Administrador de la sede o Superadministrador.
+* **Antes de empezar:** Debes conocer el precio de venta y la duración en minutos del servicio.
+
+#### Pasos para crear un servicio:
+1. En el menú lateral, pulsa **Servicios** (`/:slug/servicios`).
+2. Pulsa el botón **Nuevo Servicio**.
+3. En el formulario, escribe el **Nombre del servicio** (mínimo 3, máximo 100 caracteres).
+4. Escribe la **Descripción** detallada de lo que incluye el corte o tratamiento (máx. 500 caracteres).
+5. Ingresa el **Precio ($ COP)** (número mayor o igual a 0).
+6. Ingresa la **Duración en minutos** (número entero positivo, mínimo 1 minuto; recomendado múltiplos de 15 o 30).
+7. En la lista de barberos, marca las casillas de los profesionales que están capacitados para realizar este servicio.
+8. Pulsa el botón **Guardar Servicio**.
+
+* **Resultado:** El nuevo servicio aparece en tu lista administrativa y queda visible de inmediato en el portal público de reservas.
+* **Si algo falla:** Si falta el nombre o el precio es negativo, el sistema resaltará el campo en rojo.
+
+#### Campos del formulario de servicios:
+| Campo | Obligatorio | Formato o límite | Ejemplo |
+| :--- | :---: | :--- | :--- |
+| **Nombre** | Sí | Texto, entre 3 y 100 caracteres | `Corte Clásico y Barba` |
+| **Descripción** | No | Texto descriptivo, máx. 500 caracteres | `Incluye lavado, perfilado y toalla caliente` |
+| **Precio ($ COP)** | Sí | Número decimal o entero $\ge 0$ | `35000` |
+| **Duración en minutos** | Sí | Número entero $\ge 1$ | `45` |
+| **Foto del servicio** | No | URL o archivo de imagen | `/uploads/servicios/corte.jpg` |
+| **Barberos habilitados** | No | Lista de IDs de barberos activos | `[1, 3]` |
 
 ---
 
-### 5.3 Gestión del equipo de barberos y comisiones
-En la sección **Barberos**:
-1. **Registrar barbero:** Pulsa **Nuevo Barbero**, escribe su nombre, correo de Google, especialidad y foto.
-2. **Definir horario de trabajo:** Configura los días laborables de la semana, hora de inicio, hora de cierre y descansos.
-3. **Porcentaje de comisión:** Asigna el porcentaje pactado con el barbero (por ejemplo: 45% o 50%). El sistema calculará automáticamente sus ingresos acumulados sobre los servicios completados.
+### 5.3 Procedimiento: Crear y gestionar barberos y comisiones
+
+* **Quién:** Administrador de la sede o Superadministrador.
+* **Antes de empezar:** El barbero debe disponer de una cuenta de correo electrónico de Google activa para poder iniciar sesión.
+
+#### Pasos para registrar un barbero:
+1. En el menú lateral, pulsa **Barberos** (`/:slug/barberos`).
+2. Pulsa el botón **Nuevo Barbero**.
+3. Escribe el **Nombre** del barbero (solo letras y espacios, entre 2 y 50 caracteres).
+4. Escribe el **Apellido** (solo letras y espacios, entre 2 y 50 caracteres).
+5. Escribe su **Correo de Google** (formato de correo válido, máx. 255 caracteres).
+6. Escribe su número de **Teléfono de contacto** (dígitos con o sin signo `+`, entre 7 y 15 caracteres).
+7. Ingresa el **Porcentaje de comisión** pactado (número entre 0 y 100).
+8. Pulsa el botón **Guardar Barbero**.
+9. En la pestaña de **Horario Semanal**, configura qué días trabaja el barbero y sus horas de inicio y fin de turno.
+
+* **Resultado:** El perfil del barbero queda creado en el sistema. El profesional ya puede ingresar a la plataforma mediante el botón **Continuar con Google** usando el correo registrado.
+* **Si algo falla:** Si el correo ya pertenece a otro barbero en la misma sede, el sistema mostrará un aviso de conflicto.
+
+#### Campos del formulario de registro de barbero:
+| Campo | Obligatorio | Formato o límite | Ejemplo |
+| :--- | :---: | :--- | :--- |
+| **Nombre** | Sí | Solo letras y espacios, 2 a 50 caracteres | `Carlos` |
+| **Apellido** | Sí | Solo letras y espacios, 2 a 50 caracteres | `Gómez` |
+| **Correo electrónico** | Sí | Correo electrónico válido, máx. 255 caracteres | `carlos.barbero@gmail.com` |
+| **Teléfono** | Sí | Formato telefónico `^\+?\d{7,15}$` | `+573001234567` |
+| **Porcentaje de comisión**| Sí | Número entre 0 y 100 | `50` |
+| **Foto de perfil** | No | URL o archivo de imagen | `/uploads/barberos/carlos.jpg` |
 
 ---
 
-### 5.4 Gestión del catálogo comercial de productos
-En la sección **Productos**:
-1. **Nuevo producto:** Pulsa **Nuevo Producto**, ingresa nombre comercial (máx. 100 caracteres), precio mayor a 0, fotografía (hasta 5 MB) y descripción (hasta 500 caracteres).
-2. **Control de visibilidad:** Activa o desactiva productos según la disponibilidad de inventario físico.
+### 5.4 Procedimiento: Gestionar catálogo de productos comerciales
+
+* **Quién:** Administrador de la sede o Superadministrador.
+* **Antes de empezar:** Debes tener los datos del producto y su fotografía en tu computadora.
+
+#### Pasos para registrar un producto:
+1. En el menú lateral, pulsa **Productos** (`/:slug/productos`).
+2. Pulsa el botón **Nuevo Producto**.
+3. Escribe el **Nombre del producto** (único en la sede, máx. 100 caracteres).
+4. Escribe la **Descripción** comercial (máx. 500 caracteres).
+5. Ingresa el **Precio ($ COP)** (mayor a 0.01 y menor a 99.999.999,99; máximo 2 decimales).
+6. ⚠️ **Advertencia:** La imagen debe ser un archivo en formato JPG, PNG o WEBP válido con un peso máximo de 5 MB.
+7. Pulsa sobre el selector de archivos y carga la foto del artículo.
+8. Pulsa el botón **Guardar Producto**.
+
+* **Resultado:** El producto queda creado y se muestra en la pestaña de productos activos del panel y en el catálogo público (`/:slug/catalogo/productos`).
+* **Si algo falla:** Si recibes el mensaje *"Ya existe un producto con este nombre en este negocio"*, cambia el nombre por uno distintivo. Si recibes *"La imagen debe ser un archivo JPG, PNG o WEBP válido de máximo 5 MB"*, reduce el peso de la imagen o cambia el formato.
+
+#### Campos del formulario de productos:
+| Campo | Obligatorio | Formato o límite | Ejemplo |
+| :--- | :---: | :--- | :--- |
+| **Nombre** | Sí | Texto único en la sede, máx. 100 caracteres | `Cera Modeladora Mate` |
+| **Descripción** | No | Texto descriptivo, máx. 500 caracteres | `Fijación fuerte con aroma a madera` |
+| **Precio ($ COP)** | Sí | Decimal entre 0.01 y 99.999.999,99 (máx. 2 decimales) | `45000` |
+| **Fotografía** | No | Archivo JPG, PNG o WEBP de máx. 5 MB | `cera-mate.jpg` |
 
 ---
 
-### 5.5 Vinculación de WhatsApp mediante código QR
-Para enviar confirmaciones y recordatorios desde la línea telefónica de la barbería:
+### 5.5 Procedimiento: Vincular WhatsApp mediante código QR
 
-```mermaid
-sequenceDiagram
-    actor Admin as Administrador
-    participant Web as Panel Web (/:slug/whatsapp)
-    participant Server as Servidor de Barbería VIP SaaS
-    actor Phone as Teléfono de la Barbería
+* **Quién:** Administrador de la sede o Superadministrador.
+* **Antes de empezar:** Debes tener a mano el teléfono móvil físico que tiene la línea oficial de WhatsApp de la barbería, con batería y conexión a Internet.
 
-    Admin->>Web: Pulsa "Generar Código QR"
-    Web->>Server: Solicita sesión para la sede
-    Server-->>Web: Muestra Código QR en pantalla
-    Admin->>Phone: Abre WhatsApp > Dispositivos vinculados > Vincular un dispositivo
-    Phone->>Web: Escanea el Código QR en pantalla
-    Server-->>Web: Conexión confirmada (Estado: CONECTADO)
-    Web-->>Admin: Muestra insignia verde "WhatsApp Conectado"
-```
+![Pantalla de vinculación del código QR de WhatsApp](img/pantalla-whatsapp-qr.png)
 
-1. Entra a **WhatsApp** (`/:slug/whatsapp`) en el menú administrativo.
-2. Pulsa el botón **Generar Código QR**.
-3. En el teléfono de la barbería, abre WhatsApp, entra a **Dispositivos vinculados** y pulsa **Vincular un dispositivo**.
-4. Apunta la cámara del teléfono a la pantalla y escanea el código QR.
-5. Al vincularse, la pantalla mostrará la insignia verde **WhatsApp Conectado**.
+#### Pasos:
+1. En el menú lateral, pulsa **WhatsApp** (`/:slug/whatsapp`).
+2. ⚠️ **Advertencia:** La vinculación conecta el número de tu teléfono con la plataforma. Mientras esté vinculado, los mensajes automáticos se enviarán desde esa línea. Si cierras la sesión en el celular, las notificaciones quedarán pausadas.
+3. Pulsa el botón **Generar Código QR**. En pantalla aparecerá un código QR con actualización automática.
+4. Toma el teléfono celular de la barbería y abre la aplicación WhatsApp.
+5. Entra a **Ajustes** (en iPhone) o pulsa los **tres puntos verticales** (en Android).
+6. Selecciona la opción **Dispositivos vinculados**.
+7. Pulsa el botón **Vincular un dispositivo** y confirma tu huella o PIN si tu teléfono lo solicita.
+8. Apunta la cámara del teléfono hacia la pantalla de tu computadora y escanea el código QR.
+9. Espera unos segundos sin cerrar la ventana.
 
-> ⚠️ **Importante:** El teléfono de la barbería debe mantener conexión a Internet para que los mensajes programados se sigan enviando de forma automática.
+* **Resultado:** La pantalla web se actualiza mostrando una insignia verde **WhatsApp Conectado**, el indicador del encabezado cambia a verde y el sistema queda listo para enviar confirmaciones y recordatorios.
+* **Si algo falla:** Si el código caduca antes de escanearlo, pulsa el botón **Generar nuevo código QR**.
 
 ---
 
@@ -381,34 +582,183 @@ En la misma pantalla de WhatsApp:
 
 ---
 
-### 5.7 Agendamiento administrativo en mostrador (Walk-in / Llamadas)
-Para atender a clientes que llegan directamente al local o reservan por llamada telefónica:
-1. Entra a **Reservas** y pulsa **Nueva Reserva** (`/:slug/reservas/nueva`).
-2. Selecciona el barbero, el servicio, la fecha y una de las horas libres calculadas por el sistema.
-3. Escribe el nombre y número de teléfono móvil del cliente.
-4. Pulsa **Crear Reserva**. La franja queda bloqueada en el calendario y, si WhatsApp está conectado, el cliente recibe de inmediato su comprobante en el teléfono.
+### 5.7 Procedimiento: Registrar reserva administrativa en mostrador (Walk-in)
+
+* **Quién:** Administrador de la sede o Recepcionista con rol administrativo.
+* **Antes de empezar:** El cliente debe estar presente en el local o en la línea telefónica indicando qué servicio solicita.
+
+#### Pasos:
+1. En el menú lateral, ve a **Reservas** y pulsa el botón **Nueva Reserva** (`/:slug/reservas/nueva`).
+2. Selecciona el **Barbero** que atenderá el turno en la lista desplegable.
+3. Selecciona el **Servicio** solicitado.
+4. En el calendario, selecciona la **Fecha** de hoy (o la fecha acordada).
+5. En la lista de horarios libres calculados por el sistema, pulsa sobre la **Hora de inicio** deseada.
+6. En la sección de datos del cliente:
+   * Escribe el **Nombre** del cliente (obligatorio).
+   * Escribe el **Apellido** (opcional).
+   * Escribe el número de **Teléfono móvil** (obligatorio).
+   * Escribe el **Correo electrónico** (opcional).
+7. ⚠️ **Advertencia:** Si el cliente tiene una reserva activa en ese mismo minuto con otro barbero o en la sede, el sistema rechazará la creación por duplicidad.
+8. Pulsa el botón **Crear Reserva**.
+
+* **Resultado:** La reserva queda registrada en el acto en estado confirmada, aparece en la agenda del barbero seleccionado y, si WhatsApp está conectado, se envía automáticamente el comprobante digital al teléfono del cliente.
+* **Si algo falla:** Si recibes el mensaje *"El horario seleccionado ya no está disponible"*, selecciona otra franja de la lista.
+
+#### Campos del formulario de reserva administrativa:
+| Campo | Obligatorio | Formato o límite | Ejemplo |
+| :--- | :---: | :--- | :--- |
+| **Servicio (`servicioId`)** | Sí | Entero positivo, servicio activo | `2` |
+| **Barbero (`barberoId`)** | Sí | Entero positivo, barbero activo capacitado | `1` |
+| **Fecha (`fecha`)** | Sí | Formato estricto `AAAA-MM-DD` (ISO8601) | `2026-11-20` |
+| **Hora (`hora`)** | Sí | Formato `HH:mm` (00:00 a 23:59) | `15:30` |
+| **Nombre** | Sí | Texto, máx. 100 caracteres | `Andrés` |
+| **Apellido** | No | Texto, máx. 100 caracteres | `Mejía` |
+| **Teléfono** | Sí | Texto numérico, máx. 20 caracteres | `3159876543` |
+| **Correo electrónico** | No | Formato de email válido, máx. 255 caracteres | `andres@gmail.com` |
 
 ---
 
 ### 5.8 Tablero de control y métricas del negocio (Dashboard)
-El panel principal (`/:slug/dashboard`) consolida los indicadores clave de la sede:
-* **Citas del día y de la semana:** Total de citas agendadas, completadas y canceladas.
-* **Control de ausencias (No-Show):** Porcentaje de inasistencias para evaluar la puntualidad de la clientela.
-* **Liquidación de comisiones:** Rendimiento y valores acumulados por cada barbero según su porcentaje asignado.
-* **Lista de próximas citas:** Secuencia de clientes programados para el día de hoy en recepción.
+
+El panel principal (`/:slug/dashboard`) es la herramienta de supervisión diaria del administrador:
+
+![Tablero de control con métricas del negocio e ingresos](img/pantalla-dashboard.png)
+
+#### Pasos para consultar métricas y liquidaciones:
+1. Inicia sesión como administrador y entra a **Dashboard** (`/:slug/dashboard`).
+2. En la parte superior, revisa los contadores de la jornada:
+   * **Citas hoy:** Cantidad de clientes agendados para el día en curso.
+   * **Citas completadas:** Turnos atendidos exitosamente.
+   * **Inasistencias (No-Show):** Clientes que no asistieron.
+   * **Ingresos brutos estimados:** Suma monetaria de los servicios atendidos.
+3. En la sección de **Rendimiento de Barberos**, revisa la tabla de comisiones acumuladas por cada profesional para proceder a la liquidación periódica.
+4. En la sección **Próximas Citas**, consulta la secuencia de turnos que están por llegar para organizar los sillones y la recepción.
 
 ---
 
 ## 6. Módulo 4: Superadministración de la plataforma
 
-Este módulo está destinado a los administradores generales del software multisede:
-* **Alta de nuevas barberías:** Registro de nuevos establecimientos en el sistema y vinculación del correo de Google del primer administrador.
-* **Asignación y validación de Slugs:** Comprobación de que el identificador web no colisione con nombres reservados del sistema (`admin`, `login`, `api`, `dashboard`).
-* **Activación y suspensión de sedes:** Pausa de servicios por mantenimiento o gestión administrativa.
+Este módulo describe los procedimientos para los propietarios de la plataforma SaaS para la gobernanza global de barberías.
+
+```mermaid
+flowchart TD
+    Inicio["Acceso al Panel de Plataforma"] --> Crear["6.1 Alta de Nueva Barbería"]
+    Crear --> ValidaSlug["6.2 Validación de Slug y Palabras Reservadas"]
+    ValidaSlug --> AsignaAdmin["Asignación de Correo del Primer Administrador"]
+    AsignaAdmin --> EstadoSede["6.3 Control de Estado: Activar o Suspender"]
+```
+
+### 6.1 Procedimiento: Alta de una nueva barbería (Sede)
+
+* **Quién:** Superadministrador de la plataforma.
+* **Antes de empezar:** Debes contar con el nombre comercial de la barbería, el identificador deseado (slug) y el correo electrónico de Google del dueño o primer administrador.
+
+#### Pasos:
+1. Ingresa a la interfaz de gestión de plataforma (`/plataforma`).
+2. Pulsa el botón **Nueva Barbería**.
+3. En el campo **Nombre oficial**, escribe el nombre comercial de la sede (entre 2 y 150 caracteres).
+4. En el campo **Identificador web (Slug)**, escribe el nombre exclusivo en minúsculas y sin espacios que irá en la URL (entre 2 y 63 caracteres).
+5. ⚠️ **Advertencia:** El identificador no puede coincidir con ninguna de las palabras reservadas del sistema (ver [Sección 6.2](#62-reglas-de-validación-y-lista-de-identificadores-reservados-slugs)) ni con otra barbería ya registrada.
+6. En el campo **Zona horaria**, verifica que indique `America/Bogota` (o la zona horaria oficial del local).
+7. En el campo **Dirección**, ingresa la ubicación o ciudad de la barbería.
+8. En los campos de administración inicial:
+   * Escribe el **Correo del Administrador** (debe ser una cuenta de Google activa).
+   * Escribe el **Nombre** del administrador.
+   * Escribe el **Apellido** del administrador.
+9. Pulsa el botón **Crear Barbería**.
+
+* **Resultado:** La sede se crea en estado `ACTIVO`. Se habilita de inmediato su portal público en `https://<dominio>/:slug` y el primer administrador queda facultado para ingresar mediante Google.
+* **Si algo falla:** Si recibes un error de slug duplicado o inválido, revisa las reglas de la sección 6.2.
+
+#### Campos del formulario de alta de barbería:
+| Campo | Obligatorio | Formato o límite | Ejemplo |
+| :--- | :---: | :--- | :--- |
+| **Nombre oficial (`nombre`)** | Sí | Texto, entre 2 y 150 caracteres | `Kyrios Barber Norte` |
+| **Identificador (`slug`)** | Sí | Minúsculas, números y guiones, 2 a 63 caracteres (`/^[a-z0-9]+(?:-[a-z0-9]+)*$/`) | `kyrios-norte` |
+| **Zona horaria (`zonaHoraria`)**| No | Texto de zona horaria oficial (por defecto `America/Bogota`) | `America/Bogota` |
+| **Dirección (`direccion`)** | No | Texto libre descriptivo | `Cra 9 # 15-20, Popayán` |
+| **Correo del Administrador (`adminEmail`)** | No | Formato de correo electrónico válido | `dueno.kyrios@gmail.com` |
+| **Nombre del Administrador (`adminNombre`)** | No | Texto libre | `Felipe` |
+| **Apellido del Administrador (`adminApellido`)** | No | Texto libre | `Armero` |
 
 ---
 
-## 7. Guía de solución de problemas y preguntas frecuentes (FAQ)
+### 6.2 Reglas de validación y lista de identificadores reservados (Slugs)
+
+El identificador web (**Slug**) define la ruta pública de acceso al portal de la sede (`https://<dominio>/:slug`). Para garantizar la estabilidad del enrutamiento y la seguridad de la plataforma, aplican las siguientes reglas obligatorias:
+
+1. **Formato admitido:** Solo letras minúsculas (`a-z`), números (`0-9`) y guiones sencillos (`-`). No se admiten espacios, mayúsculas, tildes ni caracteres especiales.
+2. **Longitud:** Mínimo 2 caracteres y máximo 63 caracteres.
+3. **Lista de palabras reservadas:** El sistema rechaza automáticamente cualquier intento de registrar un slug que coincida con las siguientes rutas internas del código fuente:
+   * `login`
+   * `sin-acceso`
+   * `dashboard`
+   * `mi-perfil`
+   * `horarios`
+   * `reservas`
+   * `usuarios`
+   * `barberos`
+   * `servicios`
+   * `productos`
+   * `whatsapp`
+   * `administradores`
+   * `configuracion`
+   * `cliente`
+   * `catalogo`
+   * `reservar`
+   * `reserva`
+   * `plataforma`
+   * `explorar`
+   * `c`
+   * `api`
+
+---
+
+### 6.3 Procedimiento: Cambiar el estado operativo de una barbería
+
+* **Quién:** Superadministrador de la plataforma.
+* **Antes de empezar:** Identificar la barbería en la lista de sedes de la plataforma.
+
+#### Pasos:
+1. En la lista de barberías de la plataforma, localiza la sede sobre la que deseas actuar.
+2. Pulsa en el menú de acciones de la fila y selecciona **Cambiar Estado**.
+3. Selecciona el nuevo estado:
+   * **`ACTIVO`:** La barbería opera con normalidad, su portal público está abierto y su personal puede gestionar turnos.
+   * **`INACTIVO`:** La barbería se suspende de forma inmediata. Su portal público se deshabilita para nuevas reservas y se bloquea el acceso administrativo. Los datos históricos se conservan intactos.
+4. ⚠️ **Advertencia:** Suspender una sede pausará de inmediato el envío de recordatorios automáticos por WhatsApp para todas las citas de ese establecimiento.
+5. Pulsa el botón **Confirmar Cambio de Estado**.
+
+* **Resultado:** La sede adopta su nuevo estado operativo inmediatamente.
+
+---
+
+## 7. Errores del sistema y solución de problemas
+
+Esta sección consolida los mensajes exactos de error que emite la aplicación y la guía para resolverlos.
+
+### 7.1 Tabla de mensajes de error de la interfaz
+
+| Mensaje en pantalla | Código HTTP / Causa real en el código | Qué ocurrió y qué debes hacer |
+| :--- | :---: | :--- |
+| **"Tu cuenta no tiene permiso para realizar esta acción."** | `403 Forbidden` | Intentaste ingresar con una cuenta de Google que no pertenece a la sede activa (`:slug`) o no tiene el rol necesario. Verifica la URL en tu navegador y pide al administrador que verifique tu correo en la sede. |
+| **"Tu sesión expiró. Inicia sesión nuevamente para continuar."** | `401 Unauthorized` | El tiempo de validez de tu acceso finalizó. Pulsa en el enlace de inicio de sesión e ingresa nuevamente con tu cuenta de Google. |
+| **"No encontramos la información solicitada."** | `404 Not Found` | La reserva, barbero, servicio o producto consultado no existe o fue eliminado. Verifica el enlace o regresa al catálogo principal. |
+| **"Ese horario o registro cambió y ya no está disponible. Actualiza la información e inténtalo de nuevo."** | `409 Conflict` | Ocurrió un conflicto de doble reserva: otro cliente confirmó la misma franja horaria una fracción de segundo antes. Selecciona otro bloque libre en el calendario. |
+| **"El horario seleccionado ya no está disponible. Por favor selecciona otro horario"** | `DomainConflictException` (`SLOT_TAKEN`) | La franja horaria seleccionada ya fue ocupada por otra cita o bloqueada por descanso del barbero. Elige otro bloque. |
+| **"Ya tienes una reserva registrada para este horario"** | `409 Conflict` (`DUPLICATE_OWN_RESERVATION`) | Como cliente, ya cuentas con una reserva activa en esa misma franja horaria. Cancela la cita anterior si deseas cambiarla. |
+| **"No es posible cancelar la reserva: faltan menos de X minutos para la cita. Contacta directamente a la barbería."** | `409 Conflict` (`CANCELLATION_DEADLINE`) | Intentaste cancelar en línea superando el límite de anticipación permitido por la sede (por ejemplo: a menos de 2 horas). Comunícate directamente con la barbería por teléfono. |
+| **"No es posible cancelar una reserva en estado COMPLETED / IN_PROGRESS"** | `409 Conflict` | El turno ya fue atendido o está en proceso en el sillón de atención. No es posible anularlo. |
+| **"Los datos ingresados no son válidos."** | `400 Bad Request` | Uno o varios campos del formulario no cumplen con el formato o longitud requerida (ejemplo: fecha inválida o texto demasiado largo). Revisa los campos resaltados en rojo. |
+| **"Para un cliente ocasional, el nombre y el teléfono son obligatorios"** | `400 Bad Request` | En la reserva administrativa, no seleccionaste un cliente registrado y dejaste vacío el nombre o el teléfono. Completa ambos campos. |
+| **"La URL debe ser válida y usar HTTPS."** | `400 Bad Request` (`IsUrl`) | Al registrar una red social en el perfil de la barbería, escribiste una dirección sin el protocolo `https://` obligatorio. Corrige el enlace anteponiendo `https://`. |
+| **"La imagen debe ser un archivo JPG, PNG o WEBP válido de máximo 5 MB"** | `400 Bad Request` | La foto del producto excede los 5 MB permitidos o no corresponde a un formato de imagen admitido. Reduce su tamaño o conviértela a JPG/PNG. |
+| **"Ya existe un producto con este nombre en este negocio"** | `409 Conflict` | Intentaste crear un producto con un nombre que ya está en uso en tu sede. Escribe un nombre diferenciador. |
+| **"Esta función no está disponible por el momento. Inténtalo de nuevo más tarde."** | `503 Service Unavailable` | El servidor o la base de datos están bajo mantenimiento temporal. Espera unos minutos y recarga la página. |
+| **"No fue posible completar la solicitud. Inténtalo de nuevo más tarde."** | `500 / 502 / 504` | Error temporal de red o del servidor. Verifica tu conexión a Internet y vuelve a intentarlo. |
+
+---
+
+### 7.2 Preguntas frecuentes (FAQ)
 
 ### ❓ ¿Cómo recupero mi contraseña si la olvido?
 * **Respuesta:** Barbería VIP SaaS utiliza inicio de sesión seguro con Google y no almacena contraseñas locales. Si tienes inconvenientes con tu contraseña, debes gestionarla directamente en tu cuenta de Google. Si el sistema te deniega el acceso, pide al administrador de la sede que verifique que tu correo esté registrado en el equipo.
@@ -418,7 +768,7 @@ Este módulo está destinado a los administradores generales del software multis
 * **Solución:**
   1. Pulsa sobre el botón rojo **WhatsApp offline** en el encabezado.
   2. Pulsa **Reconectar** o **Cerrar Sesión**.
-  3. Genera un nuevo código QR y escanéalo con el teléfono móvil.
+  3. Genera un nuevo código QR y escanéalo con el teléfono móvil de la barbería.
 
 ### ❓ Un cliente dice que no encuentra turnos libres para hoy.
 * **Causas posibles:**
@@ -428,7 +778,7 @@ Este módulo está destinado a los administradores generales del software multis
 * **Solución:** Revisa la agenda del barbero en la sección de horarios para verificar si quedan franjas o si puede habilitarse una extensión horaria.
 
 ### ❓ ¿Qué ocurre si dos clientes intentan reservar exactamente la misma hora al mismo tiempo?
-* El sistema cuenta con control automático contra solapamientos en tiempo real. Quien pulse confirmar primero obtiene la cita; el segundo cliente recibe un mensaje informativo invitándolo a seleccionar otro horario libre. No existen citas duplicadas.
+* El sistema cuenta con control automático contra solapamientos en tiempo real. Quien pulse confirmar primero obtiene la cita; el segundo cliente recibe el mensaje informativo *"Ese horario o registro cambió y ya no está disponible"*, invitándolo a seleccionar otro horario libre. No existen citas duplicadas.
 
 ### ❓ El cliente cerró la ventana del navegador y no guardó el comprobante.
 * El comprobante y el enlace de gestión directa fueron enviados de forma automática a su número de WhatsApp al momento de confirmar.
@@ -469,7 +819,7 @@ Este módulo está destinado a los administradores generales del software multis
 | :---: | :---: | :--- | :---: |
 | **1.0.0** | Octubre 2026 | Versión inicial del manual para sedes individuales. | Equipo de Desarrollo |
 | **2.0.0** | Noviembre 2026 | Adaptación integral a la arquitectura multisede (multitenant) con código QR de WhatsApp y doble modalidad de agendamiento. | Dirección de Arquitectura |
-| **2.1.0** | Noviembre 2026 | Alineación con estándares ISO/IEC/IEEE 26514:2022 e IEEE Std 1063-2001: incorporación de guía de uso por rol, uso general de la interfaz, simplificación de lenguaje técnico, adición de glosario, fuentes relacionadas y registro de revisión. | [Equipo / institución] |
+| **2.1.0** | Noviembre 2026 | Alineación integral con estándares ISO/IEC/IEEE 26514:2022 e IEEE Std 1063-2001: aplicación de plantilla uniforme en procedimientos (quién, antes de empezar, pasos, resultado, si algo falla), incorporación de tablas de campos de formularios con validaciones del código, tabla exhaustiva de errores del sistema, módulo de superadministración paso a paso y referencias a capturas visuales. | [Equipo / institución] |
 
 ---
 
