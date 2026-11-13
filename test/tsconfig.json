@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "resolvePackageJsonExports": false,
+    "allowJs": true,
+    "target": "ES2021",
+    "types": ["jest", "node"]
+  },
+  "include": ["**/*.ts"]
+}
+
