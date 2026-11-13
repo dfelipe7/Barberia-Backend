@@ -170,12 +170,19 @@ npm run openapi:export
 
 ---
 
-## 📖 Estándares Internacionales & Documentación Detallada
+## 📍 Punto de Partida Centralizado — Índice Maestro de Documentación, Seguridad y Gobernanza IA
 
-* **🏛️ Memoria de Arquitectura Arc42:** Consulta [`docs/arc42/`](docs/arc42/) para acceder a los 12 capítulos canónicos formales (ADRs, vistas C4, despliegue, matrices de riesgo y glosario).
-* **🌐 Especificación OpenAPI 3.0 (Swagger):** Consulta [`docs/api/openapi.json`](docs/api/openapi.json) para el contrato REST formal en formato JSON exportado (importable en Postman o Swagger Editor).
-* **📖 Manual de Usuario (IEEE 1063):** Consulta [`docs/MANUAL_DE_USUARIO.md`](docs/MANUAL_DE_USUARIO.md) para la guía operativa paso a paso por roles (Clientes, Barberos, Administrador, Bot WhatsApp).
-* **📘 Plan & Guía de Estilo Documental (ISO/IEC/IEEE 26514):** Consulta [`docs/PLAN_DE_DOCUMENTACION_ISO_26514.md`](docs/PLAN_DE_DOCUMENTACION_ISO_26514.md) para las directrices de diseño editorial, taxonomía y ciclo de vida documental.
-* **🛡️ Marco de Seguridad y Testing (SAST, SCA, IAST, DAST):** Consulta [`docs/SEGURIDAD_Y_TESTING.md`](docs/SEGURIDAD_Y_TESTING.md) para la matriz comparativa de técnicas de seguridad, auditoría OWASP Top 10 y workflows CI/CD.
-* **🗄️ Diccionario de Datos & Modelo ER:** Consulta [`docs/DICCIONARIO_DE_DATOS.md`](docs/DICCIONARIO_DE_DATOS.md) para el detalle de las 16 tablas SQL, tipos, claves compuestas y diagramas de relaciones.
+> 👉 **Acceso directo al Hub Centralizado:** Consulta **[`docs/README.md`](docs/README.md)** para ver el mapa completo que conecta los **3 repositorios oficiales del ecosistema**: [`superPromptBarberia`](https://github.com/dfelipe7/superPromptBarberia) (Superprompt Modular), [`Barberia-Backend`](https://github.com/dfelipe7/Barberia-Backend) y [`Barberia-Frontend`](https://github.com/dfelipe7/Barberia-Frontend).
+
+| Bloque / Estándar | ¿Qué centraliza? | Enlaces Directos |
+| :--- | :--- | :--- |
+| **📍 Índice Maestro (Hub)** | Punto único de partida con todas las tablas, diagramas y enlaces del proyecto. | **[`docs/README.md`](docs/README.md)** |
+| **🧠 Superprompt Modular (`superPromptBarberia`)** | Especificación ejecutable de ingeniería dividida en módulos (`backend/` con 12 secciones y `frontend/` con 11 secciones) para guiar a la IA. | [`Repo superPromptBarberia`](https://github.com/dfelipe7/superPromptBarberia) · [`SUPERPROMPT.md`](https://github.com/dfelipe7/superPromptBarberia/blob/master/SUPERPROMPT.md) · [`10-ia-responsable-hitl.md`](https://github.com/dfelipe7/superPromptBarberia/blob/master/backend/secciones/10-ia-responsable-hitl.md) |
+| **📘 Usuario Final (ISO/IEC/IEEE 26514:2022 & IEEE 1063)** | Plan de documentación, Manual de Usuario v2.1.0 para los 4 roles y los 3 archivos de verificación contra el código. | [`docs/PLAN_DE_DOCUMENTACION_ISO_26514.md`](docs/PLAN_DE_DOCUMENTACION_ISO_26514.md) · [`docs/MANUAL_DE_USUARIO.md`](docs/MANUAL_DE_USUARIO.md) · [`docs/usuario/verificacion.md`](docs/usuario/verificacion.md) · [`docs/usuario/matriz-cumplimiento-normas.md`](docs/usuario/matriz-cumplimiento-normas.md) · [`docs/usuario/img/LEEME.md`](docs/usuario/img/LEEME.md) |
+| **🏛️ Arquitectura & Datos (Arc42)** | Los 12 capítulos de arquitectura, decisiones técnicas (ADRs), diccionario de las 24 tablas SQL y deuda técnica. | [`docs/arc42/README.md`](docs/arc42/README.md) · [`docs/DICCIONARIO_DE_DATOS.md`](docs/DICCIONARIO_DE_DATOS.md) · [`TECH_DEBT.md`](TECH_DEBT.md) |
+| **🌐 Contratos REST (OpenAPI 3.0 / Swagger)** | Catálogo de 76 rutas y 105 operaciones, referencia en español y matriz de permisos por endpoint. | [`docs/api/openapi.json`](docs/api/openapi.json) · [`docs/api/REFERENCIA_API.md`](docs/api/REFERENCIA_API.md) · [`docs/api/MATRIZ_AUDITORIA_ENDPOINTS.md`](docs/api/MATRIZ_AUDITORIA_ENDPOINTS.md) · [`CONTRATOS_API_MULTITENANT.md`](CONTRATOS_API_MULTITENANT.md) |
+| **💻 Código Fuente (TSDoc & TypeDoc)** | Comentarios en el código (86% cobertura en Back-end) y configuración del portal web autogenerado (`npm run docs:html`). | [`docs/DOCS_PORTAL.md`](docs/DOCS_PORTAL.md) · [`typedoc.json`](typedoc.json) |
+| **🛡️ Seguridad (SAST, SCA, IAST, DAST)** | Guía maestra de pruebas de seguridad y flujos automatizados en GitHub Actions (SonarQube, `npm audit`, Datadog IAST y OWASP ZAP). | [`docs/SEGURIDAD_Y_TESTING.md`](docs/SEGURIDAD_Y_TESTING.md) · [`.github/workflows/`](.github/workflows/) |
+| **🤖 Gobernanza IA (*Human-in-the-Loop*)** | Reglas no negociables para agentes de IA (cero commits/push automáticos), bitácora de sesiones y hooks de validación. | [`AGENTS.md`](AGENTS.md) · [`.ai/sessions/`](.ai/sessions/) · [`scripts/setup-ai-hooks.ps1`](scripts/setup-ai-hooks.ps1) |
+
 * **💻 Developer Architecture Hub:** Consulta [`docs/DOCS_PORTAL.md`](docs/DOCS_PORTAL.md) para el mapa de clases, servicios y contratos de software.

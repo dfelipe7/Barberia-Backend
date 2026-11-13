@@ -52,7 +52,7 @@ jobs:
         uses: datadog/agent-github-action@v1
         with:
           api_key: ${{ secrets.DD_API_KEY }}
-          site: datadoghq.com
+          datadog_site: datadoghq.com
 
       - name: Instalar dependencias
         run: npm ci
@@ -81,8 +81,10 @@ jobs:
           DD_SITE: 'datadoghq.com'
 
       - name: Ejecutar batería de pruebas interactivas (Simulación de tráfico)
-        run: npm test -- src/modules/negocios/plataforma.controller.spec.ts src/modules/negocios/service/negocios-plataforma.service.spec.ts
+        run: npm run test:multitenant
         env:
+          DATABASE_URL: 'mysql://root:root@127.0.0.1:3306/barberia_dev'
+          JWT_SECRET: 'test_jwt_secret_iast_ci_key_32chars_long'
           DD_IAST_ENABLED: 'true'
           DD_APPSEC_ENABLED: 'true'
           DD_SERVICE: 'barberia-backend'
