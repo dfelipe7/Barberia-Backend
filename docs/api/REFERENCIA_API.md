@@ -293,8 +293,8 @@ Reglas:
 | Método | Ruta | Auth | Rol | Cuerpo / Query | Respuesta |
 |--------|------|------|-----|----------------|-----------|
 | POST | `/productos` | `JwtAuthGuard` | `SUPERADMIN`, `ADMINISTRADOR` | `CrearProductoDto` + fichero `imagen` opcional | `201` producto creado |
-| GET | `/productos` | `JwtAuthGuard` | `SUPERADMIN`, `ADMINISTRADOR` | — | `200` listado administrativo (ACTIVO e INACTIVO) |
-| GET | `/productos/catalogo` | — | — | — | `200` catálogo público de productos ACTIVO |
+| GET | `/productos` | `JwtAuthGuard` | `SUPERADMIN`, `ADMINISTRADOR` | Query: `nombre` (parcial), `estado` (`ACTIVO`\|`INACTIVO`) | `200` listado administrativo (ACTIVO e INACTIVO) |
+| GET | `/productos/catalogo` | — | — | Query: `nombre` (parcial, opcional) | `200` catálogo público de productos ACTIVO |
 | GET | `/productos/catalogo/:productoId` | — | — | — | `200` `ProductoCatalogoResponseDto` |
 | GET | `/productos/:productoId` | `JwtAuthGuard` | `SUPERADMIN`, `ADMINISTRADOR` | — | `200` detalle administrativo |
 | PATCH | `/productos/:productoId` | `JwtAuthGuard` | `SUPERADMIN`, `ADMINISTRADOR` | `ActualizarProductoDto` + fichero `imagen` opcional | `200` |
@@ -312,6 +312,42 @@ Reglas del catálogo público:
   `{ "mensaje": "No hay productos disponibles en este momento", "productos": [] }`.
 - Sin contexto de negocio responde **403**; con un slug inexistente o inactivo, **404**.
 
+### 7.0 Cambios de contrato (frontend — a partir de esta version)
+
+> **IMPORTANTE PARA EL FRONTEND**: los campos y comportamientos marcados aqui son breaking changes respecto a la version anterior. Actualizar los tipos TypeScript/interfaces del cliente antes de consumir.
+
+**Campos nuevos en `ProductoResponseDto` y `ProductoCatalogoResponseDto`** (todos los endpoints GET de productos):
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `precioOriginal` | `number` | Precio registrado en BD. Identico a `precio`. Incluido explicitamente para coherencia con `precioFinal`. |
+| `precioFinal` | `number` | Precio tras aplicar descuento. Igual a `precioOriginal` cuando no aplica. **Usar este campo para mostrar el precio al cliente**, no `precio`. |
+| `descuentoAplicable` | `DescuentoAplicableResponseDto \| null` | Resultado completo de la evaluacion de descuento. `null` cuando `estado === 'SIN_DESCUENTO'`. Presente (con `aplica: false`) para `INACTIVO`, `NO_APLICA_DIA` y `REQUIERE_FECHA`. |
+
+Reglas de enriquecimiento por endpoint:
+
+- **Catalogo publico** (`GET /productos/catalogo`, `GET /productos/catalogo/:id`): evalua el descuento contra la fecha/dia actual en la zona horaria del negocio. Solo productos `ACTIVO`.
+- **Vista admin** (`GET /productos`, `GET /productos/:id`): evalua el descuento aunque el producto este `INACTIVO` (el administrador ve el estado del descuento sin importar el estado del producto).
+- Sin descuento configurado: `descuentoAplicable: null`, `precioFinal === precioOriginal`.
+- Descuento configurado pero no aplica hoy: `descuentoAplicable.aplica === false`, `precioFinal === precioOriginal`.
+- Descuento aplicado: `descuentoAplicable.aplica === true`, `precioFinal < precioOriginal`.
+
+**Nuevos parametros de filtrado en `GET /productos` y `GET /productos/catalogo`** (P3):
+
+| Parametro | Tipo | Aplica en | Descripcion |
+|-----------|------|-----------|-------------|
+| `nombre` | `string` (parcial, case-insensitive) | Ambos endpoints | Filtra productos cuyo nombre contiene la cadena. |
+| `estado` | `'ACTIVO' \| 'INACTIVO'` | Solo `GET /productos` (admin) | Filtra por estado. En el catalogo publico se ignora: siempre devuelve `ACTIVO`. |
+
+**Mensaje 409 diferenciado en `POST /productos` y `PATCH /productos/:id`** (P7):
+
+| Situacion | Mensaje HTTP 409 |
+|-----------|-----------------|
+| Producto ACTIVO con ese nombre ya existe en el negocio | `"Ya existe un producto con este nombre en este negocio"` |
+| Producto INACTIVO con ese nombre ya existe en el negocio | `"Ya existe un producto inactivo con ese nombre. Reactivelo o elija otro nombre."` |
+
+---
+
 ### 7.1 Descuentos (`/descuentos`)
 
 | Método | Ruta | Auth | Rol | Cuerpo / Query | Respuesta |
@@ -319,23 +355,91 @@ Reglas del catálogo público:
 | GET | `/descuentos` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | — | `200` `ListaDescuentosResponseDto` |
 | GET | `/descuentos/aplicable/producto/:productoId` | — (Público de tenant) | Todos | — | `200` `DescuentoAplicableResponseDto` |
 | GET | `/descuentos/aplicable/servicio/:servicioId` | — (Público de tenant) | Todos | Query: `fecha` (`YYYY-MM-DD`, opcional) | `200` `DescuentoAplicableResponseDto` |
+| POST | `/descuentos/aplicables` | — (Público de tenant) | Todos | `EvaluarDescuentosBatchDto` | `201` `DescuentosBatchResponseDto` |
 | POST | `/descuentos` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `CrearDescuentoDto` | `201` `DescuentoCreadoResponseDto` |
 | GET | `/descuentos/:descuentoId` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | — | `200` `DescuentoResponseDto` |
 | PATCH | `/descuentos/:descuentoId` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `ActualizarDescuentoDto` | `200` `DescuentoActualizadoResponseDto` |
 | PATCH | `/descuentos/:descuentoId/estado` | `JwtAuthGuard` | `SUPERADMIN, ADMINISTRADOR` | `CambiarEstadoDescuentoDto` | `200` `DescuentoEstadoResponseDto` |
 
+---
+
+#### Cambios de contrato (frontend — a partir de esta versión)
+
+> **IMPORTANTE PARA EL FRONTEND**: los campos y endpoints marcados aquí son breaking changes respecto a la versión anterior. Actualizar los tipos TypeScript/interfaces del cliente antes de consumir.
+
+**Campos nuevos en `DescuentoAplicableResponseDto`** (GET individual y batch):
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `estado` | `'APLICADO' \| 'SIN_DESCUENTO' \| 'INACTIVO' \| 'REQUIERE_FECHA' \| 'NO_APLICA_DIA'` | Discriminador semántico del resultado. Reemplaza la ambigüedad de `aplica: false`. |
+| `proximoDiaAplicable` | `WeekDay \| null` | Cuando `estado === 'NO_APLICA_DIA'`, indica el próximo día de la semana en que el descuento aplicará. `null` en todos los demás estados. |
+
+**Campo conservado (backward-compatible)**:
+
+| Campo | Tipo | Nota |
+|-------|------|------|
+| `aplica` | `boolean` | Se mantiene. Derivado de `estado === 'APLICADO'`. Usar `estado` para lógica nueva. |
+
+**Comportamiento cambiado en `POST /reservas`** (H1 integrado):
+
+| Campo en respuesta | Cambio |
+|--------------------|--------|
+| `reserva.precioReservado` | Ahora refleja el `precioFinal` con descuento cuando `estado === 'APLICADO'` para la fecha de la cita. Antes siempre usaba el precio base del servicio. |
+
+**Mensajes de error cambiados en `PATCH /descuentos/:id/estado`** (H11):
+
+Cuando `activo: true` falla, el mensaje ahora es específico por causa en lugar del mensaje genérico anterior:
+
+| Causa | Mensaje |
+|-------|---------|
+| Porcentaje fuera de rango | `"El porcentaje del descuento debe estar entre 1 y 99 con máximo dos decimales para activarlo"` |
+| Sin días configurados | `"El descuento no tiene días de semana configurados para activarlo"` |
+| Sin producto o servicio | `"El descuento no tiene un elemento (producto o servicio) asociado para activarlo"` |
+
+**Nuevo endpoint `POST /descuentos/aplicables`**:
+
+Evalúa en un único round-trip el descuento aplicable para múltiples productos y servicios.
+
+Cuerpo (`EvaluarDescuentosBatchDto`):
+```json
+{
+  "productoIds": [1, 2],
+  "servicioIds": [3, 4],
+  "fecha": "2026-11-17"
+}
+```
+Todos los campos son opcionales. `fecha` aplica solo a servicios (`YYYY-MM-DD`).
+
+Respuesta (`DescuentosBatchResponseDto`, status `201`):
+```json
+{
+  "productos": [ /* DescuentoAplicableResponseDto[] */ ],
+  "servicios": [ /* DescuentoAplicableResponseDto[] */ ]
+}
+```
+Productos o servicios inexistentes dentro del batch se omiten silenciosamente (no provocan 404 global).
+
+**Cascada soft P2 — desactivar producto desactiva su descuento**:
+
+Cuando `PATCH /productos/:id/estado` recibe `{ estado: 'INACTIVO' }`, todos los descuentos activos asociados a ese producto quedan con `activo: false` de forma automática (fire-and-forget, con log de errores). La reactivación del producto **no** reactiva el descuento; el administrador debe activarlo manualmente.
+
+---
+
 Reglas de visualización de descuento aplicable (HE-10-HU-05):
 
 - **Consulta pública orientada a clientes y catálogo**: permite evaluar si un producto o servicio cuenta con un descuento aplicable para calcular el precio final antes de confirmar la compra o reserva. No exige token JWT; el tenant se resuelve del contexto autorizado (`X-Negocio-Slug` o subdominio).
-- **Indicador visible y precio final (CA-01, CA-02, CA-05)**: cuando existe un descuento con `activo: true` y el día evaluado coincide con los `diasSemana` configurados, responde `aplica: true`, `porcentajeAplicado: number`, `precioOriginal: number` y `precioFinal: number` calculado mediante `precioOriginal * (1 - porcentaje / 100)` con redondeo a dos decimales.
-- **Día no aplicable y descuento inactivo (CA-03, CA-04)**: si el descuento está inactivo o el día no coincide con los días configurados, responde `aplica: false`, `porcentajeAplicado: null` y `precioFinal: precioOriginal` (precio completo, sin indicador de descuento).
+- **Indicador visible y precio final (CA-01, CA-02, CA-05)**: cuando existe un descuento con `activo: true` y el día evaluado coincide con los `diasSemana` configurados, responde `estado: 'APLICADO'`, `aplica: true`, `porcentajeAplicado: number`, `precioOriginal: number` y `precioFinal: number` calculado mediante `precioOriginal * (1 - porcentaje / 100)` con redondeo a dos decimales.
+- **Día no aplicable y descuento inactivo (CA-03, CA-04)**: si el descuento está inactivo devuelve `estado: 'INACTIVO'`; si el día no coincide devuelve `estado: 'NO_APLICA_DIA'` con `proximoDiaAplicable` indicando el siguiente día aplicable. En ambos casos `aplica: false` y `precioFinal: precioOriginal`.
+- **Sin descuento configurado**: devuelve `estado: 'SIN_DESCUENTO'`, `aplica: false`, `precioFinal: precioOriginal`.
 - **Distinción entre estado registrado y aplicabilidad (CA-06)**: el objeto `descuento` expone la configuración registrada (`{ id, activo, porcentaje, diasSemana }`) para consulta de condiciones, independientemente de si el descuento aplica o no para la fecha/día puntual evaluado.
 - **Zona horaria oficial del tenant (CA-07)**:
   - Para **productos**: se evalúa contra la fecha y día actual en la `zonaHoraria` oficial del negocio (ej. `America/Bogota`), nunca UTC ni la hora del cliente/servidor host.
   - Para **servicios**: se evalúa contra la fecha de la cita (`?fecha=YYYY-MM-DD`) interpretada en la `zonaHoraria` del negocio.
-- **Servicio sin fecha de cita (CA-08)**: si la consulta de un servicio omite el parámetro `fecha`, devuelve `aplica: false`, `diaEvaluado: null`, `porcentajeAplicado: null`, `precioOriginal: number`, `precioFinal: null` y expone las condiciones en `descuento` para que el cliente conozca los días promocionales antes de elegir fecha.
-- **Criterios de integración con reservas (CA-09 a CA-13 / INT-RES)**: la validación en servidor al confirmar reserva, el snapshot de precio en base de datos, la conservación del acuerdo pactado y la reevaluación en reprogramaciones corresponden a la integración posterior con `HE-04-HU-12` (declarados PENDIENTES de integración con reservas).
-- **Aislamiento y errores**: recursos inexistentes, inactivos comercialmente o de otro negocio responden **404 Not Found** (`MENSAJE_PRODUCTO_NO_DISPONIBLE` / `MENSAJE_SERVICIO_NO_DISPONIBLE`). Fechas con formato inválido responden **400 Bad Request**.
+- **Servicio sin fecha de cita (CA-08)**: si la consulta de un servicio omite el parámetro `fecha`, devuelve `estado: 'REQUIERE_FECHA'`, `aplica: false`, `diaEvaluado: null`, `porcentajeAplicado: null`, `precioOriginal: number`, `precioFinal: null` y expone las condiciones en `descuento` para que el cliente conozca los días promocionales antes de elegir fecha.
+- **Fecha pasada (H9)**: si `fecha` es anterior a la fecha de hoy en la zona horaria del tenant, responde **400 Bad Request**.
+- **Aislamiento y errores**: recursos inexistentes, inactivos comercialmente o de otro negocio responden **404 Not Found**. Fechas con formato inválido responden **400 Bad Request**.
+- **Coherencia de precio reservado**: el `precioFinal` de `GET /descuentos/aplicable/servicio/:id?fecha=X` y de `POST /descuentos/aplicables` para la misma fecha y servicio es idéntico al `precioReservado` que persiste `POST /reservas` cuando el descuento aplica (invariante verificado por test E2E `multitenant-descuentos-coherencia.e2e-spec.ts`).
+- **Deuda técnica registrada (H7)**: `DescuentoRepository.buscarPorElemento` discrimina `productoId` vs `servicioId` mediante un operador ternario sobre `TipoDescuento`. Si el enum se extiende en el futuro con nuevos tipos (ej. `COMBO`, `PACK`), se requerirá refactorizar hacia un switch exhaustivo o fail-fast explícito para no atribuir tipos no soportados a `servicioId` (`// TODO(H7)`).
 
 Reglas de consulta de listado (HE-10-HU-01):
 
