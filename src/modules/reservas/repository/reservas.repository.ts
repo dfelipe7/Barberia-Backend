@@ -1047,26 +1047,25 @@ export class ReservasRepository {
     };
   }
 
-  private async conReintentos<T>(operacion: () => Promise<T>): Promise<T> {
-    let reintento = 0;
-
+  private async conReintentos<T>(
+    operacion: () => Promise<T>,
+    reintento = 0,
+  ): Promise<T> {
     // Reintentos secuenciales con backoff: cada intento y su espera dependen
     // del resultado (error) del intento anterior, por lo que no es paralelizable.
-    for (;;) {
-      try {
-        return await operacion(); // NOSONAR reintento secuencial intencional (depende del intento previo)
-      } catch (error) {
-        if (
-          reintento >= MAX_REINTENTOS_TRANSACCION ||
-          !esErrorReintentableTransaccion(error)
-        ) {
-          throw error;
-        }
-
-        reintento += 1;
-
-        await this.esperar(reintento); // NOSONAR backoff secuencial intencional (depende del intento previo)
+    try {
+      return await operacion();
+    } catch (error) {
+      if (
+        reintento >= MAX_REINTENTOS_TRANSACCION ||
+        !esErrorReintentableTransaccion(error)
+      ) {
+        throw error;
       }
+
+      const siguiente = reintento + 1;
+      await this.esperar(siguiente);
+      return this.conReintentos(operacion, siguiente);
     }
   }
 

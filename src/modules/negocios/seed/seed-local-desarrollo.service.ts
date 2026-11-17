@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient } from '../../../../generated/prisma/client';
 import { WeekDay } from '../../../../generated/prisma/enums';
+import { enSerie } from '../../../common/utils/en-serie';
 import {
   CLAVES_CONFIGURACION_OPERATIVA,
   TipoConfiguracion,
@@ -308,317 +309,421 @@ async function resolverPersona(
   return { id: creado.id, accion: 'creado' };
 }
 
-/** Provisiona un negocio completo. */
-async function provisionarNegocio(
+type SpecNegocio = (typeof NEGOCIOS_LOCALES)[number];
+type SpecBarbero = SpecNegocio['barberos'][number];
+type SpecServicio = (typeof SERVICIOS_LOCALES)[number];
+type ConfigOperativa = (typeof CLAVES_CONFIGURACION_OPERATIVA)[number];
+
+/**
+ * Paso 1: crea o reutiliza el negocio.
+ *
+ * El primer negocio de una plataforma nueva usa el mecanismo de
+ * inicialización de la Fase 2; los siguientes, el mecanismo explícito de
+ * negocio adicional. Ambos validan nombre y slug igual.
+ */
+async function resolverNegocio(
   tx: Cliente,
-  spec: (typeof NEGOCIOS_LOCALES)[number],
-  dominioCorreoPrueba: string,
-  avisos: string[],
-): Promise<ReporteNegocio> {
-  const report: ReporteNegocio = {
-    slug: spec.slug,
-    nombre: spec.nombre,
-    negocioId: 0,
-    accion: 'sin-cambios',
-    superadmins: [],
-    barberos: [],
-    servicios: [],
-    relaciones: 0,
-    franjas: 0,
-  };
+  spec: SpecNegocio,
+): Promise<{ negocioId: number; accion: AccionSeed }> {
+  const [negocioConSlug, totalNegocios] = await Promise.all([
+    tx.negocio.findUnique({
+      where: { slug: spec.slug },
+      select: { id: true, slug: true, nombre: true },
+    }),
+    tx.negocio.count(),
+  ]);
 
-  // --- 1. El negocio ------------------------------------------------------
-  const negocioConSlug = await tx.negocio.findUnique({
-    where: { slug: spec.slug },
-    select: { id: true, slug: true, nombre: true },
-  });
-
-  const totalNegocios = await tx.negocio.count();
-
-  // El primer negocio de una plataforma nueva usa el mecanismo de
-  // inicialización de la Fase 2; los siguientes, el mecanismo explícito de
-  // negocio adicional. Ambos validan nombre y slug igual.
+  const datos = { nombre: spec.nombre, slug: spec.slug };
   const decision =
     totalNegocios === 0
-      ? decidirInicializacion(
-          { nombre: spec.nombre, slug: spec.slug },
-          { totalNegocios },
-        )
-      : decidirCreacionNegocioAdicional(
-          { nombre: spec.nombre, slug: spec.slug },
-          { negocioConSlug: negocioConSlug ?? undefined },
-        );
+      ? decidirInicializacion(datos, { totalNegocios })
+      : decidirCreacionNegocioAdicional(datos, {
+          negocioConSlug: negocioConSlug ?? undefined,
+        });
 
   if (decision.accion === 'rechazar') {
     throw new Error(decision.motivo);
   }
 
   if (decision.accion === 'reutilizar') {
-    report.negocioId = decision.negocioId;
-    report.accion = 'reutilizado';
-  } else {
-    const creado = await tx.negocio.create({
-      data: {
-        slug: decision.slug,
-        nombre: decision.nombre,
-        estado: 'ACTIVO',
-      },
-      select: { id: true },
-    });
-    report.negocioId = creado.id;
-    report.accion = 'creado';
+    return { negocioId: decision.negocioId, accion: 'reutilizado' };
   }
 
-  const negocioId = report.negocioId;
+  const creado = await tx.negocio.create({
+    data: { slug: decision.slug, nombre: decision.nombre, estado: 'ACTIVO' },
+    select: { id: true },
+  });
 
-  // --- 2. Configuración operativa PROPIA del negocio -----------------------
-  for (const config of CLAVES_CONFIGURACION_OPERATIVA) {
-    const [global, enNegocio] = await Promise.all([
-      tx.configuracionSistema.findUnique({
-        where: { clave: config.clave },
-        select: { valor: true, tipo: true, descripcion: true },
-      }),
-      tx.configuracionNegocio.findUnique({
-        where: { negocioId_clave: { negocioId, clave: config.clave } },
-        select: { valor: true },
-      }),
-    ]);
+  return { negocioId: creado.id, accion: 'creado' };
+}
 
-    const decisionConfig = decidirConfiguracionOperativa(config, {
-      valorEnNegocio: enNegocio ?? undefined,
-      valorGlobal: global ?? undefined,
+/** Paso 2: una clave de configuración operativa PROPIA del negocio. */
+async function provisionarConfiguracion(
+  tx: Cliente,
+  negocioId: number,
+  slug: string,
+  config: ConfigOperativa,
+  avisos: string[],
+): Promise<void> {
+  const whereNegocio = { negocioId_clave: { negocioId, clave: config.clave } };
+
+  const [global, enNegocio] = await Promise.all([
+    tx.configuracionSistema.findUnique({
+      where: { clave: config.clave },
+      select: { valor: true, tipo: true, descripcion: true },
+    }),
+    tx.configuracionNegocio.findUnique({
+      where: whereNegocio,
+      select: { valor: true },
+    }),
+  ]);
+
+  const decisionConfig = decidirConfiguracionOperativa(config, {
+    valorEnNegocio: enNegocio ?? undefined,
+    valorGlobal: global ?? undefined,
+  });
+
+  if (decisionConfig.accion === 'conservar') {
+    // El VALOR se conserva: puede estar personalizado por un administrador.
+    // El `tipo` y la `descripcion` son METADATOS de la clave: se alinean con
+    // la definición de la implementación (un tipo equivocado hace que la
+    // aplicación descarte el valor al leerlo).
+    await tx.configuracionNegocio.update({
+      where: whereNegocio,
+      data: { tipo: config.tipo, descripcion: config.descripcion },
     });
 
-    if (decisionConfig.accion === 'conservar') {
-      // El VALOR se conserva: puede estar personalizado por un administrador.
-      // El `tipo` y la `descripcion` son METADATOS de la clave: se alinean con
-      // la definición de la implementación (un tipo equivocado hace que la
-      // aplicación descarte el valor al leerlo).
-      await tx.configuracionNegocio.update({
-        where: { negocioId_clave: { negocioId, clave: config.clave } },
-        data: {
-          tipo: config.tipo,
-          descripcion: config.descripcion,
-        },
-      });
-
-      avisos.push(
-        `Configuración '${config.clave}' de '${spec.slug}' ya existe ` +
-          `(valor='${decisionConfig.valor}'): se conserva su valor; se alinean ` +
-          'tipo y descripción con la definición de la clave.',
-      );
-      continue;
-    }
-
-    await tx.configuracionNegocio.upsert({
-      where: { negocioId_clave: { negocioId, clave: config.clave } },
-      update: {},
-      create: {
-        negocioId,
-        clave: config.clave,
-        valor: decisionConfig.valor,
-        tipo: decisionConfig.tipo as TipoConfiguracion,
-        descripcion: decisionConfig.descripcion,
-        editable: true,
-      },
-    });
+    avisos.push(
+      `Configuración '${config.clave}' de '${slug}' ya existe ` +
+        `(valor='${decisionConfig.valor}'): se conserva su valor; se alinean ` +
+        'tipo y descripción con la definición de la clave.',
+    );
+    return;
   }
 
-  // --- 3. Superadministradores (MEMBRESÍAS, no rol global) ----------------
-  for (const persona of spec.superadmins) {
-    const usuario = await resolverPersona(tx, persona);
+  await tx.configuracionNegocio.upsert({
+    where: whereNegocio,
+    update: {},
+    create: {
+      negocioId,
+      clave: config.clave,
+      valor: decisionConfig.valor,
+      tipo: decisionConfig.tipo as TipoConfiguracion,
+      descripcion: decisionConfig.descripcion,
+      editable: true,
+    },
+  });
+}
 
-    if (usuario.accion === 'creado') {
-      avisos.push(
-        `Usuario "${persona.email}" creado en la base de desarrollo (rol informativo ` +
-          'PERSONAL, sin googleId: se enlaza en su primer acceso con Google).',
-      );
-    }
+/** Crea, reactiva o conserva la membresía SUPERADMIN de una persona. */
+async function asegurarMembresiaSuperadmin(
+  tx: Cliente,
+  negocioId: number,
+  usuarioId: number,
+): Promise<{ membresiaId: number; accion: AccionSeed }> {
+  const membresia = await tx.administrador.findUnique({
+    where: { negocioId_usuarioId: { negocioId, usuarioId } },
+    select: { id: true, superadmin: true, estado: true },
+  });
 
-    const membresia = await tx.administrador.findUnique({
-      where: {
-        negocioId_usuarioId: { negocioId, usuarioId: usuario.id },
-      },
-      select: { id: true, superadmin: true, estado: true },
+  if (!membresia) {
+    const creada = await tx.administrador.create({
+      data: { usuarioId, negocioId, estado: 'ACTIVO', superadmin: true },
+      select: { id: true },
     });
-
-    let membresiaId: number;
-    let accion: AccionSeed;
-
-    if (membresia) {
-      membresiaId = membresia.id;
-
-      if (!membresia.superadmin || membresia.estado !== 'ACTIVO') {
-        await tx.administrador.update({
-          where: { id: membresia.id },
-          data: { superadmin: true, estado: 'ACTIVO' },
-        });
-        accion = 'actualizado';
-      } else {
-        accion = 'sin-cambios';
-      }
-    } else {
-      const creada = await tx.administrador.create({
-        data: {
-          usuarioId: usuario.id,
-          negocioId,
-          estado: 'ACTIVO',
-          superadmin: true,
-        },
-        select: { id: true },
-      });
-      membresiaId = creada.id;
-      accion = 'creado';
-    }
-
-    report.superadmins.push({
-      email: persona.email,
-      usuarioId: usuario.id,
-      membresiaId,
-      superadmin: true,
-      accion,
-    });
-
-    // La persona NO debe tener membresía en OTROS negocios: no se crean
-    // perfiles cruzados ni se revocan los que ya hubiera.
-    const otras = await tx.administrador.findMany({
-      where: { usuarioId: usuario.id, negocioId: { not: negocioId } },
-      select: { negocio: { select: { slug: true } } },
-    });
-
-    if (otras.length > 0) {
-      const slugsOtras = otras.map((o) => `'${o.negocio.slug}'`).join(', ');
-      avisos.push(
-        `"${persona.email}" ya tiene membresía en ${slugsOtras}: no se ha modificado nada allí.`,
-      );
-    }
+    return { membresiaId: creada.id, accion: 'creado' };
   }
 
-  // --- 4. Barberos de prueba ---------------------------------------------
-  const barberoIds: number[] = [];
+  if (membresia.superadmin && membresia.estado === 'ACTIVO') {
+    return { membresiaId: membresia.id, accion: 'sin-cambios' };
+  }
 
-  for (const barbero of spec.barberos) {
-    const email = `${spec.slug}.${barbero.clave}@${dominioCorreoPrueba}`;
+  await tx.administrador.update({
+    where: { id: membresia.id },
+    data: { superadmin: true, estado: 'ACTIVO' },
+  });
+  return { membresiaId: membresia.id, accion: 'actualizado' };
+}
 
-    const usuario = await tx.usuario.upsert({
-      where: { email },
-      update: {},
-      create: {
-        email,
-        nombre: barbero.nombre,
-        apellido: barbero.apellido,
-        rol: 'PERSONAL',
-        estado: 'ACTIVO',
-        googleId: null,
-      },
-      select: { id: true },
-    });
+/** Paso 3: un superadministrador (MEMBRESÍA, no rol global). */
+async function provisionarSuperadmin(
+  tx: Cliente,
+  negocioId: number,
+  persona: PersonaLocalSpec,
+  avisos: string[],
+): Promise<ReporteNegocio['superadmins'][number]> {
+  const usuario = await resolverPersona(tx, persona);
 
-    const existente = await tx.barbero.findUnique({
-      where: {
-        negocioId_usuarioId: { negocioId, usuarioId: usuario.id },
-      },
-      select: { id: true },
-    });
+  if (usuario.accion === 'creado') {
+    avisos.push(
+      `Usuario "${persona.email}" creado en la base de desarrollo (rol informativo ` +
+        'PERSONAL, sin googleId: se enlaza en su primer acceso con Google).',
+    );
+  }
 
-    const creado = await tx.barbero.upsert({
-      where: {
-        negocioId_usuarioId: { negocioId, usuarioId: usuario.id },
-      },
-      update: {},
-      create: {
-        usuarioId: usuario.id,
-        negocioId,
-        telefono: barbero.telefono,
-        porcentajeComision: barbero.porcentajeComision,
-        estado: 'ACTIVO',
-      },
-      select: { id: true },
-    });
+  const { membresiaId, accion } = await asegurarMembresiaSuperadmin(
+    tx,
+    negocioId,
+    usuario.id,
+  );
 
-    barberoIds.push(creado.id);
+  // La persona NO debe tener membresía en OTROS negocios: no se crean
+  // perfiles cruzados ni se revocan los que ya hubiera.
+  const otras = await tx.administrador.findMany({
+    where: { usuarioId: usuario.id, negocioId: { not: negocioId } },
+    select: { negocio: { select: { slug: true } } },
+  });
 
-    report.barberos.push({
-      clave: barbero.clave,
+  if (otras.length > 0) {
+    const slugsOtras = otras.map((o) => `'${o.negocio.slug}'`).join(', ');
+    avisos.push(
+      `"${persona.email}" ya tiene membresía en ${slugsOtras}: no se ha modificado nada allí.`,
+    );
+  }
+
+  return {
+    email: persona.email,
+    usuarioId: usuario.id,
+    membresiaId,
+    superadmin: true,
+    accion,
+  };
+}
+
+/** Paso 4: un barbero de prueba. */
+async function provisionarBarbero(
+  tx: Cliente,
+  negocioId: number,
+  slug: string,
+  barbero: SpecBarbero,
+  dominioCorreoPrueba: string,
+): Promise<ReporteNegocio['barberos'][number]> {
+  const email = `${slug}.${barbero.clave}@${dominioCorreoPrueba}`;
+
+  const usuario = await tx.usuario.upsert({
+    where: { email },
+    update: {},
+    create: {
       email,
+      nombre: barbero.nombre,
+      apellido: barbero.apellido,
+      rol: 'PERSONAL',
+      estado: 'ACTIVO',
+      googleId: null,
+    },
+    select: { id: true },
+  });
+
+  const claveBarbero = {
+    negocioId_usuarioId: { negocioId, usuarioId: usuario.id },
+  };
+
+  const existente = await tx.barbero.findUnique({
+    where: claveBarbero,
+    select: { id: true },
+  });
+
+  const creado = await tx.barbero.upsert({
+    where: claveBarbero,
+    update: {},
+    create: {
       usuarioId: usuario.id,
-      barberoId: creado.id,
-      accion: existente ? 'reutilizado' : 'creado',
-    });
-  }
+      negocioId,
+      telefono: barbero.telefono,
+      porcentajeComision: barbero.porcentajeComision,
+      estado: 'ACTIVO',
+    },
+    select: { id: true },
+  });
 
-  // --- 5. Catálogo de servicios -------------------------------------------
-  const servicioIds: number[] = [];
+  return {
+    clave: barbero.clave,
+    email,
+    usuarioId: usuario.id,
+    barberoId: creado.id,
+    accion: existente ? 'reutilizado' : 'creado',
+  };
+}
 
-  for (const servicio of SERVICIOS_LOCALES) {
-    const existente = await tx.servicio.findUnique({
-      where: { negocioId_nombre: { negocioId, nombre: servicio.nombre } },
-      select: { id: true },
-    });
+/** Paso 5: un servicio del catálogo. */
+async function provisionarServicio(
+  tx: Cliente,
+  negocioId: number,
+  servicio: SpecServicio,
+): Promise<ReporteNegocio['servicios'][number]> {
+  const clave = { negocioId_nombre: { negocioId, nombre: servicio.nombre } };
 
-    const creado = await tx.servicio.upsert({
-      where: { negocioId_nombre: { negocioId, nombre: servicio.nombre } },
-      // `update: {}`: un precio ya personalizado NO se sobrescribe.
+  const existente = await tx.servicio.findUnique({
+    where: clave,
+    select: { id: true },
+  });
+
+  const creado = await tx.servicio.upsert({
+    where: clave,
+    // `update: {}`: un precio ya personalizado NO se sobrescribe.
+    update: {},
+    create: {
+      nombre: servicio.nombre,
+      descripcion: servicio.descripcion,
+      precio: servicio.precio,
+      duracionMinutos: servicio.duracionMinutos,
+      estado: 'ACTIVO',
+      negocioId,
+    },
+    select: { id: true },
+  });
+
+  return {
+    nombre: servicio.nombre,
+    servicioId: creado.id,
+    accion: existente ? 'reutilizado' : 'creado',
+  };
+}
+
+/** Paso 6: relaciones barbero-servicio (dentro del MISMO negocio). */
+async function provisionarRelaciones(
+  tx: Cliente,
+  negocioId: number,
+  barberoIds: number[],
+  servicioIds: number[],
+): Promise<number> {
+  const pares = barberoIds.flatMap((barberoId) =>
+    servicioIds.map((servicioId) => ({ barberoId, servicioId })),
+  );
+
+  await enSerie(pares, ({ barberoId, servicioId }) =>
+    tx.barberoServicio.upsert({
+      where: { barberoId_servicioId: { barberoId, servicioId } },
       update: {},
-      create: {
-        nombre: servicio.nombre,
-        descripcion: servicio.descripcion,
-        precio: servicio.precio,
-        duracionMinutos: servicio.duracionMinutos,
-        estado: 'ACTIVO',
+      create: { barberoId, servicioId, negocioId },
+    }),
+  );
+
+  return pares.length;
+}
+
+/** Paso 7: horario semanal de cada barbero. */
+async function provisionarFranjas(
+  tx: Cliente,
+  negocioId: number,
+  barberoIds: number[],
+): Promise<number> {
+  const franjas = barberoIds.flatMap((barberoId) =>
+    horarioSemanalLocal().map((franja) => ({ barberoId, ...franja })),
+  );
+
+  await enSerie(franjas, (franja) => {
+    const dayOfWeek = franja.dayOfWeek as WeekDay;
+    return tx.barberWeeklySlot.upsert({
+      where: {
+        barberoId_dayOfWeek_startTime: {
+          barberoId: franja.barberoId,
+          dayOfWeek,
+          startTime: franja.startTime,
+        },
         negocioId,
       },
-      select: { id: true },
+      update: { endTime: franja.endTime, active: true },
+      create: {
+        barberoId: franja.barberoId,
+        negocioId,
+        dayOfWeek,
+        startTime: franja.startTime,
+        endTime: franja.endTime,
+        active: true,
+      },
     });
+  });
 
-    servicioIds.push(creado.id);
+  return franjas.length;
+}
 
-    report.servicios.push({
-      nombre: servicio.nombre,
-      servicioId: creado.id,
-      accion: existente ? 'reutilizado' : 'creado',
-    });
-  }
+/**
+ * Provisiona un negocio completo.
+ *
+ * Los pasos se ejecutan EN SERIE dentro de la misma transacción: cada uno
+ * puede depender de lo que dejó el anterior (p. ej. la detección de
+ * identidades parecidas en `resolverPersona`).
+ */
+async function provisionarNegocio(
+  tx: Cliente,
+  spec: SpecNegocio,
+  dominioCorreoPrueba: string,
+  avisos: string[],
+): Promise<ReporteNegocio> {
+  const { negocioId, accion } = await resolverNegocio(tx, spec);
 
-  // --- 6. Relaciones barbero-servicio (dentro del MISMO negocio) -----------
-  for (const barberoId of barberoIds) {
-    for (const servicioId of servicioIds) {
-      await tx.barberoServicio.upsert({
-        where: { barberoId_servicioId: { barberoId, servicioId } },
-        update: {},
-        create: { barberoId, servicioId, negocioId },
-      });
-      report.relaciones += 1;
-    }
-  }
+  await enSerie(CLAVES_CONFIGURACION_OPERATIVA, (config) =>
+    provisionarConfiguracion(tx, negocioId, spec.slug, config, avisos),
+  );
 
-  // --- 7. Horario semanal de cada barbero ---------------------------------
-  for (const barberoId of barberoIds) {
-    for (const franja of horarioSemanalLocal()) {
-      await tx.barberWeeklySlot.upsert({
-        where: {
-          barberoId_dayOfWeek_startTime: {
-            barberoId,
-            dayOfWeek: franja.dayOfWeek as WeekDay,
-            startTime: franja.startTime,
-          },
-          negocioId,
-        },
-        update: { endTime: franja.endTime, active: true },
-        create: {
-          barberoId,
-          negocioId,
-          dayOfWeek: franja.dayOfWeek as WeekDay,
-          startTime: franja.startTime,
-          endTime: franja.endTime,
-          active: true,
-        },
-      });
-      report.franjas += 1;
-    }
-  }
+  const superadmins = await enSerie(spec.superadmins, (persona) =>
+    provisionarSuperadmin(tx, negocioId, persona, avisos),
+  );
 
-  return report;
+  const barberos = await enSerie(spec.barberos, (barbero) =>
+    provisionarBarbero(tx, negocioId, spec.slug, barbero, dominioCorreoPrueba),
+  );
+
+  const servicios = await enSerie(SERVICIOS_LOCALES, (servicio) =>
+    provisionarServicio(tx, negocioId, servicio),
+  );
+
+  const barberoIds = barberos.map((b) => b.barberoId);
+  const servicioIds = servicios.map((s) => s.servicioId);
+
+  const relaciones = await provisionarRelaciones(
+    tx,
+    negocioId,
+    barberoIds,
+    servicioIds,
+  );
+  const franjas = await provisionarFranjas(tx, negocioId, barberoIds);
+
+  return {
+    slug: spec.slug,
+    nombre: spec.nombre,
+    negocioId,
+    accion,
+    superadmins,
+    barberos,
+    servicios,
+    relaciones,
+    franjas,
+  };
+}
+
+/** Conteos verificados contra la base de datos de un negocio. */
+async function contarNegocio(
+  prisma: PrismaClient,
+  report: ReporteNegocio,
+): Promise<ConteosNegocio> {
+  const negocioId = report.negocioId;
+  const [
+    administradores,
+    superadmins,
+    barberos,
+    servicios,
+    relaciones,
+    franjas,
+  ] = await Promise.all([
+    prisma.administrador.count({ where: { negocioId } }),
+    prisma.administrador.count({ where: { negocioId, superadmin: true } }),
+    prisma.barbero.count({ where: { negocioId } }),
+    prisma.servicio.count({ where: { negocioId } }),
+    prisma.barberoServicio.count({ where: { negocioId } }),
+    prisma.barberWeeklySlot.count({ where: { negocioId } }),
+  ]);
+
+  return {
+    slug: report.slug,
+    administradores,
+    superadmins,
+    barberos,
+    servicios,
+    relaciones,
+    franjas,
+  };
 }
 
 /**
@@ -635,7 +740,7 @@ export async function sembrarDesarrolloLocal(
   const avisos: string[] = [];
 
   // --- Comprobación previa: el escenario debe ser EXACTAMENTE el esperado --
-  const slugsEsperados = new Set(NEGOCIOS_LOCALES.map((n) => n.slug));
+  const slugsEsperados = new Set<string>(NEGOCIOS_LOCALES.map((n) => n.slug));
 
   const existentes = await prisma.negocio.findMany({
     select: { slug: true, nombre: true },
@@ -652,55 +757,20 @@ export async function sembrarDesarrolloLocal(
     );
   }
 
-  const negocios: ReporteNegocio[] = [];
+  const dominio = opciones.dominioCorreoPrueba ?? 'local.invalid';
 
-  for (const spec of NEGOCIOS_LOCALES) {
-    const report = await prisma.$transaction(
-      async (tx) =>
-        provisionarNegocio(
-          tx,
-          spec,
-          opciones.dominioCorreoPrueba ?? 'local.invalid',
-          avisos,
-        ),
+  // Una transacción por negocio, en serie: el primero puede ser el que
+  // inicializa la plataforma y el segundo depende de que ya exista.
+  const negocios = await enSerie(NEGOCIOS_LOCALES, (spec) =>
+    prisma.$transaction(
+      async (tx) => provisionarNegocio(tx, spec, dominio, avisos),
       { timeout: 120_000, maxWait: 20_000 },
-    );
+    ),
+  );
 
-    negocios.push(report);
-  }
-
-  // --- Conteos verificados contra la base de datos ------------------------
-  const conteos: ConteosNegocio[] = [];
-
-  for (const report of negocios) {
-    const [
-      administradores,
-      superadmins,
-      barberos,
-      servicios,
-      relaciones,
-      franjas,
-    ] = await Promise.all([
-      prisma.administrador.count({ where: { negocioId: report.negocioId } }),
-      prisma.administrador.count({
-        where: { negocioId: report.negocioId, superadmin: true },
-      }),
-      prisma.barbero.count({ where: { negocioId: report.negocioId } }),
-      prisma.servicio.count({ where: { negocioId: report.negocioId } }),
-      prisma.barberoServicio.count({ where: { negocioId: report.negocioId } }),
-      prisma.barberWeeklySlot.count({ where: { negocioId: report.negocioId } }),
-    ]);
-
-    conteos.push({
-      slug: report.slug,
-      administradores,
-      superadmins,
-      barberos,
-      servicios,
-      relaciones,
-      franjas,
-    });
-  }
+  const conteos = await Promise.all(
+    negocios.map((report) => contarNegocio(prisma, report)),
+  );
 
   return { negocios, conteos, avisos };
 }

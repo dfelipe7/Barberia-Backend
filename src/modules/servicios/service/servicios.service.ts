@@ -30,28 +30,6 @@ type ServicioConBarberos = Prisma.ServicioGetPayload<{
   };
 }>;
 
-interface ServicioPrismaConBarberos {
-  id: number;
-  nombre: string;
-  descripcion: string | null;
-  precio: number | string | { toString(): string };
-  duracionMinutos: number;
-  fotoUrl: string | null;
-  estado: string;
-  barberos?: Array<{
-    barbero: {
-      id: number;
-      fotoUrl: string | null;
-      usuario: {
-        id: number;
-        nombre: string;
-        apellido: string;
-        email: string;
-      };
-    };
-  }>;
-}
-
 @Injectable()
 export class ServiciosService {
   constructor(private readonly serviciosRepository: ServiciosRepository) {}

@@ -30,7 +30,12 @@ import {
   type DatosConfirmacionWhatsApp,
   type MensajeColaWhatsApp,
   type SesionWhatsAppNegocio,
-  type EstadoWhatsAppDTO,
+} from '../types/whatsapp.types';
+export type {
+  DatosConfirmacionWhatsApp,
+  MensajeColaWhatsApp,
+  SesionWhatsAppNegocio,
+  EstadoWhatsAppDTO,
 } from '../types/whatsapp.types';
 import { WhatsAppTemplateEngine } from '../templates/whatsapp-template.engine';
 import { WhatsAppQueueManager } from '../queue/whatsapp-queue.manager';
@@ -41,10 +46,6 @@ export {
   PLANTILLA_RECORDATORIO_DEFAULT,
   MINUTOS_ANTICIPACION_DEFAULT,
   enmascararTelefono,
-  type DatosConfirmacionWhatsApp,
-  type MensajeColaWhatsApp,
-  type SesionWhatsAppNegocio,
-  type EstadoWhatsAppDTO,
 };
 
 const originalConsoleInfo = console.info;
@@ -157,20 +158,22 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
 
     try {
       const negocios = await this.negociosRepository.listar();
-      for (const negocio of negocios) {
-        if (this.tieneSesionGuardada(negocio.id)) {
-          const sesion = this.obtenerOCrearSesion(negocio.id);
-          sesion.enReposo = false;
-          this.logger.log(
-            `[Negocio ${negocio.id} - ${negocio.nombre}] Sesión previa encontrada en disco. Conectando automáticamente con WhatsApp Web...`,
-          );
-          await this.iniciarSocket(negocio.id);
-        } else {
-          this.logger.log(
-            `[Negocio ${negocio.id} - ${negocio.nombre}] Sin sesión vinculada. En modo REPOSO (se generará el código QR bajo demanda).`,
-          );
-        }
-      }
+      await Promise.allSettled(
+        negocios.map(async (negocio) => {
+          if (this.tieneSesionGuardada(negocio.id)) {
+            const sesion = this.obtenerOCrearSesion(negocio.id);
+            sesion.enReposo = false;
+            this.logger.log(
+              `[Negocio ${negocio.id} - ${negocio.nombre}] Sesión previa encontrada en disco. Conectando automáticamente con WhatsApp Web...`,
+            );
+            await this.iniciarSocket(negocio.id);
+          } else {
+            this.logger.log(
+              `[Negocio ${negocio.id} - ${negocio.nombre}] Sin sesión vinculada. En modo REPOSO (se generará el código QR bajo demanda).`,
+            );
+          }
+        }),
+      );
     } catch (error) {
       this.logger.warn(
         `No se pudieron listar los negocios para restaurar sesiones de WhatsApp: ${error}`,

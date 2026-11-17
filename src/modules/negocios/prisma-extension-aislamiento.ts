@@ -248,53 +248,29 @@ function forzarNegocioEnEscritura(
   negocioId: number,
   operation?: string,
 ): ArgsOperacion {
-  const where = args.where;
+  const { where, data } = args;
 
-  if (where) {
-    const declarado = negocioIdDeclarado(where);
-
-    if (declarado !== undefined && declarado !== negocioId) {
-      throw new ForbiddenException(
-        'La operación intenta modificar datos de un negocio distinto del autorizado',
-      );
-    }
-  }
-
-  const data = args.data;
-
-  if (data) {
-    const declarado = negocioIdDeclarado(data);
-
-    if (declarado !== undefined && declarado !== negocioId) {
-      throw new ForbiddenException(
-        'La operación intenta escribir en un negocio distinto del autorizado',
-      );
-    }
-  }
+  rechazarNegocioAjeno(
+    where,
+    negocioId,
+    'La operación intenta modificar datos de un negocio distinto del autorizado',
+  );
+  rechazarNegocioAjeno(
+    data,
+    negocioId,
+    'La operación intenta escribir en un negocio distinto del autorizado',
+  );
 
   const resultado: ArgsOperacion = { ...args };
   const esCreacion = operation === 'create' || operation === 'createMany';
 
   if (data !== undefined) {
-    if (esCreacion) {
-      // Creación (INSERT): forzamos negocioId para que el nuevo registro nazca con su dueño
-      if (Array.isArray(data)) {
-        resultado.data = data.map((item) => ({ ...item, negocioId }));
-      } else {
-        resultado.data = { ...data, negocioId };
-      }
-    } else {
-      // Actualización (UPDATE): el aislamiento vive en el WHERE. Si data traía negocioId plano,
-      // lo removemos para evitar colisiones con el esquema de Prisma (Unknown argument negocioId).
-      if (
-        typeof data === 'object' &&
-        !Array.isArray(data) &&
-        'negocioId' in data
-      ) {
-        const dataLimpio = { ...(data as Record<string, unknown>) };
-        delete dataLimpio.negocioId;
-        resultado.data = dataLimpio;
-      }
+    const dataForzada = esCreacion
+      ? asignarNegocioEnCreacion(data, negocioId)
+      : quitarNegocioDeActualizacion(data);
+
+    if (dataForzada !== undefined) {
+      resultado.data = dataForzada;
     }
   }
 
@@ -303,4 +279,57 @@ function forzarNegocioEnEscritura(
   }
 
   return resultado;
+}
+
+/** Lanza 403 si el fragmento declara explícitamente OTRO negocio. */
+function rechazarNegocioAjeno(
+  fragmento: ArgsOperacion['where'] | ArgsOperacion['data'],
+  negocioId: number,
+  mensaje: string,
+): void {
+  if (!fragmento) {
+    return;
+  }
+
+  const declarado = negocioIdDeclarado(fragmento);
+
+  if (declarado !== undefined && declarado !== negocioId) {
+    throw new ForbiddenException(mensaje);
+  }
+}
+
+/**
+ * Creación (INSERT): forzamos negocioId para que el nuevo registro nazca con
+ * su dueño.
+ */
+function asignarNegocioEnCreacion(
+  data: NonNullable<ArgsOperacion['data']>,
+  negocioId: number,
+): ArgsOperacion['data'] {
+  if (Array.isArray(data)) {
+    return data.map((item) => ({ ...item, negocioId }));
+  }
+  return { ...data, negocioId };
+}
+
+/**
+ * Actualización (UPDATE): el aislamiento vive en el WHERE. Si data traía
+ * negocioId plano, lo removemos para evitar colisiones con el esquema de
+ * Prisma (Unknown argument negocioId). Devuelve `undefined` si no hay que
+ * tocar `data`.
+ */
+function quitarNegocioDeActualizacion(
+  data: NonNullable<ArgsOperacion['data']>,
+): ArgsOperacion['data'] | undefined {
+  if (
+    typeof data !== 'object' ||
+    Array.isArray(data) ||
+    !('negocioId' in data)
+  ) {
+    return undefined;
+  }
+
+  const dataLimpio: DataPrisma = { ...data };
+  delete dataLimpio.negocioId;
+  return dataLimpio;
 }

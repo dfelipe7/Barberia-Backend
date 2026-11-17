@@ -3,6 +3,7 @@ import {
   MODELOS_CON_NEGOCIO,
   REGEX_SLUG_NEGOCIO,
 } from './migracion-negocio.constants';
+import { enSerie } from '../../../common/utils/en-serie';
 
 /**
  * Lógica de la migración de datos al modelo multitenant (Fase 2), separada de
@@ -235,28 +236,29 @@ export async function ejecutarBackfill(
 
   const actualizadasPorModelo: ResultadoBackfill['actualizadasPorModelo'] = [];
   const pendientes: ResultadoBackfill['pendientes'] = [];
-  let total = 0;
 
-  for (const modelo of MODELOS_CON_NEGOCIO) {
-    let actualizadas = 0;
+  /**
+   * Asigna lotes hasta que uno vuelva incompleto (ya no hay más filas que
+   * asignar). Recursivo para encadenar los lotes en serie sin `await` en
+   * bucle.
+   */
+  const asignarLotes = async (tabla: string): Promise<number> => {
+    const afectadas = await ejecutarLote(tabla, lote, negocioId);
+    return afectadas < lote
+      ? afectadas
+      : afectadas + (await asignarLotes(tabla));
+  };
 
-    for (;;) {
-      const afectadas = await ejecutarLote(modelo.tabla, lote, negocioId);
-      actualizadas += afectadas;
-
-      // Si el lote vino incompleto, ya no hay más filas que asignar.
-      if (afectadas < lote) {
-        break;
-      }
-    }
+  // Los modelos se procesan EN SERIE: cada uno ejecuta escrituras masivas y
+  // no deben competir entre sí.
+  const totales = await enSerie(MODELOS_CON_NEGOCIO, async (modelo) => {
+    const actualizadas = await asignarLotes(modelo.tabla);
 
     actualizadasPorModelo.push({
       modelo: modelo.modelo,
       tabla: modelo.tabla,
       actualizadas,
     });
-
-    total += actualizadas;
 
     const sinNegocio = await contarSinNegocio(modelo.tabla);
     if (sinNegocio > 0) {
@@ -266,7 +268,11 @@ export async function ejecutarBackfill(
         sinNegocio,
       });
     }
-  }
+
+    return actualizadas;
+  });
+
+  const total = totales.reduce((suma, n) => suma + n, 0);
 
   return { actualizadasPorModelo, total, pendientes };
 }

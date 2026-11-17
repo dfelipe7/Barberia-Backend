@@ -5,6 +5,8 @@ import makeWASocket, {
   isJidBroadcast,
   isJidStatusBroadcast,
   isJidNewsletter,
+  type ConnectionState,
+  type WASocket,
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import QRCode from 'qrcode';
@@ -96,7 +98,7 @@ export class WhatsAppSessionManager {
       const creds = JSON.parse(raw) as {
         me?: { id?: string; jid?: string };
       } | null;
-      return Boolean(creds && creds.me && (creds.me.id || creds.me.jid));
+      return Boolean(creds?.me?.id || creds?.me?.jid);
     } catch {
       return false;
     }
@@ -244,143 +246,12 @@ export class WhatsAppSessionManager {
       });
 
       socket.ev.on('connection.update', (update) => {
-        void (async () => {
-          if (sesion.enReposo || sesion.sock !== socket) {
-            try {
-              socket.ev.removeAllListeners('connection.update');
-              socket.ev.removeAllListeners('creds.update');
-              const ws = (
-                socket as unknown as {
-                  ws?: { close?: () => void; terminate?: () => void };
-                }
-              ).ws;
-              ws?.close?.();
-              ws?.terminate?.();
-              void socket.end?.(undefined);
-            } catch {
-              // Ignorar error al cerrar socket en reposo
-            }
-            return;
-          }
-
-          const { connection, lastDisconnect, qr } = update;
-
-          if (qr) {
-            try {
-              sesion.qrDataUrl = await QRCode.toDataURL(qr, {
-                width: 320,
-                margin: 2,
-                color: { dark: '#0C0C0C', light: '#FFFFFF' },
-              });
-              sesion.isConnected = false;
-              this.reiniciarTimerInactividad(sesion);
-              this.logger.log(
-                `[Negocio ${sesion.negocioId}] Nuevo código QR de WhatsApp generado bajo demanda.`,
-              );
-            } catch (err) {
-              this.logger.error(
-                `[Negocio ${sesion.negocioId}] Error convirtiendo QR a imagen DataURL`,
-                err,
-              );
-            }
-          }
-
-          if (connection === 'open') {
-            sesion.isConnected = true;
-            sesion.enReposo = false;
-            sesion.qrDataUrl = null;
-            sesion.isIntentionalDisconnect = false;
-            this.limpiarTimerInactividad(sesion);
-            this.logger.log(
-              `🟢 [Negocio ${sesion.negocioId}] CONEXIÓN ESTABLECIDA CON WHATSAPP WEB.`,
-            );
-            if (opciones?.onConnected) {
-              opciones.onConnected(sesion.negocioId);
-            }
-          }
-
-          if (connection === 'close') {
-            sesion.isConnected = false;
-            this.limpiarTimerInactividad(sesion);
-            const statusCode = Number(
-              (lastDisconnect?.error as Boom)?.output?.statusCode,
-            );
-            const hasSavedSession = this.tieneSesionGuardada(sesion.negocioId);
-
-            this.logger.warn(
-              `[Negocio ${sesion.negocioId}] Conexión cerrada con WhatsApp. Código de salida: ${statusCode}. Tiene sesión autenticada: ${hasSavedSession}`,
-            );
-
-            if (statusCode === Number(DisconnectReason.connectionReplaced)) {
-              this.logger.warn(
-                `[Negocio ${sesion.negocioId}] La sesión de WhatsApp fue abierta en otro lugar o navegador (440). No se reintentará automáticamente.`,
-              );
-              sesion.qrDataUrl = null;
-              this.destruirSocket(sesion);
-              return;
-            }
-
-            if (
-              statusCode === Number(DisconnectReason.loggedOut) ||
-              sesion.isIntentionalDisconnect
-            ) {
-              this.logger.log(
-                `[Negocio ${sesion.negocioId}] Sesión cerrada o desvinculada. Limpiando credenciales locales...`,
-              );
-              sesion.qrDataUrl = null;
-              this.destruirSocket(sesion);
-              this.limpiarCarpetaSesion(sesion);
-              sesion.isIntentionalDisconnect = false;
-              return;
-            }
-
-            this.destruirSocket(sesion);
-
-            if (hasSavedSession) {
-              sesion.qrDataUrl = null;
-              const delay =
-                statusCode === Number(DisconnectReason.restartRequired)
-                  ? 1500
-                  : 4000;
-              this.logger.log(
-                `[Negocio ${sesion.negocioId}] Reconectando sesión guardada de WhatsApp en ${delay / 1000}s...`,
-              );
-              setTimeout(() => {
-                if (this.tieneSesionGuardada(sesion.negocioId)) {
-                  void this.iniciarSocket(sesion.negocioId, opciones);
-                }
-              }, delay);
-              return;
-            }
-
-            if (
-              !sesion.enReposo &&
-              (statusCode === Number(DisconnectReason.restartRequired) ||
-                statusCode === 515)
-            ) {
-              this.logger.log(
-                `[Negocio ${sesion.negocioId}] WhatsApp solicitó reinicio del socket (515) durante la generación de QR. Regenerando socket y QR en 1s...`,
-              );
-              setTimeout(() => {
-                if (
-                  !sesion.enReposo &&
-                  !sesion.isConnected &&
-                  !this.tieneSesionGuardada(sesion.negocioId)
-                ) {
-                  void this.iniciarSocket(sesion.negocioId, opciones);
-                }
-              }, 1000);
-              return;
-            }
-
-            this.logger.log(
-              `[Negocio ${sesion.negocioId}] Tiempo de escaneo de QR expirado sin interacción. Entrando en REPOSO hasta nueva solicitud del frontend.`,
-            );
-            sesion.enReposo = true;
-            sesion.qrDataUrl = null;
-            this.limpiarCarpetaSesionIncompleta(sesion);
-          }
-        })();
+        void this.manejarActualizacionConexion(
+          sesion,
+          socket,
+          update,
+          opciones,
+        );
       });
     } catch (error) {
       this.logger.error(
@@ -390,6 +261,193 @@ export class WhatsAppSessionManager {
     } finally {
       sesion.isConnecting = false;
     }
+  }
+
+  /**
+   * Despacha cada `connection.update` del socket a su manejador. Si el socket
+   * ya no es el vigente (o la sesión está en reposo) se cierra y se ignora.
+   */
+  private async manejarActualizacionConexion(
+    sesion: SesionWhatsAppNegocio,
+    socket: WASocket,
+    update: Partial<ConnectionState>,
+    opciones?: OpcionesIniciarSocket,
+  ): Promise<void> {
+    if (sesion.enReposo || sesion.sock !== socket) {
+      this.cerrarSocketObsoleto(socket);
+      return;
+    }
+
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+      await this.publicarQr(sesion, qr);
+    }
+
+    if (connection === 'open') {
+      this.alAbrirConexion(sesion, opciones);
+    }
+
+    if (connection === 'close') {
+      const statusCode = Number(
+        (lastDisconnect?.error as Boom)?.output?.statusCode,
+      );
+      this.alCerrarConexion(sesion, statusCode, opciones);
+    }
+  }
+
+  /** Cierra sin ruido un socket que ya no corresponde a la sesión. */
+  private cerrarSocketObsoleto(socket: WASocket): void {
+    try {
+      socket.ev.removeAllListeners('connection.update');
+      socket.ev.removeAllListeners('creds.update');
+      const ws = (
+        socket as unknown as {
+          ws?: { close?: () => void; terminate?: () => void };
+        }
+      ).ws;
+      ws?.close?.();
+      ws?.terminate?.();
+      void socket.end?.(undefined);
+    } catch {
+      // Ignorar error al cerrar socket en reposo
+    }
+  }
+
+  /** Convierte el QR recibido en DataURL para el frontend. */
+  private async publicarQr(
+    sesion: SesionWhatsAppNegocio,
+    qr: string,
+  ): Promise<void> {
+    try {
+      sesion.qrDataUrl = await QRCode.toDataURL(qr, {
+        width: 320,
+        margin: 2,
+        color: { dark: '#0C0C0C', light: '#FFFFFF' },
+      });
+      sesion.isConnected = false;
+      this.reiniciarTimerInactividad(sesion);
+      this.logger.log(
+        `[Negocio ${sesion.negocioId}] Nuevo código QR de WhatsApp generado bajo demanda.`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `[Negocio ${sesion.negocioId}] Error convirtiendo QR a imagen DataURL`,
+        err,
+      );
+    }
+  }
+
+  private alAbrirConexion(
+    sesion: SesionWhatsAppNegocio,
+    opciones?: OpcionesIniciarSocket,
+  ): void {
+    sesion.isConnected = true;
+    sesion.enReposo = false;
+    sesion.qrDataUrl = null;
+    sesion.isIntentionalDisconnect = false;
+    this.limpiarTimerInactividad(sesion);
+    this.logger.log(
+      `🟢 [Negocio ${sesion.negocioId}] CONEXIÓN ESTABLECIDA CON WHATSAPP WEB.`,
+    );
+    opciones?.onConnected?.(sesion.negocioId);
+  }
+
+  /** Decide qué hacer cuando WhatsApp cierra la conexión. */
+  private alCerrarConexion(
+    sesion: SesionWhatsAppNegocio,
+    statusCode: number,
+    opciones?: OpcionesIniciarSocket,
+  ): void {
+    sesion.isConnected = false;
+    this.limpiarTimerInactividad(sesion);
+    const hasSavedSession = this.tieneSesionGuardada(sesion.negocioId);
+
+    this.logger.warn(
+      `[Negocio ${sesion.negocioId}] Conexión cerrada con WhatsApp. Código de salida: ${statusCode}. Tiene sesión autenticada: ${hasSavedSession}`,
+    );
+
+    if (statusCode === Number(DisconnectReason.connectionReplaced)) {
+      this.logger.warn(
+        `[Negocio ${sesion.negocioId}] La sesión de WhatsApp fue abierta en otro lugar o navegador (440). No se reintentará automáticamente.`,
+      );
+      sesion.qrDataUrl = null;
+      this.destruirSocket(sesion);
+      return;
+    }
+
+    if (
+      statusCode === Number(DisconnectReason.loggedOut) ||
+      sesion.isIntentionalDisconnect
+    ) {
+      this.logger.log(
+        `[Negocio ${sesion.negocioId}] Sesión cerrada o desvinculada. Limpiando credenciales locales...`,
+      );
+      sesion.qrDataUrl = null;
+      this.destruirSocket(sesion);
+      this.limpiarCarpetaSesion(sesion);
+      sesion.isIntentionalDisconnect = false;
+      return;
+    }
+
+    this.destruirSocket(sesion);
+
+    if (hasSavedSession) {
+      this.programarReconexionSesionGuardada(sesion, statusCode, opciones);
+      return;
+    }
+
+    if (
+      !sesion.enReposo &&
+      (statusCode === Number(DisconnectReason.restartRequired) ||
+        statusCode === 515)
+    ) {
+      this.programarRegeneracionQr(sesion, opciones);
+      return;
+    }
+
+    this.logger.log(
+      `[Negocio ${sesion.negocioId}] Tiempo de escaneo de QR expirado sin interacción. Entrando en REPOSO hasta nueva solicitud del frontend.`,
+    );
+    sesion.enReposo = true;
+    sesion.qrDataUrl = null;
+    this.limpiarCarpetaSesionIncompleta(sesion);
+  }
+
+  private programarReconexionSesionGuardada(
+    sesion: SesionWhatsAppNegocio,
+    statusCode: number,
+    opciones?: OpcionesIniciarSocket,
+  ): void {
+    sesion.qrDataUrl = null;
+    const delay =
+      statusCode === Number(DisconnectReason.restartRequired) ? 1500 : 4000;
+    this.logger.log(
+      `[Negocio ${sesion.negocioId}] Reconectando sesión guardada de WhatsApp en ${delay / 1000}s...`,
+    );
+    setTimeout(() => {
+      if (this.tieneSesionGuardada(sesion.negocioId)) {
+        void this.iniciarSocket(sesion.negocioId, opciones);
+      }
+    }, delay);
+  }
+
+  private programarRegeneracionQr(
+    sesion: SesionWhatsAppNegocio,
+    opciones?: OpcionesIniciarSocket,
+  ): void {
+    this.logger.log(
+      `[Negocio ${sesion.negocioId}] WhatsApp solicitó reinicio del socket (515) durante la generación de QR. Regenerando socket y QR en 1s...`,
+    );
+    setTimeout(() => {
+      if (
+        !sesion.enReposo &&
+        !sesion.isConnected &&
+        !this.tieneSesionGuardada(sesion.negocioId)
+      ) {
+        void this.iniciarSocket(sesion.negocioId, opciones);
+      }
+    }, 1000);
   }
 
   getStatus(negocioId: number): { conectado: boolean; qr: string | null } {

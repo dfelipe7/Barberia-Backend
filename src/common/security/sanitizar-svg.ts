@@ -245,6 +245,25 @@ export function sanitizarSvg(contenido: string): string {
   return svg;
 }
 
+/** Avanza desde `desde` mientras el carácter cumpla la condición. */
+function saltarMientras(
+  texto: string,
+  desde: number,
+  condicion: (caracter: string) => boolean,
+): number {
+  let i = desde;
+  while (i < texto.length && condicion(texto[i])) i++;
+  return i;
+}
+
+const esEspacio = (caracter: string): boolean => /\s/.test(caracter);
+const esFinDeNombreEtiqueta = (caracter: string): boolean =>
+  /[\s/>]/.test(caracter);
+const esFinDeNombreAtributo = (caracter: string): boolean =>
+  /[\s=>/]/.test(caracter);
+const esFinDeValorSinComillas = (caracter: string): boolean =>
+  /[\s>]/.test(caracter);
+
 /**
  * Procesa las etiquetas XML del documento de forma lineal sin backtracking ReDoS.
  */
@@ -253,90 +272,119 @@ function procesarEtiquetasSvg(contenido: string): string {
   let i = 0;
   while (i < contenido.length) {
     const inicio = contenido.indexOf('<', i);
-    if (inicio === -1) {
+    const fin = inicio === -1 ? -1 : contenido.indexOf('>', inicio);
+
+    // Sin más etiquetas completas: el resto es texto.
+    if (fin === -1) {
       salida += contenido.slice(i);
       break;
     }
-    salida += contenido.slice(i, inicio);
-    const fin = contenido.indexOf('>', inicio);
-    if (fin === -1) {
-      salida += contenido.slice(inicio);
-      break;
-    }
 
-    const cuerpo = contenido.slice(inicio + 1, fin);
+    salida +=
+      contenido.slice(i, inicio) +
+      reconstruirEtiqueta(contenido.slice(inicio + 1, fin));
     i = fin + 1;
-
-    let pos = 0;
-    while (pos < cuerpo.length && /\s/.test(cuerpo[pos])) pos++;
-    const esCierre = cuerpo[pos] === '/';
-    if (esCierre) pos++;
-    while (pos < cuerpo.length && /\s/.test(cuerpo[pos])) pos++;
-
-    const inicioNombre = pos;
-    while (pos < cuerpo.length && !/[\s/>]/.test(cuerpo[pos])) pos++;
-    const nombreOriginal = cuerpo.slice(inicioNombre, pos);
-    const elemento = nombreOriginal.toLowerCase();
-
-    if (!nombreOriginal || !ELEMENTOS_PERMITIDOS.has(elemento)) {
-      continue;
-    }
-
-    const resto = cuerpo.slice(pos);
-    const saneados = sanearAtributos(resto);
-    const esAutoCierre = !esCierre && resto.trimEnd().endsWith('/');
-
-    salida += `<${esCierre ? '/' : ''}${nombreOriginal}${saneados}${esAutoCierre ? ' />' : '>'}`;
   }
   return salida;
+}
+
+/**
+ * Reconstruye UNA etiqueta (el texto entre `<` y `>`) con sus atributos
+ * saneados. Devuelve cadena vacía si el elemento no está permitido.
+ */
+function reconstruirEtiqueta(cuerpo: string): string {
+  let pos = saltarMientras(cuerpo, 0, esEspacio);
+  const esCierre = cuerpo[pos] === '/';
+  if (esCierre) pos++;
+  pos = saltarMientras(cuerpo, pos, esEspacio);
+
+  const inicioNombre = pos;
+  pos = saltarMientras(cuerpo, pos, (c) => !esFinDeNombreEtiqueta(c));
+  const nombreOriginal = cuerpo.slice(inicioNombre, pos);
+
+  if (
+    !nombreOriginal ||
+    !ELEMENTOS_PERMITIDOS.has(nombreOriginal.toLowerCase())
+  ) {
+    return '';
+  }
+
+  const resto = cuerpo.slice(pos);
+  const saneados = sanearAtributos(resto);
+  const esAutoCierre = !esCierre && resto.trimEnd().endsWith('/');
+  const apertura = esCierre ? '</' : '<';
+  const cierre = esAutoCierre ? ' />' : '>';
+
+  return `${apertura}${nombreOriginal}${saneados}${cierre}`;
+}
+
+/** Resultado de leer un atributo: posición siguiente y, si lo hay, el par. */
+interface LecturaAtributo {
+  siguiente: number;
+  nombre?: string;
+  valor?: string;
+}
+
+/** Lee el valor de un atributo (entre comillas o sin ellas). */
+function leerValorAtributo(
+  texto: string,
+  desde: number,
+): { valor: string; siguiente: number } {
+  const comilla = texto[desde];
+
+  if (comilla === '"' || comilla === "'") {
+    const fin = saltarMientras(texto, desde + 1, (c) => c !== comilla);
+    return {
+      valor: texto.slice(desde + 1, fin),
+      siguiente: Math.min(fin + 1, texto.length),
+    };
+  }
+
+  const fin = saltarMientras(texto, desde, (c) => !esFinDeValorSinComillas(c));
+  return { valor: texto.slice(desde, fin), siguiente: fin };
+}
+
+/**
+ * Lee el siguiente atributo a partir de `desde`.
+ *
+ * - `null`: no quedan atributos (fin del texto o `/` de autocierre).
+ * - Sin `nombre`: había un fragmento que no es un atributo `nombre=valor`
+ *   (se descarta y se continúa en `siguiente`).
+ */
+function leerAtributo(texto: string, desde: number): LecturaAtributo | null {
+  let i = saltarMientras(texto, desde, esEspacio);
+  if (i >= texto.length || texto[i] === '/') return null;
+
+  const inicioNombre = i;
+  i = saltarMientras(texto, i, (c) => !esFinDeNombreAtributo(c));
+  const nombre = texto.slice(inicioNombre, i);
+  if (!nombre) return { siguiente: i + 1 };
+
+  i = saltarMientras(texto, i, esEspacio);
+  if (i >= texto.length || texto[i] !== '=') return { siguiente: i };
+
+  i = saltarMientras(texto, i + 1, esEspacio);
+  const { valor, siguiente } = leerValorAtributo(texto, i);
+  return { siguiente, nombre, valor };
 }
 
 /**
  * Filtra los atributos de una etiqueta y reconstruye el fragmento con análisis lineal.
  */
 function sanearAtributos(atributos: string): string {
+  const texto = atributos.trim();
   const permitidos: string[] = [];
-  const trimmed = atributos.trim();
-  if (!trimmed) return '';
 
-  let i = 0;
-  while (i < trimmed.length) {
-    while (i < trimmed.length && /\s/.test(trimmed[i])) i++;
-    if (i >= trimmed.length || trimmed[i] === '/') break;
-
-    const inicioNombre = i;
-    while (i < trimmed.length && !/[\s=>/]/.test(trimmed[i])) i++;
-    const nombreOriginal = trimmed.slice(inicioNombre, i);
-    if (!nombreOriginal) {
-      i++;
-      continue;
+  let lectura = leerAtributo(texto, 0);
+  while (lectura) {
+    const { nombre, valor = '' } = lectura;
+    if (nombre && esAtributoSeguro(nombre.toLowerCase(), valor)) {
+      permitidos.push(`${nombre}="${escaparValor(valor)}"`);
     }
-
-    while (i < trimmed.length && /\s/.test(trimmed[i])) i++;
-    if (i >= trimmed.length || trimmed[i] !== '=') {
-      continue;
-    }
-    i++;
-    while (i < trimmed.length && /\s/.test(trimmed[i])) i++;
-
-    let valor = '';
-    if (i < trimmed.length && (trimmed[i] === '"' || trimmed[i] === "'")) {
-      const quote = trimmed[i];
-      i++;
-      const inicioValor = i;
-      while (i < trimmed.length && trimmed[i] !== quote) i++;
-      valor = trimmed.slice(inicioValor, i);
-      if (i < trimmed.length) i++;
-    } else {
-      const inicioValor = i;
-      while (i < trimmed.length && !/[\s>]/.test(trimmed[i])) i++;
-      valor = trimmed.slice(inicioValor, i);
-    }
-
-    const nombre = nombreOriginal.toLowerCase();
-    if (esAtributoSeguro(nombre, valor)) {
-      permitidos.push(`${nombreOriginal}="${escaparValor(valor)}"`);
-    }
+    lectura =
+      lectura.siguiente < texto.length
+        ? leerAtributo(texto, lectura.siguiente)
+        : null;
   }
 
   return permitidos.length > 0 ? ` ${permitidos.join(' ')}` : '';

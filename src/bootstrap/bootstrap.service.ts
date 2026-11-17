@@ -52,24 +52,26 @@ export class BootstrapService implements OnModuleInit {
     try {
       const negocios = await this.negociosRepository.listar();
 
-      for (const negocio of negocios) {
-        try {
-          const resultado =
-            await this.configuracionService.inicializarValoresOperativos(
-              negocio.id,
-            );
+      await Promise.allSettled(
+        negocios.map(async (negocio) => {
+          try {
+            const resultado =
+              await this.configuracionService.inicializarValoresOperativos(
+                negocio.id,
+              );
 
-          if (resultado.creadas.length > 0) {
-            this.logger.log(
-              `Configuración operativa inicializada para '${negocio.slug}': ${resultado.creadas.join(', ')}`,
+            if (resultado.creadas.length > 0) {
+              this.logger.log(
+                `Configuración operativa inicializada para '${negocio.slug}': ${resultado.creadas.join(', ')}`,
+              );
+            }
+          } catch (error) {
+            this.logger.warn(
+              `No se pudo inicializar la configuración operativa de '${negocio.slug}': ${(error as Error)?.message}`,
             );
           }
-        } catch (error) {
-          this.logger.warn(
-            `No se pudo inicializar la configuración operativa de '${negocio.slug}': ${(error as Error)?.message}`,
-          );
-        }
-      }
+        }),
+      );
     } catch (error) {
       this.logger.warn(
         `No se pudieron inicializar las configuraciones operativas: ${(error as Error)?.message}`,

@@ -9,6 +9,7 @@ import { FechaBogotaService } from '../../horarios/common/fecha-bogota.service';
 import { NegocioContextoService } from '../../negocios/negocio-contexto.service';
 import { NegociosRepository } from '../../negocios/repository/negocios.repository';
 import { EstadoNegocio } from '../../../../generated/prisma/enums';
+import { enSerie } from '../../../common/utils/en-serie';
 
 /**
  * Tarea programada de recordatorios de cita (HU-11).
@@ -95,40 +96,55 @@ export class RecordatoriosCron {
         `[CRON RECORDATORIOS] Procesando recordatorios de ${activos.length} negocio(s) activo(s) para ${fechaBogotaStr}...`,
       );
 
-      for (const negocio of activos) {
-        try {
-          // Aislamiento multitenant: cada sede tiene su propio estado de conexión en WhatsApp.
-          // Si una sede no ha vinculado su dispositivo o está desconectada, se omite solo esa sede.
-          const { conectado } = this.whatsappService.getStatus(negocio.id);
-          if (!conectado) {
-            this.logger.log(
-              `[CRON RECORDATORIOS] Negocio ${negocio.slug} (id=${negocio.id}) tiene WhatsApp desconectado: omitiendo.`,
-            );
-            continue;
-          }
-
-          // El contexto se establece AQUÍ y se mantiene durante TODAS las
-          // esperas de este negocio: ninguna consulta ni escritura sale de su
-          // ámbito, y el contexto de un negocio no se reutiliza para otro.
-          await this.contextoService.ejecutarEnContexto(negocio, async () => {
-            await this.procesarRecordatoriosDelNegocio(
-              negocio,
-              fechaDate,
-              fechaBogotaStr,
-              ahoraMinutos,
-            );
-          });
-        } catch (error) {
-          // El fallo de un negocio NO detiene el procesamiento de los demás.
-          this.logger.error(
-            `[CRON RECORDATORIOS] Error procesando el negocio ${negocio.slug} (id=${negocio.id}):`,
-            error,
-          );
-        }
-      }
+      // Los negocios se procesan EN SERIE: comparten el límite de envío de
+      // WhatsApp y cada uno debe ejecutarse dentro de su propio contexto.
+      await enSerie(activos, (negocio) =>
+        this.procesarNegocio(negocio, fechaDate, fechaBogotaStr, ahoraMinutos),
+      );
     } catch (error) {
       this.logger.error(
         '[CRON RECORDATORIOS] Error durante la ejecución del cron de WhatsApp:',
+        error,
+      );
+    }
+  }
+
+  /**
+   * Procesa UN negocio: comprueba su sesión de WhatsApp y ejecuta sus
+   * recordatorios dentro de su contexto. Nunca lanza: el fallo de un negocio
+   * NO detiene el procesamiento de los demás.
+   */
+  private async procesarNegocio(
+    negocio: { id: number; slug: string },
+    fechaDate: Date,
+    fechaBogotaStr: string,
+    ahoraMinutos: number,
+  ): Promise<void> {
+    try {
+      // Aislamiento multitenant: cada sede tiene su propio estado de conexión en WhatsApp.
+      // Si una sede no ha vinculado su dispositivo o está desconectada, se omite solo esa sede.
+      const { conectado } = this.whatsappService.getStatus(negocio.id);
+      if (!conectado) {
+        this.logger.log(
+          `[CRON RECORDATORIOS] Negocio ${negocio.slug} (id=${negocio.id}) tiene WhatsApp desconectado: omitiendo.`,
+        );
+        return;
+      }
+
+      // El contexto se establece AQUÍ y se mantiene durante TODAS las
+      // esperas de este negocio: ninguna consulta ni escritura sale de su
+      // ámbito, y el contexto de un negocio no se reutiliza para otro.
+      await this.contextoService.ejecutarEnContexto(negocio, async () => {
+        await this.procesarRecordatoriosDelNegocio(
+          negocio,
+          fechaDate,
+          fechaBogotaStr,
+          ahoraMinutos,
+        );
+      });
+    } catch (error) {
+      this.logger.error(
+        `[CRON RECORDATORIOS] Error procesando el negocio ${negocio.slug} (id=${negocio.id}):`,
         error,
       );
     }
@@ -165,49 +181,44 @@ export class RecordatoriosCron {
       `[CRON RECORDATORIOS] Negocio ${negocio.slug}: ${reservasPendientes.length} cita(s) para ${fechaDate.toISOString().slice(0, 10)} (ventana de ${minutosAnticipacion} min).`,
     );
 
-    for (const reserva of reservasPendientes) {
+    // Solo las citas dentro de la ventana de anticipación configurada.
+    const enVentana = reservasPendientes.filter((reserva) => {
       const [horaCita, minutoCita] = reserva.startTime.split(':').map(Number);
-      const citaMinutos = horaCita * 60 + minutoCita;
-      const diferenciaMinutos = citaMinutos - ahoraMinutos;
+      const diferenciaMinutos = horaCita * 60 + minutoCita - ahoraMinutos;
+      return diferenciaMinutos >= 0 && diferenciaMinutos <= minutosAnticipacion;
+    });
 
-      // Si la cita está dentro de la ventana de anticipación configurada.
-      if (diferenciaMinutos >= 0 && diferenciaMinutos <= minutosAnticipacion) {
-        const telefono = reserva.cliente?.telefono;
+    // Envíos EN SERIE: WhatsApp limita la tasa de mensajes por sesión.
+    await enSerie(enVentana, async (reserva) => {
+      const telefono = reserva.cliente?.telefono;
+
+      if (telefono) {
         const clienteNombre =
           `${reserva.cliente?.nombre ?? ''} ${reserva.cliente?.apellido ?? ''}`.trim() ||
           'Cliente';
         const barberoNombre =
           `${reserva.barbero?.usuario?.nombre ?? ''} ${reserva.barbero?.usuario?.apellido ?? ''}`.trim() ||
           'Barbero';
-        const servicioNombre = reserva.servicio?.nombre ?? 'Servicio';
+        const precioBase = reserva.precioReservado ?? reserva.servicio?.precio;
 
-        if (telefono) {
-          this.logger.log(
-            `[CRON RECORDATORIOS] [${negocio.slug}] Enviando recordatorio para la cita #${reserva.id} a ${clienteNombre} (${enmascararTelefono(telefono)})`,
-          );
+        this.logger.log(
+          `[CRON RECORDATORIOS] [${negocio.slug}] Enviando recordatorio para la cita #${reserva.id} a ${clienteNombre} (${enmascararTelefono(telefono)})`,
+        );
 
-          let precioNotif: number | null = null;
-          if (reserva.precioReservado) {
-            precioNotif = Number(reserva.precioReservado);
-          } else if (reserva.servicio?.precio) {
-            precioNotif = Number(reserva.servicio.precio);
-          }
-
-          await this.whatsappService.enviarRecordatorioReserva({
-            telefono,
-            clienteNombre,
-            servicioNombre,
-            barberoNombre,
-            fecha: fechaBogotaStr,
-            hora: reserva.startTime,
-            precio: precioNotif,
-          });
-        }
-
-        // Se marca como enviado para garantizar idempotencia y no repetir
-        // recordatorio. La escritura queda acotada al negocio del contexto.
-        await this.reservasRepository.marcarRecordatorioEnviado(reserva.id);
+        await this.whatsappService.enviarRecordatorioReserva({
+          telefono,
+          clienteNombre,
+          servicioNombre: reserva.servicio?.nombre ?? 'Servicio',
+          barberoNombre,
+          fecha: fechaBogotaStr,
+          hora: reserva.startTime,
+          precio: precioBase ? Number(precioBase) : null,
+        });
       }
-    }
+
+      // Se marca como enviado para garantizar idempotencia y no repetir
+      // recordatorio. La escritura queda acotada al negocio del contexto.
+      await this.reservasRepository.marcarRecordatorioEnviado(reserva.id);
+    });
   }
 }

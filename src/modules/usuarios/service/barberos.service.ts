@@ -431,7 +431,9 @@ export class BarberosService {
     if (!file) {
       throw new BadRequestException('Debe seleccionar un archivo de imagen');
     }
-    const usuarioId = usuarioAutenticado?.id ? Number(usuarioAutenticado.id) : null;
+    const usuarioId = usuarioAutenticado?.id
+      ? Number(usuarioAutenticado.id)
+      : null;
     const usuario = usuarioId
       ? await this.usuariosRepository.obtenerUsuarioPorId(usuarioId)
       : await this.usuariosRepository.obtenerUsuarioPorEmail(
@@ -448,7 +450,9 @@ export class BarberosService {
    * Elimina la foto de perfil del barbero autenticado en la sesión actual.
    */
   async eliminarMiFoto(usuarioAutenticado?: Partial<ClaimsSesionPersonal>) {
-    const usuarioId = usuarioAutenticado?.id ? Number(usuarioAutenticado.id) : null;
+    const usuarioId = usuarioAutenticado?.id
+      ? Number(usuarioAutenticado.id)
+      : null;
     const usuario = usuarioId
       ? await this.usuariosRepository.obtenerUsuarioPorId(usuarioId)
       : await this.usuariosRepository.obtenerUsuarioPorEmail(
