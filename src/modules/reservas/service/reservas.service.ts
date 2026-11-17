@@ -462,15 +462,14 @@ export class ReservasService {
   /** Enlace público de gestión de la reserva (solo invitados con token). */
   private construirEnlaceGestion(
     respuesta: ReservaCreadaResponseDto,
-    slugNegocio?: string,
+    slugNegocio = 'kyrios-studio',
   ): string | null {
     if (!respuesta.tokenGestion) {
       return null;
     }
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const slug = slugNegocio || 'kyrios-studio';
-    return `${frontendUrl}/${slug}/c/${respuesta.id}/${respuesta.tokenGestion}`;
+    return `${frontendUrl}/${slugNegocio}/c/${respuesta.id}/${respuesta.tokenGestion}`;
   }
 
   /**

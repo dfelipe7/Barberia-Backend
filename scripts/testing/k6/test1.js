@@ -75,7 +75,7 @@ export function handleSummary(data) {
   };
 
   return {
-    'docs/reportes-seguridad-y-carga/reporte-k6-smoketest.html': generateHtmlReport(reportConfig, data),
+    'Barberia-Backend/docs/reportes-seguridad-y-carga/reporte-k6-smoketest.html': generateHtmlReport(reportConfig, data),
     'stdout': `
 ================================================================================
   RESULTADOS: ${reportConfig.titulo.toUpperCase()}

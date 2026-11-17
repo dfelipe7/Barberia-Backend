@@ -1,4 +1,4 @@
-﻿import { execFileSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import * as path from 'node:path';
 import {
   INestApplication,
@@ -112,9 +112,9 @@ describe('Descuentos: crear descuento único por elemento (MySQL 8.0 real)', () 
 
   let negocioA: { id: number; slug: string };
   let negocioB: { id: number; slug: string };
-  let productoA: { id: number; nombre: string };
-  let productoB: { id: number; nombre: string };
-  let servicioA: { id: number; nombre: string };
+  let productoA: { id: number; nombre: string; precio: unknown };
+  let productoB: { id: number; nombre: string; precio: unknown };
+  let servicioA: { id: number; nombre: string; precio: unknown };
   let servicioB: { id: number; nombre: string };
 
   let tokenAdminA: string | undefined;
@@ -675,9 +675,9 @@ describe('Descuentos: modificar descuento existente (HE-10-HU-03 — MySQL 8.0 r
 
   let negocioA: { id: number; slug: string };
   let negocioB: { id: number; slug: string };
-  let productoA: { id: number; nombre: string };
-  let productoB: { id: number; nombre: string };
-  let servicioA: { id: number; nombre: string };
+  let productoA: { id: number; nombre: string; precio: unknown };
+  let productoB: { id: number; nombre: string; precio: unknown };
+  let servicioA: { id: number; nombre: string; precio: unknown };
 
   let tokenAdminA: string | undefined;
   let tokenAdminB: string | undefined;
@@ -1632,11 +1632,12 @@ describe('Descuentos: modificar descuento existente (HE-10-HU-03 — MySQL 8.0 r
       await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, { activo: true });
 
       // 2026-11-14 es s�bado (SATURDAY)
-      const resp = await evaluarServicio(
-        SLUG_HU03_A,
-        servicioA.id,
-        '2026-11-14',
-      );
+      const hoySab = new Date();
+      const diffSab = (6 - hoySab.getUTCDay() + 7) % 7 || 7;
+      const proxSabado = new Date(hoySab.getTime() + diffSab * 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+      const resp = await evaluarServicio(SLUG_HU03_A, servicioA.id, proxSabado);
       expect(resp.status).toBe(200);
 
       const datos = cuerpo<DescuentoAplicableCuerpo>(resp);
@@ -1683,11 +1684,16 @@ describe('Descuentos: modificar descuento existente (HE-10-HU-03 — MySQL 8.0 r
       const id: number = cuerpo<DescuentoCreado>(creado).descuento.id;
       await cambiarEstado(tokenAdminA, SLUG_HU03_A, id, { activo: true });
 
-      // 2026-11-13 es viernes (FRIDAY)
+      // Próximo viernes (FRIDAY) en el futuro para no caer en fecha pasada
+      const hoyVie = new Date();
+      const diffVie = (5 - hoyVie.getUTCDay() + 7) % 7 || 7;
+      const proxViernes = new Date(hoyVie.getTime() + diffVie * 86_400_000)
+        .toISOString()
+        .slice(0, 10);
       const resp = await evaluarServicio(
         SLUG_HU03_A,
         servicioA.id,
-        '2026-11-13',
+        proxViernes,
       );
       expect(resp.status).toBe(200);
 
