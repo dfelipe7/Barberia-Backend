@@ -92,27 +92,29 @@ export class RedesSocialesRepository {
       data: { activo: false },
     });
 
-    // 2. Upsert de cada red de la nueva lista.
-    for (const red of redes) {
-      await this.prisma.redSocialNegocio.upsert({
-        where: {
-          negocioId_tipo_nombre: {
+    // 2. Upsert en paralelo de cada red de la nueva lista.
+    await Promise.all(
+      redes.map((red) =>
+        this.prisma.redSocialNegocio.upsert({
+          where: {
+            negocioId_tipo_nombre: {
+              negocioId,
+              tipo: red.tipo,
+              nombre: red.nombre,
+            },
+          },
+          update: { url: red.url, orden: red.orden, activo: true },
+          create: {
             negocioId,
             tipo: red.tipo,
             nombre: red.nombre,
+            url: red.url,
+            orden: red.orden,
+            activo: true,
           },
-        },
-        update: { url: red.url, orden: red.orden, activo: true },
-        create: {
-          negocioId,
-          tipo: red.tipo,
-          nombre: red.nombre,
-          url: red.url,
-          orden: red.orden,
-          activo: true,
-        },
-      });
-    }
+        }),
+      ),
+    );
 
     return this.listarPorNegocio(negocioId);
   }

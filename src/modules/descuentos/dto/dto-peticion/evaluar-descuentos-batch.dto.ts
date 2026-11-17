@@ -20,7 +20,7 @@ export class EvaluarDescuentosBatchDto {
   @IsInt({ each: true })
   @Min(1, { each: true })
   @Transform(({ value }: { value: unknown }): unknown =>
-    Array.isArray(value) ? value.map((item: unknown) => Number(item)) : value,
+    Array.isArray(value) ? value.map(Number) : value,
   )
   productoIds?: number[];
 
@@ -34,7 +34,7 @@ export class EvaluarDescuentosBatchDto {
   @IsInt({ each: true })
   @Min(1, { each: true })
   @Transform(({ value }: { value: unknown }): unknown =>
-    Array.isArray(value) ? value.map((item: unknown) => Number(item)) : value,
+    Array.isArray(value) ? value.map(Number) : value,
   )
   servicioIds?: number[];
 

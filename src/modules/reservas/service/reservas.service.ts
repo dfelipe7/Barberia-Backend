@@ -131,6 +131,12 @@ export interface IdentidadClienteAutenticado {
   clienteId: number;
 }
 
+/** Cliente de la reserva ya resuelto (registrado, autenticado u ocasional). */
+type ClienteResuelto = {
+  clienteDeReserva: ClienteDeReserva;
+  clienteIdConocido: number | null;
+};
+
 /**
  * Servicio de aplicación de HE-04 (creación de reservas HU-04 y consultas del
  * cliente HU-06/HU-07).
@@ -201,101 +207,42 @@ export class ReservasService {
     // IDEMPOTENCIA (antes que el duplicado del propio cliente): un reintento
     // con la misma clave debe recuperar la reserva original, no rebotar con un
     // conflicto de duplicado.
-    if (idempotencyKey) {
-      const previa =
-        await this.reservasRepository.obtenerPorClaveDeIdempotencia(
-          idempotencyKey,
-        );
-
-      if (previa) {
-        return this.responderReplay(previa, dto, cliente);
-      }
+    const replayPrevio = await this.recuperarReplay(
+      idempotencyKey,
+      dto,
+      cliente,
+    );
+    if (replayPrevio) {
+      return replayPrevio;
     }
 
-    // CA-04: el mismo cliente no puede duplicar la reserva de la franja.
-    //
-    // La reserva que lleva la MISMA clave de idempotencia es este mismo
-    // intento: no cuenta como duplicado (si lo contara, un reintento
-    // concurrente se rechazaría en lugar de recuperar la reserva original).
-    if (cliente.clienteIdConocido !== null) {
-      const duplicada =
-        await this.reservasRepository.existeReservaActivaDeClienteEnFranja({
-          clienteId: cliente.clienteIdConocido,
-          barberoId: dto.barberoId,
-          fecha: this.aFechaDate(dto.fecha),
-          startTime: dto.hora,
-          ...(idempotencyKey !== undefined
-            ? { excluirIdempotencyKey: idempotencyKey }
-            : {}),
-        });
-
-      if (duplicada) {
-        throw new DomainConflictException(
-          MENSAJE_RESERVA_DUPLICADA,
-          CODIGOS_CONFLICTO.DUPLICATE_OWN_RESERVATION,
-        );
-      }
-    }
+    await this.rechazarDuplicadoPropio(dto, cliente, idempotencyKey);
 
     // Fuente única de verdad (HE-08): valida servicio/barbero/asignación/fecha y
     // devuelve el estado real de cada franja.
-    let franja: FranjaEvaluada;
-
-    try {
-      franja = await this.obtenerFranjaDisponible(
-        dto.barberoId,
-        dto.servicioId,
-        dto.fecha,
-        dto.hora,
-      );
-    } catch (error) {
-      // Si el intento lleva clave de idempotencia, la franja puede haberla
-      // ocupado NUESTRO propio intento concurrente: en ese caso se recupera esa
-      // reserva en lugar de rechazar con un conflicto de franja.
-      if (idempotencyKey && this.esConflictoDeFranja(error)) {
-        const original =
-          await this.reservasRepository.obtenerPorClaveDeIdempotencia(
-            idempotencyKey,
-          );
-        if (original) {
-          return this.responderReplay(original, dto, cliente);
-        }
-      }
-
-      throw error;
+    const evaluacion = await this.evaluarFranjaConReplay(
+      dto,
+      cliente,
+      idempotencyKey,
+    );
+    if ('replay' in evaluacion) {
+      return evaluacion.replay;
     }
+    const { franja } = evaluacion;
 
     const servicio = await this.obtenerServicio(dto.servicioId);
-
-    let tokenGestion: string | undefined;
-    let gestionTokenHash: string | undefined;
-    let gestionTokenCifrado: string | undefined;
-
-    if (!identidad) {
-      tokenGestion = this.generarTokenGestion();
-      gestionTokenHash = this.hashearToken(tokenGestion);
-      gestionTokenCifrado = this.cifrarTokenGestion(tokenGestion);
-    }
+    const credenciales = this.generarCredencialesGestion(identidad);
 
     const recordatorioYaCubierto = await this.debeMarcarRecordatorioComoEnviado(
       dto.fecha,
       franja.startTime,
     );
 
-    let precioReservado = Number(servicio.precio);
-    if (this.descuentoEvaluador) {
-      try {
-        const evaluacion = await this.descuentoEvaluador.evaluarServicio(
-          dto.servicioId,
-          dto.fecha,
-        );
-        if (evaluacion.aplica && evaluacion.precioFinal !== null) {
-          precioReservado = evaluacion.precioFinal;
-        }
-      } catch {
-        // En caso de incidencia en el evaluador opcional, se conserva el precio base
-      }
-    }
+    const precioReservado = await this.resolverPrecioReservado(
+      dto.servicioId,
+      dto.fecha,
+      servicio.precio,
+    );
 
     const datos = {
       barberoId: dto.barberoId,
@@ -306,8 +253,8 @@ export class ReservasService {
       endTime: franja.endTime,
       // Precio histórico calculado en el servidor (con descuento aplicable si corresponde).
       precioReservado,
-      gestionTokenHash: gestionTokenHash ?? null,
-      gestionTokenCifrado: gestionTokenCifrado ?? null,
+      gestionTokenHash: credenciales.gestionTokenHash,
+      gestionTokenCifrado: credenciales.gestionTokenCifrado,
       idempotencyKey: idempotencyKey ?? null,
       cliente: cliente.clienteDeReserva,
       recordatorioEnviado: recordatorioYaCubierto,
@@ -343,6 +290,189 @@ export class ReservasService {
   }
 
   /**
+   * Si el intento lleva clave de idempotencia y ya existe una reserva con
+   * ella, devuelve la respuesta de esa reserva (replay). Si no, `null`.
+   */
+  private async recuperarReplay(
+    idempotencyKey: string | undefined,
+    dto: CrearReservaDto,
+    cliente: ClienteResuelto,
+  ): Promise<ReservaCreadaResponseDto | null> {
+    if (!idempotencyKey) {
+      return null;
+    }
+
+    const previa =
+      await this.reservasRepository.obtenerPorClaveDeIdempotencia(
+        idempotencyKey,
+      );
+
+    return previa ? this.responderReplay(previa, dto, cliente) : null;
+  }
+
+  /**
+   * CA-04: el mismo cliente no puede duplicar la reserva de la franja.
+   *
+   * La reserva que lleva la MISMA clave de idempotencia es este mismo
+   * intento: no cuenta como duplicado (si lo contara, un reintento
+   * concurrente se rechazaría en lugar de recuperar la reserva original).
+   */
+  private async rechazarDuplicadoPropio(
+    dto: CrearReservaDto,
+    cliente: ClienteResuelto,
+    idempotencyKey: string | undefined,
+  ): Promise<void> {
+    if (cliente.clienteIdConocido === null) {
+      return;
+    }
+
+    const duplicada =
+      await this.reservasRepository.existeReservaActivaDeClienteEnFranja({
+        clienteId: cliente.clienteIdConocido,
+        barberoId: dto.barberoId,
+        fecha: this.aFechaDate(dto.fecha),
+        startTime: dto.hora,
+        ...(idempotencyKey !== undefined
+          ? { excluirIdempotencyKey: idempotencyKey }
+          : {}),
+      });
+
+    if (duplicada) {
+      throw new DomainConflictException(
+        MENSAJE_RESERVA_DUPLICADA,
+        CODIGOS_CONFLICTO.DUPLICATE_OWN_RESERVATION,
+      );
+    }
+  }
+
+  /**
+   * Obtiene la franja disponible. Si está ocupada y el intento lleva clave de
+   * idempotencia, la franja puede haberla ocupado NUESTRO propio intento
+   * concurrente: en ese caso se recupera esa reserva (replay) en lugar de
+   * rechazar con un conflicto de franja.
+   */
+  private async evaluarFranjaConReplay(
+    dto: CrearReservaDto,
+    cliente: ClienteResuelto,
+    idempotencyKey: string | undefined,
+  ): Promise<
+    { franja: FranjaEvaluada } | { replay: ReservaCreadaResponseDto }
+  > {
+    try {
+      const franja = await this.obtenerFranjaDisponible(
+        dto.barberoId,
+        dto.servicioId,
+        dto.fecha,
+        dto.hora,
+      );
+      return { franja };
+    } catch (error) {
+      const replay = this.esConflictoDeFranja(error)
+        ? await this.recuperarReplay(idempotencyKey, dto, cliente)
+        : null;
+
+      if (replay) {
+        return { replay };
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Un invitado (sin identidad) recibe un token de gestión de su reserva; se
+   * persisten su hash (verificación) y su versión cifrada (reenvío).
+   */
+  private generarCredencialesGestion(identidad?: IdentidadClienteAutenticado): {
+    gestionTokenHash: string | null;
+    gestionTokenCifrado: string | null;
+  } {
+    if (identidad) {
+      return { gestionTokenHash: null, gestionTokenCifrado: null };
+    }
+
+    const tokenGestion = this.generarTokenGestion();
+    return {
+      gestionTokenHash: this.hashearToken(tokenGestion),
+      gestionTokenCifrado: this.cifrarTokenGestion(tokenGestion),
+    };
+  }
+
+  /**
+   * Calcula el precio histórico a persistir en la reserva aplicando el
+   * descuento vigente del servicio si corresponde.
+   */
+  private async resolverPrecioReservado(
+    servicioId: number,
+    fecha: string,
+    precioBase: unknown,
+  ): Promise<number> {
+    const base = Number(precioBase);
+    if (!this.descuentoEvaluador) {
+      return base;
+    }
+
+    try {
+      const evaluacion = await this.descuentoEvaluador.evaluarServicio(
+        servicioId,
+        fecha,
+      );
+      if (evaluacion.aplica && evaluacion.precioFinal !== null) {
+        return evaluacion.precioFinal;
+      }
+    } catch {
+      // En caso de incidencia en el evaluador opcional, se conserva el precio base
+    }
+
+    return base;
+  }
+
+  /**
+   * Completa teléfono y nombre del destinatario con los datos del cliente
+   * registrado cuando el formulario no los trae.
+   */
+  private async resolverDestinatarioConfirmacion(
+    dto: CrearReservaDto,
+    clienteIdConocido: number | null,
+  ): Promise<{ telefono: string | null; clienteNombre: string | null }> {
+    const telefono = dto.telefono ?? null;
+    const clienteNombre = dto.nombre
+      ? `${dto.nombre} ${dto.apellido ?? ''}`.trim()
+      : null;
+
+    if (!clienteIdConocido) {
+      return { telefono, clienteNombre };
+    }
+
+    const clienteDb =
+      await this.clientesRepository.obtenerPorId(clienteIdConocido);
+
+    if (!clienteDb) {
+      return { telefono, clienteNombre };
+    }
+
+    return {
+      telefono: telefono || clienteDb.telefono || null,
+      clienteNombre:
+        clienteNombre ||
+        `${clienteDb.nombre} ${clienteDb.apellido ?? ''}`.trim(),
+    };
+  }
+
+  /** Enlace público de gestión de la reserva (solo invitados con token). */
+  private construirEnlaceGestion(
+    respuesta: ReservaCreadaResponseDto,
+    slugNegocio = 'kyrios-studio',
+  ): string | null {
+    if (!respuesta.tokenGestion) {
+      return null;
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    return `${frontendUrl}/${slugNegocio}/c/${respuesta.id}/${respuesta.tokenGestion}`;
+  }
+
+  /**
    * Envía confirmación por WhatsApp en segundo plano sin bloquear ni afectar la respuesta HTTP.
    */
   private async dispararConfirmacionWhatsApp(
@@ -352,49 +482,30 @@ export class ReservasService {
     respuesta: ReservaCreadaResponseDto,
   ): Promise<void> {
     try {
-      let telefono = dto.telefono ?? null;
-      let clienteNombre = dto.nombre
-        ? `${dto.nombre} ${dto.apellido ?? ''}`.trim()
-        : null;
+      const { telefono, clienteNombre } =
+        await this.resolverDestinatarioConfirmacion(dto, clienteIdConocido);
 
-      if (clienteIdConocido) {
-        const clienteDb =
-          await this.clientesRepository.obtenerPorId(clienteIdConocido);
-        if (clienteDb) {
-          if (!telefono && clienteDb.telefono) telefono = clienteDb.telefono;
-          if (!clienteNombre) {
-            clienteNombre =
-              `${clienteDb.nombre} ${clienteDb.apellido ?? ''}`.trim();
-          }
-        }
+      if (!telefono || !this.whatsappService) {
+        return;
       }
 
-      if (telefono && this.whatsappService) {
-        let enlaceGestion: string | null = null;
-        const contexto = obtenerContextoNegocio();
-        if (respuesta.tokenGestion) {
-          const frontendUrl =
-            process.env.FRONTEND_URL || 'http://localhost:5173';
-          const slug = contexto?.slug || 'kyrios-studio';
-          enlaceGestion = `${frontendUrl}/${slug}/c/${respuesta.id}/${respuesta.tokenGestion}`;
-        }
+      const contexto = obtenerContextoNegocio();
 
-        await this.enviarConfirmacionConReintentos(
-          {
-            telefono,
-            clienteNombre: clienteNombre || 'Cliente',
-            servicioNombre,
-            barberoNombre:
-              `${respuesta.barbero.nombre} ${respuesta.barbero.apellido}`.trim(),
-            fecha: respuesta.fecha,
-            hora: respuesta.hora,
-            precio: respuesta.servicio.precio,
-            enlaceGestion,
-            negocioId: contexto?.id,
-          },
-          respuesta.id,
-        );
-      }
+      await this.enviarConfirmacionConReintentos(
+        {
+          telefono,
+          clienteNombre: clienteNombre || 'Cliente',
+          servicioNombre,
+          barberoNombre:
+            `${respuesta.barbero.nombre} ${respuesta.barbero.apellido}`.trim(),
+          fecha: respuesta.fecha,
+          hora: respuesta.hora,
+          precio: respuesta.servicio.precio,
+          enlaceGestion: this.construirEnlaceGestion(respuesta, contexto?.slug),
+          negocioId: contexto?.id,
+        },
+        respuesta.id,
+      );
     } catch (err: unknown) {
       this.logger.warn(
         `No se pudo enviar confirmación por WhatsApp: ${(err as Error)?.message ?? String(err)}`,
@@ -410,11 +521,12 @@ export class ReservasService {
   private async enviarConfirmacionConReintentos(
     datos: DatosConfirmacionWhatsApp,
     reservaId: number,
+    intento = 0,
   ): Promise<void> {
     const esperas = this.esperasReintentoWhatsAppMs;
     const maxIntentos = esperas.length;
 
-    for (let intento = 0; intento < maxIntentos; intento++) {
+    if (intento < maxIntentos) {
       if (esperas[intento] > 0) {
         await new Promise((resolve) => setTimeout(resolve, esperas[intento]));
       }
@@ -431,14 +543,20 @@ export class ReservasService {
         this.logger.log(
           `[ReservasService] Negocio ${datos.negocioId ?? ''} no tiene sesión de WhatsApp vinculada. Omitiendo reintentos para reserva #${reservaId}.`,
         );
-        break;
+      } else {
+        this.logger.warn(
+          `[ReservasService] Intento ${intento + 1}/${maxIntentos} no pudo despachar confirmación WhatsApp para reserva #${reservaId}. ${
+            intento < maxIntentos - 1
+              ? 'Reintentando...'
+              : 'Reintentos agotados.'
+          }`,
+        );
+        return this.enviarConfirmacionConReintentos(
+          datos,
+          reservaId,
+          intento + 1,
+        );
       }
-
-      this.logger.warn(
-        `[ReservasService] Intento ${intento + 1}/${maxIntentos} no pudo despachar confirmación WhatsApp para reserva #${reservaId}. ${
-          intento < maxIntentos - 1 ? 'Reintentando...' : 'Reintentos agotados.'
-        }`,
-      );
     }
 
     if (this.whatsappService?.encolarMensaje) {
@@ -624,14 +742,13 @@ export class ReservasService {
 
     return {
       ...dto,
-      cliente:
-        cliente && cliente.nombre
-          ? {
-              nombre: cliente.nombre,
-              apellido: cliente.apellido ?? null,
-              telefono: cliente.telefono ?? null,
-            }
-          : undefined,
+      cliente: cliente?.nombre
+        ? {
+            nombre: cliente.nombre,
+            apellido: cliente.apellido ?? null,
+            telefono: cliente.telefono ?? null,
+          }
+        : undefined,
     };
   }
 
@@ -645,88 +762,9 @@ export class ReservasService {
   ): Promise<ReservaCreadaResponseDto> {
     this.validarFecha(dto.fecha);
 
-    let clienteDeReserva: ClienteDeReserva;
-    let tokenGestion: string | undefined = undefined;
-    let gestionTokenHash: string | null = null;
-    let gestionTokenCifrado: string | null = null;
-    let clienteNombreNotif = 'Cliente';
-    let clienteTelefonoNotif: string | null = null;
-
-    if (dto.clienteId !== undefined && dto.clienteId !== null) {
-      const clienteDb = await this.clientesRepository.obtenerPorId(
-        dto.clienteId,
-      );
-      if (!clienteDb) {
-        throw new NotFoundException(
-          `El cliente con ID ${dto.clienteId} no existe`,
-        );
-      }
-      clienteDeReserva = { clienteId: clienteDb.id };
-      clienteNombreNotif =
-        `${clienteDb.nombre} ${clienteDb.apellido ?? ''}`.trim();
-      clienteTelefonoNotif = dto.telefono ?? clienteDb.telefono ?? null;
-
-      // CA-04: el mismo cliente no puede duplicar la reserva de la franja.
-      const duplicada =
-        await this.reservasRepository.existeReservaActivaDeClienteEnFranja({
-          clienteId: clienteDb.id,
-          barberoId: dto.barberoId,
-          fecha: this.aFechaDate(dto.fecha),
-          startTime: dto.hora,
-        });
-
-      if (duplicada) {
-        throw new ConflictException(MENSAJE_RESERVA_DUPLICADA);
-      }
-    } else {
-      // Cliente ocasional sin cuenta (HU-13-CA-03, CA-04)
-      const nombreLimpio = dto.nombre?.trim();
-      const telefonoLimpio = dto.telefono?.trim();
-
-      if (!nombreLimpio || !telefonoLimpio) {
-        throw new BadRequestException(
-          'Para un cliente ocasional, el nombre y el teléfono son obligatorios',
-        );
-      }
-
-      tokenGestion = this.generarTokenGestion();
-      gestionTokenHash = this.hashearToken(tokenGestion);
-      gestionTokenCifrado = this.cifrarTokenGestion(tokenGestion);
-
-      clienteDeReserva = {
-        crear: {
-          nombre: nombreLimpio,
-          apellido: dto.apellido?.trim() ?? null,
-          telefono: telefonoLimpio,
-          email: dto.email?.trim() ?? null,
-          usuarioId: null,
-        },
-      };
-      clienteNombreNotif =
-        `${nombreLimpio} ${dto.apellido?.trim() ?? ''}`.trim();
-      clienteTelefonoNotif = telefonoLimpio;
-    }
-
+    const cliente = await this.resolverClienteAdmin(dto);
     const servicio = await this.obtenerServicio(dto.servicioId);
-
-    const barbero = await this.barberosRepository.obtenerBarberoActivoPorId(
-      dto.barberoId,
-    );
-    if (!barbero) {
-      throw new NotFoundException(
-        `El barbero ${dto.barberoId} no existe o no está activo`,
-      );
-    }
-
-    const asignado = await this.serviciosRepository.existeAsignacionBarbero(
-      dto.barberoId,
-      dto.servicioId,
-    );
-    if (!asignado) {
-      throw new BadRequestException(
-        `El barbero ${dto.barberoId} no presta el servicio ${dto.servicioId}`,
-      );
-    }
+    await this.validarBarberoParaServicio(dto.barberoId, dto.servicioId);
 
     const franja = await this.obtenerFranjaDisponible(
       dto.barberoId,
@@ -738,20 +776,11 @@ export class ReservasService {
     const recordatorioYaCubiertoAdmin =
       await this.debeMarcarRecordatorioComoEnviado(dto.fecha, franja.startTime);
 
-    let precioReservadoAdmin = Number(servicio.precio);
-    if (this.descuentoEvaluador) {
-      try {
-        const evaluacion = await this.descuentoEvaluador.evaluarServicio(
-          dto.servicioId,
-          dto.fecha,
-        );
-        if (evaluacion.aplica && evaluacion.precioFinal !== null) {
-          precioReservadoAdmin = evaluacion.precioFinal;
-        }
-      } catch {
-        // En caso de incidencia en el evaluador opcional, se conserva el precio base
-      }
-    }
+    const precioReservadoAdmin = await this.resolverPrecioReservado(
+      dto.servicioId,
+      dto.fecha,
+      servicio.precio,
+    );
 
     const reserva = await this.crearConManejoDeConflicto({
       barberoId: dto.barberoId,
@@ -762,9 +791,9 @@ export class ReservasService {
       endTime: franja.endTime,
       status: ReservationStatus.CONFIRMED,
       precioReservado: precioReservadoAdmin,
-      gestionTokenHash,
-      gestionTokenCifrado,
-      cliente: clienteDeReserva,
+      gestionTokenHash: cliente.gestionTokenHash,
+      gestionTokenCifrado: cliente.gestionTokenCifrado,
+      cliente: cliente.clienteDeReserva,
       recordatorioEnviado: recordatorioYaCubiertoAdmin,
     });
 
@@ -780,33 +809,134 @@ export class ReservasService {
     );
 
     // Disparo desacoplado de confirmación por WhatsApp en segundo plano
-    if (this.whatsappService && clienteTelefonoNotif) {
-      let enlaceGestionAdmin: string | null = null;
-      if (respuesta.tokenGestion) {
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-        const contexto = obtenerContextoNegocio();
-        const slug = contexto?.slug || 'kyrios-studio';
-        enlaceGestionAdmin = `${frontendUrl}/${slug}/c/${respuesta.id}/${respuesta.tokenGestion}`;
-      }
+    if (this.whatsappService && cliente.telefonoNotif) {
+      const contexto = obtenerContextoNegocio();
 
       void this.enviarConfirmacionConReintentos(
         {
-          telefono: clienteTelefonoNotif,
-          clienteNombre: clienteNombreNotif,
+          telefono: cliente.telefonoNotif,
+          clienteNombre: cliente.nombreNotif,
           servicioNombre: servicio.nombre,
           barberoNombre:
             `${respuesta.barbero.nombre} ${respuesta.barbero.apellido}`.trim(),
           fecha: respuesta.fecha,
           hora: respuesta.hora,
           precio: respuesta.servicio.precio,
-          enlaceGestion: enlaceGestionAdmin,
-          negocioId: obtenerContextoNegocio()?.id,
+          enlaceGestion: this.construirEnlaceGestion(respuesta, contexto?.slug),
+          negocioId: contexto?.id,
         },
         respuesta.id,
       );
     }
 
     return respuesta;
+  }
+
+  /**
+   * HU-13: resuelve el cliente de una reserva administrativa.
+   *
+   * - Cliente registrado (`clienteId`): debe existir y no puede duplicar su
+   *   reserva en la franja (CA-04).
+   * - Cliente ocasional (HU-13-CA-03): nombre y teléfono obligatorios; se crea
+   *   en la misma transacción y recibe token de gestión.
+   */
+  private async resolverClienteAdmin(dto: CrearReservaAdminDto): Promise<{
+    clienteDeReserva: ClienteDeReserva;
+    gestionTokenHash: string | null;
+    gestionTokenCifrado: string | null;
+    nombreNotif: string;
+    telefonoNotif: string | null;
+  }> {
+    if (dto.clienteId === undefined || dto.clienteId === null) {
+      return this.resolverClienteOcasionalAdmin(dto);
+    }
+
+    const clienteDb = await this.clientesRepository.obtenerPorId(dto.clienteId);
+    if (!clienteDb) {
+      throw new NotFoundException(
+        `El cliente con ID ${dto.clienteId} no existe`,
+      );
+    }
+
+    // CA-04: el mismo cliente no puede duplicar la reserva de la franja.
+    const duplicada =
+      await this.reservasRepository.existeReservaActivaDeClienteEnFranja({
+        clienteId: clienteDb.id,
+        barberoId: dto.barberoId,
+        fecha: this.aFechaDate(dto.fecha),
+        startTime: dto.hora,
+      });
+
+    if (duplicada) {
+      throw new ConflictException(MENSAJE_RESERVA_DUPLICADA);
+    }
+
+    return {
+      clienteDeReserva: { clienteId: clienteDb.id },
+      gestionTokenHash: null,
+      gestionTokenCifrado: null,
+      nombreNotif: `${clienteDb.nombre} ${clienteDb.apellido ?? ''}`.trim(),
+      telefonoNotif: dto.telefono ?? clienteDb.telefono ?? null,
+    };
+  }
+
+  /** Cliente ocasional sin cuenta (HU-13-CA-03, CA-04). */
+  private resolverClienteOcasionalAdmin(dto: CrearReservaAdminDto): {
+    clienteDeReserva: ClienteDeReserva;
+    gestionTokenHash: string | null;
+    gestionTokenCifrado: string | null;
+    nombreNotif: string;
+    telefonoNotif: string | null;
+  } {
+    const nombreLimpio = dto.nombre?.trim();
+    const telefonoLimpio = dto.telefono?.trim();
+
+    if (!nombreLimpio || !telefonoLimpio) {
+      throw new BadRequestException(
+        'Para un cliente ocasional, el nombre y el teléfono son obligatorios',
+      );
+    }
+
+    const apellidoLimpio = dto.apellido?.trim();
+
+    return {
+      ...this.generarCredencialesGestion(),
+      clienteDeReserva: {
+        crear: {
+          nombre: nombreLimpio,
+          apellido: apellidoLimpio ?? null,
+          telefono: telefonoLimpio,
+          email: dto.email?.trim() ?? null,
+          usuarioId: null,
+        },
+      },
+      nombreNotif: `${nombreLimpio} ${apellidoLimpio ?? ''}`.trim(),
+      telefonoNotif: telefonoLimpio,
+    };
+  }
+
+  /** El barbero debe estar activo y prestar el servicio solicitado. */
+  private async validarBarberoParaServicio(
+    barberoId: number,
+    servicioId: number,
+  ): Promise<void> {
+    const barbero =
+      await this.barberosRepository.obtenerBarberoActivoPorId(barberoId);
+    if (!barbero) {
+      throw new NotFoundException(
+        `El barbero ${barberoId} no existe o no está activo`,
+      );
+    }
+
+    const asignado = await this.serviciosRepository.existeAsignacionBarbero(
+      barberoId,
+      servicioId,
+    );
+    if (!asignado) {
+      throw new BadRequestException(
+        `El barbero ${barberoId} no presta el servicio ${servicioId}`,
+      );
+    }
   }
 
   /**

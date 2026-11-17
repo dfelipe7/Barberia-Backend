@@ -61,8 +61,6 @@ export type UsuarioConPerfiles = {
   barberos?: UsuarioPerfilBarbero[];
 };
 
-export type UsuarioNormalizado = UsuarioConPerfiles;
-
 @Injectable()
 export class UsuariosService {
   private readonly logger = new Logger(UsuariosService.name);
@@ -189,7 +187,7 @@ export class UsuariosService {
     usuarioId: number,
     dto: ActualizarUsuarioDto,
     usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
-  ): Promise<UsuarioNormalizado> {
+  ): Promise<UsuarioConPerfiles> {
     const usuario =
       await this.usuariosRepository.obtenerUsuarioPorId(usuarioId);
 
@@ -264,7 +262,7 @@ export class UsuariosService {
   private async gestionarRolAdministrador(
     usuarioId: number,
     dto: ActualizarUsuarioDto,
-    usuario: UsuarioNormalizado,
+    usuario: UsuarioConPerfiles,
     actor: ActorSesion,
   ): Promise<void> {
     if (dto.esAdministrador === undefined) {
@@ -305,7 +303,7 @@ export class UsuariosService {
   private async gestionarRolBarbero(
     usuarioId: number,
     dto: ActualizarUsuarioDto,
-    usuario: UsuarioNormalizado,
+    usuario: UsuarioConPerfiles,
     actor: ActorSesion,
     usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ): Promise<void> {
@@ -333,7 +331,7 @@ export class UsuariosService {
   private async cambiarEstadoRolBarbero(
     usuarioId: number,
     dto: ActualizarUsuarioDto,
-    usuario: UsuarioNormalizado,
+    usuario: UsuarioConPerfiles,
     actor: ActorSesion,
     usuarioAutenticado?: Partial<ClaimsSesionPersonal>,
   ): Promise<void> {
@@ -373,7 +371,7 @@ export class UsuariosService {
   private async actualizarPerfilBarberoSiAplica(
     usuarioId: number,
     dto: ActualizarUsuarioDto,
-    usuario: UsuarioNormalizado,
+    usuario: UsuarioConPerfiles,
     actor: ActorSesion,
   ): Promise<void> {
     const enviaDatosPerfil =
@@ -401,16 +399,15 @@ export class UsuariosService {
    * Multitenant: Evalúa tanto el perfil normalizado en singular como el arreglo administradores[].
    */
   private esAdminActivoEnNegocio(
-    usuario: UsuarioNormalizado | null | undefined,
+    usuario: UsuarioConPerfiles | null | undefined,
     negocioId: number | null,
   ): boolean {
     if (negocioId === null || !usuario) return false;
 
     // 1. Perfil singular normalizado
     if (
-      usuario.administrador &&
-      usuario.administrador.negocioId === negocioId &&
-      usuario.administrador.estado === 'ACTIVO'
+      usuario.administrador?.negocioId === negocioId &&
+      usuario.administrador?.estado === 'ACTIVO'
     ) {
       return true;
     }
@@ -430,16 +427,15 @@ export class UsuariosService {
    * Multitenant: Evalúa tanto el perfil normalizado en singular como el arreglo barberos[].
    */
   private esBarberoActivoEnNegocio(
-    usuario: UsuarioNormalizado | null | undefined,
+    usuario: UsuarioConPerfiles | null | undefined,
     negocioId: number | null,
   ): boolean {
     if (negocioId === null || !usuario) return false;
 
     // 1. Perfil singular normalizado
     if (
-      usuario.barbero &&
-      usuario.barbero.negocioId === negocioId &&
-      usuario.barbero.estado === 'ACTIVO'
+      usuario.barbero?.negocioId === negocioId &&
+      usuario.barbero?.estado === 'ACTIVO'
     ) {
       return true;
     }
@@ -568,8 +564,8 @@ export class UsuariosService {
   private normalizarPerfilesNegocio(
     usuario: UsuarioConPerfiles | null | undefined,
     negocioId: number | null,
-  ): UsuarioNormalizado {
-    if (!usuario) return {} as UsuarioNormalizado;
+  ): UsuarioConPerfiles {
+    if (!usuario) return {} as UsuarioConPerfiles;
     // comprobado arriba
 
     let administrador = usuario.administrador;
@@ -603,7 +599,7 @@ export class UsuariosService {
     };
   }
 
-  private mapearUsuarioPerfil(usuario: UsuarioNormalizado): UsuarioPerfilDto {
+  private mapearUsuarioPerfil(usuario: UsuarioConPerfiles): UsuarioPerfilDto {
     return {
       id: usuario.id,
       email: usuario.email ?? '',

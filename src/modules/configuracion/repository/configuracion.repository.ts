@@ -147,30 +147,32 @@ export class ConfiguracionRepository {
     const creadas: string[] = [];
     const conservadas: string[] = [];
 
-    for (const config of CLAVES_CONFIGURACION_OPERATIVA) {
-      const existente = await this.prisma.configuracionNegocio.findFirst({
-        where: { negocioId, clave: config.clave },
-        select: { id: true },
-      });
+    await Promise.all(
+      CLAVES_CONFIGURACION_OPERATIVA.map(async (config) => {
+        const existente = await this.prisma.configuracionNegocio.findFirst({
+          where: { negocioId, clave: config.clave },
+          select: { id: true },
+        });
 
-      if (existente) {
-        conservadas.push(config.clave);
-        continue;
-      }
+        if (existente) {
+          conservadas.push(config.clave);
+          return;
+        }
 
-      await this.prisma.configuracionNegocio.create({
-        data: {
-          negocioId,
-          clave: config.clave,
-          valor: config.valorPorDefecto,
-          tipo: config.tipo,
-          descripcion: config.descripcion,
-          editable: true,
-        },
-      });
+        await this.prisma.configuracionNegocio.create({
+          data: {
+            negocioId,
+            clave: config.clave,
+            valor: config.valorPorDefecto,
+            tipo: config.tipo,
+            descripcion: config.descripcion,
+            editable: true,
+          },
+        });
 
-      creadas.push(config.clave);
-    }
+        creadas.push(config.clave);
+      }),
+    );
 
     return { creadas, conservadas };
   }

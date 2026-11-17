@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { MariaDbConnection } from './helpers/mariadb-test-container';

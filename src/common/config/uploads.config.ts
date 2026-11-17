@@ -162,7 +162,10 @@ export function resolverRutaPublicaUpload(
 ): string {
   if (archivo.destination) {
     const rootUploads = directorioUploads(process.env);
-    const rel = relative(rootUploads, archivo.destination).replace(/\\/g, '/');
+    const rel = relative(rootUploads, archivo.destination).replaceAll(
+      '\\',
+      '/',
+    );
     if (rel && !rel.startsWith('..')) {
       return `${PREFIJO_PUBLICO_UPLOADS}/${rel}/${archivo.filename}`;
     }

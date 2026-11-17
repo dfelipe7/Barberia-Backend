@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -471,7 +472,7 @@ describe('Productos: registrar con imagen (MySQL 8.0 real)', () => {
 
     const ruta = path.resolve(
       directorioUploads(),
-      datos.producto.imagenUrl.replace('/uploads/', ''),
+      datos.producto.imagenUrl!.replace('/uploads/', ''),
     );
     expect(fs.existsSync(ruta)).toBe(true);
 

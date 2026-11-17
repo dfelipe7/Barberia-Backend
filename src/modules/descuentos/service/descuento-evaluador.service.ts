@@ -33,6 +33,7 @@ import {
 import { DescuentosBatchResponseDto } from '../dto/dto-respuesta/descuentos-batch-response.dto';
 import { EvaluarDescuentosBatchDto } from '../dto/dto-peticion/evaluar-descuentos-batch.dto';
 import { DescuentoRepository } from '../repository/descuento.repository';
+import { enSerie } from '../../../common/utils/en-serie';
 
 const DIAS_INGLES_A_WEEKDAY: Record<string, WeekDay> = {
   monday: WeekDay.MONDAY,
@@ -71,67 +72,72 @@ export class DescuentoEvaluadorService {
   async evaluarBatch(
     dto: EvaluarDescuentosBatchDto,
   ): Promise<DescuentosBatchResponseDto> {
-    const productos: DescuentoAplicableResponseDto[] = [];
-    if (Array.isArray(dto.productoIds)) {
-      for (const prodId of dto.productoIds) {
-        try {
-          const res = await this.evaluarProducto(prodId, true);
-          productos.push(res);
-        } catch (e) {
-          if (e instanceof NotFoundException) {
-            productos.push({
-              tipo: TipoDescuento.PRODUCTO,
-              elementoId: prodId,
-              nombreElemento: '',
-              estado: 'SIN_DESCUENTO',
-              aplica: false,
-              proximoDiaAplicable: null,
-              diaEvaluado: null,
-              zonaHoraria: '',
-              porcentajeAplicado: null,
-              precioOriginal: 0,
-              precioFinal: 0,
-              descuento: null,
-              mensaje: MENSAJE_PRODUCTO_NO_DISPONIBLE,
-            });
-            continue;
-          }
-          throw e;
-        }
-      }
-    }
+    const productoIds = Array.isArray(dto.productoIds) ? dto.productoIds : [];
+    const servicioIds = Array.isArray(dto.servicioIds) ? dto.servicioIds : [];
 
-    const servicios: DescuentoAplicableResponseDto[] = [];
-    if (Array.isArray(dto.servicioIds)) {
-      for (const servId of dto.servicioIds) {
-        try {
-          const res = await this.evaluarServicio(servId, dto.fecha, true);
-          servicios.push(res);
-        } catch (e) {
-          if (e instanceof NotFoundException) {
-            servicios.push({
-              tipo: TipoDescuento.SERVICIO,
-              elementoId: servId,
-              nombreElemento: '',
-              estado: 'SIN_DESCUENTO',
-              aplica: false,
-              proximoDiaAplicable: null,
-              diaEvaluado: null,
-              zonaHoraria: '',
-              porcentajeAplicado: null,
-              precioOriginal: 0,
-              precioFinal: null,
-              descuento: null,
-              mensaje: MENSAJE_SERVICIO_NO_DISPONIBLE,
-            });
-            continue;
-          }
-          throw e;
-        }
-      }
-    }
+    const productos = await enSerie(productoIds, (prodId) =>
+      this.evaluarProductoEnLote(prodId),
+    );
+    const servicios = await enSerie(servicioIds, (servId) =>
+      this.evaluarServicioEnLote(servId, dto.fecha),
+    );
 
     return { productos, servicios };
+  }
+
+  private async evaluarProductoEnLote(
+    prodId: number,
+  ): Promise<DescuentoAplicableResponseDto> {
+    try {
+      return await this.evaluarProducto(prodId, true);
+    } catch (e) {
+      if (e instanceof NotFoundException) {
+        return {
+          tipo: TipoDescuento.PRODUCTO,
+          elementoId: prodId,
+          nombreElemento: '',
+          estado: 'SIN_DESCUENTO',
+          aplica: false,
+          proximoDiaAplicable: null,
+          diaEvaluado: null,
+          zonaHoraria: '',
+          porcentajeAplicado: null,
+          precioOriginal: 0,
+          precioFinal: 0,
+          descuento: null,
+          mensaje: MENSAJE_PRODUCTO_NO_DISPONIBLE,
+        };
+      }
+      throw e;
+    }
+  }
+
+  private async evaluarServicioEnLote(
+    servId: number,
+    fecha?: string,
+  ): Promise<DescuentoAplicableResponseDto> {
+    try {
+      return await this.evaluarServicio(servId, fecha, true);
+    } catch (e) {
+      if (e instanceof NotFoundException) {
+        return {
+          tipo: TipoDescuento.SERVICIO,
+          elementoId: servId,
+          nombreElemento: '',
+          estado: 'SIN_DESCUENTO',
+          aplica: false,
+          proximoDiaAplicable: null,
+          diaEvaluado: null,
+          zonaHoraria: '',
+          porcentajeAplicado: null,
+          precioOriginal: 0,
+          precioFinal: null,
+          descuento: null,
+          mensaje: MENSAJE_SERVICIO_NO_DISPONIBLE,
+        };
+      }
+      throw e;
+    }
   }
 
   /**

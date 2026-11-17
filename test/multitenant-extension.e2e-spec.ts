@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { MariaDbConnection } from './helpers/mariadb-test-container';
@@ -98,7 +99,6 @@ describe('Extensión de Prisma: aislamiento por negocio (MariaDB real)', () => {
         usuarioId: usuario.id,
         telefono: '300',
         porcentajeComision: 10,
-        negocioId: NEGOCIO_A,
       },
     });
 
@@ -257,7 +257,7 @@ describe('Extensión de Prisma: aislamiento por negocio (MariaDB real)', () => {
   it('fuerza el negocio del contexto al crear un producto', async () => {
     const producto = await conNegocioA(() =>
       prismaExtendido.producto.create({
-        data: { nombre: 'Producto C', precio: 300 },
+        data: { nombre: 'Producto C', precio: 300 } as any,
       }),
     );
 

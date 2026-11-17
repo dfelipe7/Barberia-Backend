@@ -35,6 +35,7 @@ import {
   FranjaHorarioSemanalDto,
   HorarioSemanalResponseDto,
 } from '../dto/dto-respuesta/horario-semanal-response.dto';
+import { enSerie } from '../../../common/utils/en-serie';
 
 /**
  * Servicio de HE08-HU-01 y HE08-HU-02: consulta y reemplazo del horario
@@ -302,21 +303,17 @@ export class HorarioSemanalService {
     // Recorrido secuencial intencional: se corta en la primera franja afectada
     // que tenga reservas activas (fail-closed). Paralelizar con Promise.all
     // cambiaría la precedencia de errores y ejecutaría consultas innecesarias.
-    for (const franja of afectadas) {
+    await enSerie(afectadas, async (franja) => {
       let existeReserva: boolean;
 
       try {
-        const consultaReserva =
-          this.proveedorReservas.existeReservaNoCanceladaEnFranjaSemanal({
+        existeReserva =
+          await this.proveedorReservas.existeReservaNoCanceladaEnFranjaSemanal({
             barberoId,
             dayOfWeek: franja.dayOfWeek,
             startTime: franja.startTime,
             endTime: franja.endTime,
           });
-        // Secuencial intencional (fail-closed): se corta en la primera franja
-        // con reservas activas y no se paraleliza para preservar la precedencia
-        // de errores.
-        existeReserva = await consultaReserva; // NOSONAR bucle secuencial intencional (fail-closed)
       } catch (error) {
         if (error instanceof ReservasNoDisponiblesError) {
           throw new ServiceUnavailableException(
@@ -337,7 +334,7 @@ export class HorarioSemanalService {
           },
         );
       }
-    }
+    });
   }
 
   private mapearHorario(

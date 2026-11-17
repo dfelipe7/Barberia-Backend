@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -93,7 +94,7 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
         rol: 'SUPERADMIN',
         roles: ['SUPERADMIN'],
         superadmin: true,
-        ambito: 'PLATAFORMA',
+        ambito: 'PLATAFORMA' as any,
         estado: 'ACTIVO',
         fotoUrl: null,
       });
@@ -155,7 +156,7 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
         rol: 'SUPERADMIN',
         roles: ['SUPERADMIN'],
         superadmin: true,
-        ambito: 'PLATAFORMA',
+        ambito: 'PLATAFORMA' as any,
         estado: 'ACTIVO',
         fotoUrl: null,
       });
@@ -221,7 +222,7 @@ describe('Separación criptográfica de tokens (cliente vs personal)', () => {
         rol: 'SUPERADMIN',
         roles: ['SUPERADMIN'],
         superadmin: true,
-        ambito: 'PLATAFORMA',
+        ambito: 'PLATAFORMA' as any,
         estado: 'ACTIVO',
         fotoUrl: null,
       });

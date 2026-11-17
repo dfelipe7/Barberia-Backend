@@ -24,6 +24,14 @@ export type ResultadoResolucionNegocio =
   | { estado: 'RESUELTO'; negocioId: number; slug: string }
   | { estado: 'RECHAZADO' };
 
+export type ValorCabeceraHttp = string | string[] | undefined;
+export type CabecerasPeticion = Record<string, ValorCabeceraHttp>;
+
+export interface PeticionEntradaResolucion {
+  hostname?: string;
+  headers?: CabecerasPeticion;
+}
+
 /**
  * Resolución del negocio activo de una petición.
  *
@@ -63,10 +71,9 @@ export class NegocioResolucionService {
    * @param peticion - Objeto con el hostname y cabeceras de la petición HTTP.
    * @returns Promesa con el resultado de resolución (`SIN_NEGOCIO`, `RESUELTO` o `RECHAZADO`).
    */
-  async resolverDesdePeticion(peticion: {
-    hostname?: string;
-    headers?: Record<string, string | string[] | undefined>;
-  }): Promise<ResultadoResolucionNegocio> {
+  async resolverDesdePeticion(
+    peticion: PeticionEntradaResolucion,
+  ): Promise<ResultadoResolucionNegocio> {
     const candidato = this.extraerSlugCandidato(peticion);
 
     if (!candidato) {
@@ -99,10 +106,9 @@ export class NegocioResolucionService {
    * @param peticion - Objeto con el hostname y los headers recibidos.
    * @returns Objeto con el slug normalizado y su origen (`SUBDOMINIO` o `CABECERA`), o `null` si no hay candidato.
    */
-  extraerSlugCandidato(peticion: {
-    hostname?: string;
-    headers?: Record<string, string | string[] | undefined>;
-  }): { slug: string; origen: OrigenResolucionNegocio } | null {
+  extraerSlugCandidato(
+    peticion: PeticionEntradaResolucion,
+  ): { slug: string; origen: OrigenResolucionNegocio } | null {
     const desdeSubdominio = this.extraerSlugDeSubdominio(peticion.hostname);
 
     if (desdeSubdominio) {

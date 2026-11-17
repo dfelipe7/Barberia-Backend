@@ -114,39 +114,81 @@ export class ProductoService {
 
     const cambios: CambiosProducto = {};
 
-    if (dto.nombre !== undefined) {
-      const nombre = this.normalizarNombre(dto.nombre);
-
-      if (nombre !== actual.nombre) {
-        const existente = await this.repository.buscarPorNombre(nombre);
-        if (existente && existente.id !== id) {
-          if (existente.estado === EstadoProducto.INACTIVO) {
-            throw new ConflictException(MENSAJE_PRODUCTO_INACTIVO_DUPLICADO);
-          }
-          throw new ConflictException(MENSAJE_NOMBRE_DUPLICADO);
-        }
-        cambios.nombre = nombre;
-      }
+    const nombre = await this.nombreSiCambia(id, actual, dto.nombre);
+    if (nombre !== undefined) {
+      cambios.nombre = nombre;
     }
 
-    if (dto.descripcion !== undefined) {
-      const descripcion =
-        dto.descripcion === null ? null : dto.descripcion.trim() || null;
-
-      if (descripcion !== (actual.descripcion ?? null)) {
-        cambios.descripcion = descripcion;
-      }
+    const descripcion = this.descripcionSiCambia(actual, dto.descripcion);
+    if (descripcion !== undefined) {
+      cambios.descripcion = descripcion;
     }
 
-    if (dto.precio !== undefined) {
-      const precio = this.validarPrecio(dto.precio);
-
-      if (precio !== Number(actual.precio)) {
-        cambios.precio = precio;
-      }
+    const precio = this.precioSiCambia(actual, dto.precio);
+    if (precio !== undefined) {
+      cambios.precio = precio;
     }
 
     return { actual, cambios };
+  }
+
+  /**
+   * Nombre normalizado si difiere del actual (y no lo usa OTRO producto del
+   * negocio); `undefined` si no hay cambio.
+   */
+  private async nombreSiCambia(
+    id: number,
+    actual: Producto,
+    nombreRecibido: string | undefined,
+  ): Promise<string | undefined> {
+    if (nombreRecibido === undefined) {
+      return undefined;
+    }
+
+    const nombre = this.normalizarNombre(nombreRecibido);
+    if (nombre === actual.nombre) {
+      return undefined;
+    }
+
+    const existente = await this.repository.buscarPorNombre(nombre);
+    if (existente && existente.id !== id) {
+      if (existente.estado === EstadoProducto.INACTIVO) {
+        throw new ConflictException(MENSAJE_PRODUCTO_INACTIVO_DUPLICADO);
+      }
+      throw new ConflictException(MENSAJE_NOMBRE_DUPLICADO);
+    }
+
+    return nombre;
+  }
+
+  /** Descripción normalizada si difiere de la actual; `undefined` si no. */
+  private descripcionSiCambia(
+    actual: Producto,
+    descripcionRecibida: string | null | undefined,
+  ): string | null | undefined {
+    if (descripcionRecibida === undefined) {
+      return undefined;
+    }
+
+    const descripcion =
+      descripcionRecibida === null ? null : descripcionRecibida.trim() || null;
+
+    return descripcion === (actual.descripcion ?? null)
+      ? undefined
+      : descripcion;
+  }
+
+  /** Precio validado si difiere del actual; `undefined` si no. */
+  private precioSiCambia(
+    actual: Producto,
+    precioRecibido: number | undefined,
+  ): number | undefined {
+    if (precioRecibido === undefined) {
+      return undefined;
+    }
+
+    const precio = this.validarPrecio(precioRecibido);
+    return precio === Number(actual.precio) ? undefined : precio;
   }
 
   private normalizarNombre(nombre: string): string {
@@ -234,10 +276,9 @@ export class ProductoService {
           evaluacion && evaluacion.estado !== 'SIN_DESCUENTO'
             ? evaluacion
             : null;
-        const precioFinal =
-          descuentoAplicable && descuentoAplicable.aplica
-            ? (descuentoAplicable.precioFinal ?? precioOriginal)
-            : precioOriginal;
+        const precioFinal = descuentoAplicable?.aplica
+          ? (descuentoAplicable.precioFinal ?? precioOriginal)
+          : precioOriginal;
 
         return this.mapear(producto, {
           precioOriginal,
@@ -273,10 +314,9 @@ export class ProductoService {
           evaluacion && evaluacion.estado !== 'SIN_DESCUENTO'
             ? evaluacion
             : null;
-        const precioFinal =
-          descuentoAplicable && descuentoAplicable.aplica
-            ? (descuentoAplicable.precioFinal ?? precioOriginal)
-            : precioOriginal;
+        const precioFinal = descuentoAplicable?.aplica
+          ? (descuentoAplicable.precioFinal ?? precioOriginal)
+          : precioOriginal;
 
         return this.mapearCatalogo(producto, {
           precioOriginal,
@@ -302,10 +342,9 @@ export class ProductoService {
     const precioOriginal = Number(producto.precio);
     const descuentoAplicable =
       evaluacion && evaluacion.estado !== 'SIN_DESCUENTO' ? evaluacion : null;
-    const precioFinal =
-      descuentoAplicable && descuentoAplicable.aplica
-        ? (descuentoAplicable.precioFinal ?? precioOriginal)
-        : precioOriginal;
+    const precioFinal = descuentoAplicable?.aplica
+      ? (descuentoAplicable.precioFinal ?? precioOriginal)
+      : precioOriginal;
 
     return this.mapearCatalogo(producto, {
       precioOriginal,
@@ -329,10 +368,9 @@ export class ProductoService {
     const precioOriginal = Number(producto.precio);
     const descuentoAplicable =
       evaluacion && evaluacion.estado !== 'SIN_DESCUENTO' ? evaluacion : null;
-    const precioFinal =
-      descuentoAplicable && descuentoAplicable.aplica
-        ? (descuentoAplicable.precioFinal ?? precioOriginal)
-        : precioOriginal;
+    const precioFinal = descuentoAplicable?.aplica
+      ? (descuentoAplicable.precioFinal ?? precioOriginal)
+      : precioOriginal;
 
     return this.mapear(producto, {
       precioOriginal,

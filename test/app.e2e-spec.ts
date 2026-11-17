@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 /**
  * Trazabilidad:
  * - REQ: REQ-009
@@ -65,7 +66,7 @@ describe('AppController (e2e)', () => {
     conexion?.stop();
   });
 
-  it('/ (GET) responde 200 con el cuerpo declarado', () => {
+  it('/ (GET) responde 200 con el cuerpo declarado', async () => {
     if (OMITIR_SIN_DOCKER) {
       return;
     }

@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { EstadoFranja } from '../common/estado-franja';
 import type { FranjaEvaluada } from '../common/estado-franja';
+import { enSerie } from '../../../common/utils/en-serie';
 import type { ConsultaDisponibilidad } from '../common/consulta-disponibilidad';
 import { FechaBogotaService } from '../common/fecha-bogota.service';
 import { FranjaFactory } from '../factory/franja.factory';
@@ -99,26 +100,28 @@ export class DisponibilidadService {
     const catalogo = this.franjaFactory.generarCatalogoDelDia();
     const reglas = [...this.reglas].sort((a, b) => a.orden - b.orden);
 
-    const franjas: FranjaEvaluada[] = [];
+    const evaluarReglasEnOrden = async (
+      franja: (typeof catalogo)[number],
+      indice = 0,
+    ): Promise<EstadoFranja> => {
+      if (indice >= reglas.length) {
+        return EstadoFranja.AVAILABLE;
+      }
+
+      const resultado = await reglas[indice].evaluar(franja, contexto);
+      if (resultado !== null && resultado !== undefined) {
+        return resultado;
+      }
+
+      return evaluarReglasEnOrden(franja, indice + 1);
+    };
 
     try {
-      for (const franja of catalogo) {
-        let estado: EstadoFranja = EstadoFranja.AVAILABLE;
-
-        for (const regla of reglas) {
-          const resultado = await regla.evaluar(franja, contexto);
-          if (resultado !== null && resultado !== undefined) {
-            estado = resultado;
-            break;
-          }
-        }
-
-        franjas.push({
-          startTime: franja.startTime,
-          endTime: franja.endTime,
-          estado,
-        });
-      }
+      return await enSerie(catalogo, async (franja) => ({
+        startTime: franja.startTime,
+        endTime: franja.endTime,
+        estado: await evaluarReglasEnOrden(franja),
+      }));
     } catch (error) {
       if (error instanceof ReservasNoDisponiblesError) {
         throw new ServiceUnavailableException(
@@ -127,8 +130,6 @@ export class DisponibilidadService {
       }
       throw error;
     }
-
-    return franjas;
   }
 
   /**

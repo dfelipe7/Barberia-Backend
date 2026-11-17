@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { ConfigModule } from '@nestjs/config';
@@ -49,7 +50,7 @@ const CLAVE_TOLERANCIA =
 describe('Configuración operativa por negocio (MariaDB real)', () => {
   let conexion: MariaDbConnection | undefined;
   let prisma: PrismaClient;
-  let app: INestApplication;
+  let app: INestApplication | undefined;
   let configuracionService: ConfiguracionService;
   let contextoService: NegocioContextoService;
 

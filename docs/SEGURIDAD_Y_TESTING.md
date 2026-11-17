@@ -43,7 +43,7 @@ A continuación se detalla la comparativa oficial de las cuatro técnicas de an�
 | **SAST** | Código fuente propio (TypeScript / NestJS / React) | **Sí** (Caja Blanca) | Fase de desarrollo local y pipelines de Pull Request | • TypeScript Compiler (`tsc --noEmit`)<br>• ESLint con reglas de seguridad<br>• **SonarCloud Quality Gate** en `.github/workflows/build.yml` |
 | **SCA** | Bibliotecas y paquetes de terceros (`node_modules`) | **Sí** (Archivos `package-lock.json`) | Fase de compilación y auditorías programadas en CI/CD | • **npm audit** (`--audit-level=high`) en `.github/workflows/security-audit.yml`<br>• **Dependabot** en `.github/dependabot.yml`<br>• Bloque `overrides` en `package.json` |
 | **IAST** | Código en tiempo de ejecución mientras se ejecutan pruebas funcionales | **Sí** (Agente interno de intercepción) | Entornos de QA / Pruebas de integración E2E | • **Datadog ASM / IAST** (`dd-trace` + `datadog/agent-github-action`) en `.github/workflows/iast-datadog.yml`<br>• Intercepción interactiva en memoria con `AsyncLocalStorage` y extensiones Prisma |
-| **DAST** | Endpoints HTTP de la API web en ejecución | **No** (Caja Negra exterior) | Entornos de Staging y Pre-producción | • **OWASP ZAP (Zed Attack Proxy)** automatizado en `.github/workflows/dast-zap.yml`<br>• Script local `scripts/testing/zap-run.mjs` |
+| **DAST** | Endpoints HTTP de la API web en ejecución | **No** (Caja Negra exterior) | Entornos de Staging y Pre-producción | • **OWASP ZAP (Zed Attack Proxy)** automatizado en `.github/workflows/dast-zap.yml`<br>• Script local `scripts/testing/owasp-dast/zap-run.mjs` |
 
 ---
 

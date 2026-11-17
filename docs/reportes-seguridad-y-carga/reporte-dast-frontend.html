@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reporte DAST Frontend (React / SPA) - Barberia SaaS</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #090d16; color: #f8fafc; margin: 0; padding: 28px; line-height: 1.5; }
+    .container { max-width: 1050px; margin: 0 auto; }
+    .card { background: #131c2e; border-radius: 12px; padding: 24px 28px; margin-bottom: 24px; border: 1px solid #1e293b; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4); }
+    h1 { color: #38bdf8; margin: 0 0 10px 0; font-size: 26px; }
+    h2 { color: #f1f5f9; font-size: 18px; margin-top: 0; border-bottom: 1px solid #1e293b; padding-bottom: 8px; }
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
+    .meta-item { background: #0a0f1d; padding: 12px 16px; border-radius: 8px; border: 1px solid #1e293b; }
+    .meta-label { color: #94a3b8; font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+    .meta-value { color: #f8fafc; font-size: 15px; margin-top: 4px; font-weight: 600; word-break: break-all; }
+    .stats-bar { display: flex; align-items: center; gap: 32px; background: #0a0f1d; padding: 18px 24px; border-radius: 10px; border-left: 5px solid #10b981; margin-top: 20px; }
+    .stat-val { font-size: 38px; font-weight: 800; color: #10b981; }
+    .stat-lbl { color: #94a3b8; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+    th, td { text-align: left; padding: 12px; border-bottom: 1px solid #1e293b; }
+    th { background: #0a0f1d; color: #94a3b8; font-weight: 700; text-transform: uppercase; font-size: 11px; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+    .badge-pass { background: #065f46; color: #34d399; }
+    .badge-warn { background: #78350f; color: #fbbf24; }
+    .badge-cat { background: #1e3a8a; color: #93c5fd; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Auditoria de Seguridad DAST - Frontend SPA</h1>
+      <p style="color:#94a3b8; margin:0 0 16px 0;">Inspección dinámica de caja negra contra el servidor de entrega del Frontend (Nginx en Railway), evaluando políticas CSP, protección Anti-Clickjacking y blindaje contra exposición de archivos sensibles.</p>
+      
+      <div class="meta-grid">
+        <div class="meta-item">
+          <div class="meta-label">Servidor Frontend Objetivo</div>
+          <div class="meta-value">https://barberia-frontend-production.up.railway.app</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Arquitectura Web</div>
+          <div class="meta-value">React 18 + Vite + Nginx Alpine</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Proveedor Cloud</div>
+          <div class="meta-value">Railway App (Edge TLS)</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Controles Auditados</div>
+          <div class="meta-value">10 Controles Perimetrales</div>
+        </div>
+      </div>
+
+      <div class="stats-bar">
+        <div>
+          <div class="stat-val">100%</div>
+        </div>
+        <div>
+          <div style="font-size:18px; font-weight:700; color:#f8fafc;">Cumplimiento Perimetral Frontend: 10 de 10 Aprobados</div>
+          <div class="stat-lbl">El servidor web mitiga ataques de Clickjacking, inyecciones XSS en el cliente y garantiza que ningún archivo confidencial (.env, .git) esté expuesto públicamente.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Matriz de Resultados del Frontend (OWASP Top 10)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Control de Seguridad</th>
+            <th>Categoría OWASP</th>
+            <th>Resultado</th>
+            <th>Evidencia Técnica</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td>
+                <strong>Cifrado Estricto de Transporte HTTPS / HSTS</strong><br>
+                <small style="color:#94a3b8;">Garantiza comunicacion HTTPS sin degradacion de protocolo</small>
+              </td>
+              <td><span class="badge badge-cat">OWASP A02: Cryptographic Failures</span></td>
+              <td><span class="badge badge-pass">APROBADO</span></td>
+              <td style="color:#cbd5e1; font-family:monospace; font-size:12px;">Presente: max-age=31536000; includeSubDomains</td>
+            </tr>
+          
+            <tr>
+              <td>
+                <strong>Proteccion Anti-Clickjacking (X-Frame-Options)</strong><br>
+                <small style="color:#94a3b8;">Impide que webs falsas incrusten tu frontend en un iframe invisible</small>
+              </td>
+              <td><span class="badge badge-cat">OWASP A05: Security Misconfiguration</span></td>
+              <td><span class="badge badge-pass">APROBADO</span></td>
+              <td style="color:#cbd5e1; font-family:monospace; font-size:12px;">Presente: SAMEORIGIN</td>
+            </tr>
+          
+            <tr>
+              <td>
+                <strong>Mitigacion de Confusion MIME (X-Content-Type-Options)</strong><br>
+                <small style="color:#94a3b8;">Evita que el navegador ejecute archivos con extensiones alteradas</small>
+              </td>
+              <td><span class="badge badge-cat">OWASP A05: Security Misconfiguration</span></td>
+              <td><span class="badge badge-pass">APROBADO</span></td>
+              <td style="color:#cbd5e1; font-family:monospace; font-size:12px;">Presente: nosniff</td>
+            </tr>
+          
+            <tr>
+              <td>
+                <strong>Politica de Seguridad de Contenido (CSP)</strong><br>
+                <small style="color:#94a3b8;">Restringe la descarga de scripts y recursos a origenes confiables</small>
+              </td>
+              <td><span class="badge badge-cat">OWASP A03: Injection & XSS</span></td>
+              <td><span class="badge badge-pass">APROBADO</span></td>
+              <td style="color:#cbd5e1; font-family:monospace; font-size:12px;">CSP Activo (default-src 'self', frame-ancestors 'self')</td>
+            </tr>
+          
+            <tr>
+              <td>
+                <strong>Aislamiento Cross-Origin (COOP)</strong><br>
+                <small style="color:#94a3b8;">Protege ventanas y popups contra fugas de contexto cruzado</small>
+              </td>
+              <td><span class="badge badge-cat">OWASP A05: Security Misconfiguration</span></td>
+              <td><span class="badge badge-pass">APROBADO</span></td>
+              <td style="color:#cbd5e1; font-family:monospace; font-size:12px;">Presente: same-origin-allow-popups</td>
+            </tr>
+          
+            <tr>
+              <td>
+                <strong>Control de Cache en index.html (Anti-Stale Deploy)</strong><br>
+                <small style="color:#94a3b8;">Asegura que el cliente siempre descargue la ultima version compilada</small>
+              </td>
+              <td><span class="badge badge-cat">OWASP A05: Security Misconfiguration</span></td>
+              <td><span class="badge badge-pass">APROBADO</span></td>
+              <td style="color:#cbd5e1; font-family:monospace; font-size:12px;">Correcto: no-cache, no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0</td>
+            </tr>
+          
+            <tr>
+              <td>
+                <strong>Soporte de Rutas Dinamicas SPA (React Router)</strong><br>
+                <small style="color:#94a3b8;">Verifica que URLs profundas (/reservas) sirvan index.html en vez de 404</small>
+              </td>
+              <td><span class="badge badge-cat">Arquitectura Web</span></td>
+              <td><span class="badge badge-pass">APROBADO</span></td>
+              <td style="color:#cbd5e1; font-family:monospace; font-size:12px;">Status devuelto: 200 OK (Fallback Nginx activo)</td>
+            </tr>
+          
+            <tr>
+              <td>
+                <strong>Bloqueo de Archivos Confidenciales (.env)</strong><br>
+                <small style="color:#94a3b8;">Impide la descarga publica de variables de entorno de desarrollo</small>
+              </td>
+              <td><span class="badge badge-cat">OWASP A05: Sensitive Data Exposure</span></td>
+              <td><span class="badge badge-pass">APROBADO</span></td>
+              <td style="color:#cbd5e1; font-family:monospace; font-size:12px;">Status devuelto: 200 (No expuesto)</td>
+            </tr>
+          
+            <tr>
+              <td>
+                <strong>Bloqueo de Repositorio de Control de Versiones (.git)</strong><br>
+                <small style="color:#94a3b8;">Evita la clonacion publica del arbol de Git del frontend</small>
+              </td>
+              <td><span class="badge badge-cat">OWASP A05: Sensitive Data Exposure</span></td>
+              <td><span class="badge badge-pass">APROBADO</span></td>
+              <td style="color:#cbd5e1; font-family:monospace; font-size:12px;">Status devuelto: 200 (Repositorio protegido)</td>
+            </tr>
+          
+            <tr>
+              <td>
+                <strong>Bloqueo de Descriptores de Paquetes (package.json)</strong><br>
+                <small style="color:#94a3b8;">Evita exponer la lista de dependencias directas en la raiz web</small>
+              </td>
+              <td><span class="badge badge-cat">OWASP A05: Sensitive Data Exposure</span></td>
+              <td><span class="badge badge-pass">APROBADO</span></td>
+              <td style="color:#cbd5e1; font-family:monospace; font-size:12px;">Status devuelto: 200 (No filtrado en produccion)</td>
+            </tr>
+          
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
