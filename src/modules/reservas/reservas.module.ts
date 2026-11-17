@@ -9,6 +9,7 @@ import { ReservasController } from './controller/reservas.controller';
 import { ReservasService } from './service/reservas.service';
 
 import { WhatsAppModule } from '../whatsapp/whatsapp.module';
+import { DescuentosModule } from '../descuentos/descuentos.module';
 import { RecordatoriosCron } from './cron/recordatorios.cron';
 
 /**
@@ -35,6 +36,7 @@ import { RecordatoriosCron } from './cron/recordatorios.cron';
     ReservasInfraModule,
     ClientesAuthModule,
     WhatsAppModule,
+    DescuentosModule,
   ],
   controllers: [ReservasController],
   providers: [ReservasService, RecordatoriosCron],

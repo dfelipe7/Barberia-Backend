@@ -17,6 +17,7 @@ import {
   WhatsAppService,
   type DatosConfirmacionWhatsApp,
 } from '../../whatsapp/service/whatsapp.service';
+import { DescuentoEvaluadorService } from '../../descuentos/service/descuento-evaluador.service';
 import { CrearReservaDto } from '../dto/dto-peticion/crear-reserva.dto';
 import { ModificarReservaDto } from '../dto/dto-peticion/modificar-reserva.dto';
 import { ConsultaAgendaBarberoDto } from '../dto/dto-peticion/consulta-agenda-barbero.dto';
@@ -166,6 +167,7 @@ export class ReservasService {
     private readonly barberosRepository: BarberosRepository,
     private readonly configuracionService: ConfiguracionService,
     @Optional() private readonly whatsappService?: WhatsAppService,
+    @Optional() private readonly descuentoEvaluador?: DescuentoEvaluadorService,
   ) {}
 
   /**
@@ -236,6 +238,12 @@ export class ReservasService {
       franja.startTime,
     );
 
+    const precioReservado = await this.resolverPrecioReservado(
+      dto.servicioId,
+      dto.fecha,
+      servicio.precio,
+    );
+
     const datos = {
       barberoId: dto.barberoId,
       servicioId: dto.servicioId,
@@ -243,8 +251,8 @@ export class ReservasService {
       dayOfWeek: this.fechaBogotaService.obtenerDiaSemana(dto.fecha),
       startTime: franja.startTime,
       endTime: franja.endTime,
-      // Precio histórico calculado en el servidor, no confiado al cliente.
-      precioReservado: Number(servicio.precio),
+      // Precio histórico calculado en el servidor (con descuento aplicable si corresponde).
+      precioReservado,
       gestionTokenHash: credenciales.gestionTokenHash,
       gestionTokenCifrado: credenciales.gestionTokenCifrado,
       idempotencyKey: idempotencyKey ?? null,
@@ -388,6 +396,35 @@ export class ReservasService {
       gestionTokenHash: this.hashearToken(tokenGestion),
       gestionTokenCifrado: this.cifrarTokenGestion(tokenGestion),
     };
+  }
+
+  /**
+   * Calcula el precio histórico a persistir en la reserva aplicando el
+   * descuento vigente del servicio si corresponde.
+   */
+  private async resolverPrecioReservado(
+    servicioId: number,
+    fecha: string,
+    precioBase: unknown,
+  ): Promise<number> {
+    const base = Number(precioBase);
+    if (!this.descuentoEvaluador) {
+      return base;
+    }
+
+    try {
+      const evaluacion = await this.descuentoEvaluador.evaluarServicio(
+        servicioId,
+        fecha,
+      );
+      if (evaluacion.aplica && evaluacion.precioFinal !== null) {
+        return evaluacion.precioFinal;
+      }
+    } catch {
+      // En caso de incidencia en el evaluador opcional, se conserva el precio base
+    }
+
+    return base;
   }
 
   /**
@@ -740,6 +777,12 @@ export class ReservasService {
     const recordatorioYaCubiertoAdmin =
       await this.debeMarcarRecordatorioComoEnviado(dto.fecha, franja.startTime);
 
+    const precioReservadoAdmin = await this.resolverPrecioReservado(
+      dto.servicioId,
+      dto.fecha,
+      servicio.precio,
+    );
+
     const reserva = await this.crearConManejoDeConflicto({
       barberoId: dto.barberoId,
       servicioId: dto.servicioId,
@@ -748,7 +791,7 @@ export class ReservasService {
       startTime: franja.startTime,
       endTime: franja.endTime,
       status: ReservationStatus.CONFIRMED,
-      precioReservado: Number(servicio.precio),
+      precioReservado: precioReservadoAdmin,
       gestionTokenHash: cliente.gestionTokenHash,
       gestionTokenCifrado: cliente.gestionTokenCifrado,
       cliente: cliente.clienteDeReserva,

@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -33,6 +34,7 @@ import { RolesGuard } from '../../../auth/roles/roles.guard';
 import { ActualizarProductoDto } from '../dto/dto-peticion/actualizar-producto.dto';
 import { CambiarEstadoProductoDto } from '../dto/dto-peticion/cambiar-estado-producto.dto';
 import { CrearProductoDto } from '../dto/dto-peticion/crear-producto.dto';
+import { FiltroProductosDto } from '../dto/dto-peticion/filtro-productos.dto';
 import {
   ProductoActualizadoResponseDto,
   ProductoCatalogoResponseDto,
@@ -81,8 +83,10 @@ export class ProductosController {
     status: 403,
     description: 'No autorizado o negocio sin contexto válido',
   })
-  listar(): Promise<ProductosListadoResponseDto> {
-    return this.facade.listar();
+  listar(
+    @Query() filtro: FiltroProductosDto = {},
+  ): Promise<ProductosListadoResponseDto> {
+    return this.facade.listar(filtro);
   }
 
   /**
@@ -111,8 +115,10 @@ export class ProductosController {
     status: 404,
     description: 'El negocio solicitado no está disponible',
   })
-  listarCatalogo(): Promise<ProductosCatalogoResponseDto> {
-    return this.facade.listarCatalogo();
+  listarCatalogo(
+    @Query() filtro: FiltroProductosDto = {},
+  ): Promise<ProductosCatalogoResponseDto> {
+    return this.facade.listarCatalogo(filtro);
   }
 
   /**

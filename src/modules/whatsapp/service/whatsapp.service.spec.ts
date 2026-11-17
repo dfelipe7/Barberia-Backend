@@ -983,13 +983,10 @@ describe('WhatsAppService', () => {
       contextoServiceMock.obtenerContexto.mockReturnValue(undefined);
       await service.resetPlantillas();
 
-      expect(
-        plantillasRepositoryMock.eliminarPlantillas,
-      ).toHaveBeenCalledWith(null, [
-        'CONFIRMACION',
-        'RECORDATORIO',
-        'CONFIG_RECORDATORIO_MINUTOS',
-      ]);
+      expect(plantillasRepositoryMock.eliminarPlantillas).toHaveBeenCalledWith(
+        null,
+        ['CONFIRMACION', 'RECORDATORIO', 'CONFIG_RECORDATORIO_MINUTOS'],
+      );
     });
 
     it('maneja error al obtener dirección comercial del perfil', async () => {

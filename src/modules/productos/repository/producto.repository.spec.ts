@@ -45,10 +45,27 @@ describe('ProductoRepository', () => {
 
     await repository.listar();
 
-    expect(aislamiento.filtroLectura).toHaveBeenCalledWith();
+    expect(aislamiento.filtroLectura).toHaveBeenCalledWith({});
     expect(prisma.producto.findMany).toHaveBeenCalledWith({
       where: { negocioId: 7 },
       orderBy: [{ creadoEn: 'desc' }, { id: 'desc' }],
+    });
+  });
+
+  it('lista con filtro de búsqueda por nombre y estado (P3)', async () => {
+    prisma.producto.findMany.mockResolvedValue([]);
+
+    await repository.listar({
+      nombre: 'Cera',
+      estado: EstadoProducto.INACTIVO,
+    });
+
+    expect(aislamiento.filtroLectura).toHaveBeenCalledWith({
+      estado: EstadoProducto.INACTIVO,
+      OR: [
+        { nombre: { contains: 'Cera' } },
+        { descripcion: { contains: 'Cera' } },
+      ],
     });
   });
 
@@ -63,6 +80,23 @@ describe('ProductoRepository', () => {
     expect(prisma.producto.findMany).toHaveBeenCalledWith({
       where: { negocioId: 7, estado: EstadoProducto.ACTIVO },
       orderBy: [{ nombre: 'asc' }, { id: 'asc' }],
+    });
+  });
+
+  it('lista catálogo público ignorando filtro.estado y forzando siempre ACTIVO (P3)', async () => {
+    prisma.producto.findMany.mockResolvedValue([]);
+
+    await repository.listarCatalogo({
+      nombre: 'Cera',
+      estado: EstadoProducto.INACTIVO, // Debe ser ignorado
+    });
+
+    expect(aislamiento.filtroLectura).toHaveBeenCalledWith({
+      estado: EstadoProducto.ACTIVO,
+      OR: [
+        { nombre: { contains: 'Cera' } },
+        { descripcion: { contains: 'Cera' } },
+      ],
     });
   });
 

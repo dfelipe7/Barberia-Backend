@@ -80,6 +80,7 @@ model Negocio {
   bloqueosHorario    BarberScheduleBlock[]
   cierresGenerales   GeneralClosure[]
   configuraciones    ConfiguracionNegocio[]
+  descuentos         Descuento[]
   plantillasWhatsApp WhatsAppPlantilla[]
   /// Perfil público de marca y ubicación (relación 1:1).
   perfil             PerfilNegocio?
@@ -340,6 +341,7 @@ model Servicio {
   actualizadoEn   DateTime          @updatedAt
   barberos        BarberoServicio[] // <--- Conexión con la tabla intermedia
   reservations    Reservation[]
+  descuentos      Descuento[]
 
   negocio Negocio @relation(fields: [negocioId], references: [id], onDelete: Restrict)
 
@@ -376,12 +378,56 @@ model Producto {
   creadoEn      DateTime       @default(now())
   actualizadoEn DateTime       @updatedAt
 
-  negocio Negocio @relation(fields: [negocioId], references: [id], onDelete: Restrict)
+  negocio    Negocio     @relation(fields: [negocioId], references: [id], onDelete: Restrict)
+  descuentos Descuento[]
 
   @@unique([negocioId, nombre])
   @@index([negocioId, creadoEn, id])
   @@index([negocioId, estado, nombre, id])
   @@map("productos")
+}
+
+/// Tipo de elemento al que se aplica un descuento.
+enum TipoDescuento {
+  PRODUCTO
+  SERVICIO
+}
+
+/// Descuento porcentual de un negocio sobre UN producto o UN servicio.
+///
+/// REGLAS DE NEGOCIO (HE-10-HU-02):
+/// - Un solo descuento por elemento, esté activo o inactivo. La unicidad la
+///   imponen los índices `(negocioId, productoId)` y `(negocioId, servicioId)`.
+/// - Nace INACTIVO: crearlo no lo aplica. Activarlo es una operación posterior.
+/// - `diasSemana` es un arreglo JSON de valores `WeekDay`; el servicio valida y
+///   normaliza duplicados. Se guarda como JSON para no crear una tabla hija por
+///   un dato pequeño y siempre leído junto al descuento.
+/// - Exactamente uno de `productoId` / `servicioId` debe estar presente. La
+///   aplicación lo garantiza al mapear `tipo` a una sola columna.
+model Descuento {
+  id            Int           @id @default(autoincrement())
+  negocioId     Int
+  tipo          TipoDescuento
+  productoId    Int?
+  servicioId    Int?
+  porcentaje    Decimal       @db.Decimal(4, 2)
+  diasSemana    Json
+  activo        Boolean       @default(false)
+  creadoEn      DateTime      @default(now())
+  actualizadoEn DateTime      @updatedAt
+
+  negocio  Negocio   @relation(fields: [negocioId], references: [id], onDelete: Restrict)
+  producto Producto? @relation(fields: [productoId], references: [id], onDelete: Restrict)
+  servicio Servicio? @relation(fields: [servicioId], references: [id], onDelete: Restrict)
+
+  /// Un descuento por producto del negocio. NULL no colisiona en MySQL.
+  @@unique([negocioId, productoId])
+  /// Un descuento por servicio del negocio. NULL no colisiona en MySQL.
+  @@unique([negocioId, servicioId])
+  @@index([negocioId, tipo])
+  @@index([productoId])
+  @@index([servicioId])
+  @@map("descuentos")
 }
 
 // Tabla intermedia explícita para la relación muchos a muchos

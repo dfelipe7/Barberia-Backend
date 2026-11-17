@@ -19,6 +19,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { BootstrapService } from './bootstrap/bootstrap.service';
 import { ServiciosModule } from './modules/servicios/servicios.module';
 import { ProductosModule } from './modules/productos/productos.module';
+import { DescuentosModule } from './modules/descuentos/descuentos.module';
 import { HorariosModule } from './modules/horarios/horarios.module';
 import { ReservasModule } from './modules/reservas/reservas.module';
 import { ConfiguracionModule } from './modules/configuracion/configuracion.module';
@@ -69,6 +70,7 @@ import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
     UsuariosModule,
     ServiciosModule,
     ProductosModule,
+    DescuentosModule,
     HorariosModule,
     ReservasModule,
     WhatsAppModule,

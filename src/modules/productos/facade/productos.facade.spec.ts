@@ -2,6 +2,8 @@ import { ProductosFacade } from './productos.facade';
 import { ProductoService } from '../service/producto.service';
 import { AlmacenamientoProductosService } from '../service/almacenamiento-productos.service';
 import { NegocioAislamientoService } from '../../negocios/negocio-aislamiento.service';
+import { EstadoProducto } from '../../../../generated/prisma/enums';
+import { DescuentoService } from '../../descuentos/service/descuento.service';
 
 describe('ProductosFacade', () => {
   const productoService = {
@@ -23,10 +25,14 @@ describe('ProductosFacade', () => {
     eliminar: jest.fn(),
   };
   const aislamiento = { negocioIdRequerido: jest.fn() };
+  const descuentoServiceGlobal = {
+    desactivarDescuentoDeProducto: jest.fn().mockResolvedValue({ count: 0 }),
+  };
   const facade = new ProductosFacade(
     productoService as unknown as ProductoService,
     almacenamiento as unknown as AlmacenamientoProductosService,
     aislamiento as unknown as NegocioAislamientoService,
+    descuentoServiceGlobal as unknown as DescuentoService,
   );
 
   const dto = { nombre: 'Cera', precio: 35000 };
@@ -345,6 +351,80 @@ describe('ProductosFacade', () => {
         mensaje: 'Producto actualizado correctamente',
         producto: { id: 1, nombre: 'Cera' },
       });
+    });
+  });
+
+  describe('P2 — cascada soft: desactivar descuento al desactivar producto', () => {
+    const descuentoService = { desactivarDescuentoDeProducto: jest.fn() };
+
+    const facadeConDescuento = new ProductosFacade(
+      productoService as unknown as ProductoService,
+      almacenamiento as unknown as AlmacenamientoProductosService,
+      aislamiento as unknown as NegocioAislamientoService,
+      descuentoService as unknown as DescuentoService,
+    );
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      aislamiento.negocioIdRequerido.mockReturnValue(7);
+      productoService.cambiarEstadoProducto.mockResolvedValue({
+        mensaje: 'ok',
+      });
+      descuentoService.desactivarDescuentoDeProducto.mockResolvedValue({
+        count: 1,
+      });
+    });
+
+    it('P2-CA-01: al desactivar un producto llama desactivarDescuentoDeProducto con el id correcto', async () => {
+      await facadeConDescuento.cambiarEstado(5, {
+        estado: EstadoProducto.INACTIVO,
+      });
+
+      // La cascada es fire-and-forget; esperamos una microtarea para que se lance
+      await new Promise((r) => setImmediate(r));
+
+      expect(
+        descuentoService.desactivarDescuentoDeProducto,
+      ).toHaveBeenCalledWith(5);
+    });
+
+    it('P2-CA-02: al activar un producto NO llama desactivarDescuentoDeProducto', async () => {
+      await facadeConDescuento.cambiarEstado(5, {
+        estado: EstadoProducto.ACTIVO,
+      });
+
+      await new Promise((r) => setImmediate(r));
+
+      expect(
+        descuentoService.desactivarDescuentoDeProducto,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('P2-CA-03: ProductosFacade con dependencia resuelta ejecuta la cascada sin saltos silenciosos', async () => {
+      const resultado = await facadeConDescuento.cambiarEstado(10, {
+        estado: EstadoProducto.INACTIVO,
+      });
+
+      await new Promise((r) => setImmediate(r));
+
+      expect(resultado).toEqual({ mensaje: 'ok' });
+      expect(
+        descuentoService.desactivarDescuentoDeProducto,
+      ).toHaveBeenCalledWith(10);
+    });
+
+    it('P2-CA-04: si la cascada falla no rompe la respuesta al cliente', async () => {
+      descuentoService.desactivarDescuentoDeProducto.mockRejectedValue(
+        new Error('BD caída'),
+      );
+
+      const resultado = await facadeConDescuento.cambiarEstado(5, {
+        estado: EstadoProducto.INACTIVO,
+      });
+
+      await new Promise((r) => setImmediate(r));
+
+      expect(resultado).toEqual({ mensaje: 'ok' });
     });
   });
 });
