@@ -56,7 +56,7 @@ export class DescuentoRepository {
   }
 
   buscarPorElemento(tipo: TipoDescuento, elementoId: number) {
-    // TODO(H7): fail-fast si TipoDescuento crece (COMBO, PACK)
+    // Mapea la clave foránea según el tipo de elemento (PRODUCTO o SERVICIO)
     const where =
       tipo === TipoDescuento.PRODUCTO
         ? { productoId: elementoId }

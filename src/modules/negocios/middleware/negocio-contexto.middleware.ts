@@ -11,7 +11,7 @@ import { NegocioResolucionService } from '../service/negocio-resolucion.service'
  * DESPUÉS de que el router ya ha encadenado el resto de la petición, de modo
  * que el `run()` de un guard no abarca de forma fiable los tramos asíncronos
  * posteriores. El middleware envuelve la invocación de `next()` y, por tanto,
- * todo el procesamiento que continúa a partir de ahí.
+ * el procesamiento completo que continúa a partir de ahí.
  *
  * COMPORTAMIENTO EN ESTA FASE: el middleware NO es obligatorio todavía. Si la
  * petición no apunta a ningún negocio, la cadena continúa sin contexto

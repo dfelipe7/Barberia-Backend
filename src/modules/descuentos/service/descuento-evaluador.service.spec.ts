@@ -323,4 +323,54 @@ describe('DescuentoEvaluadorService (HE-10-HU-05)', () => {
       );
     });
   });
+
+  describe('Evaluación en lote (evaluarBatch)', () => {
+    it('evalúa productos y servicios en lote preservando orden y manejando NotFoundException', async () => {
+      const diaActual = service.obtenerDiaActualEnZona('America/Bogota');
+      productoRepository.obtenerPorId
+        .mockResolvedValueOnce(productoBase)
+        .mockResolvedValueOnce(null);
+      serviciosRepository.obtenerServicioPorId
+        .mockResolvedValueOnce(servicioBase)
+        .mockResolvedValueOnce(null);
+      descuentoRepository.buscarPorElemento.mockResolvedValue({
+        id: 1,
+        activo: true,
+        porcentaje: 10,
+        diasSemana: [diaActual, WeekDay.FRIDAY],
+      });
+
+      const batch = await service.evaluarBatch({
+        productoIds: [10, 999],
+        servicioIds: [20, 888],
+        fecha: '2026-11-13',
+      });
+
+      expect(batch.productos).toHaveLength(2);
+      expect(batch.productos[0].aplica).toBe(true);
+      expect(batch.productos[1].estado).toBe('SIN_DESCUENTO');
+      expect(batch.servicios).toHaveLength(2);
+      expect(batch.servicios[0].aplica).toBe(true);
+      expect(batch.servicios[1].estado).toBe('SIN_DESCUENTO');
+    });
+
+    it('devuelve arreglos vacíos cuando no se envían listas y propaga errores distintos de NotFoundException', async () => {
+      const vacio = await service.evaluarBatch({});
+      expect(vacio).toEqual({ productos: [], servicios: [] });
+
+      await expect(
+        service.evaluarBatch({
+          servicioIds: [20],
+          fecha: 'fecha-invalida',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      productoRepository.obtenerPorId.mockRejectedValueOnce(
+        new Error('Fallo DB'),
+      );
+      await expect(
+        service.evaluarBatch({ productoIds: [10] }),
+      ).rejects.toThrow('Fallo DB');
+    });
+  });
 });

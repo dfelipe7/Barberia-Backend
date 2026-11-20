@@ -22,8 +22,8 @@ import { ClaimsSesionPersonal, SesionPersonal } from './sesion-personal';
  * de la persona en ese negocio. El carácter SUPERADMIN es de la membresía
  * (`Administrador.superadmin`) y su alcance es ese negocio.
  *
- * NO existe identidad de plataforma ni sesión de plataforma: en este SaaS
- * todo el personal opera dentro de una barbería concreta.
+ * NO existe identidad de plataforma ni sesión de plataforma: en este SaaS,
+ * el personal completo opera dentro de una barbería concreta.
  */
 @Injectable()
 export class SesionPersonalService {
