@@ -50,6 +50,7 @@ describe('ReservasService', () => {
 
   const reservasRepository = {
     existeReservaActivaDeClienteEnFranja: jest.fn(),
+    obtenerPorClaveDeIdempotencia: jest.fn().mockResolvedValue(null),
     contarReservasActivasDeClienteEnFecha: jest.fn().mockResolvedValue(0),
     crearConBloqueo: jest.fn(),
     listarReservasDeCliente: jest.fn(),
@@ -515,6 +516,30 @@ describe('ReservasService', () => {
       );
 
       expect(reservasRepository.crearConBloqueo).not.toHaveBeenCalled();
+    });
+
+    it('pasa la clave de idempotencia al contar reservas activas si se suministra', async () => {
+      reservasRepository.contarReservasActivasDeClienteEnFecha.mockResolvedValueOnce(
+        0,
+      );
+
+      await service.crearReserva(
+        {
+          ...dtoBase,
+          nombre: 'Ana',
+          telefono: '3001234567',
+        },
+        undefined,
+        'idem-key-abc',
+      );
+
+      expect(
+        reservasRepository.contarReservasActivasDeClienteEnFecha,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          excluirIdempotencyKey: 'idem-key-abc',
+        }),
+      );
     });
 
     it('rechaza una franja ocupada con el mensaje de CA-03 (409)', async () => {

@@ -37,6 +37,7 @@ const mockPrismaService = {
     create: jest.fn(),
     update: jest.fn(),
     updateMany: jest.fn(),
+    count: jest.fn(),
   },
   $transaction: jest.fn(),
 };
@@ -1192,6 +1193,96 @@ describe('ReservasRepository', () => {
             telefono: '3119998877',
             email: 'carlos@mail.com',
             usuarioId: null,
+          },
+        });
+      });
+    });
+
+    describe('contarReservasActivasDeClienteEnFecha', () => {
+      beforeEach(() => {
+        mockPrismaService.reservation.count.mockReset();
+      });
+
+      it('retorna 0 directamente si no se especifica ni clienteId ni telefono', async () => {
+        const resultado =
+          await repository.contarReservasActivasDeClienteEnFecha({
+            fecha,
+          });
+
+        expect(resultado).toBe(0);
+        expect(mockPrismaService.reservation.count).not.toHaveBeenCalled();
+      });
+
+      it('retorna 0 si el telefono es un string vacio o solo espacios', async () => {
+        const resultado =
+          await repository.contarReservasActivasDeClienteEnFecha({
+            telefono: '   ',
+            fecha,
+          });
+
+        expect(resultado).toBe(0);
+        expect(mockPrismaService.reservation.count).not.toHaveBeenCalled();
+      });
+
+      it('cuenta por clienteId cuando solo se proporciona clienteId', async () => {
+        mockPrismaService.reservation.count.mockResolvedValueOnce(3);
+
+        const resultado =
+          await repository.contarReservasActivasDeClienteEnFecha({
+            clienteId: 42,
+            fecha,
+          });
+
+        expect(resultado).toBe(3);
+        esperarConsultaAislada(mockPrismaService.reservation.count, {
+          where: {
+            date: fecha,
+            status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
+            OR: [{ clienteId: 42 }],
+          },
+        });
+      });
+
+      it('cuenta por telefono cuando solo se proporciona telefono', async () => {
+        mockPrismaService.reservation.count.mockResolvedValueOnce(1);
+
+        const resultado =
+          await repository.contarReservasActivasDeClienteEnFecha({
+            telefono: '3001234567',
+            fecha,
+          });
+
+        expect(resultado).toBe(1);
+        esperarConsultaAislada(mockPrismaService.reservation.count, {
+          where: {
+            date: fecha,
+            status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
+            OR: [{ cliente: { telefono: '3001234567' } }],
+          },
+        });
+      });
+
+      it('combina clienteId y telefono con OR y excluye idempotencyKey cuando se provee', async () => {
+        mockPrismaService.reservation.count.mockResolvedValueOnce(2);
+
+        const resultado =
+          await repository.contarReservasActivasDeClienteEnFecha({
+            clienteId: 99,
+            telefono: ' 3159998877 ',
+            fecha,
+            excluirIdempotencyKey: 'idem-key-123',
+          });
+
+        expect(resultado).toBe(2);
+        esperarConsultaAislada(mockPrismaService.reservation.count, {
+          where: {
+            date: fecha,
+            status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
+            OR: [
+              { clienteId: 99 },
+              { cliente: { telefono: '3159998877' } },
+            ],
+            idempotencyKey: { not: 'idem-key-123' },
           },
         });
       });
