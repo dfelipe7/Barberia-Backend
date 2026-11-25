@@ -374,6 +374,13 @@ export interface ConsultaDuplicadoCliente {
   excluirIdempotencyKey?: string;
 }
 
+export interface ConsultaCitasActivasClienteFecha {
+  clienteId?: number | null;
+  telefono?: string | null;
+  fecha: Date;
+  excluirIdempotencyKey?: string;
+}
+
 /**
  * Selección de la reserva recuperada por clave de idempotencia.
  *
@@ -651,6 +658,39 @@ export class ReservasRepository {
     });
 
     return reserva !== null;
+  }
+
+  /**
+   * Cuenta cuántas reservas activas (no canceladas) tiene un cliente para una fecha determinada.
+   * Considera la identidad por clienteId y/o por número de teléfono en la barbería activa.
+   */
+  async contarReservasActivasDeClienteEnFecha(
+    consulta: ConsultaCitasActivasClienteFecha,
+  ): Promise<number> {
+    const filtrosIdentidad: Prisma.ReservationWhereInput[] = [];
+    if (consulta.clienteId) {
+      filtrosIdentidad.push({ clienteId: consulta.clienteId });
+    }
+    if (consulta.telefono && consulta.telefono.trim().length > 0) {
+      filtrosIdentidad.push({
+        cliente: { telefono: consulta.telefono.trim() },
+      });
+    }
+
+    if (filtrosIdentidad.length === 0) {
+      return 0;
+    }
+
+    return this.prisma.reservation.count({
+      where: this.aislamiento.filtroLectura({
+        date: consulta.fecha,
+        status: { in: [...ESTADOS_QUE_OCUPAN_AGENDA] },
+        OR: filtrosIdentidad,
+        ...(consulta.excluirIdempotencyKey !== undefined
+          ? { idempotencyKey: { not: consulta.excluirIdempotencyKey } }
+          : {}),
+      }),
+    });
   }
 
   /**

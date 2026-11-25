@@ -18,6 +18,7 @@ describe('HE-04 Seguridad: Gestión de Reservas de Invitados (Fase 5)', () => {
   const mockReservasRepository = {
     crearConBloqueo: jest.fn(),
     existeReservaActivaDeClienteEnFranja: jest.fn(),
+    contarReservasActivasDeClienteEnFecha: jest.fn().mockResolvedValue(0),
     obtenerReservaParaGestionInvitado: jest.fn(),
     obtenerReservaDeCliente: jest.fn(),
     modificarConBloqueo: jest.fn(),

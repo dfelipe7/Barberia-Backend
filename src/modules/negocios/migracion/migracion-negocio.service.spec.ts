@@ -412,6 +412,7 @@ describe('Lógica de migración al modelo multitenant (sin base de datos)', () =
         'reserva_no_show_tolerancia_minutos',
         'negocio_direccion',
         'recordatorio_minutos_anticipacion',
+        'reserva_max_citas_diarias_cliente',
       ]);
     });
   });

@@ -1,6 +1,7 @@
 import './datadog';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import * as express from 'express';
@@ -19,7 +20,11 @@ import {
 } from './common/config/uploads.config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // OWASP A04 / Reverse Proxy: Confía en exactamente 1 salto de proxy (Railway / Load Balancer)
+  // para resolver la IP real del cliente mediante la cabecera X-Forwarded-For sin riesgo de IP spoofing.
+  app.set('trust proxy', 1);
 
   // Usar Winston como el Logger principal de NestJS
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));

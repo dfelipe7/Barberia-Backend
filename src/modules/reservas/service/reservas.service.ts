@@ -73,6 +73,7 @@ import { BarberosRepository } from '../../usuarios/repository/barberos.repositor
 import { ConfiguracionService } from '../../configuracion/service/configuracion.service';
 import {
   CLAVES_CONFIGURACION,
+  LIMITES_CITAS_DIARIAS,
   LIMITES_MINUTOS_OPERATIVOS,
   VALORES_POR_DEFECTO_OPERATIVOS,
 } from '../../configuracion/configuracion.constants';
@@ -217,6 +218,7 @@ export class ReservasService {
     }
 
     await this.rechazarDuplicadoPropio(dto, cliente, idempotencyKey);
+    await this.rechazarExcesoCitasDiarias(dto, cliente, idempotencyKey);
 
     // Fuente única de verdad (HE-08): valida servicio/barbero/asignación/fecha y
     // devuelve el estado real de cada franja.
@@ -341,6 +343,38 @@ export class ReservasService {
       throw new DomainConflictException(
         MENSAJE_RESERVA_DUPLICADA,
         CODIGOS_CONFLICTO.DUPLICATE_OWN_RESERVATION,
+      );
+    }
+  }
+
+  /**
+   * Rechaza la reserva si el cliente ya alcanzó el límite diario de citas activas
+   * configurado para la barbería (política operativa configurable).
+   */
+  private async rechazarExcesoCitasDiarias(
+    dto: CrearReservaDto,
+    cliente: ClienteResuelto,
+    idempotencyKey?: string,
+  ): Promise<void> {
+    const maxCitas = await this.configuracionService.obtenerNumero(
+      CLAVES_CONFIGURACION.RESERVA_MAX_CITAS_DIARIAS_CLIENTE,
+      VALORES_POR_DEFECTO_OPERATIVOS.RESERVA_MAX_CITAS_DIARIAS_CLIENTE,
+      LIMITES_CITAS_DIARIAS,
+    );
+
+    const citasActivas =
+      await this.reservasRepository.contarReservasActivasDeClienteEnFecha({
+        clienteId: cliente.clienteIdConocido,
+        telefono: dto.telefono,
+        fecha: this.aFechaDate(dto.fecha),
+        ...(idempotencyKey !== undefined
+          ? { excluirIdempotencyKey: idempotencyKey }
+          : {}),
+      });
+
+    if (citasActivas >= maxCitas) {
+      throw new BadRequestException(
+        `Has alcanzado el límite máximo de ${maxCitas} reserva(s) permitidas para este día. Si necesitas agendar para un grupo o evento especial, por favor contacta directamente a la barbería.`,
       );
     }
   }

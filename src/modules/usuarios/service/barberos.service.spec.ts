@@ -645,10 +645,9 @@ describe('BarberosService', () => {
     it('debe buscar por email si no viene id numérico', async () => {
       usuariosRepository.obtenerUsuarioPorEmail.mockResolvedValue(null);
       await expect(
-        service.subirMiFoto(
-          { email: 'desconocido@test.com' },
-          { filename: 'foto.jpg' } as any,
-        ),
+        service.subirMiFoto({ email: 'desconocido@test.com' }, {
+          filename: 'foto.jpg',
+        } as any),
       ).rejects.toThrow('Usuario no encontrado');
     });
 

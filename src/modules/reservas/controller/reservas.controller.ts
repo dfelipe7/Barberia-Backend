@@ -16,6 +16,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -93,6 +94,7 @@ export interface PeticionPersonal {
 export class ReservasController {
   constructor(private readonly reservasService: ReservasService) {}
 
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post()
   @UseGuards(ClienteOpcionalJwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)

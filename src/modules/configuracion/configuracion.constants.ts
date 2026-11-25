@@ -21,6 +21,8 @@ export const CLAVES_CONFIGURACION = {
   NEGOCIO_DIRECCION: 'negocio_direccion',
   /** Minutos de anticipación del recordatorio (HU-11). */
   RECORDATORIO_MINUTOS_ANTICIPACION: 'recordatorio_minutos_anticipacion',
+  /** Máximo de reservas activas que puede crear un mismo cliente en un día. */
+  RESERVA_MAX_CITAS_DIARIAS_CLIENTE: 'reserva_max_citas_diarias_cliente',
 } as const;
 
 export type ClaveConfiguracion =
@@ -39,6 +41,8 @@ export const VALORES_POR_DEFECTO_OPERATIVOS = {
   RESERVA_NO_SHOW_TOLERANCIA_MINUTOS: 15,
   /** Ventana de anticipación del recordatorio por defecto (HU-11). */
   RECORDATORIO_MINUTOS_ANTICIPACION: 120,
+  /** Límite diario de reservas por cliente por defecto. */
+  RESERVA_MAX_CITAS_DIARIAS_CLIENTE: 3,
 } as const;
 
 /**
@@ -89,7 +93,25 @@ export const CLAVES_CONFIGURACION_OPERATIVA: ReadonlyArray<{
       'Minutos de anticipación con los que se envía el recordatorio automático de cita.',
     tipo: 'NUMERO',
   },
+  {
+    clave: CLAVES_CONFIGURACION.RESERVA_MAX_CITAS_DIARIAS_CLIENTE,
+    valorPorDefecto: String(
+      VALORES_POR_DEFECTO_OPERATIVOS.RESERVA_MAX_CITAS_DIARIAS_CLIENTE,
+    ),
+    descripcion:
+      'Número máximo de reservas que un mismo cliente puede tener agendadas en un solo día.',
+    tipo: 'NUMERO',
+  },
 ];
+
+/**
+ * Límites admisibles para el número de citas diarias por cliente.
+ */
+export const LIMITES_CITAS_DIARIAS = {
+  minimo: 1,
+  maximo: 10,
+  entero: true,
+} as const;
 
 /**
  * Límites razonables de una política expresada en MINUTOS.

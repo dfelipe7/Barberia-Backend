@@ -1,6 +1,8 @@
 import { Global, Module } from '@nestjs/common';
+import { AuthModule } from '../../auth/auth.module';
 import { ConfiguracionRepository } from './repository/configuracion.repository';
 import { ConfiguracionService } from './service/configuracion.service';
+import { ConfiguracionPoliticasController } from './controller/configuracion-politicas.controller';
 
 /**
  * Configuración funcional centralizada (parámetros en base de datos).
@@ -11,6 +13,8 @@ import { ConfiguracionService } from './service/configuracion.service';
  */
 @Global()
 @Module({
+  imports: [AuthModule],
+  controllers: [ConfiguracionPoliticasController],
   providers: [ConfiguracionRepository, ConfiguracionService],
   exports: [ConfiguracionService],
 })
