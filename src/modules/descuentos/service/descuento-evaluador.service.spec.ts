@@ -368,9 +368,9 @@ describe('DescuentoEvaluadorService (HE-10-HU-05)', () => {
       productoRepository.obtenerPorId.mockRejectedValueOnce(
         new Error('Fallo DB'),
       );
-      await expect(
-        service.evaluarBatch({ productoIds: [10] }),
-      ).rejects.toThrow('Fallo DB');
+      await expect(service.evaluarBatch({ productoIds: [10] })).rejects.toThrow(
+        'Fallo DB',
+      );
     });
   });
 });

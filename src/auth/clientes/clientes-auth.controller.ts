@@ -9,6 +9,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -40,6 +41,7 @@ interface RequestConCliente {
 export class ClientesAuthController {
   constructor(private readonly clientesAuthService: ClientesAuthService) {}
 
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('google')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

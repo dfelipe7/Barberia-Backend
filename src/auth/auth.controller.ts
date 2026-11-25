@@ -7,6 +7,7 @@ import {
   Param,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { GoogleAuthService } from './google/google-auth.service';
 import { GoogleLoginDto } from './google/dto/google-login.dto';
 import { JwtSesionGuard } from './guards/jwt-sesion.guard';
@@ -60,6 +61,7 @@ export class AuthController {
    * @throws {UnauthorizedException} Si el token de Google es inválido o el usuario no existe.
    * @throws {ForbiddenException} Si la cuenta está suspendida o no tiene membresías activas en el negocio.
    */
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('google')
   @ApiOperation({
     summary: 'Iniciar sesión con Google OAuth 2.0',

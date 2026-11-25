@@ -23,9 +23,7 @@ describe('BarberosController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BarberosController],
-      providers: [
-        { provide: BarberosService, useValue: mockBarberosService },
-      ],
+      providers: [{ provide: BarberosService, useValue: mockBarberosService }],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: () => true })

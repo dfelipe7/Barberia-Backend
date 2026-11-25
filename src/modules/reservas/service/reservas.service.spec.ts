@@ -50,6 +50,7 @@ describe('ReservasService', () => {
 
   const reservasRepository = {
     existeReservaActivaDeClienteEnFranja: jest.fn(),
+    contarReservasActivasDeClienteEnFecha: jest.fn().mockResolvedValue(0),
     crearConBloqueo: jest.fn(),
     listarReservasDeCliente: jest.fn(),
     obtenerReservaDeCliente: jest.fn(),
@@ -496,6 +497,24 @@ describe('ReservasService', () => {
           telefono: '3001234567',
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rechaza la reserva si el cliente supera el límite diario configurado (400)', async () => {
+      reservasRepository.contarReservasActivasDeClienteEnFecha.mockResolvedValueOnce(
+        3,
+      );
+
+      await expect(
+        service.crearReserva({
+          ...dtoBase,
+          nombre: 'Ana',
+          telefono: '3001234567',
+        }),
+      ).rejects.toThrow(
+        'Has alcanzado el límite máximo de 3 reserva(s) permitidas para este día',
+      );
+
+      expect(reservasRepository.crearConBloqueo).not.toHaveBeenCalled();
     });
 
     it('rechaza una franja ocupada con el mensaje de CA-03 (409)', async () => {

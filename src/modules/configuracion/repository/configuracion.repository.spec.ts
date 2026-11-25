@@ -270,6 +270,7 @@ describe('ConfiguracionRepository', () => {
         .mockResolvedValueOnce({ id: 1 })
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(null);
       mockPrismaService.configuracionNegocio.create.mockResolvedValue({});
 
@@ -282,10 +283,11 @@ describe('ConfiguracionRepository', () => {
         'reserva_no_show_tolerancia_minutos',
         'negocio_direccion',
         'recordatorio_minutos_anticipacion',
+        'reserva_max_citas_diarias_cliente',
       ]);
       expect(
         mockPrismaService.configuracionNegocio.create,
-      ).toHaveBeenCalledTimes(3);
+      ).toHaveBeenCalledTimes(4);
       expect(
         mockPrismaService.configuracionNegocio.create,
       ).toHaveBeenCalledWith({
