@@ -30,7 +30,7 @@
 import http from 'k6/http';
 import { sleep, check } from 'k6';
 
-const BASE_URL = __ENV.BASE_URL || 'https://barberia-backend-production.up.railway.app';
+const BASE_URL = __ENV.BASE_URL || 'https://barberia-backend-staging.up.railway.app';
 const TENANT_SLUG = __ENV.TENANT_SLUG || 'barberia-demo-2';
 
 export const options = {
