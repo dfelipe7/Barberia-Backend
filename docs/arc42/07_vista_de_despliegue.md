@@ -56,7 +56,20 @@ flowchart TD
 
 ---
 
-## 7.2 Nivel de Infraestructura 2: Entorno de Desarrollo Local (Docker Compose)
+## 7.2 Nivel de Infraestructura 2: Entorno de Pre-Producción y Pruebas Cloud (Staging en Railway)
+
+Para certificar cambios funcionales y ejecutar pruebas de carga masiva sin afectar los datos operativos de los clientes reales en producción, se dispone de un entorno gemelo (`staging`) completamente aislado en Railway:
+
+* **Frontend Staging:** `https://barberia-frontend-staging.up.railway.app`
+* **Backend Staging:** `https://barberia-backend-staging.up.railway.app`
+* **Base de Datos Staging:** Contenedor MySQL 8.0 independiente con volumen de disco persistente `mysql-volume` (`/var/lib/mysql`).
+* **Seguridad y CSP Nginx:** Cabeceras HTTP `Content-Security-Policy` (`connect-src`) configuradas en `nginx.conf` autorizando tanto `barberia-backend-production.up.railway.app` como `barberia-backend-staging.up.railway.app`.
+* **CORS Backend:** Variable `FRONTEND_URL` configurada con el subdominio de staging, integrándose a la lista blanca de orígenes permitidos.
+* **Propósito:** Ejecución de suites de prueba de carga con Grafana k6, pruebas de regresión y validación de features antes de mezclar con `master`.
+
+---
+
+## 7.3 Nivel de Infraestructura 3: Entorno de Desarrollo Local (Docker Compose)
 
 Para reproducir fielmente el entorno productivo en el equipo de desarrollo sin dependencias externas:
 

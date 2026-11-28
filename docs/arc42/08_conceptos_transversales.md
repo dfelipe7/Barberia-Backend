@@ -69,3 +69,16 @@ Los conceptos transversales representan decisiones técnicas y patrones de dise�
   ```
 * Se definen 6 personalidades de marca con paletas de color y tipografías específicas (`clasico-azul`, `cyber-lime`, `sunset-amber`, `midnight-cyan`, `crimson-velvet`, `monochrome-noir`).
 * Se garantiza una relación de contraste superior a 4.5:1 en todos los botones, badges, modales y tablas, tanto en modo oscuro como en modo claro sobre fondos claros.
+
+---
+
+## 8.8 Políticas Operativas de Reserva y Reglas de Negocio por Sede
+
+El sistema permite a los administradores de cada barbería gobernar sus propias reglas de negocio mediante una arquitectura desacoplada:
+
+* **Parámetros Gestionados:**
+  1. `reservaCancelacionAntelacionMinutos`: Plazo mínimo (en minutos) con el que un cliente puede cancelar su cita antes de la hora de inicio.
+  2. `reservaNoShowToleranciaMinutos`: Margen de espera tras la hora pactada antes de que el barbero pueda marcar la reserva como inasistencia (`NO_SHOW`).
+  3. `reservaMaxCitasDiariasCliente`: Cantidad máxima de reservas activas que un cliente puede agendar en una misma fecha (previene acaparamiento abusivo de turnos).
+* **Persistencia y Aislamiento:** Almacenado en la tabla `configuraciones_negocio` con clave única `(negocioId, clave)`, garantizando que la política de una sede jamás afecte a otra.
+* **Interfaz de Administración:** El panel web expone la pestaña `TabPoliticasReserva.tsx` dentro de `ConfiguracionNegocioPage.tsx`, comunicándose a través de `politicasReservaApi` con los endpoints `/configuracion/politicas` (`GET` y `PUT`).

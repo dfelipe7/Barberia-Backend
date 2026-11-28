@@ -18,6 +18,9 @@ erDiagram
     NEGOCIO ||--o{ CLIENTE : "registra (1:N)"
     NEGOCIO ||--o{ SERVICIO : "publica (1:N)"
     NEGOCIO ||--o{ PRODUCTO : "comercializa (1:N)"
+    NEGOCIO ||--o{ DESCUENTO : "aplica (1:N)"
+    PRODUCTO ||--o{ DESCUENTO : "promocion (1:N)"
+    SERVICIO ||--o{ DESCUENTO : "promocion (1:N)"
     NEGOCIO ||--o{ BARBERO_SERVICIO : "contextualiza (1:N)"
     NEGOCIO ||--o{ BARBER_WEEKLY_SLOT : "horario (1:N)"
     NEGOCIO ||--o{ BARBER_SCHEDULE_BLOCK : "bloqueos (1:N)"
@@ -60,6 +63,7 @@ erDiagram
 | **`TipoRedSocial`** | `TIKTOK`, `FACEBOOK`, `INSTAGRAM`, `WHATSAPP`, `OTRO` | Identificador de canales sociales públicos de la sede. |
 | **`EstadoServicio`** | `ACTIVO`, `INACTIVO` | Publicación del servicio en catálogo y portal de reservas. |
 | **`EstadoProducto`** | `ACTIVO`, `INACTIVO` | Estado comercial del producto en el catálogo y portal de venta. |
+| **`TipoDescuento`** | `PRODUCTO`, `SERVICIO` | Tipo de entidad sobre la que aplica la reducción porcentual (HE-10). |
 | **`WeekDay`** | `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY`, `SUNDAY` | Días de la semana para matrices de horario laboral. |
 | **`ScheduleBlockStatus`**| `ACTIVE`, `REACTIVATED`, `CANCELLED` | Historial de bloqueos de tiempo sin borrado físico. |
 | **`ScheduleBlockReason`**| `PERSONAL`, `MEDICAL`, `VACATION`, `OTHER` | Motivo de auditoría del bloqueo de agenda del barbero. |
@@ -394,6 +398,32 @@ Artículos y productos del catálogo comercial de la barbería (HE-03). Aislamie
 * **Restricción UNIQUE:** `(negocioId, nombre)` (Garantiza que una barbería no pueda registrar dos productos con el mismo nombre).
 * **Índice Compuesto 1:** `(negocioId, creadoEn, id)` (Optimiza el listado administrativo ordenado por fecha de creación).
 * **Índice Compuesto 2:** `(negocioId, estado, nombre, id)` (Optimiza el catálogo público filtrado por estado `ACTIVO` y ordenado por nombre).
+
+---
+
+---
+
+### 3.18 `descuentos` (Modelo: `Descuento`)
+Promociones y reducciones porcentuales aplicadas a productos o servicios específicos de la sede (HE-10). Aislamiento multitenant por `negocioId`.
+
+| Columna | Tipo SQL | Nulo | Clave | Valor por Defecto | Descripción |
+| :--- | :--- | :---: | :---: | :--- | :--- |
+| `id` | `INT` | No | **PK** | `AUTO_INCREMENT` | Identificador único del descuento. |
+| `negocioId` | `INT` | No | **FK** | — | Negocio dueño de la promoción (`ON DELETE RESTRICT`). |
+| `tipo` | `ENUM` | No | — | — | Clasificación del descuento (`PRODUCTO` o `SERVICIO`). |
+| `productoId` | `INT` | Sí | **FK / UK** | `NULL` | Producto beneficiado (si `tipo = PRODUCTO`). `ON DELETE RESTRICT`. |
+| `servicioId` | `INT` | Sí | **FK / UK** | `NULL` | Servicio beneficiado (si `tipo = SERVICIO`). `ON DELETE RESTRICT`. |
+| `porcentaje` | `DECIMAL(4,2)`| No | — | — | Porcentaje de descuento aplicable (entre 0.01 y 100.00). |
+| `diasSemana` | `JSON` | No | — | — | Array JSON con días habilitados (ej. `[1,2,3,4,5]`, domingo=0). |
+| `activo` | `BOOLEAN` | No | — | `false` | Estado operativo de la promoción (`true` activa, `false` pausada). |
+| `creadoEn` | `DATETIME(3)` | No | — | `CURRENT_TIMESTAMP` | Fecha de creación del registro. |
+| `actualizadoEn`| `DATETIME(3)` | No | — | `AUTO UPDATE` | Fecha de última actualización. |
+
+* **Restricción UNIQUE 1:** `(negocioId, productoId)` (Garantiza máximo un descuento activo por producto en el negocio).
+* **Restricción UNIQUE 2:** `(negocioId, servicioId)` (Garantiza máximo un descuento activo por servicio en el negocio).
+* **Índice 1:** `(negocioId, tipo)` (Optimiza consultas de promociones filtradas por tipo de ítem).
+* **Índice 2:** `(productoId)` (Optimiza verificación de precio con descuento en ventas de mostrador).
+* **Índice 3:** `(servicioId)` (Optimiza cálculo de tarifa con descuento en agendamiento de turnos).
 
 ---
 

@@ -64,3 +64,17 @@ Calidad del Sistema Barbería VIP SaaS
 * **Artefacto afectado:** Pipeline de validación de tipos, tests y SonarCloud.
 * **Respuesta del sistema:** Se ejecutan los 142 tests unitarios de frontend (o las suites de backend), se genera el informe de cobertura LCOV y se envía a SonarCloud.
 * **Medida de respuesta:** El Quality Gate exige $\ge$ 80% de cobertura en código nuevo, 0 vulnerabilidades de seguridad, 0 bugs y complejidad cognitiva $\le$ 15. Si se incumple, el PR queda bloqueado.
+
+---
+
+### Escenario 5 · Rendimiento Bajo Carga Masiva y Concurrencia Transaccional (Grafana k6)
+* **Fuente del estímulo:** Flujo simultáneo de múltiples usuarios accediendo al catálogo y confirmando citas en el entorno de Staging.
+* **Estímulo:** Ejecución de la suite portable oficial de Grafana k6 (`Ejecutar-Prueba-Carga-K6.bat`):
+  * **Carga Normal (`loadtest.js`):** 20 VUs concurrentes en 50 segundos. Criterio SLA: percentil 95 ($p_{95}$) $< 600\text{ ms}$, tasa de fallo $< 1\%$.
+  * **Estrés Extremo (`stresstest.js`):** Rampa de hasta 80 VUs en 40 segundos. Criterio SLA: $p_{95} < 1500\text{ ms}$, tasa de fallo tolerada $< 5\%$.
+  * **Pico Súbito (`spiketest.js`):** Explosión de 5 a 60 VUs en 5 segundos.
+  * **Resistencia / Soak (`soaktest.js`):** 20 VUs sostenidos durante 2.5 minutos para detectar fugas de memoria.
+  * **Condición de Carrera / Anti-Double Booking (`concurrencia-reservas.js`):** 5 clientes simultáneos compitiendo por la misma franja horaria al mismo milisegundo. Criterio: exactamente 1 gana (`201 Created`), 4 reciben `409 Conflict`, 0 errores 500.
+  * **Jornada de Agendamiento Simultáneo (`jornada-reservas.js`):** 7 clientes en paralelo agendando en turnos libres distintos. Criterio: 100% citas creadas, $p_{95} < 1500\text{ ms}$.
+* **Artefacto afectado:** Endpoints de lectura (`/servicios`, `/usuarios/barberos`, `/perfil-negocio`) y escritura (`POST /reservas`), motor transaccional Prisma y MySQL InnoDB.
+* **Medida de respuesta:** Generación automática de reportes ejecutivos e interactivos en formato HTML en `docs/reportes-seguridad-y-carga/` con cumplimiento estricto de SLAs.
