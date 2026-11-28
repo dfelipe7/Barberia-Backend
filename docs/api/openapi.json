@@ -1437,6 +1437,30 @@
         "operationId": "ProductosController_listar",
         "parameters": [
           {
+            "name": "nombre",
+            "required": false,
+            "in": "query",
+            "description": "Buscar por nombre o descripción del producto (búsqueda parcial)",
+            "schema": {
+              "example": "Cera",
+              "type": "string"
+            }
+          },
+          {
+            "name": "estado",
+            "required": false,
+            "in": "query",
+            "description": "Filtrar por estado del producto",
+            "schema": {
+              "example": "ACTIVO",
+              "type": "string",
+              "enum": [
+                "ACTIVO",
+                "INACTIVO"
+              ]
+            }
+          },
+          {
             "name": "X-Negocio-Slug",
             "in": "header",
             "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
@@ -1569,6 +1593,30 @@
         "description": "Catálogo PÚBLICO de la barbería de la petición. Solo devuelve productos ACTIVO del negocio resuelto por el contexto (subdominio o cabecera X-Negocio-Slug), ordenados por nombre. Si no hay productos activos, responde 200 con `productos: []` y el mensaje \"No hay productos disponibles en este momento\".",
         "operationId": "ProductosController_listarCatalogo",
         "parameters": [
+          {
+            "name": "nombre",
+            "required": false,
+            "in": "query",
+            "description": "Buscar por nombre o descripción del producto (búsqueda parcial)",
+            "schema": {
+              "example": "Cera",
+              "type": "string"
+            }
+          },
+          {
+            "name": "estado",
+            "required": false,
+            "in": "query",
+            "description": "Filtrar por estado del producto",
+            "schema": {
+              "example": "ACTIVO",
+              "type": "string",
+              "enum": [
+                "ACTIVO",
+                "INACTIVO"
+              ]
+            }
+          },
           {
             "name": "X-Negocio-Slug",
             "in": "header",
@@ -1880,6 +1928,460 @@
         "summary": "Cambiar el estado de un producto (SUPERADMIN / ADMINISTRADOR)",
         "tags": [
           "productos"
+        ]
+      }
+    },
+    "/descuentos": {
+      "get": {
+        "description": "Devuelve la lista de descuentos registrados en el negocio activo, incluyendo tipo, porcentaje, días aplicables, estado y el elemento (producto o servicio) asociado. Una lista vacía responde 200 con array vacío y mensaje descriptivo sin error técnico.",
+        "operationId": "DescuentosController_listar",
+        "parameters": [
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de descuentos configurados",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaDescuentosResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado"
+          },
+          "403": {
+            "description": "No autorizado (solo SUPERADMIN o ADMINISTRADOR del negocio)"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Consultar los descuentos configurados (SUPERADMIN / ADMINISTRADOR)",
+        "tags": [
+          "descuentos"
+        ]
+      },
+      "post": {
+        "description": "Registra el único descuento de un producto o servicio del negocio del contexto. El descuento nace INACTIVO. Un segundo descuento para el mismo elemento responde 409, esté activo o inactivo. El negocio y el estado inicial los fija el servidor.",
+        "operationId": "DescuentosController_crear",
+        "parameters": [
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearDescuentoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Descuento creado correctamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescuentoCreadoResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos: porcentaje fuera de 1-99, más de dos decimales o días ausentes/inválidos"
+          },
+          "401": {
+            "description": "No autenticado"
+          },
+          "403": {
+            "description": "No autorizado (solo SUPERADMIN o ADMINISTRADOR)"
+          },
+          "404": {
+            "description": "El producto o servicio no pertenece al negocio activo"
+          },
+          "409": {
+            "description": "Ya existe un descuento configurado para el elemento"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Crear un descuento para un producto o servicio (SUPERADMIN / ADMINISTRADOR)",
+        "tags": [
+          "descuentos"
+        ]
+      }
+    },
+    "/descuentos/aplicable/producto/{productoId}": {
+      "get": {
+        "description": "Evalúa si el producto tiene un descuento activo y aplicable para el día de hoy según la zona horaria del negocio. Devuelve precio original, porcentaje y precio final redondeado. Un producto inexistente o de otro negocio responde 404.",
+        "operationId": "DescuentosController_evaluarProducto",
+        "parameters": [
+          {
+            "name": "productoId",
+            "required": true,
+            "in": "path",
+            "description": "ID del producto a evaluar",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Evaluación del descuento aplicable al producto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescuentoAplicableResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El identificador del producto no es un entero positivo"
+          },
+          "404": {
+            "description": "El producto no se encuentra disponible en este negocio"
+          }
+        },
+        "summary": "Visualizar descuento aplicable a un producto (HE-10-HU-05)",
+        "tags": [
+          "descuentos"
+        ]
+      }
+    },
+    "/descuentos/aplicable/servicio/{servicioId}": {
+      "get": {
+        "description": "Evalúa si el servicio tiene un descuento activo y aplicable para la fecha de cita indicada (?fecha=YYYY-MM-DD). Si no se envía fecha, responde precio base y condiciones sin precio promocional final. Un servicio inexistente o de otro negocio responde 404.",
+        "operationId": "DescuentosController_evaluarServicio",
+        "parameters": [
+          {
+            "name": "servicioId",
+            "required": true,
+            "in": "path",
+            "description": "ID del servicio a evaluar",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "fecha",
+            "required": false,
+            "in": "query",
+            "description": "Fecha de la cita (YYYY-MM-DD) para evaluar aplicabilidad",
+            "schema": {
+              "example": "2026-11-13",
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Evaluación del descuento aplicable al servicio",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescuentoAplicableResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Identificador inválido o formato de fecha no válido (YYYY-MM-DD)"
+          },
+          "404": {
+            "description": "El servicio no se encuentra disponible en este negocio"
+          }
+        },
+        "summary": "Visualizar descuento aplicable a un servicio (HE-10-HU-05)",
+        "tags": [
+          "descuentos"
+        ]
+      }
+    },
+    "/descuentos/aplicables": {
+      "post": {
+        "description": "Evalúa de forma eficiente en lote los descuentos aplicables para múltiples productos y servicios en el negocio resuelto por el contexto.",
+        "operationId": "DescuentosController_evaluarBatch",
+        "parameters": [
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluarDescuentosBatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Evaluación en lote de descuentos aplicables",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescuentosBatchResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Evaluar descuentos en lote para productos y servicios (H3)",
+        "tags": [
+          "descuentos"
+        ]
+      }
+    },
+    "/descuentos/{descuentoId}": {
+      "get": {
+        "description": "Devuelve la configuración completa registrada de un descuento del negocio del contexto (porcentaje, días aplicables, estado y elemento). Un descuento inexistente o de otro negocio responde 404.",
+        "operationId": "DescuentosController_obtenerPorId",
+        "parameters": [
+          {
+            "name": "descuentoId",
+            "required": true,
+            "in": "path",
+            "description": "ID del descuento",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configuración del descuento",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescuentoResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El identificador del descuento no es un entero positivo"
+          },
+          "401": {
+            "description": "No autenticado"
+          },
+          "403": {
+            "description": "No autorizado (solo SUPERADMIN o ADMINISTRADOR)"
+          },
+          "404": {
+            "description": "El descuento no se encuentra disponible"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Consultar la configuración de un descuento (SUPERADMIN / ADMINISTRADOR)",
+        "tags": [
+          "descuentos"
+        ]
+      },
+      "patch": {
+        "description": "Actualiza el porcentaje o los días aplicables de un descuento existente dentro del negocio activo, conservando su ID y elemento asociado. Un porcentaje inválido o días vacíos no alteran la configuración guardada.",
+        "operationId": "DescuentosController_actualizar",
+        "parameters": [
+          {
+            "name": "descuentoId",
+            "required": true,
+            "in": "path",
+            "description": "ID del descuento",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarDescuentoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Descuento actualizado correctamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescuentoActualizadoResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos: porcentaje fuera de 1-99, más de dos decimales, días vacíos/inválidos o sin campos para actualizar"
+          },
+          "401": {
+            "description": "No autenticado"
+          },
+          "403": {
+            "description": "No autorizado (solo SUPERADMIN o ADMINISTRADOR)"
+          },
+          "404": {
+            "description": "El descuento no se encuentra disponible"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Modificar un descuento existente (SUPERADMIN / ADMINISTRADOR)",
+        "tags": [
+          "descuentos"
+        ]
+      }
+    },
+    "/descuentos/{descuentoId}/estado": {
+      "patch": {
+        "description": "Activa o desactiva temporalmente la aplicación de un descuento conservando su porcentaje, días y elemento registrado. Solicitar el estado actual es idempotente y responde 200.",
+        "operationId": "DescuentosController_cambiarEstado",
+        "parameters": [
+          {
+            "name": "descuentoId",
+            "required": true,
+            "in": "path",
+            "description": "ID del descuento",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Negocio-Slug",
+            "in": "header",
+            "description": "Slug público de la barbería (alternativa al subdominio). Ejemplo: kyrios-studio. Si el subdominio no está configurado, esta cabecera es OBLIGATORIA en las rutas de negocio.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarEstadoDescuentoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado del descuento actualizado correctamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescuentoEstadoResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos o configuración no activable"
+          },
+          "401": {
+            "description": "No autenticado"
+          },
+          "403": {
+            "description": "No autorizado (solo SUPERADMIN o ADMINISTRADOR)"
+          },
+          "404": {
+            "description": "El descuento no se encuentra disponible"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Activar o desactivar un descuento (SUPERADMIN / ADMINISTRADOR)",
+        "tags": [
+          "descuentos"
         ]
       }
     },
@@ -4784,6 +5286,70 @@
         ]
       }
     },
+    "/configuracion/politicas": {
+      "get": {
+        "description": "Devuelve las políticas efectivas de la barbería activa: antelación mínima para cancelar, tolerancia para No-Show y límite máximo de citas diarias por cliente.",
+        "operationId": "ConfiguracionPoliticasController_obtenerPoliticas",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Políticas operativas de la barbería",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoliticasReservaResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Obtiene las políticas operativas de reserva de la barbería",
+        "tags": [
+          "configuracion"
+        ]
+      },
+      "put": {
+        "description": "Persiste los nuevos valores de políticas operativas en la configuración del negocio activo e invalida la caché de forma atómica.",
+        "operationId": "ConfiguracionPoliticasController_actualizarPoliticas",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarPoliticasReservaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Políticas actualizadas correctamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoliticasReservaResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Actualiza las políticas operativas de reserva de la barbería",
+        "tags": [
+          "configuracion"
+        ]
+      }
+    },
     "/plataforma/negocios/publico": {
       "get": {
         "operationId": "NegociosPlataformaController_listarBarberiasPublicas",
@@ -5697,6 +6263,173 @@
           }
         }
       },
+      "CondicionesDescuentoDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1,
+            "description": "ID del descuento registrado"
+          },
+          "activo": {
+            "type": "boolean",
+            "example": true,
+            "description": "Estado activo registrado del descuento"
+          },
+          "porcentaje": {
+            "type": "number",
+            "example": 10.25,
+            "description": "Porcentaje configurado"
+          },
+          "diasSemana": {
+            "type": "array",
+            "example": [
+              "MONDAY",
+              "FRIDAY"
+            ],
+            "description": "Días de la semana en que aplica el descuento",
+            "items": {
+              "type": "string",
+              "enum": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "activo",
+          "porcentaje",
+          "diasSemana"
+        ]
+      },
+      "DescuentoAplicableResponseDto": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "PRODUCTO",
+              "SERVICIO"
+            ],
+            "example": "PRODUCTO"
+          },
+          "elementoId": {
+            "type": "number",
+            "example": 1,
+            "description": "ID del producto o servicio"
+          },
+          "nombreElemento": {
+            "type": "string",
+            "example": "Cera para cabello"
+          },
+          "estado": {
+            "type": "string",
+            "example": "APLICADO",
+            "enum": [
+              "APLICADO",
+              "SIN_DESCUENTO",
+              "INACTIVO",
+              "REQUIERE_FECHA",
+              "NO_APLICA_DIA"
+            ],
+            "description": "Estado estructurado de la evaluación del descuento para decisiones del frontend"
+          },
+          "aplica": {
+            "type": "boolean",
+            "example": true,
+            "description": "Indica si el descuento aplica efectivamente para la fecha/día evaluado (derivado: estado === \"APLICADO\")"
+          },
+          "proximoDiaAplicable": {
+            "type": "string",
+            "enum": [
+              "MONDAY",
+              "TUESDAY",
+              "WEDNESDAY",
+              "THURSDAY",
+              "FRIDAY",
+              "SATURDAY",
+              "SUNDAY"
+            ],
+            "nullable": true,
+            "example": "FRIDAY",
+            "description": "Próximo día de la semana en que aplicará el descuento (cuando estado es NO_APLICA_DIA)"
+          },
+          "diaEvaluado": {
+            "type": "string",
+            "enum": [
+              "MONDAY",
+              "TUESDAY",
+              "WEDNESDAY",
+              "THURSDAY",
+              "FRIDAY",
+              "SATURDAY",
+              "SUNDAY"
+            ],
+            "nullable": true,
+            "example": "FRIDAY",
+            "description": "Día de la semana evaluado en la zona horaria de la barbería (null si servicio sin fecha)"
+          },
+          "zonaHoraria": {
+            "type": "string",
+            "example": "America/Bogota",
+            "description": "Zona horaria del negocio empleada para la evaluación"
+          },
+          "porcentajeAplicado": {
+            "type": "number",
+            "nullable": true,
+            "example": 10.25,
+            "description": "Porcentaje de descuento aplicado (null si no aplica o no hay fecha)"
+          },
+          "precioOriginal": {
+            "type": "number",
+            "example": 35000,
+            "description": "Precio original registrado"
+          },
+          "precioFinal": {
+            "type": "number",
+            "nullable": true,
+            "example": 31412.5,
+            "description": "Precio final tras aplicar el descuento (null si servicio sin fecha)"
+          },
+          "descuento": {
+            "nullable": true,
+            "description": "Condiciones registradas del descuento para referencia (si existe)",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CondicionesDescuentoDto"
+              }
+            ]
+          },
+          "mensaje": {
+            "type": "string",
+            "example": "Descuento aplicable para el día evaluado",
+            "description": "Mensaje descriptivo del resultado de la evaluación"
+          }
+        },
+        "required": [
+          "tipo",
+          "elementoId",
+          "nombreElemento",
+          "estado",
+          "aplica",
+          "proximoDiaAplicable",
+          "diaEvaluado",
+          "zonaHoraria",
+          "porcentajeAplicado",
+          "precioOriginal",
+          "precioFinal",
+          "descuento",
+          "mensaje"
+        ]
+      },
       "ProductoResponseDto": {
         "type": "object",
         "properties": {
@@ -5717,6 +6450,26 @@
             "type": "number",
             "example": 35000,
             "description": "Precio del producto"
+          },
+          "precioOriginal": {
+            "type": "number",
+            "example": 35000,
+            "description": "Precio original del producto"
+          },
+          "precioFinal": {
+            "type": "number",
+            "example": 35000,
+            "description": "Precio final del producto tras aplicar descuento vigente"
+          },
+          "descuentoAplicable": {
+            "nullable": true,
+            "description": "Información del descuento aplicable al producto si existe",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DescuentoAplicableResponseDto"
+              }
+            ]
           },
           "imagenUrl": {
             "type": "object",
@@ -5742,6 +6495,8 @@
           "id",
           "nombre",
           "precio",
+          "precioOriginal",
+          "precioFinal",
           "estado",
           "creadoEn",
           "actualizadoEn"
@@ -5788,6 +6543,26 @@
             "example": 35000,
             "description": "Precio del producto"
           },
+          "precioOriginal": {
+            "type": "number",
+            "example": 35000,
+            "description": "Precio original del producto"
+          },
+          "precioFinal": {
+            "type": "number",
+            "example": 35000,
+            "description": "Precio final del producto tras aplicar descuento vigente"
+          },
+          "descuentoAplicable": {
+            "nullable": true,
+            "description": "Información del descuento aplicable al producto si existe",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DescuentoAplicableResponseDto"
+              }
+            ]
+          },
           "imagenUrl": {
             "type": "object",
             "example": "/uploads/negocios/1/productos/producto-1234-abcd.jpg",
@@ -5798,7 +6573,9 @@
         "required": [
           "id",
           "nombre",
-          "precio"
+          "precio",
+          "precioOriginal",
+          "precioFinal"
         ]
       },
       "ProductosCatalogoResponseDto": {
@@ -5883,6 +6660,315 @@
         "required": [
           "mensaje",
           "producto"
+        ]
+      },
+      "DescuentoElementoResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1,
+            "description": "ID del producto o servicio"
+          },
+          "nombre": {
+            "type": "string",
+            "example": "Corte clásico"
+          }
+        },
+        "required": [
+          "id",
+          "nombre"
+        ]
+      },
+      "DescuentoResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "PRODUCTO",
+              "SERVICIO"
+            ],
+            "example": "PRODUCTO"
+          },
+          "elemento": {
+            "$ref": "#/components/schemas/DescuentoElementoResponseDto"
+          },
+          "porcentaje": {
+            "type": "number",
+            "example": 10.25,
+            "description": "Porcentaje de descuento"
+          },
+          "diasSemana": {
+            "type": "array",
+            "example": [
+              "MONDAY",
+              "FRIDAY"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ]
+            }
+          },
+          "activo": {
+            "type": "boolean",
+            "example": false,
+            "description": "Un descuento recién creado siempre nace inactivo"
+          },
+          "creadoEn": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actualizadoEn": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tipo",
+          "elemento",
+          "porcentaje",
+          "diasSemana",
+          "activo",
+          "creadoEn",
+          "actualizadoEn"
+        ]
+      },
+      "ListaDescuentosResponseDto": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "example": "Descuentos consultados correctamente"
+          },
+          "descuentos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DescuentoResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 2,
+            "description": "Cantidad total de descuentos"
+          }
+        },
+        "required": [
+          "mensaje",
+          "descuentos",
+          "total"
+        ]
+      },
+      "EvaluarDescuentosBatchDto": {
+        "type": "object",
+        "properties": {
+          "productoIds": {
+            "example": [
+              1,
+              2
+            ],
+            "description": "Arreglo de identificadores de productos a evaluar",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "servicioIds": {
+            "example": [
+              3,
+              4
+            ],
+            "description": "Arreglo de identificadores de servicios a evaluar",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "fecha": {
+            "type": "string",
+            "example": "2026-11-20",
+            "description": "Fecha de la cita (YYYY-MM-DD) para evaluar servicios"
+          }
+        }
+      },
+      "DescuentosBatchResponseDto": {
+        "type": "object",
+        "properties": {
+          "productos": {
+            "description": "Evaluaciones de descuento para los productos solicitados",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DescuentoAplicableResponseDto"
+            }
+          },
+          "servicios": {
+            "description": "Evaluaciones de descuento para los servicios solicitados",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DescuentoAplicableResponseDto"
+            }
+          }
+        },
+        "required": [
+          "productos",
+          "servicios"
+        ]
+      },
+      "ActualizarDescuentoDto": {
+        "type": "object",
+        "properties": {
+          "porcentaje": {
+            "type": "number",
+            "example": 15.5,
+            "description": "Porcentaje entre 1 y 99 con un máximo de dos decimales. Se rechazan valores con tres o más decimales sin redondear."
+          },
+          "diasSemana": {
+            "type": "array",
+            "example": [
+              "MONDAY",
+              "TUESDAY"
+            ],
+            "description": "Uno o más días de la semana en los que aplica el descuento",
+            "items": {
+              "type": "string",
+              "enum": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ]
+            }
+          }
+        }
+      },
+      "DescuentoActualizadoResponseDto": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "example": "Descuento actualizado correctamente"
+          },
+          "descuento": {
+            "$ref": "#/components/schemas/DescuentoResponseDto"
+          }
+        },
+        "required": [
+          "mensaje",
+          "descuento"
+        ]
+      },
+      "CambiarEstadoDescuentoDto": {
+        "type": "object",
+        "properties": {
+          "activo": {
+            "type": "boolean",
+            "description": "Estado objetivo del descuento: true (activo) o false (inactivo)",
+            "example": true
+          }
+        },
+        "required": [
+          "activo"
+        ]
+      },
+      "DescuentoEstadoResponseDto": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "example": "Descuento activado correctamente"
+          },
+          "descuento": {
+            "$ref": "#/components/schemas/DescuentoResponseDto"
+          }
+        },
+        "required": [
+          "mensaje",
+          "descuento"
+        ]
+      },
+      "CrearDescuentoDto": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "PRODUCTO",
+              "SERVICIO"
+            ],
+            "example": "PRODUCTO",
+            "description": "Tipo de elemento al que se aplica el descuento"
+          },
+          "elementoId": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1,
+            "description": "ID del producto o servicio del negocio activo"
+          },
+          "porcentaje": {
+            "type": "number",
+            "example": 10.25,
+            "minimum": 1,
+            "maximum": 99,
+            "description": "Porcentaje entre 1 y 99, con máximo dos decimales"
+          },
+          "diasSemana": {
+            "type": "array",
+            "example": [
+              "MONDAY",
+              "FRIDAY"
+            ],
+            "description": "Uno o más días de la semana en los que aplica el descuento",
+            "items": {
+              "type": "string",
+              "enum": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ]
+            }
+          }
+        },
+        "required": [
+          "tipo",
+          "elementoId",
+          "porcentaje",
+          "diasSemana"
+        ]
+      },
+      "DescuentoCreadoResponseDto": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "example": "Descuento creado correctamente"
+          },
+          "descuento": {
+            "$ref": "#/components/schemas/DescuentoResponseDto"
+          }
+        },
+        "required": [
+          "mensaje",
+          "descuento"
         ]
       },
       "FranjaHorarioSemanalDto": {
@@ -7614,6 +8700,59 @@
             "example": 1
           }
         }
+      },
+      "PoliticasReservaResponseDto": {
+        "type": "object",
+        "properties": {
+          "reservaCancelacionAntelacionMinutos": {
+            "type": "number",
+            "example": 120
+          },
+          "reservaNoShowToleranciaMinutos": {
+            "type": "number",
+            "example": 15
+          },
+          "reservaMaxCitasDiariasCliente": {
+            "type": "number",
+            "example": 3
+          }
+        },
+        "required": [
+          "reservaCancelacionAntelacionMinutos",
+          "reservaNoShowToleranciaMinutos",
+          "reservaMaxCitasDiariasCliente"
+        ]
+      },
+      "ActualizarPoliticasReservaDto": {
+        "type": "object",
+        "properties": {
+          "reservaCancelacionAntelacionMinutos": {
+            "type": "number",
+            "example": 120,
+            "description": "Minutos mínimos de antelación para que un cliente cancele su reserva en línea.",
+            "minimum": 1,
+            "maximum": 10080
+          },
+          "reservaNoShowToleranciaMinutos": {
+            "type": "number",
+            "example": 15,
+            "description": "Minutos de tolerancia tras la hora de inicio antes de marcar No-Show.",
+            "minimum": 1,
+            "maximum": 10080
+          },
+          "reservaMaxCitasDiariasCliente": {
+            "type": "number",
+            "example": 3,
+            "description": "Número máximo de citas activas que un mismo cliente puede reservar para el mismo día.",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "reservaCancelacionAntelacionMinutos",
+          "reservaNoShowToleranciaMinutos",
+          "reservaMaxCitasDiariasCliente"
+        ]
       },
       "NegocioPublicoDto": {
         "type": "object",

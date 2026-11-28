@@ -54,6 +54,7 @@ El backend se organiza en módulos de dominio de alta cohesión y bajo acoplamie
 | **`modules/usuarios/`** | Administración de miembros del equipo de trabajo (`Administrador` y `Barbero`). Permite activar o suspender miembros localmente sin afectar cuentas globales. | `GET /usuarios/equipo`<br>`POST /usuarios/invitar`<br>`PATCH /usuarios/:id/estado` |
 | **`modules/servicios/`** | Catálogo de servicios de corte y estética, asignación de precios, duración en minutos y vinculación con barberos habilitados. | `GET /servicios`<br>`POST /servicios`<br>`PUT /servicios/:id`<br>`DELETE /servicios/:id` |
 | **`modules/productos/`** | Catálogo comercial de artículos y productos (ceras, aceites, champús), precios, carga de imágenes y control de estado (activo/inactivo). | `GET /productos`<br>`GET /productos/catalogo`<br>`POST /productos`<br>`PATCH /productos/:id`<br>`PATCH /productos/:id/estado` |
+| **`modules/descuentos/`** | Gestión de promociones y descuentos aplicables a servicios de la sede (porcentaje o monto fijo, días de la semana y estado activo/inactivo). | `GET /descuentos`<br>`POST /descuentos`<br>`PATCH /descuentos/:id`<br>`DELETE /descuentos/:id` |
 | **`modules/horarios/`** | Definición de horarios semanales de atención por barbero, configuración de días de descanso y bloqueos de agenda por fechas especiales. | `GET /horarios/disponibilidad`<br>`PUT /horarios/semanal`<br>`POST /horarios/bloqueos` |
 | **`modules/reservas/`** | Motor transaccional de citas. Creación con bloqueo atómico (`crearConBloqueo`), cálculo de horas libres de 60 minutos, cambios de estado y cancelaciones seguras. | `GET /reservas`<br>`POST /reservas`<br>`PATCH /reservas/:id/estado`<br>`POST /reservas/:id/cancelar` |
 | **`modules/whatsapp/`** | Administración del pool de sockets Baileys por negocio, generación de código QR para vinculación, reconexión automática y despacho de plantillas. | `GET /whatsapp/qr`<br>`GET /whatsapp/status`<br>`POST /whatsapp/desconectar` |
@@ -79,3 +80,8 @@ El backend se organiza en módulos de dominio de alta cohesión y bajo acoplamie
   * `sesiones`: Mapa en memoria `Map<number, SesionWhatsAppNegocio>` que almacena el socket de Baileys, el estado de autenticación y el código QR actual.
   * `colasPendientes`: Mapa en memoria `Map<number, MensajeColaWhatsApp[]>` que retiene los mensajes si la sesión experimenta desconexión transitoria.
   * `directorioSesiones`: Almacén persistente en disco particionado por sede (`~/.barberia_whatsapp_sessions/negocio_<id>`).
+
+### Componente `DescuentosService` (Promociones Multitenant)
+* **Propósito:** Administrar reglas comerciales de descuento por día y porcentaje/monto sobre servicios de la sede.
+* **Aislamiento:** Resuelve el ámbito mediante `negocioId` del contexto; valida que el usuario sea `SUPERADMIN` o `ADMINISTRADOR` de la barbería.
+* **Persistencia:** Modelo `Descuento` con clave única compuesta `@@unique([negocioId, nombre])`.

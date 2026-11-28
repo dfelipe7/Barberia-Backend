@@ -618,11 +618,46 @@ Gestiona el directorio federado de barberías, la creación de nuevos tenants (*
 
 ---
 
-## 12. Configuración
+## 12. Configuración de Políticas Operativas (`/configuracion/politicas`)
 
-El módulo `src/modules/configuracion` **no expone ningún endpoint HTTP**: la
-configuración (del sistema y del negocio) se gestiona internamente y por base de datos.
-Ver `docs/api/MATRIZ_AUDITORIA_ENDPOINTS.md` (gap G-04).
+El módulo `src/modules/configuracion` expone los endpoints de gobernanza operativa de la sede (`ConfiguracionPoliticasController`). Permite consultar y actualizar los parámetros que rigen la antelación de cancelaciones, el margen de No-Show y el límite preventivo de turnos diarios por cliente.
+
+* **Guards:** `JwtAuthGuard`, `RolesGuard`
+* **Roles Autorizados:** `SUPERADMIN`, `ADMINISTRADOR`
+* **Cabecera requerida:** `Authorization: Bearer <token_jwt_negocio>`
+
+---
+
+### 12.1 Obtener Políticas Operativas de Reserva
+* **Método y Ruta:** `GET /configuracion/politicas`
+* **Descripción:** Obtiene los valores efectivos de las políticas de reserva para el negocio autenticado. Si no se han personalizado, devuelve los valores predeterminados seguros del sistema.
+* **Respuesta exitosa (`200 OK`):**
+```json
+{
+  "reservaCancelacionAntelacionMinutos": 60,
+  "reservaNoShowToleranciaMinutos": 15,
+  "reservaMaxCitasDiariasCliente": 2
+}
+```
+
+---
+
+### 12.2 Actualizar Políticas Operativas de Reserva
+* **Método y Ruta:** `PUT /configuracion/politicas`
+* **Descripción:** Actualiza de forma atómica los parámetros de políticas para el negocio autenticado en la tabla `configuraciones_negocio`.
+* **Cuerpo de la petición (`Body` JSON):**
+```json
+{
+  "reservaCancelacionAntelacionMinutos": 120,
+  "reservaNoShowToleranciaMinutos": 20,
+  "reservaMaxCitasDiariasCliente": 3
+}
+```
+* **Validaciones de entrada:**
+  * `reservaCancelacionAntelacionMinutos`: Entero opcional entre `0` y `10080` (hasta 7 días).
+  * `reservaNoShowToleranciaMinutos`: Entero opcional entre `0` y `240` (hasta 4 horas).
+  * `reservaMaxCitasDiariasCliente`: Entero opcional entre `1` y `10`.
+* **Respuesta exitosa (`200 OK`):** Retorna el objeto actualizado con los nuevos valores vigentes.
 
 ---
 
